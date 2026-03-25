@@ -10,9 +10,9 @@
     }
   },
   "scripts": {
-    "generate": "node --env-file=../.env ./node_modules/drizzle-kit/bin.cjs generate",
-    "migrate": "node --env-file=../.env ./node_modules/drizzle-kit/bin.cjs migrate",
-    "studio": "node --env-file=../.env ./node_modules/drizzle-kit/bin.cjs studio"
+    "generate": "drizzle-kit generate",
+    "migrate": "drizzle-kit migrate",
+    "studio": "drizzle-kit studio"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.4",
@@ -20,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "dotenv": "^16.4.7",
     "drizzle-kit": "^0.30.2",
     "typescript": "^5.7.3"
   }

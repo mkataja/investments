@@ -13,6 +13,7 @@
     "@hono/zod-validator": "^0.4.3",
     "@investments/db": "workspace:*",
     "cheerio": "^1.0.0",
+    "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.4",
     "hono": "^4.6.14",
     "pg": "^8.13.1",
