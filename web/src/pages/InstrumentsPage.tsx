@@ -57,13 +57,13 @@ function DistributionSummary({
   const tooltip = formatDistributionTooltip(payload.regions, payload.sectors);
   return (
     <div className="space-y-1" title={tooltip}>
-      <div className="overflow-x-auto text-xs text-slate-800">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5">
+      <div className="text-xs text-slate-800">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 min-w-0">
           {geoSegs.length > 0 ? (
             geoSegs.map((s) => (
               <span
                 key={s.bucket}
-                className="inline-flex items-center gap-0.5 whitespace-nowrap"
+                className="inline-flex items-center gap-0.5 whitespace-nowrap shrink-0"
               >
                 {s.bucket === "EU" || s.bucket === "NA" ? (
                   <span
@@ -88,14 +88,14 @@ function DistributionSummary({
           )}
         </div>
       </div>
-      <div className="overflow-x-auto text-slate-800">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5">
+      <div className="text-slate-800">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 min-w-0">
           {sectorRows.length > 0 ? (
             sectorRows.map((s) => (
               <span
                 key={s.name}
                 title={s.name}
-                className="inline-flex items-center gap-0.5"
+                className="inline-flex items-center gap-0.5 shrink-0"
               >
                 <span className="text-2xl leading-none select-none" aria-hidden>
                   {s.icon}
