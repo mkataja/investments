@@ -1,0 +1,1 @@
+ALTER TABLE "instruments" ADD COLUMN "mark_price_eur" numeric(24, 8);

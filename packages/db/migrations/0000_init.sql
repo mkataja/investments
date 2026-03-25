@@ -1,0 +1,54 @@
+CREATE TABLE "brokers" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"code" text NOT NULL,
+	"name" text NOT NULL,
+	CONSTRAINT "brokers_code_unique" UNIQUE("code")
+);
+--> statement-breakpoint
+CREATE TABLE "distribution_cache" (
+	"instrument_id" integer PRIMARY KEY NOT NULL,
+	"fetched_at" timestamp with time zone NOT NULL,
+	"source" text NOT NULL,
+	"payload" jsonb NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "instruments" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"kind" text NOT NULL,
+	"display_name" text NOT NULL,
+	"yahoo_symbol" text,
+	"isin" text,
+	"seligson_fund_id" integer,
+	"cash_geo_key" text,
+	"cash_interest_type" text,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "seligson_funds" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"fid" integer NOT NULL,
+	"name" text NOT NULL,
+	"notes" text,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "transactions" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"broker_id" integer NOT NULL,
+	"trade_date" date NOT NULL,
+	"side" text NOT NULL,
+	"instrument_id" integer NOT NULL,
+	"quantity" numeric(24, 8) NOT NULL,
+	"unit_price" numeric(24, 8) NOT NULL,
+	"currency" text NOT NULL,
+	"unit_price_eur" numeric(24, 8),
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+ALTER TABLE "distribution_cache" ADD CONSTRAINT "distribution_cache_instrument_id_instruments_id_fk" FOREIGN KEY ("instrument_id") REFERENCES "public"."instruments"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "instruments" ADD CONSTRAINT "instruments_seligson_fund_id_seligson_funds_id_fk" FOREIGN KEY ("seligson_fund_id") REFERENCES "public"."seligson_funds"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "transactions" ADD CONSTRAINT "transactions_broker_id_brokers_id_fk" FOREIGN KEY ("broker_id") REFERENCES "public"."brokers"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "transactions" ADD CONSTRAINT "transactions_instrument_id_instruments_id_fk" FOREIGN KEY ("instrument_id") REFERENCES "public"."instruments"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "seligson_funds_fid_uidx" ON "seligson_funds" USING btree ("fid");
