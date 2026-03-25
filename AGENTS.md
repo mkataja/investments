@@ -52,14 +52,16 @@ The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`
 
 ## Caching and refresh
 
+- **On create:** **`POST /instruments`** for ETF/stock (Yahoo) and Seligson fund **writes `distribution_cache` immediately** (same fetch path as refresh). Create fails with **502** if the cache write fails (instrument row is not left behind).
 - Automatic distribution refresh is **roughly daily**, not on every request.
 - **API startup** may **async** refresh stale caches for instruments with **open positions** (must not block server listen).
-- **`source = manual`** cache rows must **not** be overwritten by automatic refresh.
+- **`source = manual`** cache rows must **not** be overwritten by automatic refresh or **`POST /instruments/:id/refresh-distribution`** (that route returns **`{ skipped: true, reason: "manual" }`** with 200).
 
 ## API and web (where to look)
 
 - **HTTP routes, CORS, dev-only routes, validation:** **`api`** entrypoint / modules — single source of truth; **do not maintain a duplicate route list in this file.**
 - **`GET /instruments`** returns each instrument row plus **`netQuantity`** (sum of buys minus sells), optional joined **`distribution`** (`fetchedAt`, `source`, `payload` with regions/sectors), and optional **`seligsonFund`** (`id`, `fid`, `name`) for Seligson-linked rows.
+- **`POST /instruments/:id/refresh-distribution`** refetches and upserts distribution cache for that instrument (502 on upstream error; 404 if missing; 200 **`{ ok: true }`** or **`{ skipped: true, reason }`** for cash or manual cache).
 - **`DELETE /instruments/:id`** removes the instrument after deleting its **`transactions`** and **`distribution_cache`** rows in one DB transaction (204). **`seligson_funds`** rows are not deleted.
 - **Portfolio weighting and EUR valuation assumptions:** **`api`** `lib` (and related)—read before changing FX or valuation.
 - **Web routes:** **`web`** source — same rule: discover from code.

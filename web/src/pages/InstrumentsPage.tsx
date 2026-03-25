@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { apiDelete, apiGet } from "../api";
+import { apiDelete, apiGet, apiPost } from "../api";
 
 type DistributionPayload = {
   regions: Record<string, number>;
@@ -57,6 +57,7 @@ export function InstrumentsPage() {
   const [rows, setRows] = useState<InstrumentListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [refreshingId, setRefreshingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -71,6 +72,35 @@ export function InstrumentsPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function refreshDistribution(i: InstrumentListItem) {
+    if (i.kind === "cash_account") {
+      return;
+    }
+    setError(null);
+    setRefreshingId(i.id);
+    try {
+      type RefreshResponse = { ok: true } | { skipped: true; reason: string };
+      const res = await apiPost<RefreshResponse>(
+        `/instruments/${i.id}/refresh-distribution`,
+      );
+      if ("skipped" in res) {
+        if (res.reason === "manual") {
+          setError(
+            "This instrument uses a manual distribution cache; automatic refresh is skipped.",
+          );
+        } else {
+          setError(`Refresh skipped (${res.reason}).`);
+        }
+        return;
+      }
+      await load();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setRefreshingId(null);
+    }
+  }
 
   async function removeInstrument(i: InstrumentListItem) {
     if (
@@ -126,7 +156,7 @@ export function InstrumentsPage() {
               <th className="text-left p-2 font-medium">Identifiers</th>
               <th className="text-right p-2 font-medium">Net qty</th>
               <th className="text-left p-2 font-medium">Distribution</th>
-              <th className="text-right p-2 font-medium w-28">Actions</th>
+              <th className="text-right p-2 font-medium w-40">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -204,14 +234,26 @@ export function InstrumentsPage() {
                   )}
                 </td>
                 <td className="p-2 text-right">
-                  <button
-                    type="button"
-                    disabled={deletingId === i.id}
-                    onClick={() => void removeInstrument(i)}
-                    className="text-sm text-red-700 hover:underline disabled:opacity-50"
-                  >
-                    {deletingId === i.id ? "Removing…" : "Remove"}
-                  </button>
+                  <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end sm:gap-3">
+                    {i.kind !== "cash_account" && (
+                      <button
+                        type="button"
+                        disabled={refreshingId === i.id || deletingId === i.id}
+                        onClick={() => void refreshDistribution(i)}
+                        className="text-sm text-emerald-800 hover:underline disabled:opacity-50"
+                      >
+                        {refreshingId === i.id ? "Refreshing…" : "Refresh"}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={deletingId === i.id || refreshingId === i.id}
+                      onClick={() => void removeInstrument(i)}
+                      className="text-sm text-red-700 hover:underline disabled:opacity-50"
+                    >
+                      {deletingId === i.id ? "Removing…" : "Remove"}
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

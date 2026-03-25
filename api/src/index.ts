@@ -24,7 +24,12 @@ import {
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
 } from "./distributions/yahoo.js";
-import { refreshStaleDistributionCaches } from "./lib/cacheRefresh.js";
+import {
+  refreshDistributionCacheForInstrumentId,
+  refreshStaleDistributionCaches,
+  writeSeligsonDistributionCache,
+  writeYahooDistributionCache,
+} from "./lib/cacheRefresh.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
 import { loadOpenPositions } from "./lib/positions.js";
 import { seedBrokers } from "./seed.js";
@@ -223,6 +228,16 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
         isin: lookup.isin ?? undefined,
       })
       .returning();
+    if (!row) {
+      return c.json({ message: "Failed to insert instrument" }, 500);
+    }
+    try {
+      await writeYahooDistributionCache(row.id, raw, body.yahooSymbol);
+    } catch (e) {
+      await db.delete(instruments).where(eq(instruments.id, row.id));
+      const message = e instanceof Error ? e.message : String(e);
+      return c.json({ message }, 502);
+    }
     return c.json(row, 201);
   }
 
@@ -242,6 +257,16 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
         seligsonFundId: fund.id,
       })
       .returning();
+    if (!row) {
+      return c.json({ message: "Failed to insert instrument" }, 500);
+    }
+    try {
+      await writeSeligsonDistributionCache(row.id, fund.fid);
+    } catch (e) {
+      await db.delete(instruments).where(eq(instruments.id, row.id));
+      const message = e instanceof Error ? e.message : String(e);
+      return c.json({ message }, 502);
+    }
     return c.json(row, 201);
   }
 
@@ -259,6 +284,24 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
   }
 
   return c.json({ message: "Unsupported instrument kind" }, 400);
+});
+
+app.post("/instruments/:id/refresh-distribution", async (c) => {
+  const id = Number.parseInt(c.req.param("id"), 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid id" }, 400);
+  }
+  const result = await refreshDistributionCacheForInstrumentId(id);
+  if ("skipped" in result) {
+    if (result.reason === "not_found") {
+      return c.json({ message: "Not found" }, 404);
+    }
+    return c.json({ skipped: true, reason: result.reason }, 200);
+  }
+  if ("error" in result) {
+    return c.json({ message: result.error }, 502);
+  }
+  return c.json({ ok: true }, 200);
 });
 
 app.delete("/instruments/:id", async (c) => {
