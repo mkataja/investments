@@ -5,7 +5,7 @@ services:
       - "50500:5432"
     environment:
       POSTGRES_USER: investments
-      POSTGRES_PASSWORD: investments
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
       POSTGRES_DB: investments
     volumes:
       - ./.data/postgres:/var/lib/postgresql
