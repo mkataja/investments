@@ -6,14 +6,13 @@ import {
   jsonb,
   numeric,
   pgTable,
-  serial,
   text,
   timestamp,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 export const brokers = pgTable("brokers", {
-  id: serial("id").primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   code: text("code").notNull().unique(),
   name: text("name").notNull(),
 });
@@ -21,7 +20,7 @@ export const brokers = pgTable("brokers", {
 export const seligsonFunds = pgTable(
   "seligson_funds",
   {
-    id: serial("id").primaryKey(),
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
     fid: integer("fid").notNull(),
     name: text("name").notNull(),
     notes: text("notes"),
@@ -37,7 +36,7 @@ export const seligsonFunds = pgTable(
 );
 
 export const instruments = pgTable("instruments", {
-  id: serial("id").primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   kind: text("kind").notNull(),
   displayName: text("display_name").notNull(),
   yahooSymbol: text("yahoo_symbol"),
@@ -55,7 +54,7 @@ export const instruments = pgTable("instruments", {
 });
 
 export const transactions = pgTable("transactions", {
-  id: serial("id").primaryKey(),
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   brokerId: integer("broker_id")
     .notNull()
     .references(() => brokers.id),
