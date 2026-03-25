@@ -119,6 +119,9 @@ importers:
         specifier: ^8.13.1
         version: 8.20.0
     devDependencies:
+      '@types/node':
+        specifier: ^25.5.0
+        version: 25.5.0
       drizzle-kit:
         specifier: ^0.30.2
         version: 0.30.6
