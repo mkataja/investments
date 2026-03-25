@@ -105,7 +105,7 @@ export function NewInstrumentPage() {
         setError("Choose an instrument type.");
         return;
       }
-      navigate("/");
+      navigate("/instruments");
     } catch (err) {
       setError(String(err));
     }
