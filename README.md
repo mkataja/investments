@@ -16,7 +16,7 @@ pnpm install
 pnpm db:migrate
 ```
 
-Postgres is exposed on **host port 5433** (to avoid clashing with other local Postgres instances). Data lives in `.data/postgres` (gitignored).
+Postgres is exposed on **host port 50500** (to avoid clashing with other local Postgres instances). Data lives in `.data/postgres` (gitignored).
 
 ## Development
 

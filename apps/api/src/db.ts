@@ -5,7 +5,7 @@ import pg from "pg";
 const pool = new pg.Pool({
   connectionString:
     process.env.DATABASE_URL ??
-    "postgresql://investments:investments@localhost:5433/investments",
+    "postgresql://investments:investments@localhost:50500/investments",
 });
 
 export const db = drizzle(pool, { schema });
