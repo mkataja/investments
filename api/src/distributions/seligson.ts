@@ -34,6 +34,32 @@ export async function fetchSeligsonHtml(fid: number): Promise<string> {
   return res.text();
 }
 
+/** Parses fund display name from FundViewer intro HTML (Finnish "Salkun jakaumat" view). */
+export function parseSeligsonFundName(html: string): string | null {
+  const $ = cheerio.load(html);
+  const h1 = $("#content h1").first();
+  if (h1.length === 0) {
+    return null;
+  }
+  const text = h1
+    .text()
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const suffix = /\s*-\s*Salkun jakaumat\s*$/i;
+  const withoutSuffix = text.replace(suffix, "").trim();
+  return withoutSuffix || null;
+}
+
+export async function fetchSeligsonFundName(fid: number): Promise<string> {
+  const html = await fetchSeligsonHtml(fid);
+  const name = parseSeligsonFundName(html);
+  if (!name) {
+    throw new Error(`Could not parse fund name from Seligson page for fid=${fid}`);
+  }
+  return name;
+}
+
 export function parseSeligsonDistributions(html: string): {
   payload: DistributionPayload;
   notes: string[];

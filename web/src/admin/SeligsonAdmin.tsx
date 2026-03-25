@@ -39,7 +39,11 @@ export function SeligsonEdit() {
     <Edit>
       <SimpleForm>
         <NumberInput source="fid" />
-        <TextInput source="name" fullWidth />
+        <TextInput
+          source="name"
+          fullWidth
+          helperText="Optional — leave empty to load the name from Seligson’s FundViewer page."
+        />
         <TextInput source="notes" fullWidth multiline />
         <BooleanInput source="isActive" />
       </SimpleForm>
@@ -52,7 +56,11 @@ export function SeligsonCreate() {
     <Create>
       <SimpleForm>
         <NumberInput source="fid" />
-        <TextInput source="name" fullWidth />
+        <TextInput
+          source="name"
+          fullWidth
+          helperText="Optional — leave empty to load the name from Seligson’s FundViewer page."
+        />
         <TextInput source="notes" fullWidth multiline />
         <BooleanInput source="isActive" defaultValue />
       </SimpleForm>

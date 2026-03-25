@@ -13,6 +13,7 @@ import { cors } from "hono/cors";
 import { z } from "zod";
 import { db } from "./db.js";
 import {
+  fetchSeligsonFundName,
   fetchSeligsonHtml,
   parseSeligsonDistributions,
 } from "./distributions/seligson.js";
@@ -184,20 +185,30 @@ app.get("/seligson-funds/:id", async (c) => {
   return c.json(row);
 });
 
-const seligsonIn = z.object({
+const seligsonWriteIn = z.object({
   fid: z.number().int().positive(),
-  name: z.string().min(1),
+  name: z.string().optional(),
   notes: z.string().optional().nullable(),
   isActive: z.boolean().optional(),
 });
 
-app.post("/seligson-funds", zValidator("json", seligsonIn), async (c) => {
+app.post("/seligson-funds", zValidator("json", seligsonWriteIn), async (c) => {
   const body = c.req.valid("json");
+  const trimmedName = body.name?.trim();
+  let name: string;
+  try {
+    name = trimmedName
+      ? trimmedName
+      : await fetchSeligsonFundName(body.fid);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return c.json({ message }, 502);
+  }
   const [row] = await db
     .insert(seligsonFunds)
     .values({
       fid: body.fid,
-      name: body.name,
+      name,
       notes: body.notes ?? undefined,
       isActive: body.isActive ?? true,
     })
@@ -207,14 +218,49 @@ app.post("/seligson-funds", zValidator("json", seligsonIn), async (c) => {
 
 app.put(
   "/seligson-funds/:id",
-  zValidator("json", seligsonIn.partial()),
+  zValidator("json", seligsonWriteIn.partial()),
   async (c) => {
     const id = Number.parseInt(c.req.param("id"), 10);
     const body = c.req.valid("json");
+    const [existing] = await db
+      .select()
+      .from(seligsonFunds)
+      .where(eq(seligsonFunds.id, id));
+    if (!existing) {
+      return c.json({ message: "Not found" }, 404);
+    }
+    const nextFid = body.fid ?? existing.fid;
+    const fidChanged =
+      body.fid !== undefined && body.fid !== existing.fid;
+    const trimmed =
+      body.name !== undefined ? body.name.trim() : undefined;
+    let name: string;
+    if (fidChanged) {
+      try {
+        name = await fetchSeligsonFundName(nextFid);
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return c.json({ message }, 502);
+      }
+    } else if (trimmed) {
+      name = trimmed;
+    } else if (body.name !== undefined && body.name.trim() === "") {
+      try {
+        name = await fetchSeligsonFundName(nextFid);
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return c.json({ message }, 502);
+      }
+    } else {
+      name = existing.name;
+    }
     const [row] = await db
       .update(seligsonFunds)
       .set({
-        ...body,
+        ...(body.fid !== undefined ? { fid: body.fid } : {}),
+        name,
+        ...(body.notes !== undefined ? { notes: body.notes } : {}),
+        ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
         updatedAt: new Date(),
       })
       .where(eq(seligsonFunds.id, id))
