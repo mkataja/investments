@@ -71,6 +71,10 @@ The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`
 - **pnpm**; workspace packages **`@investments/db`**, **`@investments/api`**, **`@investments/web`**.
 - **Biome** — [`biome.json`](biome.json).
 
+### Web UI polish
+
+When changing **`web`** forms and flows, include small UX improvements when they are an obvious fit—**e.g. focus the primary input** after the user picks a type or advances a step, sensible defaults, keyboard affordances. Keep scope tight: polish that ships with the feature, not unrelated refactors.
+
 ### Before commit or sign-off
 
 - **Lint:** always run **`pnpm lint`** (root **`biome check`**) and fix reported issues before **committing** or **treating work as complete**.

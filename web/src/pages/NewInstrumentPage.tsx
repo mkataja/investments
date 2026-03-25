@@ -3,7 +3,7 @@ import {
   DEFAULT_CASH_CURRENCY,
   SUPPORTED_CASH_CURRENCY_CODES,
 } from "@investments/db";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiGet, apiPost } from "../api";
 
@@ -33,6 +33,20 @@ export function NewInstrumentPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<Kind | null>(null);
+
+  const yahooSymbolInputRef = useRef<HTMLInputElement>(null);
+  const seligsonFidInputRef = useRef<HTMLInputElement>(null);
+  const cashDisplayNameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (kind === "etf" || kind === "stock") {
+      yahooSymbolInputRef.current?.focus();
+    } else if (kind === "seligson_fund") {
+      seligsonFidInputRef.current?.focus();
+    } else if (kind === "cash_account") {
+      cashDisplayNameInputRef.current?.focus();
+    }
+  }, [kind]);
 
   const [yahooSymbol, setYahooSymbol] = useState("");
   const [yahooPreview, setYahooPreview] = useState<YahooLookupResponse | null>(
@@ -163,6 +177,7 @@ export function NewInstrumentPage() {
             <label className="block text-sm">
               Yahoo symbol
               <input
+                ref={yahooSymbolInputRef}
                 className="mt-1 block w-full border rounded px-2 py-1 font-mono"
                 value={yahooSymbol}
                 onChange={(e) => setYahooSymbol(e.target.value)}
@@ -207,6 +222,7 @@ export function NewInstrumentPage() {
             <label className="block text-sm">
               Seligson FID
               <input
+                ref={seligsonFidInputRef}
                 type="number"
                 min={1}
                 className="mt-1 block w-full border rounded px-2 py-1"
@@ -227,6 +243,7 @@ export function NewInstrumentPage() {
             <label className="block text-sm">
               Display name
               <input
+                ref={cashDisplayNameInputRef}
                 className="mt-1 block w-full border rounded px-2 py-1"
                 required
                 value={cashDisplayName}
