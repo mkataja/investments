@@ -8,7 +8,7 @@ import {
   seligsonFunds,
   transactions,
 } from "@investments/db";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
@@ -137,8 +137,50 @@ async function findOrCreateSeligsonFundByFid(fid: number) {
 }
 
 app.get("/instruments", async (c) => {
-  const rows = await db.select().from(instruments).orderBy(asc(instruments.id));
-  return c.json(rows);
+  const joined = await db
+    .select({
+      instrument: instruments,
+      cache: distributionCache,
+      seligsonFund: seligsonFunds,
+    })
+    .from(instruments)
+    .leftJoin(
+      distributionCache,
+      eq(instruments.id, distributionCache.instrumentId),
+    )
+    .leftJoin(seligsonFunds, eq(instruments.seligsonFundId, seligsonFunds.id))
+    .orderBy(asc(instruments.id));
+
+  const qtyRows = await db
+    .select({
+      instrumentId: transactions.instrumentId,
+      qty: sql<string>`SUM(CASE WHEN ${transactions.side} = 'buy' THEN ${transactions.quantity}::numeric ELSE -${transactions.quantity}::numeric END)`,
+    })
+    .from(transactions)
+    .groupBy(transactions.instrumentId);
+
+  const netQtyByInstrument = new Map<number, number>();
+  for (const r of qtyRows) {
+    const q = Number.parseFloat(r.qty);
+    if (Number.isFinite(q)) {
+      netQtyByInstrument.set(r.instrumentId, q);
+    }
+  }
+
+  const payload = joined.map(({ instrument, cache, seligsonFund: fund }) => ({
+    ...instrument,
+    netQuantity: netQtyByInstrument.get(instrument.id) ?? 0,
+    distribution: cache
+      ? {
+          fetchedAt: cache.fetchedAt,
+          source: cache.source,
+          payload: cache.payload,
+        }
+      : null,
+    seligsonFund: fund ? { id: fund.id, fid: fund.fid, name: fund.name } : null,
+  }));
+
+  return c.json(payload);
 });
 
 app.get("/instruments/lookup-yahoo", async (c) => {
@@ -217,6 +259,28 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
   }
 
   return c.json({ message: "Unsupported instrument kind" }, 400);
+});
+
+app.delete("/instruments/:id", async (c) => {
+  const id = Number.parseInt(c.req.param("id"), 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid id" }, 400);
+  }
+  const [existing] = await db
+    .select({ id: instruments.id })
+    .from(instruments)
+    .where(eq(instruments.id, id));
+  if (!existing) {
+    return c.json({ message: "Not found" }, 404);
+  }
+  await db.transaction(async (tx) => {
+    await tx.delete(transactions).where(eq(transactions.instrumentId, id));
+    await tx
+      .delete(distributionCache)
+      .where(eq(distributionCache.instrumentId, id));
+    await tx.delete(instruments).where(eq(instruments.id, id));
+  });
+  return c.body(null, 204);
 });
 
 app.get("/positions", async (c) => {

@@ -121,12 +121,20 @@ export function HomePage() {
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-semibold text-slate-900">Portfolio</h1>
-          <Link
-            to="/instruments/new"
-            className="text-sm font-medium text-emerald-800 hover:underline"
-          >
-            New instrument
-          </Link>
+          <div className="flex flex-wrap gap-4 text-sm font-medium">
+            <Link
+              to="/instruments"
+              className="text-emerald-800 hover:underline"
+            >
+              Instruments
+            </Link>
+            <Link
+              to="/instruments/new"
+              className="text-emerald-800 hover:underline"
+            >
+              New instrument
+            </Link>
+          </div>
         </div>
         {error && (
           <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">

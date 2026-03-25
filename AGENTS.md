@@ -25,7 +25,7 @@ pnpm workspace — see [`pnpm-workspace.yaml`](pnpm-workspace.yaml):
 | --- | --- |
 | [`db`](db) | Drizzle schema, SQL migrations, shared types, **`currencies.ts`** (supported cash currency codes for API + web) |
 | [`api`](api) | Hono API, valuation, distribution fetch/normalize, cache refresh |
-| [`web`](web) | Vite + React + Tailwind; portfolio UI, **new instrument** flow at `/instruments/new`, dev data checks |
+| [`web`](web) | Vite + React + Tailwind; portfolio UI, **instruments list** at `/instruments`, **new instrument** at `/instruments/new`, dev data checks |
 
 Scripts and tool versions: **root [`package.json`](package.json)**. Local setup, ports, and env keys: **[`README.md`](README.md)** and **[`.env.example`](.env.example)** — **do not duplicate** those here; they change often.
 
@@ -59,6 +59,8 @@ The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`
 ## API and web (where to look)
 
 - **HTTP routes, CORS, dev-only routes, validation:** **`api`** entrypoint / modules — single source of truth; **do not maintain a duplicate route list in this file.**
+- **`GET /instruments`** returns each instrument row plus **`netQuantity`** (sum of buys minus sells), optional joined **`distribution`** (`fetchedAt`, `source`, `payload` with regions/sectors), and optional **`seligsonFund`** (`id`, `fid`, `name`) for Seligson-linked rows.
+- **`DELETE /instruments/:id`** removes the instrument after deleting its **`transactions`** and **`distribution_cache`** rows in one DB transaction (204). **`seligson_funds`** rows are not deleted.
 - **Portfolio weighting and EUR valuation assumptions:** **`api`** `lib` (and related)—read before changing FX or valuation.
 - **Web routes:** **`web`** source — same rule: discover from code.
 

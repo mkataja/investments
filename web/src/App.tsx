@@ -1,6 +1,7 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import { DevPage } from "./pages/DevPage";
 import { HomePage } from "./pages/HomePage";
+import { InstrumentsPage } from "./pages/InstrumentsPage";
 import { NewInstrumentPage } from "./pages/NewInstrumentPage";
 
 export function App() {
@@ -10,6 +11,9 @@ export function App() {
         <nav className="border-b border-slate-200 bg-white px-6 py-3 flex gap-6 text-sm font-medium">
           <Link to="/" className="text-emerald-800 hover:underline">
             Portfolio
+          </Link>
+          <Link to="/instruments" className="text-emerald-800 hover:underline">
+            Instruments
           </Link>
           <Link
             to="/instruments/new"
@@ -23,6 +27,7 @@ export function App() {
         </nav>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/instruments" element={<InstrumentsPage />} />
           <Route path="/instruments/new" element={<NewInstrumentPage />} />
           <Route path="/dev" element={<DevPage />} />
         </Routes>
