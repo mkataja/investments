@@ -24,7 +24,7 @@ Postgres is exposed on **host port 50500** (to avoid clashing with other local P
 pnpm dev
 ```
 
-- Web: [http://localhost:5173](http://localhost:5173) — portfolio UI, links to `/admin` (Seligson funds) and `/dev` (Yahoo / Seligson data checks).
+- Web: [http://localhost:5173](http://localhost:5173) — portfolio UI, `/instruments/new` to add instruments, `/dev` for Yahoo / Seligson data checks.
 - API: [http://localhost:3001](http://localhost:3001) — `GET /health` health check.
 
 Set `VITE_API_URL` in `web` if the API is not on port 3001.
@@ -45,15 +45,16 @@ Use short, descriptive one-line titles (no `feat:` / `chore:` prefixes).
 ## API notes
 
 - **Brokers** are seeded: Seligson, Degiro, IBKR, Svea.
-- **Seligson funds** live in `seligson_funds` (fid + name); manage them in the React Admin UI at `/admin`.
+- **Seligson funds** live in `seligson_funds` (fid + name); new rows are created when you add a Seligson instrument from `/instruments/new` (FID only).
 - **Instruments** of kind `seligson_fund` reference a `seligson_fund` row; distributions are scraped from Seligson FundViewer (`view=40`).
 - **ETFs/stocks** use `yahooSymbol`; distributions come from Yahoo `quoteSummary` (sectors / regions when available).
-- **Cash** (`cash_account`): set `cash_geo_key` for geographic allocation in portfolio views.
-- **Distribution cache** refreshes at least daily for instruments with open positions (API startup; manual `manual` cache rows are not overwritten).
+- **Cash** (`cash_account`): balance is in `cash_currency` (EUR/USD); optional `cash_geo_key` is stored but does not affect region/sector charts.
+- **Distribution cache** refreshes at least daily for instruments with open positions (API startup; `manual` cache rows are not overwritten).
 - **Dev-only routes** `GET /dev/yahoo?symbol=` and `GET /dev/seligson?fid=` are enabled when `NODE_ENV=development` or `DEV_TOOLS=true`.
+- **Public routes** `GET /instruments/lookup-yahoo?symbol=` previews Yahoo metadata for the new-instrument UI.
 
 ## Packages
 
 - `db` — Drizzle schema and SQL migrations
 - `api` — Hono server
-- `web` — React + Tailwind + React Admin
+- `web` — React + Tailwind

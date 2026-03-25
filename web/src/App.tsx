@@ -1,7 +1,7 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
-import { SeligsonAdmin } from "./admin/SeligsonAdmin";
 import { DevPage } from "./pages/DevPage";
 import { HomePage } from "./pages/HomePage";
+import { NewInstrumentPage } from "./pages/NewInstrumentPage";
 
 export function App() {
   return (
@@ -11,8 +11,11 @@ export function App() {
           <Link to="/" className="text-emerald-800 hover:underline">
             Portfolio
           </Link>
-          <Link to="/admin" className="text-emerald-800 hover:underline">
-            Seligson funds admin
+          <Link
+            to="/instruments/new"
+            className="text-emerald-800 hover:underline"
+          >
+            New instrument
           </Link>
           <Link to="/dev" className="text-emerald-800 hover:underline">
             Data checks
@@ -20,7 +23,7 @@ export function App() {
         </nav>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/admin/*" element={<SeligsonAdmin />} />
+          <Route path="/instruments/new" element={<NewInstrumentPage />} />
           <Route path="/dev" element={<DevPage />} />
         </Routes>
       </div>

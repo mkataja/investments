@@ -11,9 +11,11 @@ Personal **multi-broker portfolio tracker**: transactions are recorded per broke
 **Data sources for distributions** (implementation lives under `api`; details drift—read code when editing):
 
 - **ETFs / stocks:** Yahoo Finance via **`yahoo-finance2`** (`quoteSummary` and related modules). Symbols are stored as **`yahooSymbol`**. Unofficial API—handle absence and schema changes gracefully; **caching** reduces repeated calls.
-- **Seligson mutual funds:** **HTML scrape** of Seligson FundViewer (sector/region breakdown view; **`fid`** in the URL must match **`seligson_funds`** in the DB).
-- **Cash (`cash_account`):** no external fetch—allocation is **synthetic** from **`cash_geo_key`** and **`cash_interest_type`** (and similar fields on `instruments` as modeled in schema).
+- **Seligson mutual funds:** **HTML scrape** of Seligson FundViewer (sector/region breakdown view; **`fid`** in the URL must match **`seligson_funds`** in the DB). Users register funds via **`/instruments/new`** (FID only); **`seligson_funds`** rows are **find-or-created** by the API, not edited via a separate admin app.
+- **Cash (`cash_account`):** no external fetch for valuation beyond FX—nominal balance is in **`cash_currency`** (see **`SUPPORTED_CASH_CURRENCY_CODES`** in `db`); **`cash_geo_key`** is optional metadata and may be stored but **does not** affect region/sector charts.
 - **Stocks:** sector/industry from Yahoo when present; geography is often **issuer-country-only** as a simplification, not economic exposure.
+
+**Cash and geo charts:** `cash_account` positions are **excluded** from aggregated **region** and **sector** distribution weights (non-cash holdings are renormalized to sum to 100%).
 
 ## Repo layout
 
@@ -21,9 +23,9 @@ pnpm workspace — see [`pnpm-workspace.yaml`](pnpm-workspace.yaml):
 
 | Package | Role |
 | --- | --- |
-| [`db`](db) | Drizzle schema, SQL migrations, shared types |
+| [`db`](db) | Drizzle schema, SQL migrations, shared types, **`currencies.ts`** (supported cash currency codes for API + web) |
 | [`api`](api) | Hono API, valuation, distribution fetch/normalize, cache refresh |
-| [`web`](web) | Vite + React + Tailwind; portfolio UI, React Admin (Seligson funds), dev data checks |
+| [`web`](web) | Vite + React + Tailwind; portfolio UI, **new instrument** flow at `/instruments/new`, dev data checks |
 
 Scripts and tool versions: **root [`package.json`](package.json)**. Local setup, ports, and env keys: **[`README.md`](README.md)** and **[`.env.example`](.env.example)** — **do not duplicate** those here; they change often.
 
@@ -37,16 +39,16 @@ Scripts and tool versions: **root [`package.json`](package.json)**. Local setup,
 Authoritative detail is **`db/src/schema.ts`** and migrations. Conceptually:
 
 - **`brokers`:** seeded broker codes (Seligson, Degiro, IBKR, Svea).
-- **`seligson_funds`:** Seligson products keyed by **`fid`** (unique); **`name`**, notes, active flag. Edited via **React Admin** in the web app; REST shape must stay compatible with **react-admin** list semantics (e.g. pagination headers—see implementation).
+- **`seligson_funds`:** Seligson products keyed by **`fid`** (unique); **`name`**, notes, active flag. Rows are created when adding a Seligson instrument ( **`POST /instruments`** with **`seligsonFid`** ) or reused if **`fid`** already exists.
 - **`instruments`:** **`kind`** (`etf` | `stock` | `seligson_fund` | `cash_account`), identifiers and cash/Seligson fields as in schema; optional **`mark_price_eur`** when Yahoo quotes are not used.
 - **`transactions`:** trades with **`currency`** and optional **`unit_price_eur`** for EUR-side reporting.
 - **`distribution_cache`:** one row per instrument; **`payload`** is **`{ regions, sectors }`**-shaped normalized weights; **`source`** distinguishes Yahoo, Seligson scrape, manual, etc.
 
 **Positions** are derived from transactions (net quantity per instrument), not a separate persisted ledger unless you add one.
 
-## Seligson fund create/update behavior (product contract)
+## Seligson fund name behavior (product contract)
 
-The API **may fetch Seligson HTML** to fill or refresh **`name`** when it is missing, cleared, or when **`fid`** changes—so clients can omit a display name in some cases. **Do not remove or silently break** that behavior without an explicit product decision; failures are surfaced as HTTP errors with a message body. Exact routes and status codes are defined in **`api`**—read there before changing.
+The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`seligson_funds`** row ( **`fetchSeligsonFundName`** ). Failures are surfaced as HTTP errors with a message body. Exact routes and status codes are defined in **`api`**—read there before changing.
 
 ## Caching and refresh
 
@@ -58,7 +60,7 @@ The API **may fetch Seligson HTML** to fill or refresh **`name`** when it is mis
 
 - **HTTP routes, CORS, dev-only routes, validation:** **`api`** entrypoint / modules — single source of truth; **do not maintain a duplicate route list in this file.**
 - **Portfolio weighting and EUR valuation assumptions:** **`api`** `lib` (and related)—read before changing FX or valuation.
-- **Web routes and admin wiring:** **`web`** source — same rule: discover from code.
+- **Web routes:** **`web`** source — same rule: discover from code.
 
 ## Tooling conventions
 

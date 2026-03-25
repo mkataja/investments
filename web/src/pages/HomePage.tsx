@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -19,6 +20,7 @@ type Instrument = {
   yahooSymbol: string | null;
   seligsonFundId: number | null;
   cashGeoKey: string | null;
+  cashCurrency: string | null;
   cashInterestType: string | null;
   markPriceEur: string | null;
 };
@@ -91,49 +93,6 @@ export function HomePage() {
     unitPriceEur: "",
   });
 
-  const [instForm, setInstForm] = useState({
-    kind: "etf" as Instrument["kind"],
-    displayName: "",
-    yahooSymbol: "",
-    seligsonFundId: "",
-    cashGeoKey: "",
-    cashInterestType: "",
-    markPriceEur: "",
-  });
-
-  async function submitInstrument(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    try {
-      const body: Record<string, unknown> = {
-        kind: instForm.kind,
-        displayName: instForm.displayName,
-      };
-      if (instForm.yahooSymbol) {
-        body.yahooSymbol = instForm.yahooSymbol;
-      }
-      if (instForm.kind === "seligson_fund" && instForm.seligsonFundId) {
-        body.seligsonFundId = Number.parseInt(instForm.seligsonFundId, 10);
-      }
-      if (instForm.kind === "cash_account") {
-        body.cashGeoKey = instForm.cashGeoKey || undefined;
-        body.cashInterestType = instForm.cashInterestType || undefined;
-      }
-      if (instForm.markPriceEur) {
-        body.markPriceEur = instForm.markPriceEur;
-      }
-      await apiPost<Instrument>("/instruments", body);
-      setInstForm({
-        ...instForm,
-        displayName: "",
-        yahooSymbol: "",
-      });
-      await load();
-    } catch (err) {
-      setError(String(err));
-    }
-  }
-
   async function submitTransaction(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -160,7 +119,15 @@ export function HomePage() {
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-10">
       <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Portfolio</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-3xl font-semibold text-slate-900">Portfolio</h1>
+          <Link
+            to="/instruments/new"
+            className="text-sm font-medium text-emerald-800 hover:underline"
+          >
+            New instrument
+          </Link>
+        </div>
         {error && (
           <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
             {error}
@@ -168,110 +135,7 @@ export function HomePage() {
         )}
       </header>
 
-      <section className="grid md:grid-cols-2 gap-8">
-        <form
-          onSubmit={(e) => void submitInstrument(e)}
-          className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white shadow-sm"
-        >
-          <h2 className="font-medium text-slate-800">New instrument</h2>
-          <label className="block text-sm">
-            Kind
-            <select
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={instForm.kind}
-              onChange={(e) =>
-                setInstForm({
-                  ...instForm,
-                  kind: e.target.value as Instrument["kind"],
-                })
-              }
-            >
-              <option value="etf">ETF</option>
-              <option value="stock">Stock</option>
-              <option value="seligson_fund">Seligson fund</option>
-              <option value="cash_account">Cash account</option>
-            </select>
-          </label>
-          <label className="block text-sm">
-            Display name
-            <input
-              className="mt-1 block w-full border rounded px-2 py-1"
-              required
-              value={instForm.displayName}
-              onChange={(e) =>
-                setInstForm({ ...instForm, displayName: e.target.value })
-              }
-            />
-          </label>
-          <label className="block text-sm">
-            Yahoo symbol
-            <input
-              className="mt-1 block w-full border rounded px-2 py-1 font-mono"
-              value={instForm.yahooSymbol}
-              onChange={(e) =>
-                setInstForm({ ...instForm, yahooSymbol: e.target.value })
-              }
-            />
-          </label>
-          {instForm.kind === "seligson_fund" && (
-            <label className="block text-sm">
-              Seligson fund id (DB row)
-              <input
-                className="mt-1 block w-full border rounded px-2 py-1"
-                value={instForm.seligsonFundId}
-                onChange={(e) =>
-                  setInstForm({ ...instForm, seligsonFundId: e.target.value })
-                }
-                placeholder="from Admin → Seligson funds"
-              />
-            </label>
-          )}
-          {instForm.kind === "cash_account" && (
-            <>
-              <label className="block text-sm">
-                Geo key
-                <input
-                  className="mt-1 block w-full border rounded px-2 py-1"
-                  value={instForm.cashGeoKey}
-                  onChange={(e) =>
-                    setInstForm({ ...instForm, cashGeoKey: e.target.value })
-                  }
-                  placeholder="SE"
-                />
-              </label>
-              <label className="block text-sm">
-                Interest type
-                <input
-                  className="mt-1 block w-full border rounded px-2 py-1"
-                  value={instForm.cashInterestType}
-                  onChange={(e) =>
-                    setInstForm({
-                      ...instForm,
-                      cashInterestType: e.target.value,
-                    })
-                  }
-                />
-              </label>
-            </>
-          )}
-          <label className="block text-sm">
-            Mark price EUR (optional, funds without Yahoo)
-            <input
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={instForm.markPriceEur}
-              onChange={(e) =>
-                setInstForm({ ...instForm, markPriceEur: e.target.value })
-              }
-            />
-          </label>
-          <button
-            type="submit"
-            className="bg-emerald-700 text-white px-4 py-2 rounded"
-          >
-            Create instrument
-          </button>
-        </form>
-
+      <section className="max-w-xl">
         <form
           onSubmit={(e) => void submitTransaction(e)}
           className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white shadow-sm"

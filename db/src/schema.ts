@@ -45,6 +45,8 @@ export const instruments = pgTable("instruments", {
     () => seligsonFunds.id,
   ),
   cashGeoKey: text("cash_geo_key"),
+  /** Nominal currency for cash_account quantity (see SUPPORTED_CASH_CURRENCY_CODES). */
+  cashCurrency: text("cash_currency"),
   cashInterestType: text("cash_interest_type"),
   /** Manual mark for valuation (e.g. Seligson fund NAV) when Yahoo quote is unavailable */
   markPriceEur: numeric("mark_price_eur", { precision: 24, scale: 8 }),

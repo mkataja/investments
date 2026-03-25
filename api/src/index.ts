@@ -1,13 +1,14 @@
 import { serve } from "@hono/node-server";
 import { zValidator } from "@hono/zod-validator";
 import {
+  SUPPORTED_CASH_CURRENCY_CODES,
   brokers,
   distributionCache,
   instruments,
   seligsonFunds,
   transactions,
 } from "@investments/db";
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
@@ -18,6 +19,8 @@ import {
   parseSeligsonDistributions,
 } from "./distributions/seligson.js";
 import {
+  buildYahooInstrumentLookup,
+  displayNameFromYahooLookup,
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
 } from "./distributions/yahoo.js";
@@ -32,7 +35,6 @@ app.use(
   "/*",
   cors({
     origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
-    exposeHeaders: ["Content-Range"],
   }),
 );
 
@@ -84,39 +86,137 @@ app.post("/transactions", zValidator("json", transactionIn), async (c) => {
   return c.json(row, 201);
 });
 
-const instrumentIn = z.object({
-  kind: z.enum(["etf", "stock", "seligson_fund", "cash_account"]),
-  displayName: z.string().min(1),
-  yahooSymbol: z.string().optional(),
-  isin: z.string().optional(),
-  seligsonFundId: z.number().int().positive().optional().nullable(),
-  cashGeoKey: z.string().optional(),
-  cashInterestType: z.string().optional(),
-  markPriceEur: z.string().or(z.number()).optional().nullable(),
-});
+const cashCurrencySchema = z.enum(
+  SUPPORTED_CASH_CURRENCY_CODES as unknown as [string, ...string[]],
+);
+
+const instrumentIn = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.enum(["etf", "stock"]),
+    yahooSymbol: z.string().min(1),
+  }),
+  z.object({
+    kind: z.literal("seligson_fund"),
+    seligsonFid: z.number().int().positive(),
+  }),
+  z.object({
+    kind: z.literal("cash_account"),
+    displayName: z.string().min(1),
+    currency: cashCurrencySchema,
+    cashGeoKey: z.string().optional(),
+  }),
+]);
+
+async function findOrCreateSeligsonFundByFid(fid: number) {
+  const [existing] = await db
+    .select()
+    .from(seligsonFunds)
+    .where(eq(seligsonFunds.fid, fid));
+  if (existing) {
+    return existing;
+  }
+  let name: string;
+  try {
+    name = await fetchSeligsonFundName(fid);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    throw new Error(message);
+  }
+  const [inserted] = await db
+    .insert(seligsonFunds)
+    .values({
+      fid,
+      name,
+      isActive: true,
+    })
+    .returning();
+  if (!inserted) {
+    throw new Error("Failed to insert seligson fund");
+  }
+  return inserted;
+}
 
 app.get("/instruments", async (c) => {
   const rows = await db.select().from(instruments).orderBy(asc(instruments.id));
   return c.json(rows);
 });
 
+app.get("/instruments/lookup-yahoo", async (c) => {
+  const symbol = c.req.query("symbol")?.trim();
+  if (!symbol) {
+    return c.json({ message: "symbol query required" }, 400);
+  }
+  try {
+    const raw = await fetchYahooQuoteSummaryRaw(symbol);
+    const lookup = buildYahooInstrumentLookup(raw, symbol);
+    return c.json({
+      lookup,
+      displayName: displayNameFromYahooLookup(lookup, symbol),
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return c.json({ message }, 502);
+  }
+});
+
 app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
   const body = c.req.valid("json");
-  const [row] = await db
-    .insert(instruments)
-    .values({
-      kind: body.kind,
-      displayName: body.displayName,
-      yahooSymbol: body.yahooSymbol ?? undefined,
-      isin: body.isin ?? undefined,
-      seligsonFundId: body.seligsonFundId ?? undefined,
-      cashGeoKey: body.cashGeoKey ?? undefined,
-      cashInterestType: body.cashInterestType ?? undefined,
-      markPriceEur:
-        body.markPriceEur != null ? String(body.markPriceEur) : undefined,
-    })
-    .returning();
-  return c.json(row, 201);
+
+  if (body.kind === "etf" || body.kind === "stock") {
+    let raw: Awaited<ReturnType<typeof fetchYahooQuoteSummaryRaw>>;
+    try {
+      raw = await fetchYahooQuoteSummaryRaw(body.yahooSymbol);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return c.json({ message }, 502);
+    }
+    const lookup = buildYahooInstrumentLookup(raw, body.yahooSymbol);
+    const displayName = displayNameFromYahooLookup(lookup, body.yahooSymbol);
+    const [row] = await db
+      .insert(instruments)
+      .values({
+        kind: body.kind,
+        displayName,
+        yahooSymbol: body.yahooSymbol,
+        isin: lookup.isin ?? undefined,
+      })
+      .returning();
+    return c.json(row, 201);
+  }
+
+  if (body.kind === "seligson_fund") {
+    let fund: Awaited<ReturnType<typeof findOrCreateSeligsonFundByFid>>;
+    try {
+      fund = await findOrCreateSeligsonFundByFid(body.seligsonFid);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      return c.json({ message }, 502);
+    }
+    const [row] = await db
+      .insert(instruments)
+      .values({
+        kind: "seligson_fund",
+        displayName: fund.name,
+        seligsonFundId: fund.id,
+      })
+      .returning();
+    return c.json(row, 201);
+  }
+
+  if (body.kind === "cash_account") {
+    const [row] = await db
+      .insert(instruments)
+      .values({
+        kind: "cash_account",
+        displayName: body.displayName,
+        cashCurrency: body.currency,
+        cashGeoKey: body.cashGeoKey ?? undefined,
+      })
+      .returning();
+    return c.json(row, 201);
+  }
+
+  return c.json({ message: "Unsupported instrument kind" }, 400);
 });
 
 app.get("/positions", async (c) => {
@@ -143,145 +243,6 @@ app.get("/positions", async (c) => {
 app.get("/portfolio/distributions", async (c) => {
   const data = await getPortfolioDistributions();
   return c.json(data);
-});
-
-/** React Admin: seligson-funds */
-app.get("/seligson-funds", async (c) => {
-  const sort = JSON.parse(c.req.query("sort") ?? '["id","ASC"]') as [
-    string,
-    string,
-  ];
-  const range = JSON.parse(c.req.query("range") ?? "[0,24]") as [
-    number,
-    number,
-  ];
-  const [start, end] = range;
-  const limit = end - start + 1;
-  const col = sort[0] === "id" ? seligsonFunds.id : seligsonFunds.id;
-  const orderFn = sort[1] === "DESC" ? desc : asc;
-  const rows = await db
-    .select()
-    .from(seligsonFunds)
-    .orderBy(orderFn(col))
-    .limit(limit)
-    .offset(start);
-  const countRows = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(seligsonFunds);
-  const count = countRows[0]?.count ?? 0;
-  c.header("Content-Range", `seligson-funds ${start}-${end}/${count}`);
-  return c.json(rows);
-});
-
-app.get("/seligson-funds/:id", async (c) => {
-  const id = Number.parseInt(c.req.param("id"), 10);
-  const [row] = await db
-    .select()
-    .from(seligsonFunds)
-    .where(eq(seligsonFunds.id, id));
-  if (!row) {
-    return c.json({ message: "Not found" }, 404);
-  }
-  return c.json(row);
-});
-
-const seligsonWriteIn = z.object({
-  fid: z.number().int().positive(),
-  name: z.string().optional(),
-  notes: z.string().optional().nullable(),
-  isActive: z.boolean().optional(),
-});
-
-app.post("/seligson-funds", zValidator("json", seligsonWriteIn), async (c) => {
-  const body = c.req.valid("json");
-  const trimmedName = body.name?.trim();
-  let name: string;
-  try {
-    name = trimmedName
-      ? trimmedName
-      : await fetchSeligsonFundName(body.fid);
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return c.json({ message }, 502);
-  }
-  const [row] = await db
-    .insert(seligsonFunds)
-    .values({
-      fid: body.fid,
-      name,
-      notes: body.notes ?? undefined,
-      isActive: body.isActive ?? true,
-    })
-    .returning();
-  return c.json(row, 201);
-});
-
-app.put(
-  "/seligson-funds/:id",
-  zValidator("json", seligsonWriteIn.partial()),
-  async (c) => {
-    const id = Number.parseInt(c.req.param("id"), 10);
-    const body = c.req.valid("json");
-    const [existing] = await db
-      .select()
-      .from(seligsonFunds)
-      .where(eq(seligsonFunds.id, id));
-    if (!existing) {
-      return c.json({ message: "Not found" }, 404);
-    }
-    const nextFid = body.fid ?? existing.fid;
-    const fidChanged =
-      body.fid !== undefined && body.fid !== existing.fid;
-    const trimmed =
-      body.name !== undefined ? body.name.trim() : undefined;
-    let name: string;
-    if (fidChanged) {
-      try {
-        name = await fetchSeligsonFundName(nextFid);
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        return c.json({ message }, 502);
-      }
-    } else if (trimmed) {
-      name = trimmed;
-    } else if (body.name !== undefined && body.name.trim() === "") {
-      try {
-        name = await fetchSeligsonFundName(nextFid);
-      } catch (e) {
-        const message = e instanceof Error ? e.message : String(e);
-        return c.json({ message }, 502);
-      }
-    } else {
-      name = existing.name;
-    }
-    const [row] = await db
-      .update(seligsonFunds)
-      .set({
-        ...(body.fid !== undefined ? { fid: body.fid } : {}),
-        name,
-        ...(body.notes !== undefined ? { notes: body.notes } : {}),
-        ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
-        updatedAt: new Date(),
-      })
-      .where(eq(seligsonFunds.id, id))
-      .returning();
-    if (!row) {
-      return c.json({ message: "Not found" }, 404);
-    }
-    return c.json(row);
-  },
-);
-
-app.delete("/seligson-funds/:id", async (c) => {
-  const id = Number.parseInt(c.req.param("id"), 10);
-  const [row] = await db
-    .delete(seligsonFunds)
-    .where(eq(seligsonFunds.id, id))
-    .returning();
-  if (!row) {
-    return c.json({ message: "Not found" }, 404);
-  }
-  return c.json(row);
 });
 
 app.get("/distribution-cache/:instrumentId", async (c) => {

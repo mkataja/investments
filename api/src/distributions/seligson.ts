@@ -55,7 +55,9 @@ export async function fetchSeligsonFundName(fid: number): Promise<string> {
   const html = await fetchSeligsonHtml(fid);
   const name = parseSeligsonFundName(html);
   if (!name) {
-    throw new Error(`Could not parse fund name from Seligson page for fid=${fid}`);
+    throw new Error(
+      `Could not parse fund name from Seligson page for fid=${fid}`,
+    );
   }
   return name;
 }

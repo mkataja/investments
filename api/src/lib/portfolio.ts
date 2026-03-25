@@ -73,19 +73,22 @@ export async function getPortfolioDistributions(): Promise<{
   const totalValueEur = valued.reduce((s, x) => s + x.valueEur, 0);
   const mixedCurrencyWarning = false;
 
+  const nonCashValueEur = valued.reduce(
+    (s, x) => s + (x.inst.kind === "cash_account" ? 0 : x.valueEur),
+    0,
+  );
+
   const regions: Record<string, number> = {};
   const sectors: Record<string, number> = {};
 
   for (const row of valued) {
-    const w = totalValueEur > 0 ? row.valueEur / totalValueEur : 0;
     const { inst } = row;
 
     if (inst.kind === "cash_account") {
-      const geo = inst.cashGeoKey ?? "unknown_geo";
-      mergeWeighted(regions, { [geo]: 1 }, w);
-      mergeWeighted(sectors, { cash: 1 }, w);
       continue;
     }
+
+    const w = nonCashValueEur > 0 ? row.valueEur / nonCashValueEur : 0;
 
     const [cached] = await db
       .select()

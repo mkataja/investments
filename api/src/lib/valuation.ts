@@ -1,4 +1,4 @@
-import type { instruments } from "@investments/db";
+import { DEFAULT_CASH_CURRENCY, type instruments } from "@investments/db";
 import type { InferSelectModel } from "drizzle-orm";
 import yahooFinance from "yahoo-finance2";
 
@@ -45,10 +45,13 @@ export async function valuePositionEur(
   quantity: number,
 ): Promise<ValuationResult> {
   if (instrument.kind === "cash_account") {
+    const cur =
+      instrument.cashCurrency?.trim().toUpperCase() ?? DEFAULT_CASH_CURRENCY;
+    const valueEur = await toEur(quantity, cur);
     return {
-      valueEur: quantity,
+      valueEur,
       source: "cash",
-      detail: "Cash balance treated as EUR nominal.",
+      detail: `Cash ${quantity} ${cur}`,
     };
   }
 
