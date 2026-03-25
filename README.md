@@ -27,7 +27,7 @@ pnpm dev
 - Web: [http://localhost:5173](http://localhost:5173) — portfolio UI, links to `/admin` (Seligson funds) and `/dev` (Yahoo / Seligson data checks).
 - API: [http://localhost:3001](http://localhost:3001) — `GET /health` health check.
 
-Set `VITE_API_URL` in `apps/web` if the API is not on port 3001.
+Set `VITE_API_URL` in `web` if the API is not on port 3001.
 
 ### Scripts
 
@@ -54,6 +54,6 @@ Use short, descriptive one-line titles (no `feat:` / `chore:` prefixes).
 
 ## Packages
 
-- `packages/db` — Drizzle schema and SQL migrations
-- `apps/api` — Hono server
-- `apps/web` — React + Tailwind + React Admin
+- `db` — Drizzle schema and SQL migrations
+- `api` — Hono server
+- `web` — React + Tailwind + React Admin

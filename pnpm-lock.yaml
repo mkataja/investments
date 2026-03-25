@@ -18,7 +18,7 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  apps/api:
+  api:
     dependencies:
       '@hono/node-server':
         specifier: ^1.13.7
@@ -28,7 +28,7 @@ importers:
         version: 0.4.3(hono@4.12.9)(zod@3.25.76)
       '@investments/db':
         specifier: workspace:*
-        version: link:../../packages/db
+        version: link:../db
       cheerio:
         specifier: ^1.0.0
         version: 1.2.0
@@ -58,7 +58,26 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  apps/web:
+  db:
+    dependencies:
+      drizzle-orm:
+        specifier: ^0.38.4
+        version: 0.38.4(@types/pg@8.20.0)(@types/react@18.3.28)(pg@8.20.0)(react@18.3.1)
+      pg:
+        specifier: ^8.13.1
+        version: 8.20.0
+    devDependencies:
+      '@types/node':
+        specifier: ^25.5.0
+        version: 25.5.0
+      drizzle-kit:
+        specifier: ^0.30.2
+        version: 0.30.6
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  web:
     dependencies:
       '@tanstack/react-query':
         specifier: ^5.62.8
@@ -109,25 +128,6 @@ importers:
       vite:
         specifier: ^6.0.6
         version: 6.4.1(@types/node@25.5.0)(jiti@1.21.7)(tsx@4.21.0)
-
-  packages/db:
-    dependencies:
-      drizzle-orm:
-        specifier: ^0.38.4
-        version: 0.38.4(@types/pg@8.20.0)(@types/react@18.3.28)(pg@8.20.0)(react@18.3.1)
-      pg:
-        specifier: ^8.13.1
-        version: 8.20.0
-    devDependencies:
-      '@types/node':
-        specifier: ^25.5.0
-        version: 25.5.0
-      drizzle-kit:
-        specifier: ^0.30.2
-        version: 0.30.6
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
 
 packages:
 

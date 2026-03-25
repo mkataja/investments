@@ -10,9 +10,9 @@
     }
   },
   "scripts": {
-    "generate": "node --env-file=../../.env ./node_modules/drizzle-kit/bin.cjs generate",
-    "migrate": "node --env-file=../../.env ./node_modules/drizzle-kit/bin.cjs migrate",
-    "studio": "node --env-file=../../.env ./node_modules/drizzle-kit/bin.cjs studio"
+    "generate": "node --env-file=../.env ./node_modules/drizzle-kit/bin.cjs generate",
+    "migrate": "node --env-file=../.env ./node_modules/drizzle-kit/bin.cjs migrate",
+    "studio": "node --env-file=../.env ./node_modules/drizzle-kit/bin.cjs studio"
   },
   "dependencies": {
     "drizzle-orm": "^0.38.4",
