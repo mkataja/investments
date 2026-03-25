@@ -1,0 +1,119 @@
+import { distributionCache, instruments } from "@investments/db";
+import type { DistributionPayload } from "@investments/db";
+import { eq, inArray } from "drizzle-orm";
+import { db } from "../db.js";
+import { loadOpenPositions } from "./positions.js";
+import { valuePositionEur } from "./valuation.js";
+
+function mergeWeighted(
+  acc: Record<string, number>,
+  weights: Record<string, number>,
+  w: number,
+): void {
+  for (const [k, v] of Object.entries(weights)) {
+    acc[k] = (acc[k] ?? 0) + w * v;
+  }
+}
+
+export async function getPortfolioDistributions(): Promise<{
+  regions: Record<string, number>;
+  sectors: Record<string, number>;
+  totalValueEur: number;
+  mixedCurrencyWarning: boolean;
+  positions: Array<{
+    instrumentId: number;
+    displayName: string;
+    weight: number;
+    valueEur: number;
+    valuationSource: string;
+  }>;
+}> {
+  const pos = await loadOpenPositions();
+  if (pos.length === 0) {
+    return {
+      regions: {},
+      sectors: {},
+      totalValueEur: 0,
+      mixedCurrencyWarning: false,
+      positions: [],
+    };
+  }
+
+  const instRows = await db
+    .select()
+    .from(instruments)
+    .where(
+      inArray(
+        instruments.id,
+        pos.map((p) => p.instrumentId),
+      ),
+    );
+
+  const valued: Array<{
+    inst: (typeof instRows)[0];
+    qty: number;
+    valueEur: number;
+    source: string;
+  }> = [];
+
+  for (const p of pos) {
+    const inst = instRows.find((i) => i.id === p.instrumentId);
+    if (!inst) {
+      continue;
+    }
+    const v = await valuePositionEur(inst, p.quantity);
+    valued.push({
+      inst,
+      qty: p.quantity,
+      valueEur: v.valueEur,
+      source: v.source,
+    });
+  }
+
+  const totalValueEur = valued.reduce((s, x) => s + x.valueEur, 0);
+  const mixedCurrencyWarning = false;
+
+  const regions: Record<string, number> = {};
+  const sectors: Record<string, number> = {};
+
+  for (const row of valued) {
+    const w = totalValueEur > 0 ? row.valueEur / totalValueEur : 0;
+    const { inst } = row;
+
+    if (inst.kind === "cash_account") {
+      const geo = inst.cashGeoKey ?? "unknown_geo";
+      mergeWeighted(regions, { [geo]: 1 }, w);
+      mergeWeighted(sectors, { cash: 1 }, w);
+      continue;
+    }
+
+    const [cached] = await db
+      .select()
+      .from(distributionCache)
+      .where(eq(distributionCache.instrumentId, inst.id));
+
+    const payload = cached?.payload as DistributionPayload | undefined;
+    if (payload?.regions && Object.keys(payload.regions).length > 0) {
+      mergeWeighted(regions, payload.regions, w);
+    }
+    if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
+      mergeWeighted(sectors, payload.sectors, w);
+    }
+  }
+
+  const positions = valued.map((row) => ({
+    instrumentId: row.inst.id,
+    displayName: row.inst.displayName,
+    weight: totalValueEur > 0 ? row.valueEur / totalValueEur : 0,
+    valueEur: row.valueEur,
+    valuationSource: row.source,
+  }));
+
+  return {
+    regions,
+    sectors,
+    totalValueEur,
+    mixedCurrencyWarning,
+    positions,
+  };
+}
