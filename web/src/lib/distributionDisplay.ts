@@ -58,6 +58,8 @@ export function geoBucketDisplayLabel(bucket: GeoBucket): string {
       return "🇨🇳";
     case "emerging_markets":
       return "EM";
+    case "unknown":
+      return "⚠️";
     default:
       return bucket;
   }

@@ -70,7 +70,8 @@ function DistributionSummary({
                 {s.bucket === "finland" ||
                 s.bucket === "europe" ||
                 s.bucket === "north_america" ||
-                s.bucket === "china" ? (
+                s.bucket === "china" ||
+                s.bucket === "unknown" ? (
                   <span
                     className="text-2xl leading-none select-none"
                     title={
@@ -80,7 +81,9 @@ function DistributionSummary({
                           ? "Europe (excl. Finland)"
                           : s.bucket === "north_america"
                             ? "North America"
-                            : "China (incl. HK/MO)"
+                            : s.bucket === "china"
+                              ? "China (incl. HK/MO)"
+                              : "Unmapped country label (add to countryIso)"
                     }
                     aria-hidden
                   >

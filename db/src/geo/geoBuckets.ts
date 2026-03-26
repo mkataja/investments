@@ -7,6 +7,8 @@ export const GEO_BUCKET_ORDER = [
   "asia",
   "china",
   "emerging_markets",
+  /** Region keys we could not map to ISO (add label in `countryIso.ts`) */
+  "unknown",
 ] as const;
 
 export type GeoBucketId = (typeof GEO_BUCKET_ORDER)[number];
@@ -147,12 +149,13 @@ function emptyBuckets(): Record<GeoBucketId, number> {
     asia: 0,
     china: 0,
     emerging_markets: 0,
+    unknown: 0,
   };
 }
 
 /**
  * Aggregate region weights (ISO keys and/or resolvable labels, plus legacy macro keys)
- * into fixed geo buckets.
+ * into fixed geo buckets. Keys that do not resolve to ISO go to **`unknown`** (not EM).
  */
 export function aggregateRegionsToGeoBuckets(
   regions: Record<string, number>,
@@ -174,7 +177,7 @@ export function aggregateRegionsToGeoBuckets(
       out[b] += w;
       continue;
     }
-    out.emerging_markets += w;
+    out.unknown += w;
   }
   return out;
 }
