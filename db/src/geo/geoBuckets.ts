@@ -18,15 +18,21 @@ const CHINA = new Set([
 ]);
 
 /**
- * North America = US + Canada only. Mexico, Caribbean, Central/South America, and other
- * American jurisdictions (e.g. Greenland, territories) map to `emerging_markets`.
+ * United States + Canada and U.S. insular areas (territories / freely associated). Mexico and
+ * non-U.S. Americas map to `emerging_markets`.
  */
 const NORTH_AMERICA = new Set([
   "US", // United States
   "CA", // Canada
+  "PR", // Puerto Rico
+  "VI", // U.S. Virgin Islands
+  "GU", // Guam
+  "AS", // American Samoa
+  "MP", // Northern Mariana Islands
+  "UM", // U.S. Minor Outlying Islands
 ]);
 
-/** Geographic Europe (excl. Russia, Turkey, Kazakhstan) incl. EU, EEA, CH, UK, UA, BY, MD, Western Balkans, microstates */
+/** Geographic Europe (excl. Russia, Turkey, Kazakhstan) incl. EU, EEA, CH, UK, UA, BY, MD, Western Balkans, microstates; Greenland */
 const EUROPE = new Set([
   "AL", // Albania
   "AD", // Andorra
@@ -79,6 +85,7 @@ const EUROPE = new Set([
   "GG", // Guernsey
   "IM", // Isle of Man
   "FO", // Faroe Islands
+  "GL", // Greenland
   "AX", // Åland Islands
 ]);
 
@@ -101,7 +108,7 @@ const ASIA = new Set([
 /**
  * Default bucket for a country. Replaceable later for configurable rules.
  * Finland and China split out; Europe excludes FI; `asia` is developed APAC only (CN/HK/MO → china);
- * US/CA → north_america; other Americas → emerging_markets.
+ * US/CA/U.S. territories → north_america; Greenland → europe; other Americas → emerging_markets.
  */
 export function countryCodeToBucket(iso: string): GeoBucketId {
   const c = iso.toUpperCase();
