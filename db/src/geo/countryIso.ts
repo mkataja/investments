@@ -135,6 +135,10 @@ const LABEL_TO_ISO: Record<string, string> = Object.fromEntries(
     ["uusi seelanti", "NZ"],
     ["etelä-korea", "KR"],
     ["etela-korea", "KR"],
+    // Seligson FundViewer (e.g. Aasia Indeksirahasto)
+    ["korean tasavalta (etelä-korea)", "KR"],
+    ["korean tasavalta (etela-korea)", "KR"],
+    ["korean tasavalta", "KR"],
     ["taiwan", "TW"],
     ["pakistan", "PK"],
     ["bangladesh", "BD"],
