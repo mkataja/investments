@@ -1,10 +1,9 @@
+import { geoBucketDisplayIcon, geoBucketDisplayTitle } from "@investments/db";
 import { useCallback, useEffect, useState } from "react";
 import { apiDelete, apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import {
   aggregateRegionsToBuckets,
-  formatDistributionTooltip,
-  geoBucketDisplayLabel,
   geoSegmentsForDisplay,
   sortedSectorsForDisplay,
 } from "../lib/distributionDisplay";
@@ -56,9 +55,8 @@ function DistributionSummary({
     aggregateRegionsToBuckets(payload.regions),
   );
   const sectorRows = sortedSectorsForDisplay(payload.sectors);
-  const tooltip = formatDistributionTooltip(payload.regions, payload.sectors);
   return (
-    <div className="space-y-1" title={tooltip}>
+    <div className="space-y-1">
       <div className="text-xs text-slate-800">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 min-w-0">
           {geoSegs.length > 0 ? (
@@ -67,33 +65,13 @@ function DistributionSummary({
                 key={s.bucket}
                 className="inline-flex items-center gap-0.5 whitespace-nowrap shrink-0"
               >
-                {s.bucket === "finland" ||
-                s.bucket === "europe" ||
-                s.bucket === "north_america" ||
-                s.bucket === "china" ||
-                s.bucket === "unknown" ? (
-                  <span
-                    className="text-2xl leading-none select-none"
-                    title={
-                      s.bucket === "finland"
-                        ? "Finland"
-                        : s.bucket === "europe"
-                          ? "Europe (excl. Finland)"
-                          : s.bucket === "north_america"
-                            ? "North America"
-                            : s.bucket === "china"
-                              ? "China (incl. HK/MO)"
-                              : "Unmapped country label (add to countryIso)"
-                    }
-                    aria-hidden
-                  >
-                    {geoBucketDisplayLabel(s.bucket)}
-                  </span>
-                ) : (
-                  <span className="font-mono">
-                    {geoBucketDisplayLabel(s.bucket)}
-                  </span>
-                )}
+                <span
+                  className="text-2xl leading-none select-none"
+                  title={geoBucketDisplayTitle(s.bucket)}
+                  aria-hidden
+                >
+                  {geoBucketDisplayIcon(s.bucket)}
+                </span>
                 <span className="font-mono tabular-nums">{s.pctLabel}</span>
               </span>
             ))
@@ -108,10 +86,13 @@ function DistributionSummary({
             sectorRows.map((s) => (
               <span
                 key={s.name}
-                title={s.name}
                 className="inline-flex items-center gap-0.5 shrink-0"
               >
-                <span className="text-2xl leading-none select-none" aria-hidden>
+                <span
+                  className="text-2xl leading-none select-none"
+                  title={s.name}
+                  aria-hidden
+                >
                   {s.icon}
                 </span>
                 <span className="text-xs font-mono tabular-nums">
