@@ -17,35 +17,13 @@ const CHINA = new Set([
   "MO", // Macau
 ]);
 
-/** US, Canada, Mexico + nearby territories often grouped with North America in fund data */
+/**
+ * North America = US + Canada only. Mexico, Caribbean, Central/South America, and other
+ * American jurisdictions (e.g. Greenland, territories) map to `emerging_markets`.
+ */
 const NORTH_AMERICA = new Set([
   "US", // United States
   "CA", // Canada
-  "MX", // Mexico
-  "BM", // Bermuda
-  "GL", // Greenland
-  "PM", // Saint Pierre and Miquelon
-  "KY", // Cayman Islands
-  "TC", // Turks and Caicos Islands
-  "VG", // British Virgin Islands
-  "AI", // Anguilla
-  "AW", // Aruba
-  "BL", // Saint Barthélemy
-  "MF", // Saint Martin (France)
-  "GP", // Guadeloupe
-  "MQ", // Martinique
-  "SX", // Sint Maarten
-  "BQ", // Caribbean Netherlands
-  "CW", // Curaçao
-  "UM", // U.S. Minor Outlying Islands
-  "AS", // American Samoa
-  "GU", // Guam
-  "MP", // Northern Mariana Islands
-  "MS", // Montserrat
-  "PR", // Puerto Rico
-  "VI", // U.S. Virgin Islands
-  "GS", // South Georgia and the South Sandwich Islands
-  "FK", // Falkland Islands
 ]);
 
 /** Geographic Europe (excl. Russia, Turkey, Kazakhstan) incl. EU, EEA, CH, UK, UA, BY, MD, Western Balkans, microstates */
@@ -104,55 +82,26 @@ const EUROPE = new Set([
   "AX", // Åland Islands
 ]);
 
-/** Asia ex China/HK/MO: East, South, Southeast Asia, Oceania (AU/NZ), Central Asia */
+/**
+ * `asia` = developed Asia-Pacific (MSCI-style developed ex-China). CN/HK/MO use `china`.
+ *
+ * Everything else in Asia (India, ASEAN except SG/BN, South/Central Asia, frontier Pacific,
+ * North Korea, Mongolia, etc.) maps to `emerging_markets`.
+ */
 const ASIA = new Set([
   "JP", // Japan
   "KR", // South Korea
-  "KP", // North Korea
-  "IN", // India
-  "PK", // Pakistan
-  "BD", // Bangladesh
-  "LK", // Sri Lanka
-  "NP", // Nepal
-  "BT", // Bhutan
-  "MV", // Maldives
-  "AF", // Afghanistan
-  "ID", // Indonesia
-  "TH", // Thailand
-  "VN", // Vietnam
-  "MY", // Malaysia
-  "PH", // Philippines
   "SG", // Singapore
   "TW", // Taiwan
   "BN", // Brunei
-  "KH", // Cambodia
-  "LA", // Laos
-  "MM", // Myanmar
-  "TL", // Timor-Leste
-  "MN", // Mongolia
   "AU", // Australia
   "NZ", // New Zealand
-  "PG", // Papua New Guinea
-  "FJ", // Fiji
-  "SB", // Solomon Islands
-  "VU", // Vanuatu
-  "WS", // Samoa
-  "TO", // Tonga
-  "KI", // Kiribati
-  "FM", // Micronesia
-  "MH", // Marshall Islands
-  "PW", // Palau
-  "NR", // Nauru
-  "TV", // Tuvalu
-  "UZ", // Uzbekistan
-  "TM", // Turkmenistan
-  "TJ", // Tajikistan
-  "KG", // Kyrgyzstan
 ]);
 
 /**
  * Default bucket for a country. Replaceable later for configurable rules.
- * Finland and China split out; Europe excludes FI; Asia excludes CN/HK/MO (those go to china).
+ * Finland and China split out; Europe excludes FI; `asia` is developed APAC only (CN/HK/MO → china);
+ * US/CA → north_america; other Americas → emerging_markets.
  */
 export function countryCodeToBucket(iso: string): GeoBucketId {
   const c = iso.toUpperCase();
@@ -178,7 +127,8 @@ export function countryCodeToBucket(iso: string): GeoBucketId {
 const LEGACY_SELIGSON_MACRO: Record<string, GeoBucketId> = {
   europe: "europe",
   north_america: "north_america",
-  pacific: "asia",
+  /** Coarse APAC region without country split; blend is mostly EM / non-developed APAC */
+  pacific: "emerging_markets",
   emerging: "emerging_markets",
 };
 

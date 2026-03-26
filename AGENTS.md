@@ -17,7 +17,7 @@ Personal **multi-broker portfolio tracker**: transactions are recorded per broke
 
 **Cash and geo charts:** `cash_account` positions are **excluded** from aggregated **region** and **sector** distribution weights (non-cash holdings are renormalized to sum to 100%).
 
-**Geo buckets:** shared logic in **`@investments/db`** maps ISO codes into default buckets: **`finland`**, **`europe`** (Europe excl. Finland), **`north_america`**, **`asia`** (Asia excl. China/HK/MO), **`china`** (CN + HK + MO), **`emerging_markets`** (everything else). **`GET /portfolio/distributions`** returns **`regions`** already aggregated to these bucket ids (value-weighted across open positions). Instrument **`distribution.payload.regions`** remain **per-instrument** ISO (or legacy macro) weights until the UI aggregates with the same helpers.
+**Geo buckets:** shared logic in **`@investments/db`** maps ISO codes into default buckets: **`finland`**, **`europe`** (Europe excl. Finland), **`north_america`** (**US + CA only**), **`asia`** (developed APAC: JP, KR, SG, TW, BN, AU, NZ — **CN/HK/MO** go to **`china`**; other Asia → **`emerging_markets`**), **`china`** (CN + HK + MO), **`emerging_markets`** (Latin America, Caribbean, Mexico, and Asian EM/frontier — see **`db/src/geo/geoBuckets.ts`**). Legacy Seligson macro **`pacific`** maps to **`emerging_markets`**. **`GET /portfolio/distributions`** returns **`regions`** already aggregated to these bucket ids (value-weighted across open positions). Instrument **`distribution.payload.regions`** remain **per-instrument** ISO (or legacy macro) weights until the UI aggregates with the same helpers.
 
 ## Repo layout
 
