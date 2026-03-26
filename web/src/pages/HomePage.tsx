@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { apiGet, apiPost } from "../api";
+import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 
 type Broker = { id: number; code: string; name: string };
 type Instrument = {
@@ -293,9 +294,12 @@ export function HomePage() {
                     textAnchor="end"
                     height={80}
                   />
-                  <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
+                  <YAxis
+                    tickFormatter={(v) => formatPercentWidth4From01(v)}
+                    tick={{ fontFamily: "ui-monospace, monospace" }}
+                  />
                   <Tooltip
-                    formatter={(v: number) => `${(v * 100).toFixed(1)}%`}
+                    formatter={(v: number) => formatPercentWidth4From01(v)}
                   />
                   <Bar dataKey="value" fill="#0f766e" name="Weight" />
                 </BarChart>
@@ -314,9 +318,12 @@ export function HomePage() {
                     textAnchor="end"
                     height={80}
                   />
-                  <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
+                  <YAxis
+                    tickFormatter={(v) => formatPercentWidth4From01(v)}
+                    tick={{ fontFamily: "ui-monospace, monospace" }}
+                  />
                   <Tooltip
-                    formatter={(v: number) => `${(v * 100).toFixed(1)}%`}
+                    formatter={(v: number) => formatPercentWidth4From01(v)}
                   />
                   <Legend />
                   <Bar dataKey="value" fill="#334155" name="Weight" />
@@ -339,7 +346,7 @@ export function HomePage() {
                   <tr key={p.instrumentId} className="border-t">
                     <td className="p-2">{p.displayName}</td>
                     <td className="p-2 text-right font-mono">
-                      {(p.weight * 100).toFixed(1)}%
+                      {formatPercentWidth4From01(p.weight)}
                     </td>
                     <td className="p-2 text-right font-mono">
                       {p.valueEur.toFixed(2)}

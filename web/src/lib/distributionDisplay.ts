@@ -18,8 +18,10 @@ export function aggregateRegionsToBuckets(
   return aggregateRegionsToGeoBuckets(regions);
 }
 
-function formatPct01(v: number): string {
-  return `${(v * 100).toFixed(0)}%`;
+/** Whole percent, left-padded to 4 monospace columns (e.g. ` 12%`, `100%`). */
+export function formatPercentWidth4From01(weight01: number): string {
+  const s = `${Math.round(weight01 * 100)}%`;
+  return s.padStart(4, " ");
 }
 
 export type SectorRow = {
@@ -43,7 +45,7 @@ export function sortedSectorsForDisplay(
       name,
       weight: w,
       icon: sectorIcon(name),
-      pctLabel: formatPct01(w),
+      pctLabel: formatPercentWidth4From01(w),
     }));
 }
 
@@ -65,7 +67,7 @@ export function geoSegmentsForDisplay(
   for (const b of GEO_BUCKET_ORDER) {
     const v = buckets[b];
     if (v > 0.0005) {
-      out.push({ bucket: b, pctLabel: formatPct01(v) });
+      out.push({ bucket: b, pctLabel: formatPercentWidth4From01(v) });
     }
   }
   out.sort((a, b) => {
@@ -143,7 +145,7 @@ export function formatDistributionTooltip(
   const g = aggregateRegionsToGeoBuckets(regions);
   const geoSegs = geoSegmentsForDisplay(g);
   const geoParts = geoSegs.map(
-    (s) => `${s.bucket} ${(g[s.bucket] * 100).toFixed(1)}%`,
+    (s) => `${s.bucket} ${formatPercentWidth4From01(g[s.bucket])}`,
   );
   if (geoParts.length > 0) {
     lines.push(`Geo: ${geoParts.join(", ")}`);
@@ -151,7 +153,7 @@ export function formatDistributionTooltip(
   const secParts = Object.entries(sectors)
     .filter(([, v]) => typeof v === "number" && v > 0.0005)
     .sort((a, b) => sectorNameCmp(a[0], b[0]))
-    .map(([k, v]) => `${k} ${(v * 100).toFixed(1)}%`);
+    .map(([k, v]) => `${k} ${formatPercentWidth4From01(v)}`);
   if (secParts.length > 0) {
     lines.push(`Sectors: ${secParts.join(", ")}`);
   }
