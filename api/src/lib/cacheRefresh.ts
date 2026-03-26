@@ -1,7 +1,10 @@
 import { distributionCache, instruments, seligsonFunds } from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
-import { fetchSeligsonDistributions } from "../distributions/seligson.js";
+import {
+  fetchSeligsonHtml,
+  parseSeligsonDistributions,
+} from "../distributions/seligson.js";
 import type { YahooQuoteSummaryRaw } from "../distributions/yahoo.js";
 import {
   fetchYahooQuoteSummaryRaw,
@@ -11,6 +14,11 @@ import { loadOpenPositions } from "./positions.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/** JSON-safe clone for `jsonb` (drops non-JSON values from Yahoo responses). */
+function jsonCloneForStorage<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
 export async function writeYahooDistributionCache(
   instrumentId: number,
   raw: YahooQuoteSummaryRaw,
@@ -18,6 +26,7 @@ export async function writeYahooDistributionCache(
   fetchedAt: Date = new Date(),
 ): Promise<void> {
   const { payload } = normalizeYahooDistribution(raw, symbol);
+  const rawPayload = jsonCloneForStorage(raw);
   await db
     .insert(distributionCache)
     .values({
@@ -25,6 +34,7 @@ export async function writeYahooDistributionCache(
       fetchedAt,
       source: "yahoo",
       payload,
+      rawPayload,
     })
     .onConflictDoUpdate({
       target: distributionCache.instrumentId,
@@ -32,6 +42,7 @@ export async function writeYahooDistributionCache(
         fetchedAt,
         source: "yahoo",
         payload,
+        rawPayload,
       },
     });
 }
@@ -41,7 +52,12 @@ export async function writeSeligsonDistributionCache(
   fid: number,
   fetchedAt: Date = new Date(),
 ): Promise<void> {
-  const { payload } = await fetchSeligsonDistributions(fid);
+  const [html40, html20] = await Promise.all([
+    fetchSeligsonHtml(fid, 40),
+    fetchSeligsonHtml(fid, 20),
+  ]);
+  const { payload } = parseSeligsonDistributions(html40, html20);
+  const rawPayload = { html40, html20 };
   await db
     .insert(distributionCache)
     .values({
@@ -49,6 +65,7 @@ export async function writeSeligsonDistributionCache(
       fetchedAt,
       source: "seligson_scrape",
       payload,
+      rawPayload,
     })
     .onConflictDoUpdate({
       target: distributionCache.instrumentId,
@@ -56,6 +73,7 @@ export async function writeSeligsonDistributionCache(
         fetchedAt,
         source: "seligson_scrape",
         payload,
+        rawPayload,
       },
     });
 }

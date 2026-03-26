@@ -80,7 +80,13 @@ export const distributionCache = pgTable("distribution_cache", {
     .references(() => instruments.id),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
   source: text("source").notNull(),
+  /** Normalized region/sector weights (current processing). */
   payload: jsonb("payload").notNull(),
+  /**
+   * Upstream snapshot for reprocessing without refetch: Yahoo `quoteSummary`-shaped JSON,
+   * or Seligson FundViewer HTML string. Omitted for manual rows and legacy rows.
+   */
+  rawPayload: jsonb("raw_payload").$type<unknown>(),
 });
 
 export const brokersRelations = relations(brokers, ({ many }) => ({

@@ -1,4 +1,8 @@
-import { distributionCache, instruments } from "@investments/db";
+import {
+  aggregateRegionsToGeoBuckets,
+  distributionCache,
+  instruments,
+} from "@investments/db";
 import type { DistributionPayload } from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
@@ -112,8 +116,16 @@ export async function getPortfolioDistributions(): Promise<{
     valuationSource: row.source,
   }));
 
+  const regionsBucketed: Record<string, number> = {};
+  const merged = aggregateRegionsToGeoBuckets(regions);
+  for (const [k, v] of Object.entries(merged)) {
+    if (v > 0) {
+      regionsBucketed[k] = v;
+    }
+  }
+
   return {
-    regions,
+    regions: regionsBucketed,
     sectors,
     totalValueEur,
     mixedCurrencyWarning,

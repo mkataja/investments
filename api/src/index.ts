@@ -180,6 +180,7 @@ app.get("/instruments", async (c) => {
           fetchedAt: cache.fetchedAt,
           source: cache.source,
           payload: cache.payload,
+          rawPayload: cache.rawPayload ?? null,
         }
       : null,
     seligsonFund: fund ? { id: fund.id, fid: fund.fid, name: fund.name } : null,
@@ -391,9 +392,16 @@ if (devToolsAllowed()) {
     }
     const fid = Number.parseInt(fidRaw, 10);
     try {
-      const html = await fetchSeligsonHtml(fid);
-      const parsed = parseSeligsonDistributions(html);
-      return c.json({ htmlLength: html.length, ...parsed });
+      const [html40, html20] = await Promise.all([
+        fetchSeligsonHtml(fid, 40),
+        fetchSeligsonHtml(fid, 20),
+      ]);
+      const parsed = parseSeligsonDistributions(html40, html20);
+      return c.json({
+        html40Length: html40.length,
+        html20Length: html20.length,
+        ...parsed,
+      });
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       return c.json({ error: message }, 500);

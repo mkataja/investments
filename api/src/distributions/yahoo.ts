@@ -1,6 +1,22 @@
 import type { DistributionPayload } from "@investments/db";
+import { resolveRegionKeyToIso } from "@investments/db";
 import yahooFinance from "yahoo-finance2";
 import { mergeYahooWeightRows } from "./types.js";
+
+function normalizeYahooRegionsToIsoKeys(
+  regions: Record<string, number>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, w] of Object.entries(regions)) {
+    const iso = resolveRegionKeyToIso(k);
+    if (iso) {
+      out[iso] = (out[iso] ?? 0) + w;
+    } else {
+      out[k] = w;
+    }
+  }
+  return out;
+}
 
 const MODULES = [
   "topHoldings",
@@ -93,6 +109,8 @@ export function normalizeYahooDistribution(
     regions = { [asset.country]: 1 };
     notes.push(`Stock ${symbol}: geography set to issuer country only.`);
   }
+
+  regions = normalizeYahooRegionsToIsoKeys(regions);
 
   if (Object.keys(sectors).length === 0) {
     notes.push(`No sector breakdown for ${symbol}.`);

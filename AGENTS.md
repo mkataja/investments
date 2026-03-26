@@ -17,13 +17,15 @@ Personal **multi-broker portfolio tracker**: transactions are recorded per broke
 
 **Cash and geo charts:** `cash_account` positions are **excluded** from aggregated **region** and **sector** distribution weights (non-cash holdings are renormalized to sum to 100%).
 
+**Geo buckets:** shared logic in **`@investments/db`** maps ISO codes into default buckets: **`finland`**, **`europe`** (Europe excl. Finland), **`north_america`**, **`asia`** (Asia excl. China/HK/MO), **`china`** (CN + HK + MO), **`emerging_markets`** (everything else). **`GET /portfolio/distributions`** returns **`regions`** already aggregated to these bucket ids (value-weighted across open positions). Instrument **`distribution.payload.regions`** remain **per-instrument** ISO (or legacy macro) weights until the UI aggregates with the same helpers.
+
 ## Repo layout
 
 pnpm workspace — see [`pnpm-workspace.yaml`](pnpm-workspace.yaml):
 
 | Package | Role |
 | --- | --- |
-| [`db`](db) | Drizzle schema, SQL migrations, shared types, **`currencies.ts`** (supported cash currency codes for API + web) |
+| [`db`](db) | Drizzle schema, SQL migrations, shared types, **`currencies.ts`**, **`geo/`** (ISO country resolution + default geo buckets for portfolio/instruments UI) |
 | [`api`](api) | Hono API, valuation, distribution fetch/normalize, cache refresh |
 | [`web`](web) | Vite + React + Tailwind; portfolio UI, **instruments list** at `/instruments`, **new instrument** at `/instruments/new`, dev data checks |
 
@@ -42,7 +44,7 @@ Authoritative detail is **`db/src/schema.ts`** and migrations. Conceptually:
 - **`seligson_funds`:** Seligson products keyed by **`fid`** (unique); **`name`**, notes, active flag. Rows are created when adding a Seligson instrument ( **`POST /instruments`** with **`seligsonFid`** ) or reused if **`fid`** already exists.
 - **`instruments`:** **`kind`** (`etf` | `stock` | `seligson_fund` | `cash_account`), identifiers and cash/Seligson fields as in schema; optional **`mark_price_eur`** when Yahoo quotes are not used.
 - **`transactions`:** trades with **`currency`** and optional **`unit_price_eur`** for EUR-side reporting.
-- **`distribution_cache`:** one row per instrument; **`payload`** is **`{ regions, sectors }`**-shaped normalized weights; **`source`** distinguishes Yahoo, Seligson scrape, manual, etc.
+- **`distribution_cache`:** one row per instrument; **`payload`** is **`{ regions, sectors }`**-shaped normalized weights. **`regions`** keys are **ISO 3166-1 alpha-2** where the fetch path resolves them (Yahoo country names are normalized on ingest; Seligson uses FundViewer **view=20** “Maajakauma” country table, falling back to legacy macro keys **`europe`**, **`north_america`**, **`pacific`**, **`emerging`** if that table is missing). **`raw_payload`** stores upstream data for reprocessing without refetch: Yahoo **`quoteSummary`** JSON; Seligson **`{ html40, html20 }`** (sector view + country view) or legacy single HTML string; null for manual or legacy rows; **`source`** distinguishes Yahoo, Seligson scrape, manual, etc.
 
 **Positions** are derived from transactions (net quantity per instrument), not a separate persisted ledger unless you add one.
 

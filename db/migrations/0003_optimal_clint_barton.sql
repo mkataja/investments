@@ -1,0 +1,1 @@
+ALTER TABLE "distribution_cache" ADD COLUMN "raw_payload" jsonb;

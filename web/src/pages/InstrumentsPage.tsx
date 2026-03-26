@@ -37,6 +37,8 @@ type InstrumentListItem = {
     fetchedAt: string;
     source: string;
     payload: DistributionPayload;
+    /** Yahoo quoteSummary JSON or Seligson HTML; absent for manual/legacy cache. */
+    rawPayload?: unknown;
   } | null;
   seligsonFund: SeligsonFundSummary | null;
 };
@@ -65,11 +67,20 @@ function DistributionSummary({
                 key={s.bucket}
                 className="inline-flex items-center gap-0.5 whitespace-nowrap shrink-0"
               >
-                {s.bucket === "EU" || s.bucket === "NA" ? (
+                {s.bucket === "finland" ||
+                s.bucket === "europe" ||
+                s.bucket === "north_america" ||
+                s.bucket === "china" ? (
                   <span
                     className="text-2xl leading-none select-none"
                     title={
-                      s.bucket === "EU" ? "European Union" : "North America"
+                      s.bucket === "finland"
+                        ? "Finland"
+                        : s.bucket === "europe"
+                          ? "Europe (excl. Finland)"
+                          : s.bucket === "north_america"
+                            ? "North America"
+                            : "China (incl. HK/MO)"
                     }
                     aria-hidden
                   >

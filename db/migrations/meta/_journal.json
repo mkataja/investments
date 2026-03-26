@@ -22,6 +22,13 @@
       "when": 1774472204703,
       "tag": "0002_small_rhodey",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1774474640587,
+      "tag": "0003_optimal_clint_barton",
+      "breakpoints": true
     }
   ]
 }
