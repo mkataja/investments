@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { apiDelete, apiGet, apiPost } from "../api";
+import { Button, ButtonLink } from "../components/Button";
 import {
   aggregateRegionsToBuckets,
   formatDistributionTooltip,
@@ -272,8 +272,7 @@ export function InstrumentsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
+          <Button
             disabled={
               refreshableCount === 0 ||
               refreshingAll ||
@@ -281,16 +280,10 @@ export function InstrumentsPage() {
               deletingId !== null
             }
             onClick={() => void refreshAllDistributions()}
-            className="text-sm font-medium rounded-md border border-emerald-200 bg-white px-3 py-1.5 text-emerald-900 shadow-sm hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {refreshingAll ? "Refreshing all…" : "Refresh all"}
-          </button>
-          <Link
-            to="/instruments/new"
-            className="text-sm font-medium text-emerald-800 hover:underline"
-          >
-            New instrument
-          </Link>
+          </Button>
+          <ButtonLink to="/instruments/new">New instrument</ButtonLink>
         </div>
       </header>
 
