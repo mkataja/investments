@@ -80,7 +80,7 @@ function DistributionSummary({
           )}
         </div>
       </div>
-      <div className="text-slate-800">
+      <div className="text-xs text-slate-800">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 min-w-0">
           {sectorRows.length > 0 ? (
             sectorRows.map((s) => (
@@ -95,13 +95,11 @@ function DistributionSummary({
                 >
                   {s.icon}
                 </span>
-                <span className="text-xs font-mono tabular-nums">
-                  {s.pctLabel}
-                </span>
+                <span className="font-mono tabular-nums">{s.pctLabel}</span>
               </span>
             ))
           ) : (
-            <span className="text-xs py-0.5">—</span>
+            <span className="py-0.5">—</span>
           )}
         </div>
       </div>
