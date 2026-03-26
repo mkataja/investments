@@ -32,6 +32,7 @@ import {
 } from "./lib/cacheRefresh.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
 import { loadOpenPositions } from "./lib/positions.js";
+import { formatYahooUpstreamError } from "./lib/yahooUpstream.js";
 import { seedBrokers } from "./seed.js";
 
 const app = new Hono();
@@ -202,8 +203,8 @@ app.get("/instruments/lookup-yahoo", async (c) => {
       displayName: displayNameFromYahooLookup(lookup, symbol),
     });
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return c.json({ message }, 502);
+    const { message, status } = formatYahooUpstreamError(e);
+    return c.json({ message }, status);
   }
 });
 
@@ -215,8 +216,8 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
     try {
       raw = await fetchYahooQuoteSummaryRaw(body.yahooSymbol);
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return c.json({ message }, 502);
+      const { message, status } = formatYahooUpstreamError(e);
+      return c.json({ message }, status);
     }
     const lookup = buildYahooInstrumentLookup(raw, body.yahooSymbol);
     const displayName = displayNameFromYahooLookup(lookup, body.yahooSymbol);
@@ -236,8 +237,8 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
       await writeYahooDistributionCache(row.id, raw, body.yahooSymbol);
     } catch (e) {
       await db.delete(instruments).where(eq(instruments.id, row.id));
-      const message = e instanceof Error ? e.message : String(e);
-      return c.json({ message }, 502);
+      const { message, status } = formatYahooUpstreamError(e);
+      return c.json({ message }, status);
     }
     return c.json(row, 201);
   }
@@ -300,7 +301,7 @@ app.post("/instruments/:id/refresh-distribution", async (c) => {
     return c.json({ skipped: true, reason: result.reason }, 200);
   }
   if ("error" in result) {
-    return c.json({ message: result.error }, 502);
+    return c.json({ message: result.error }, result.status);
   }
   return c.json({ ok: true }, 200);
 });
@@ -380,8 +381,8 @@ if (devToolsAllowed()) {
         notes: normalized.notes,
       });
     } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return c.json({ error: message }, 500);
+      const { message, status } = formatYahooUpstreamError(e);
+      return c.json({ error: message }, status);
     }
   });
 

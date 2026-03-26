@@ -7,7 +7,7 @@ import type { DistributionPayload } from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { loadOpenPositions } from "./positions.js";
-import { valuePositionEur } from "./valuation.js";
+import { valuePortfolioRowsEur } from "./valuation.js";
 
 function mergeWeighted(
   acc: Record<string, number>,
@@ -53,26 +53,28 @@ export async function getPortfolioDistributions(): Promise<{
       ),
     );
 
-  const valued: Array<{
+  const rows: Array<{
     inst: (typeof instRows)[0];
     qty: number;
-    valueEur: number;
-    source: string;
   }> = [];
-
   for (const p of pos) {
     const inst = instRows.find((i) => i.id === p.instrumentId);
     if (!inst) {
       continue;
     }
-    const v = await valuePositionEur(inst, p.quantity);
-    valued.push({
-      inst,
-      qty: p.quantity,
-      valueEur: v.valueEur,
-      source: v.source,
-    });
+    rows.push({ inst, qty: p.quantity });
   }
+
+  const valuedResults = await valuePortfolioRowsEur(rows);
+  const valued = rows.map((row, i) => {
+    const v = valuedResults[i];
+    return {
+      inst: row.inst,
+      qty: row.qty,
+      valueEur: v?.valueEur ?? 0,
+      source: v?.source ?? "none",
+    };
+  });
 
   const totalValueEur = valued.reduce((s, x) => s + x.valueEur, 0);
   const mixedCurrencyWarning = false;

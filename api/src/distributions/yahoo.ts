@@ -1,6 +1,8 @@
 import type { DistributionPayload } from "@investments/db";
 import { resolveRegionKeyToIso } from "@investments/db";
-import yahooFinance from "yahoo-finance2";
+import type { QuoteSummaryResult } from "yahoo-finance2/modules/quoteSummary-iface";
+import { yahooFinance } from "../lib/yahooClient.js";
+import { withYahooRetries } from "../lib/yahooUpstream.js";
 import { mergeYahooWeightRows } from "./types.js";
 
 function normalizeYahooRegionsToIsoKeys(
@@ -26,14 +28,14 @@ const MODULES = [
   "price",
 ] as const;
 
-export type YahooQuoteSummaryRaw = Awaited<
-  ReturnType<typeof yahooFinance.quoteSummary>
->;
+export type YahooQuoteSummaryRaw = QuoteSummaryResult;
 
 export async function fetchYahooQuoteSummaryRaw(
   symbol: string,
 ): Promise<YahooQuoteSummaryRaw> {
-  return yahooFinance.quoteSummary(symbol, { modules: [...MODULES] });
+  return withYahooRetries(() =>
+    yahooFinance.quoteSummary(symbol, { modules: [...MODULES] }),
+  );
 }
 
 export type YahooInstrumentLookup = {
@@ -57,15 +59,17 @@ export function buildYahooInstrumentLookup(
     typeof price?.shortName === "string" ? price.shortName : null;
   const longNameFromPrice =
     typeof price?.longName === "string" ? price.longName : null;
-  const longName = longNameFromPrice ?? asset?.longName ?? null;
+  const longNameFromAsset =
+    typeof asset?.longName === "string" ? asset.longName : null;
+  const longName = longNameFromPrice ?? longNameFromAsset;
   return {
     symbol,
     shortName,
     longName,
-    isin: asset?.isin ?? null,
-    sector: asset?.sector ?? null,
-    industry: asset?.industry ?? null,
-    country: asset?.country ?? null,
+    isin: typeof asset?.isin === "string" ? asset.isin : null,
+    sector: typeof asset?.sector === "string" ? asset.sector : null,
+    industry: typeof asset?.industry === "string" ? asset.industry : null,
+    country: typeof asset?.country === "string" ? asset.country : null,
     quoteType: typeof price?.quoteType === "string" ? price.quoteType : null,
   };
 }

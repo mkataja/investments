@@ -11,8 +11,18 @@ import {
   normalizeYahooDistribution,
 } from "../distributions/yahoo.js";
 import { loadOpenPositions } from "./positions.js";
+import { formatYahooUpstreamError } from "./yahooUpstream.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+function yahooRefreshGapMs(): number {
+  const n = Number.parseInt(process.env.YAHOO_MIN_INTERVAL_MS ?? "900", 10);
+  return Number.isFinite(n) && n >= 0 ? n : 900;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 /** JSON-safe clone for `jsonb` (drops non-JSON values from Yahoo responses). */
 function jsonCloneForStorage<T>(value: T): T {
@@ -81,7 +91,7 @@ export async function writeSeligsonDistributionCache(
 export type RefreshDistributionResult =
   | { ok: true }
   | { skipped: true; reason: "not_found" | "cash_account" | "manual" }
-  | { error: string };
+  | { error: string; status: 503 | 502 };
 
 export async function refreshDistributionCacheForInstrumentId(
   instrumentId: number,
@@ -114,7 +124,7 @@ export async function refreshDistributionCacheForInstrumentId(
         .from(seligsonFunds)
         .where(eq(seligsonFunds.id, inst.seligsonFundId));
       if (!sf) {
-        return { error: "Seligson fund row missing" };
+        return { error: "Seligson fund row missing", status: 502 };
       }
       await writeSeligsonDistributionCache(inst.id, sf.fid, now);
       return { ok: true };
@@ -126,10 +136,13 @@ export async function refreshDistributionCacheForInstrumentId(
       return { ok: true };
     }
 
-    return { error: "Instrument has no external distribution source" };
+    return {
+      error: "Instrument has no external distribution source",
+      status: 502,
+    };
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return { error: message };
+    const { message, status } = formatYahooUpstreamError(e);
+    return { error: message, status };
   }
 }
 
@@ -146,6 +159,8 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
 
   const now = new Date();
   const staleBefore = new Date(now.getTime() - DAY_MS);
+  const gapMs = yahooRefreshGapMs();
+  let yahooRefreshIndex = 0;
 
   for (const inst of instRows) {
     if (inst.kind === "cash_account") {
@@ -181,6 +196,10 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
       }
 
       if ((inst.kind === "etf" || inst.kind === "stock") && inst.yahooSymbol) {
+        yahooRefreshIndex++;
+        if (yahooRefreshIndex > 1 && gapMs > 0) {
+          await sleep(gapMs);
+        }
         const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
         await writeYahooDistributionCache(inst.id, raw, inst.yahooSymbol, now);
       }

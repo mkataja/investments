@@ -10,7 +10,7 @@ Personal **multi-broker portfolio tracker**: transactions are recorded per broke
 
 **Data sources for distributions** (implementation lives under `api`; details drift—read code when editing):
 
-- **ETFs / stocks:** Yahoo Finance via **`yahoo-finance2`** (`quoteSummary` and related modules). Symbols are stored as **`yahooSymbol`**. Unofficial API—handle absence and schema changes gracefully; **caching** reduces repeated calls.
+- **ETFs / stocks:** Yahoo Finance via **`yahoo-finance2` v3** (shared **`YahooFinance`** instance in `api`, `quoteSummary` + `quote`). Symbols are stored as **`yahooSymbol`**. Unofficial API—Yahoo may **429 / block** by IP; the API maps that to a readable message and **503**, uses **retries with backoff** on `quoteSummary`, **batches `quote`** for portfolio valuation, and **staggers** startup distribution refresh for Yahoo rows (optional **`YAHOO_MIN_INTERVAL_MS`**, default ~900ms). **Caching** reduces repeated calls.
 - **Seligson mutual funds:** **HTML scrape** of Seligson FundViewer (sector/region breakdown view; **`fid`** in the URL must match **`seligson_funds`** in the DB). Users register funds via **`/instruments/new`** (FID only); **`seligson_funds`** rows are **find-or-created** by the API, not edited via a separate admin app.
 - **Cash (`cash_account`):** no external fetch for valuation beyond FX—nominal balance is in **`cash_currency`** (see **`SUPPORTED_CASH_CURRENCY_CODES`** in `db`); **`cash_geo_key`** is optional metadata and may be stored but **does not** affect region/sector charts.
 - **Stocks:** sector/industry from Yahoo when present; geography is often **issuer-country-only** as a simplification, not economic exposure.
