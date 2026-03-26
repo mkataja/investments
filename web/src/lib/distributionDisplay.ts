@@ -28,13 +28,16 @@ export type SectorRow = {
   pctLabel: string;
 };
 
-/** Sectors sorted by weight descending, for compact UI rows. */
+const sectorNameCmp = (a: string, b: string) =>
+  a.localeCompare(b, undefined, { sensitivity: "base" });
+
+/** Sectors in fixed alphabetical order by sector name (not by weight). */
 export function sortedSectorsForDisplay(
   sectors: Record<string, number>,
 ): SectorRow[] {
   return Object.entries(sectors)
     .filter(([, v]) => typeof v === "number" && Number.isFinite(v) && v > 0)
-    .sort((a, b) => b[1] - a[1])
+    .sort((a, b) => sectorNameCmp(a[0], b[0]))
     .map(([name, w]) => ({
       name,
       weight: w,
@@ -67,6 +70,10 @@ export function geoBucketDisplayLabel(bucket: GeoBucket): string {
 
 export type GeoSegment = { bucket: GeoBucket; pctLabel: string };
 
+const bucketOrderIndex = new Map(
+  GEO_BUCKET_ORDER.map((b, i) => [b, i] as const),
+);
+
 export function geoSegmentsForDisplay(
   buckets: Record<GeoBucket, number>,
 ): GeoSegment[] {
@@ -77,6 +84,15 @@ export function geoSegmentsForDisplay(
       out.push({ bucket: b, pctLabel: formatPct01(v) });
     }
   }
+  out.sort((a, b) => {
+    const va = buckets[a.bucket];
+    const vb = buckets[b.bucket];
+    if (vb !== va) return vb - va;
+    return (
+      (bucketOrderIndex.get(a.bucket) ?? 0) -
+      (bucketOrderIndex.get(b.bucket) ?? 0)
+    );
+  });
   return out;
 }
 
@@ -140,20 +156,17 @@ export function formatDistributionTooltip(
   sectors: Record<string, number>,
 ): string {
   const lines: string[] = [];
-  const geoParts: string[] = [];
   const g = aggregateRegionsToGeoBuckets(regions);
-  for (const b of GEO_BUCKET_ORDER) {
-    const v = g[b];
-    if (v > 0.0005) {
-      geoParts.push(`${b} ${(v * 100).toFixed(1)}%`);
-    }
-  }
+  const geoSegs = geoSegmentsForDisplay(g);
+  const geoParts = geoSegs.map(
+    (s) => `${s.bucket} ${(g[s.bucket] * 100).toFixed(1)}%`,
+  );
   if (geoParts.length > 0) {
     lines.push(`Geo: ${geoParts.join(", ")}`);
   }
   const secParts = Object.entries(sectors)
     .filter(([, v]) => typeof v === "number" && v > 0.0005)
-    .sort((a, b) => b[1] - a[1])
+    .sort((a, b) => sectorNameCmp(a[0], b[0]))
     .map(([k, v]) => `${k} ${(v * 100).toFixed(1)}%`);
   if (secParts.length > 0) {
     lines.push(`Sectors: ${secParts.join(", ")}`);
