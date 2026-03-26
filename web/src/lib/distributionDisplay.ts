@@ -18,10 +18,13 @@ export function aggregateRegionsToBuckets(
   return aggregateRegionsToGeoBuckets(regions);
 }
 
+const NBSP = "\u00a0";
+
 /** Whole percent, left-padded to 4 monospace columns (e.g. ` 12%`, `100%`). */
 export function formatPercentWidth4From01(weight01: number): string {
   const s = `${Math.round(weight01 * 100)}%`;
-  return s.padStart(4, " ");
+  /** NBSP so HTML does not collapse multiple leading spaces (breaks single-digit %). */
+  return s.padStart(4, NBSP);
 }
 
 export type SectorRow = {
