@@ -4,6 +4,7 @@ import {
   GEO_BUCKET_ORDER,
   type GeoBucketId,
   aggregateRegionsToGeoBuckets,
+  geoBucketDisplayIcon,
 } from "@investments/db";
 
 export type GeoBucket = GeoBucketId;
@@ -46,26 +47,9 @@ export function sortedSectorsForDisplay(
     }));
 }
 
-/** Compact label for the geo row */
+/** @deprecated Use `geoBucketDisplayIcon` from `@investments/db` */
 export function geoBucketDisplayLabel(bucket: GeoBucket): string {
-  switch (bucket) {
-    case "finland":
-      return "🇫🇮";
-    case "europe":
-      return "🇪🇺";
-    case "north_america":
-      return "🇺🇸";
-    case "asia":
-      return "Asia";
-    case "china":
-      return "🇨🇳";
-    case "emerging_markets":
-      return "EM";
-    case "unknown":
-      return "⚠️";
-    default:
-      return bucket;
-  }
+  return geoBucketDisplayIcon(bucket);
 }
 
 export type GeoSegment = { bucket: GeoBucket; pctLabel: string };
@@ -98,7 +82,7 @@ export function geoSegmentsForDisplay(
 
 export function formatGeoLine(buckets: Record<GeoBucket, number>): string {
   return geoSegmentsForDisplay(buckets)
-    .map((s) => `${geoBucketDisplayLabel(s.bucket)} ${s.pctLabel}`)
+    .map((s) => `${geoBucketDisplayIcon(s.bucket)} ${s.pctLabel}`)
     .join(" · ");
 }
 

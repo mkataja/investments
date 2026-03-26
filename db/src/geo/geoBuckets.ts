@@ -13,6 +13,61 @@ export const GEO_BUCKET_ORDER = [
 
 export type GeoBucketId = (typeof GEO_BUCKET_ORDER)[number];
 
+/** Emoji (or symbol) shown for each geo bucket in UIs. */
+export const GEO_BUCKET_DISPLAY_ICONS: Record<GeoBucketId, string> = {
+  finland: "🇫🇮",
+  europe: "🇪🇺",
+  north_america: "🇺🇸",
+  asia: "⛩️",
+  china: "🇨🇳",
+  /** Emerging / frontier — growth / “rising” economies (not a regional flag). */
+  emerging_markets: "🌱",
+  unknown: "⚠️",
+};
+
+/** Tooltip / accessibility titles for geo buckets (not the raw bucket id). */
+export const GEO_BUCKET_DISPLAY_TITLES: Record<GeoBucketId, string> = {
+  finland: "Finland",
+  europe: "Europe (excl. Finland)",
+  north_america: "North America",
+  asia: "Asia (developed APAC)",
+  china: "China (incl. HK/MO)",
+  emerging_markets: "Emerging markets",
+  unknown: "Unmapped country label (add to countryIso)",
+};
+
+export function geoBucketDisplayIcon(bucket: GeoBucketId): string {
+  return GEO_BUCKET_DISPLAY_ICONS[bucket] ?? bucket;
+}
+
+export function geoBucketDisplayTitle(bucket: GeoBucketId): string {
+  return GEO_BUCKET_DISPLAY_TITLES[bucket] ?? bucket;
+}
+
+/**
+ * ISO 3166-1 alpha-2 → regional-indicator flag emoji.
+ * Invalid or non‑A–Z codes → 🏳️ (placeholder).
+ */
+export function countryIsoToFlagEmoji(iso: string): string {
+  const c = iso.trim().toUpperCase();
+  if (c.length !== 2) {
+    return "🏳️";
+  }
+  const a = c.codePointAt(0);
+  const b = c.codePointAt(1);
+  if (
+    a === undefined ||
+    b === undefined ||
+    a < 65 ||
+    a > 90 ||
+    b < 65 ||
+    b > 90
+  ) {
+    return "🏳️";
+  }
+  return String.fromCodePoint(0x1f1e6 + (a - 65), 0x1f1e6 + (b - 65));
+}
+
 const CHINA = new Set([
   "CN", // China
   "HK", // Hong Kong
