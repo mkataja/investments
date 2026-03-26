@@ -20,11 +20,10 @@ export function aggregateRegionsToBuckets(
 
 const NBSP = "\u00a0";
 
-/** Whole percent, left-padded to 4 monospace columns (e.g. ` 12%`, `100%`). */
+/** Whole percent in a fixed 4-column field: value left-aligned, padded on the right (NBSP). */
 export function formatPercentWidth4From01(weight01: number): string {
   const s = `${Math.round(weight01 * 100)}%`;
-  /** NBSP so HTML does not collapse multiple leading spaces (breaks single-digit %). */
-  return s.padStart(4, NBSP);
+  return s.padEnd(4, NBSP);
 }
 
 export type SectorRow = {
