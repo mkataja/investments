@@ -133,14 +133,19 @@ function DistributionSummary({
   );
 }
 
+type RefreshResponse = { ok: true } | { skipped: true; reason: string };
+
 export function InstrumentsPage() {
   const [rows, setRows] = useState<InstrumentListItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [refreshingId, setRefreshingId] = useState<number | null>(null);
+  const [refreshingAll, setRefreshingAll] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
+    setNotice(null);
     try {
       const data = await apiGet<InstrumentListItem[]>("/instruments");
       setRows(data);
@@ -158,9 +163,9 @@ export function InstrumentsPage() {
       return;
     }
     setError(null);
+    setNotice(null);
     setRefreshingId(i.id);
     try {
-      type RefreshResponse = { ok: true } | { skipped: true; reason: string };
       const res = await apiPost<RefreshResponse>(
         `/instruments/${i.id}/refresh-distribution`,
       );
@@ -182,6 +187,55 @@ export function InstrumentsPage() {
     }
   }
 
+  async function refreshAllDistributions() {
+    const targets = rows.filter((r) => r.kind !== "cash_account");
+    if (targets.length === 0) {
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setRefreshingAll(true);
+    let ok = 0;
+    let skippedManual = 0;
+    let skippedOther = 0;
+    try {
+      for (const i of targets) {
+        const res = await apiPost<RefreshResponse>(
+          `/instruments/${i.id}/refresh-distribution`,
+        );
+        if ("skipped" in res) {
+          if (res.reason === "manual") {
+            skippedManual += 1;
+          } else {
+            skippedOther += 1;
+          }
+        } else {
+          ok += 1;
+        }
+      }
+      await load();
+      const parts: string[] = [];
+      if (ok > 0) {
+        parts.push(
+          `${ok} ${ok === 1 ? "instrument" : "instruments"} refreshed`,
+        );
+      }
+      if (skippedManual > 0) {
+        parts.push(`${skippedManual} skipped (manual cache)`);
+      }
+      if (skippedOther > 0) {
+        parts.push(`${skippedOther} skipped`);
+      }
+      if (parts.length > 0) {
+        setNotice(parts.join(" · "));
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setRefreshingAll(false);
+    }
+  }
+
   async function removeInstrument(i: InstrumentListItem) {
     if (
       !window.confirm(
@@ -191,6 +245,7 @@ export function InstrumentsPage() {
       return;
     }
     setError(null);
+    setNotice(null);
     setDeletingId(i.id);
     try {
       await apiDelete(`/instruments/${i.id}`);
@@ -201,6 +256,8 @@ export function InstrumentsPage() {
       setDeletingId(null);
     }
   }
+
+  const refreshableCount = rows.filter((r) => r.kind !== "cash_account").length;
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
@@ -214,17 +271,38 @@ export function InstrumentsPage() {
             positions.
           </p>
         </div>
-        <Link
-          to="/instruments/new"
-          className="text-sm font-medium text-emerald-800 hover:underline"
-        >
-          New instrument
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            disabled={
+              refreshableCount === 0 ||
+              refreshingAll ||
+              refreshingId !== null ||
+              deletingId !== null
+            }
+            onClick={() => void refreshAllDistributions()}
+            className="text-sm font-medium rounded-md border border-emerald-200 bg-white px-3 py-1.5 text-emerald-900 shadow-sm hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {refreshingAll ? "Refreshing all…" : "Refresh all"}
+          </button>
+          <Link
+            to="/instruments/new"
+            className="text-sm font-medium text-emerald-800 hover:underline"
+          >
+            New instrument
+          </Link>
+        </div>
       </header>
 
       {error && (
         <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
           {error}
+        </p>
+      )}
+
+      {notice && (
+        <p className="text-emerald-900 text-sm bg-emerald-50 border border-emerald-200 rounded px-3 py-2">
+          {notice}
         </p>
       )}
 
@@ -263,7 +341,11 @@ export function InstrumentsPage() {
                     {i.kind !== "cash_account" && (
                       <button
                         type="button"
-                        disabled={refreshingId === i.id || deletingId === i.id}
+                        disabled={
+                          refreshingId === i.id ||
+                          deletingId === i.id ||
+                          refreshingAll
+                        }
                         onClick={() => void refreshDistribution(i)}
                         className="text-sm text-emerald-800 hover:underline disabled:opacity-50"
                       >
@@ -272,7 +354,11 @@ export function InstrumentsPage() {
                     )}
                     <button
                       type="button"
-                      disabled={deletingId === i.id || refreshingId === i.id}
+                      disabled={
+                        deletingId === i.id ||
+                        refreshingId === i.id ||
+                        refreshingAll
+                      }
                       onClick={() => void removeInstrument(i)}
                       className="text-sm text-red-700 hover:underline disabled:opacity-50"
                     >
