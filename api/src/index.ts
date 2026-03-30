@@ -48,7 +48,6 @@ import {
   refreshDistributionCacheForInstrumentId,
   refreshStaleDistributionCaches,
   writeSeligsonDistributionCache,
-  writeYahooDistributionCache,
 } from "./lib/cacheRefresh.js";
 import { insertEtfStockFromYahoo } from "./lib/createYahooInstrument.js";
 import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
@@ -480,16 +479,10 @@ const instrumentIn = z.discriminatedUnion("kind", [
   }),
 ]);
 
-const instrumentPatchIn = z
+/** Only **`cash_account`** instruments accept PATCH (synced kinds are not editable). */
+const cashInstrumentPatchIn = z
   .object({
     displayName: z.string().trim().min(1).optional(),
-    yahooSymbol: z
-      .string()
-      .min(1)
-      .transform(normalizeYahooSymbolForStorage)
-      .optional(),
-    isin: z.union([z.string().length(12), z.literal(""), z.null()]).optional(),
-    markPriceEur: z.union([z.string(), z.number(), z.null()]).optional(),
     brokerId: z.number().int().positive().optional(),
     cashCurrency: cashCurrencySchema.optional(),
     cashGeoKey: z
@@ -502,18 +495,13 @@ const instrumentPatchIn = z
           "Country code must be a valid ISO 3166-1 alpha-2 value (e.g. FI, US)",
       })
       .optional(),
-    cashInterestType: z.union([z.string().trim().min(1), z.null()]).optional(),
   })
   .refine(
     (o) =>
       o.displayName != null ||
-      o.yahooSymbol != null ||
-      o.isin !== undefined ||
-      o.markPriceEur !== undefined ||
       o.brokerId != null ||
       o.cashCurrency != null ||
-      o.cashGeoKey != null ||
-      o.cashInterestType !== undefined,
+      o.cashGeoKey != null,
     { message: "At least one field is required" },
   );
 
@@ -842,7 +830,7 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
 
 app.patch(
   "/instruments/:id",
-  zValidator("json", instrumentPatchIn),
+  zValidator("json", cashInstrumentPatchIn),
   async (c) => {
     const id = Number.parseInt(c.req.param("id"), 10);
     if (!Number.isFinite(id) || id < 1) {
@@ -856,248 +844,89 @@ app.patch(
     if (!existing) {
       return c.json({ message: "Not found" }, 404);
     }
+    if (existing.kind !== "cash_account") {
+      return c.json(
+        {
+          message:
+            "Only cash account instruments can be edited; ETF, stock, and Seligson-linked instruments are synced from their source",
+        },
+        400,
+      );
+    }
 
-    const kind = existing.kind;
-
-    if (kind === "etf" || kind === "stock") {
-      if (
-        body.brokerId != null ||
-        body.cashCurrency != null ||
-        body.cashGeoKey != null ||
-        body.cashInterestType !== undefined
-      ) {
+    const updates: {
+      displayName?: string;
+      brokerId?: number;
+      cashCurrency?: string;
+      cashGeoKey?: string;
+    } = {};
+    if (body.displayName != null) {
+      const name = body.displayName.trim();
+      const [dup] = await db
+        .select({ id: instruments.id })
+        .from(instruments)
+        .where(
+          and(
+            eq(instruments.kind, "cash_account"),
+            sql`lower(trim(${instruments.displayName})) = ${name.toLowerCase()}`,
+            ne(instruments.id, id),
+          ),
+        )
+        .limit(1);
+      if (dup) {
         return c.json(
-          { message: "Invalid fields for this instrument kind" },
+          { message: "A cash account with this name already exists" },
+          409,
+        );
+      }
+      updates.displayName = name;
+    }
+    if (body.brokerId != null) {
+      const [br] = await db
+        .select()
+        .from(brokers)
+        .where(eq(brokers.id, body.brokerId));
+      if (!br) {
+        return c.json({ message: "Broker not found" }, 404);
+      }
+      if (br.brokerType !== "cash_account") {
+        return c.json(
+          { message: "Cash instruments require a cash-account-type broker" },
           400,
         );
       }
-      const nextSymbol =
-        body.yahooSymbol != null ? body.yahooSymbol : existing.yahooSymbol;
-      if (!nextSymbol) {
-        return c.json({ message: "Missing Yahoo symbol" }, 400);
-      }
-      const symbolChanging =
-        body.yahooSymbol != null && body.yahooSymbol !== existing.yahooSymbol;
-
-      if (symbolChanging) {
-        try {
-          const raw = await fetchYahooQuoteSummaryRaw(nextSymbol);
-          const lookup = buildYahooInstrumentLookup(raw, nextSymbol);
-          const nextDisplayName =
-            body.displayName != null
-              ? body.displayName
-              : displayNameFromYahooLookup(lookup, nextSymbol);
-          let nextIsin: string | null;
-          if (body.isin !== undefined) {
-            nextIsin =
-              body.isin === null || body.isin === "" ? null : body.isin;
-          } else {
-            const fromLookup = lookup.isin?.trim();
-            nextIsin =
-              fromLookup && fromLookup.length === 12
-                ? fromLookup
-                : (existing.isin ?? null);
-          }
-          let nextMark = existing.markPriceEur;
-          if (body.markPriceEur !== undefined) {
-            nextMark =
-              body.markPriceEur === null ? null : String(body.markPriceEur);
-          }
-          await db
-            .update(instruments)
-            .set({
-              displayName: nextDisplayName,
-              yahooSymbol: nextSymbol,
-              isin: nextIsin ?? undefined,
-              markPriceEur: nextMark,
-            })
-            .where(eq(instruments.id, id));
-          await writeYahooDistributionCache(id, raw, nextSymbol);
-        } catch (e) {
-          const { message, status } = formatYahooUpstreamError(e);
-          return c.json({ message }, status);
-        }
-      } else {
-        const updates: {
-          displayName?: string;
-          isin?: string | null;
-          markPriceEur?: string | null;
-        } = {};
-        if (body.displayName != null) updates.displayName = body.displayName;
-        if (body.isin !== undefined) {
-          updates.isin =
-            body.isin === null || body.isin === "" ? null : body.isin;
-        }
-        if (body.markPriceEur !== undefined) {
-          updates.markPriceEur =
-            body.markPriceEur === null ? null : String(body.markPriceEur);
-        }
-        if (Object.keys(updates).length === 0) {
-          const payload = await loadInstrumentPayloadById(id);
-          if (!payload) {
-            return c.json({ message: "Not found" }, 404);
-          }
-          return c.json(payload);
-        }
-        await db.update(instruments).set(updates).where(eq(instruments.id, id));
-      }
+      updates.brokerId = body.brokerId;
+    }
+    if (body.cashCurrency != null) updates.cashCurrency = body.cashCurrency;
+    if (body.cashGeoKey != null) updates.cashGeoKey = body.cashGeoKey;
+    if (Object.keys(updates).length === 0) {
       const payload = await loadInstrumentPayloadById(id);
       if (!payload) {
         return c.json({ message: "Not found" }, 404);
       }
       return c.json(payload);
     }
-
-    if (kind === "custom") {
-      if (
-        body.yahooSymbol != null ||
-        body.cashCurrency != null ||
-        body.cashGeoKey != null ||
-        body.cashInterestType !== undefined
-      ) {
-        return c.json(
-          { message: "Invalid fields for this instrument kind" },
-          400,
-        );
-      }
-      const updates: {
-        displayName?: string;
-        brokerId?: number;
-        isin?: string | null;
-        markPriceEur?: string | null;
-      } = {};
-      if (body.displayName != null) updates.displayName = body.displayName;
-      if (body.brokerId != null) {
-        const [br] = await db
-          .select()
-          .from(brokers)
-          .where(eq(brokers.id, body.brokerId));
-        if (!br) {
-          return c.json({ message: "Broker not found" }, 404);
-        }
-        if (br.brokerType !== "seligson") {
-          return c.json(
-            { message: "Custom instruments require a Seligson-type broker" },
-            400,
-          );
-        }
-        updates.brokerId = body.brokerId;
-      }
-      if (body.isin !== undefined) {
-        updates.isin =
-          body.isin === null || body.isin === "" ? null : body.isin;
-      }
-      if (body.markPriceEur !== undefined) {
-        updates.markPriceEur =
-          body.markPriceEur === null ? null : String(body.markPriceEur);
-      }
-      if (Object.keys(updates).length === 0) {
-        const payload = await loadInstrumentPayloadById(id);
-        if (!payload) {
-          return c.json({ message: "Not found" }, 404);
-        }
-        return c.json(payload);
-      }
+    try {
       await db.update(instruments).set(updates).where(eq(instruments.id, id));
-      const payload = await loadInstrumentPayloadById(id);
-      if (!payload) {
-        return c.json({ message: "Not found" }, 404);
-      }
-      return c.json(payload);
-    }
-
-    if (kind === "cash_account") {
+    } catch (e) {
       if (
-        body.yahooSymbol != null ||
-        body.isin !== undefined ||
-        body.markPriceEur !== undefined
+        typeof e === "object" &&
+        e !== null &&
+        "code" in e &&
+        (e as { code?: string }).code === "23505"
       ) {
         return c.json(
-          { message: "Invalid fields for this instrument kind" },
-          400,
+          { message: "A cash account with this name already exists" },
+          409,
         );
       }
-      const updates: {
-        displayName?: string;
-        brokerId?: number;
-        cashCurrency?: string;
-        cashGeoKey?: string;
-        cashInterestType?: string | null;
-      } = {};
-      if (body.displayName != null) {
-        const name = body.displayName.trim();
-        const [dup] = await db
-          .select({ id: instruments.id })
-          .from(instruments)
-          .where(
-            and(
-              eq(instruments.kind, "cash_account"),
-              sql`lower(trim(${instruments.displayName})) = ${name.toLowerCase()}`,
-              ne(instruments.id, id),
-            ),
-          )
-          .limit(1);
-        if (dup) {
-          return c.json(
-            { message: "A cash account with this name already exists" },
-            409,
-          );
-        }
-        updates.displayName = name;
-      }
-      if (body.brokerId != null) {
-        const [br] = await db
-          .select()
-          .from(brokers)
-          .where(eq(brokers.id, body.brokerId));
-        if (!br) {
-          return c.json({ message: "Broker not found" }, 404);
-        }
-        if (br.brokerType !== "cash_account") {
-          return c.json(
-            { message: "Cash instruments require a cash-account-type broker" },
-            400,
-          );
-        }
-        updates.brokerId = body.brokerId;
-      }
-      if (body.cashCurrency != null) updates.cashCurrency = body.cashCurrency;
-      if (body.cashGeoKey != null) updates.cashGeoKey = body.cashGeoKey;
-      if (body.cashInterestType !== undefined) {
-        updates.cashInterestType =
-          body.cashInterestType === null ? null : body.cashInterestType;
-      }
-      if (Object.keys(updates).length === 0) {
-        const payload = await loadInstrumentPayloadById(id);
-        if (!payload) {
-          return c.json({ message: "Not found" }, 404);
-        }
-        return c.json(payload);
-      }
-      try {
-        await db.update(instruments).set(updates).where(eq(instruments.id, id));
-      } catch (e) {
-        if (
-          typeof e === "object" &&
-          e !== null &&
-          "code" in e &&
-          (e as { code?: string }).code === "23505"
-        ) {
-          return c.json(
-            { message: "A cash account with this name already exists" },
-            409,
-          );
-        }
-        throw e;
-      }
-      const payload = await loadInstrumentPayloadById(id);
-      if (!payload) {
-        return c.json({ message: "Not found" }, 404);
-      }
-      return c.json(payload);
+      throw e;
     }
-
-    return c.json({ message: "Unsupported instrument kind" }, 400);
+    const payload = await loadInstrumentPayloadById(id);
+    if (!payload) {
+      return c.json({ message: "Not found" }, 404);
+    }
+    return c.json(payload);
   },
 );
 

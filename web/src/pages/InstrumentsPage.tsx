@@ -402,12 +402,14 @@ export function InstrumentsPage() {
                   </td>
                   <td className="p-2 text-right">
                     <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end sm:gap-3">
-                      <Link
-                        to={`/instruments/${i.id}/edit`}
-                        className="text-sm text-emerald-800 hover:underline"
-                      >
-                        Edit
-                      </Link>
+                      {i.kind === "cash_account" && (
+                        <Link
+                          to={`/instruments/${i.id}/edit`}
+                          className="text-sm text-emerald-800 hover:underline"
+                        >
+                          Edit
+                        </Link>
+                      )}
                       {i.kind !== "cash_account" && (
                         <button
                           type="button"
