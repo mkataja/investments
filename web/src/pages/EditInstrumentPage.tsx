@@ -13,6 +13,10 @@ import { ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { EditInstrumentPageSkeleton } from "../components/listPageSkeletons";
 import { FormFieldsCardSkeleton } from "../components/skeletonPrimitives";
+import {
+  ISHARES_HOLDINGS_EXAMPLE_URL,
+  SPDR_HOLDINGS_EXAMPLE_URL,
+} from "../lib/holdingsExampleUrls";
 
 type InstrumentDetail = {
   id: number;
@@ -225,9 +229,18 @@ export function EditInstrumentPage() {
                   setHoldingsUrl(e.target.value);
                   setError(null);
                 }}
-                placeholder="https://www.ishares.com/… or https://www.ssga.com/…"
               />
             </label>
+            <div className="mt-2 space-y-1.5 text-xs text-slate-600">
+              <p className="font-mono break-all">
+                <span className="text-slate-500">iShares example: </span>
+                {ISHARES_HOLDINGS_EXAMPLE_URL}
+              </p>
+              <p className="font-mono break-all">
+                <span className="text-slate-500">SPDR example: </span>
+                {SPDR_HOLDINGS_EXAMPLE_URL}
+              </p>
+            </div>
             <p className="text-xs text-slate-500">
               When set, country/sector distributions are built from this file
               (iShares CSV or SPDR XLSX). Clear the field to use Yahoo only.
