@@ -12,6 +12,7 @@ import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { fetchProviderHoldingsBytes } from "../distributions/fetchProviderHoldings.js";
 import { parseIsharesHoldingsCsv } from "../distributions/parseIsharesHoldingsCsv.js";
+import { parseJpmHoldingsXlsx } from "../distributions/parseJpmHoldingsXlsx.js";
 import { parseSsgaHoldingsXlsx } from "../distributions/parseSsgaHoldingsXlsx.js";
 import { parseXtrackersHoldingsXlsx } from "../distributions/parseXtrackersHoldingsXlsx.js";
 import { roundWeights } from "../distributions/roundWeights.js";
@@ -170,6 +171,10 @@ export async function writeProviderHoldingsDistributionCache(
   } else if (v.provider === "xtrackers_xlsx") {
     payload = parseXtrackersHoldingsXlsx(bytes);
     source = "xtrackers_holdings_xlsx";
+    raw = Buffer.from(bytes).toString("base64");
+  } else if (v.provider === "jpm_xlsx") {
+    payload = parseJpmHoldingsXlsx(bytes);
+    source = "jpm_holdings_xlsx";
     raw = Buffer.from(bytes).toString("base64");
   } else {
     payload = parseSsgaHoldingsXlsx(bytes);

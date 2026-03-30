@@ -3,6 +3,7 @@ import { mapSectorLabelToCanonicalId } from "./sectorMapping.js";
 
 describe("mapSectorLabelToCanonicalId", () => {
   it("maps common GICS-style labels", () => {
+    expect(mapSectorLabelToCanonicalId("realestate")).toBe("real_estate");
     expect(mapSectorLabelToCanonicalId("Technology")).toBe("technology");
     expect(mapSectorLabelToCanonicalId("Financial Services")).toBe(
       "financials",

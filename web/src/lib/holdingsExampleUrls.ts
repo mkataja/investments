@@ -7,3 +7,6 @@ export const SPDR_HOLDINGS_EXAMPLE_URL =
 
 export const XTRACKERS_HOLDINGS_EXAMPLE_URL =
   "https://etf.dws.com/etfdata/export/GBR/ENG/excel/product/constituent/IE00BLNMYC90/";
+
+export const JPM_HOLDINGS_EXAMPLE_URL =
+  "https://am.jpmorgan.com/FundsMarketingHandler/excel?type=dailyETFHoldings&cusip=IE00BJRCLL96&country=gb&role=per&fundType=N_ETF&locale=en-GB&isUnderlyingHolding=false&isProxyHolding=false";

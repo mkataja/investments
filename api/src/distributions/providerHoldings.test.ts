@@ -5,6 +5,7 @@ import { validateHoldingsDistributionUrl } from "@investments/db";
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import { parseIsharesHoldingsCsv } from "./parseIsharesHoldingsCsv.js";
+import { parseJpmHoldingsXlsx } from "./parseJpmHoldingsXlsx.js";
 import { parseSsgaHoldingsXlsx } from "./parseSsgaHoldingsXlsx.js";
 import { parseXtrackersHoldingsXlsx } from "./parseXtrackersHoldingsXlsx.js";
 
@@ -37,6 +38,15 @@ describe("validateHoldingsDistributionUrl", () => {
     expect(r.ok).toBe(true);
     if (r.ok) {
       expect(r.provider).toBe("xtrackers_xlsx");
+    }
+  });
+  it("accepts am.jpmorgan.com HTTPS", () => {
+    const r = validateHoldingsDistributionUrl(
+      "https://am.jpmorgan.com/FundsMarketingHandler/excel?type=dailyETFHoldings&cusip=IE00BJRCLL96&country=gb&role=per&fundType=N_ETF&locale=en-GB&isUnderlyingHolding=false&isProxyHolding=false",
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.provider).toBe("jpm_xlsx");
     }
   });
   it("rejects unsupported host", () => {
@@ -144,6 +154,72 @@ function minimalXtrackersHoldingsXlsx(): Uint8Array {
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
   return new Uint8Array(buf);
 }
+
+function minimalJpmHoldingsXlsx(): Uint8Array {
+  const rows: unknown[][] = [
+    ["Daily holdings", "Example", "", "", "", "", "", "", ""],
+    ["", "", "", "", "", "", "", "", ""],
+    [
+      "Name",
+      "ISIN",
+      "Asset class",
+      "Country",
+      "Currency",
+      "Weight",
+      "Base market\nvalue",
+      "Price",
+      "",
+    ],
+    [
+      "EXAMPLE CORP",
+      "US0378331005",
+      "Common Stock",
+      "United States",
+      "USD",
+      0.5,
+      1,
+      100,
+      "",
+    ],
+    [
+      "Cash and Cash Equivalent",
+      "",
+      "Cash",
+      "United States",
+      "USD",
+      0.02,
+      1,
+      1,
+      "",
+    ],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Holdings");
+  const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+  return new Uint8Array(buf);
+}
+
+describe("parseJpmHoldingsXlsx", () => {
+  it("aggregates equity and cash from minimal workbook", () => {
+    const { countries, sectors } = parseJpmHoldingsXlsx(
+      minimalJpmHoldingsXlsx(),
+    );
+    expect(countries.US).toBeCloseTo(0.5, 5);
+    expect(sectors.cash).toBeCloseTo(0.02, 5);
+    expect(sectors.other).toBeCloseTo(0.5, 5);
+  });
+
+  it.skipIf(!existsSync("/tmp/jpm_sample.xlsx"))(
+    "aggregates JPM export from /tmp/jpm_sample.xlsx when present",
+    () => {
+      const buf = readFileSync("/tmp/jpm_sample.xlsx");
+      const { countries, sectors } = parseJpmHoldingsXlsx(new Uint8Array(buf));
+      expect(countries.US).toBeGreaterThan(0.5);
+      expect(Object.keys(sectors).length).toBeGreaterThan(0);
+    },
+  );
+});
 
 describe("parseXtrackersHoldingsXlsx", () => {
   it("aggregates equity and cash from minimal workbook", () => {

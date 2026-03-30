@@ -70,7 +70,11 @@ export function mapSectorLabelToCanonicalId(raw: string): DistributionSectorId {
   ) {
     return "materials";
   }
-  if (s.includes("real estate") || s.includes("reit")) {
+  if (
+    s.includes("real estate") ||
+    s.includes("realestate") ||
+    s.includes("reit")
+  ) {
     return "real_estate";
   }
   if (s.includes("utilit")) {
