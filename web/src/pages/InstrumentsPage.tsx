@@ -1,7 +1,7 @@
 import {
   geoBucketDisplayIcon,
   geoBucketDisplayTitle,
-  instrumentKindDisplayLabel,
+  instrumentKindColumnLabel,
   instrumentTickerDisplay,
 } from "@investments/db";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -363,7 +363,6 @@ export function InstrumentsPage() {
             <tr>
               <th className="text-left p-2 font-medium">Kind</th>
               <th className="text-left p-2 font-medium">Ticker</th>
-              <th className="text-left p-2 font-medium">Broker</th>
               <th className="text-left p-2 font-medium">Name</th>
               <th className="text-left p-2 font-medium">Distribution</th>
               <th className="text-right p-2 font-medium w-40">Actions</th>
@@ -376,12 +375,9 @@ export function InstrumentsPage() {
               return (
                 <tr key={i.id} className="border-t border-slate-100 align-top">
                   <td className="p-2 text-slate-800">
-                    {instrumentKindDisplayLabel(i.kind)}
+                    {instrumentKindColumnLabel(i)}
                   </td>
                   <td className="p-2 text-slate-700">{ticker ?? "—"}</td>
-                  <td className="p-2 text-slate-600 text-xs">
-                    {i.broker?.name ?? "—"}
-                  </td>
                   <td className="p-2 font-medium text-slate-900">
                     {i.displayName}
                   </td>
