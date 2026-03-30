@@ -16,6 +16,10 @@ export function PortfolioViewSkeleton() {
           <BlockSkeleton className="h-4 w-20 inline-block" />
         </span>
       </p>
+      <div className="max-w-md">
+        <h3 className="text-sm font-medium text-slate-700 mb-1">Asset mix</h3>
+        <BlockSkeleton className="h-44 w-full rounded-lg" />
+      </div>
       <div className="grid md:grid-cols-2 gap-6">
         <div className="h-64">
           <h3 className="text-sm font-medium text-slate-700 mb-2">Regions</h3>

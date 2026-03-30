@@ -14,7 +14,10 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Legend,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -89,6 +92,15 @@ type Portfolio = {
   sectors: Record<string, number>;
   totalValueEur: number;
   mixedCurrencyWarning: boolean;
+  assetAllocation: {
+    equitiesEur: number;
+    bondsEur: number;
+    cashExcessEur: number;
+    emergencyFundSliceEur: number;
+    emergencyFundTargetEur: number;
+    cashTotalEur: number;
+    cashBelowEmergencyTarget: boolean;
+  };
   positions: Array<{
     instrumentId: number;
     displayName: string;
@@ -99,6 +111,32 @@ type Portfolio = {
     valuationSource: string;
   }>;
 };
+
+const ASSET_MIX_COLORS = {
+  equities: "#0f766e",
+  bonds: "#6d28d9",
+  cashExcess: "#0369a1",
+  emergency: "#15803d",
+} as const;
+
+function EmergencyFundWarningIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={className}
+      role="img"
+    >
+      <title>Warning</title>
+      <path
+        fillRule="evenodd"
+        d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
 
 function toChartData(rec: Record<string, number>) {
   return Object.entries(rec).map(([name, value]) => ({ name, value }));
@@ -236,6 +274,29 @@ export function HomePage() {
     return [...portfolio.positions].sort((a, b) => b.weight - a.weight);
   }, [portfolio]);
 
+  const assetMixPieData = useMemo(() => {
+    if (!portfolio) return [];
+    const aa = portfolio.assetAllocation;
+    return [
+      {
+        name: "Equities",
+        value: aa.equitiesEur,
+        fill: ASSET_MIX_COLORS.equities,
+      },
+      { name: "Bonds", value: aa.bondsEur, fill: ASSET_MIX_COLORS.bonds },
+      {
+        name: "Cash (excess)",
+        value: aa.cashExcessEur,
+        fill: ASSET_MIX_COLORS.cashExcess,
+      },
+      {
+        name: "Emergency fund",
+        value: aa.emergencyFundSliceEur,
+        fill: ASSET_MIX_COLORS.emergency,
+      },
+    ].filter((d) => d.value > 1e-9);
+  }, [portfolio]);
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -302,6 +363,61 @@ export function HomePage() {
               </span>
             )}
           </p>
+          {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
+            <div className="max-w-md">
+              <h3 className="text-sm font-medium text-slate-700 mb-1">
+                Asset mix
+              </h3>
+              <div className="h-44 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={assetMixPieData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={68}
+                      paddingAngle={1}
+                    >
+                      {assetMixPieData.map((d) => (
+                        <Cell key={d.name} fill={d.fill} stroke="#fff" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v: number) =>
+                        `${v.toFixed(2)} EUR (${(
+                          (v / portfolio.totalValueEur) * 100
+                        ).toFixed(1)}%)`
+                      }
+                    />
+                    <Legend
+                      verticalAlign="bottom"
+                      height={52}
+                      wrapperStyle={{ fontSize: "12px" }}
+                      formatter={(value) => {
+                        if (
+                          value === "Emergency fund" &&
+                          portfolio.assetAllocation.cashBelowEmergencyTarget
+                        ) {
+                          return (
+                            <span
+                              className="inline-flex items-center gap-1 text-slate-700"
+                              title="Cash is below emergency fund target"
+                            >
+                              {value}
+                              <EmergencyFundWarningIcon className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                            </span>
+                          );
+                        }
+                        return value;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : null}
           <div className="grid md:grid-cols-2 gap-6">
             <div className="h-64">
               <h3 className="text-sm font-medium text-slate-700 mb-2">

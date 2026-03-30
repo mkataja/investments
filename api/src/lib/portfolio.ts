@@ -1,11 +1,16 @@
 import {
+  USER_ID,
   aggregateRegionsToGeoBuckets,
   distributions,
   instruments,
+  portfolioSettings,
+  seligsonFunds,
+  yahooFinanceCache,
 } from "@investments/db";
 import type { DistributionPayload } from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
+import { classifyNonCashInstrument } from "./nonCashAssetClass.js";
 import { loadOpenPositions } from "./positions.js";
 import { valuePortfolioRowsEur } from "./valuation.js";
 
@@ -26,6 +31,17 @@ export async function getPortfolioDistributions(): Promise<{
   sectors: Record<string, number>;
   totalValueEur: number;
   mixedCurrencyWarning: boolean;
+  assetAllocation: {
+    equitiesEur: number;
+    bondsEur: number;
+    /** `max(0, cashTotalEur - emergencyFundTargetEur)`. */
+    cashExcessEur: number;
+    /** `min(cashTotalEur, emergencyFundTargetEur)` — EF slice of cash. */
+    emergencyFundSliceEur: number;
+    emergencyFundTargetEur: number;
+    cashTotalEur: number;
+    cashBelowEmergencyTarget: boolean;
+  };
   positions: Array<{
     instrumentId: number;
     displayName: string;
@@ -37,6 +53,33 @@ export async function getPortfolioDistributions(): Promise<{
     valuationSource: string;
   }>;
 }> {
+  const [psRow] = await db
+    .select()
+    .from(portfolioSettings)
+    .where(eq(portfolioSettings.userId, USER_ID));
+  const emergencyFundTargetEurRaw = psRow ? Number(psRow.emergencyFundEur) : 0;
+  const emergencyFundTargetEur = Number.isFinite(emergencyFundTargetEurRaw)
+    ? emergencyFundTargetEurRaw
+    : 0;
+
+  const emptyAssetAllocation = (): {
+    equitiesEur: number;
+    bondsEur: number;
+    cashExcessEur: number;
+    emergencyFundSliceEur: number;
+    emergencyFundTargetEur: number;
+    cashTotalEur: number;
+    cashBelowEmergencyTarget: boolean;
+  } => ({
+    equitiesEur: 0,
+    bondsEur: 0,
+    cashExcessEur: 0,
+    emergencyFundSliceEur: 0,
+    emergencyFundTargetEur,
+    cashTotalEur: 0,
+    cashBelowEmergencyTarget: emergencyFundTargetEur > 0,
+  });
+
   const pos = await loadOpenPositions();
   if (pos.length === 0) {
     return {
@@ -45,6 +88,7 @@ export async function getPortfolioDistributions(): Promise<{
       sectors: {},
       totalValueEur: 0,
       mixedCurrencyWarning: false,
+      assetAllocation: emptyAssetAllocation(),
       positions: [],
     };
   }
@@ -84,6 +128,67 @@ export async function getPortfolioDistributions(): Promise<{
 
   const totalValueEur = valued.reduce((s, x) => s + x.valueEur, 0);
   const mixedCurrencyWarning = false;
+
+  const yahooInstrumentIds = [
+    ...new Set(
+      valued
+        .filter((r) => r.inst.kind === "etf" || r.inst.kind === "stock")
+        .map((r) => r.inst.id),
+    ),
+  ];
+  const yfcRows =
+    yahooInstrumentIds.length === 0
+      ? []
+      : await db
+          .select()
+          .from(yahooFinanceCache)
+          .where(inArray(yahooFinanceCache.instrumentId, yahooInstrumentIds));
+  const yahooRawById = new Map(yfcRows.map((r) => [r.instrumentId, r.raw]));
+
+  const seligsonIds = [
+    ...new Set(
+      valued
+        .filter(
+          (r) => r.inst.kind === "custom" && r.inst.seligsonFundId != null,
+        )
+        .map((r) => r.inst.seligsonFundId as number),
+    ),
+  ];
+  const sfRows =
+    seligsonIds.length === 0
+      ? []
+      : await db
+          .select()
+          .from(seligsonFunds)
+          .where(inArray(seligsonFunds.id, seligsonIds));
+  const seligsonNameById = new Map(sfRows.map((s) => [s.id, s.name] as const));
+
+  let equitiesEur = 0;
+  let bondsEur = 0;
+  let cashTotalEur = 0;
+  for (const row of valued) {
+    if (row.inst.kind === "cash_account") {
+      cashTotalEur += row.valueEur;
+      continue;
+    }
+    const cls = classifyNonCashInstrument(
+      row.inst,
+      yahooRawById.get(row.inst.id) ?? null,
+      row.inst.seligsonFundId != null
+        ? (seligsonNameById.get(row.inst.seligsonFundId) ?? null)
+        : null,
+    );
+    if (cls === "bond") {
+      bondsEur += row.valueEur;
+    } else {
+      equitiesEur += row.valueEur;
+    }
+  }
+
+  const cashExcessEur = Math.max(0, cashTotalEur - emergencyFundTargetEur);
+  const emergencyFundSliceEur = Math.min(cashTotalEur, emergencyFundTargetEur);
+  const cashBelowEmergencyTarget =
+    emergencyFundTargetEur > 0 && cashTotalEur < emergencyFundTargetEur;
 
   const nonCashValueEur = valued.reduce(
     (s, x) => s + (x.inst.kind === "cash_account" ? 0 : x.valueEur),
@@ -148,6 +253,15 @@ export async function getPortfolioDistributions(): Promise<{
     sectors,
     totalValueEur,
     mixedCurrencyWarning,
+    assetAllocation: {
+      equitiesEur,
+      bondsEur,
+      cashExcessEur,
+      emergencyFundSliceEur,
+      emergencyFundTargetEur,
+      cashTotalEur,
+      cashBelowEmergencyTarget,
+    },
     positions,
   };
 }
