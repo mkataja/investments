@@ -8,6 +8,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
@@ -247,6 +248,15 @@ export function HomePage() {
   const [newPortfolioOpen, setNewPortfolioOpen] = useState(false);
   const [newPortfolioName, setNewPortfolioName] = useState("");
   const [newPortfolioBusy, setNewPortfolioBusy] = useState(false);
+  const newPortfolioNameInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!newPortfolioOpen) return;
+    const id = requestAnimationFrame(() => {
+      newPortfolioNameInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [newPortfolioOpen]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -452,6 +462,7 @@ export function HomePage() {
           <label className="block text-sm">
             Name
             <input
+              ref={newPortfolioNameInputRef}
               className="mt-1 block w-full border border-slate-300 rounded px-2 py-1"
               value={newPortfolioName}
               onChange={(e) => setNewPortfolioName(e.target.value)}
