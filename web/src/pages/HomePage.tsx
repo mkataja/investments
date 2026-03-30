@@ -796,7 +796,7 @@ export function HomePage() {
             </div>
           ) : null}
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="h-64">
+            <div className="h-[32rem]">
               <h3 className="text-sm font-medium text-slate-700 mb-2">
                 Regions
               </h3>
@@ -841,7 +841,7 @@ export function HomePage() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            <div className="h-64">
+            <div className="h-[32rem]">
               <h3 className="text-sm font-medium text-slate-700 mb-2">
                 Sectors
               </h3>
@@ -887,7 +887,7 @@ export function HomePage() {
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="h-64">
+          <div className="h-[48rem]">
             <h3 className="text-sm font-medium text-slate-700 mb-2">
               Countries
             </h3>
