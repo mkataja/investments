@@ -7,7 +7,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPost } from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
-import { formatDateTimeLocalInputValue } from "../../lib/dateTimeFormat";
+import {
+  formatLocalDateTimeYmdHm,
+  parseLocalDateTimeYmdHm,
+} from "../../lib/dateTimeFormat";
 
 type Broker = {
   id: number;
@@ -63,7 +66,7 @@ export function NewTransactionModal({
 
   const [txnForm, setTxnForm] = useState({
     brokerId: 1,
-    tradeDate: formatDateTimeLocalInputValue(new Date()),
+    tradeDate: formatLocalDateTimeYmdHm(new Date()),
     side: "buy" as "buy" | "sell",
     instrumentId: 0,
     quantity: "1",
@@ -152,10 +155,15 @@ export function NewTransactionModal({
       return;
     }
     onError(null);
+    const tradeDateParsed = parseLocalDateTimeYmdHm(txnForm.tradeDate);
+    if (!tradeDateParsed) {
+      onError("Date and time must be YYYY-MM-DD HH:mm");
+      return;
+    }
     try {
       const body: Record<string, unknown> = {
         brokerId: txnForm.brokerId,
-        tradeDate: new Date(txnForm.tradeDate).toISOString(),
+        tradeDate: tradeDateParsed.toISOString(),
         instrumentId: txnForm.instrumentId,
         currency: txnForm.currency.trim().toUpperCase(),
       };
@@ -206,8 +214,10 @@ export function NewTransactionModal({
         <label className="block text-sm">
           Date and time
           <input
-            type="datetime-local"
+            type="text"
             className="mt-1 block w-full border rounded px-2 py-1"
+            autoComplete="off"
+            placeholder="YYYY-MM-DD HH:mm"
             value={txnForm.tradeDate}
             onChange={(e) =>
               setTxnForm({ ...txnForm, tradeDate: e.target.value })

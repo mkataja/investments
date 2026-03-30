@@ -20,6 +20,46 @@ export function formatDateTimeLocalInputValue(d: Date): string {
 }
 
 /**
+ * Local wall time as **YYYY-MM-DD HH:mm** (24-hour), for text fields that should match
+ * {@link formatInstantForDisplay} with time.
+ */
+export function formatLocalDateTimeYmdHm(d: Date): string {
+  return `${formatYmdUtc(d.getFullYear(), d.getMonth() + 1, d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+
+/**
+ * Parses **YYYY-MM-DD HH:mm** or **YYYY-MM-DDTHH:mm** in local time. Returns `null` if invalid.
+ */
+export function parseLocalDateTimeYmdHm(s: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/.exec(s.trim());
+  if (!m) {
+    return null;
+  }
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const day = Number(m[3]);
+  const h = Number(m[4]);
+  const min = Number(m[5]);
+  if (
+    mo < 1 ||
+    mo > 12 ||
+    day < 1 ||
+    day > 31 ||
+    h < 0 ||
+    h > 23 ||
+    min < 0 ||
+    min > 59
+  ) {
+    return null;
+  }
+  const d = new Date(y, mo - 1, day, h, min, 0, 0);
+  if (d.getFullYear() !== y || d.getMonth() !== mo - 1 || d.getDate() !== day) {
+    return null;
+  }
+  return d;
+}
+
+/**
  * Formats a parseable date string for display:
  * - `YYYY-MM-DD` → same **UTC** calendar date (no time).
  * - An instant at **UTC midnight** → **date only** (avoids bogus local times when the stored

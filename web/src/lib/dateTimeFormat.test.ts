@@ -2,12 +2,45 @@ import { describe, expect, it } from "vitest";
 import {
   formatDateTimeLocalInputValue,
   formatInstantForDisplay,
+  formatLocalDateTimeYmdHm,
+  parseLocalDateTimeYmdHm,
 } from "./dateTimeFormat";
 
 describe("formatDateTimeLocalInputValue", () => {
   it("formats local date and time with zero padding", () => {
     const d = new Date(2026, 2, 9, 8, 5, 0, 0);
     expect(formatDateTimeLocalInputValue(d)).toBe("2026-03-09T08:05");
+  });
+});
+
+describe("formatLocalDateTimeYmdHm / parseLocalDateTimeYmdHm", () => {
+  it("formats with a space between date and time", () => {
+    const d = new Date(2026, 2, 9, 8, 5, 0, 0);
+    expect(formatLocalDateTimeYmdHm(d)).toBe("2026-03-09 08:05");
+  });
+
+  it("round-trips space-separated local date/time", () => {
+    const d0 = new Date(2026, 2, 30, 14, 7, 0, 0);
+    const s = formatLocalDateTimeYmdHm(d0);
+    const d1 = parseLocalDateTimeYmdHm(s);
+    expect(d1).not.toBeNull();
+    expect(d1?.getTime()).toBe(d0.getTime());
+  });
+
+  it("accepts T as separator like datetime-local", () => {
+    const d = parseLocalDateTimeYmdHm("2026-03-09T08:05");
+    expect(d).not.toBeNull();
+    expect(d?.getFullYear()).toBe(2026);
+    expect(d?.getMonth()).toBe(2);
+    expect(d?.getDate()).toBe(9);
+    expect(d?.getHours()).toBe(8);
+    expect(d?.getMinutes()).toBe(5);
+  });
+
+  it("returns null for invalid calendar dates and bad strings", () => {
+    expect(parseLocalDateTimeYmdHm("2026-02-30 12:00")).toBeNull();
+    expect(parseLocalDateTimeYmdHm("")).toBeNull();
+    expect(parseLocalDateTimeYmdHm("nope")).toBeNull();
   });
 });
 
