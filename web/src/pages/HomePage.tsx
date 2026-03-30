@@ -145,10 +145,10 @@ const ASSET_MIX_COLORS = {
 } as const;
 
 const DIST_CHART_COLORS = {
-  regionPrimary: "#0f766e",
-  regionCompare: "#34d399",
-  sectorPrimary: "#334155",
-  sectorCompare: "#94a3b8",
+  regionPrimary: "#0369a1",
+  regionCompare: "#38bdf8",
+  sectorPrimary: "#0369a1",
+  sectorCompare: "#38bdf8",
   countryPrimary: "#0369a1",
   countryCompare: "#38bdf8",
 } as const;
