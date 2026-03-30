@@ -113,7 +113,7 @@ export const instruments = pgTable(
     cashCurrency: text("cash_currency"),
     cashInterestType: text("cash_interest_type"),
     /**
-     * Optional HTTPS URL to provider holdings file (iShares CSV or SSGA XLSX).
+     * Optional HTTPS URL to provider holdings file (iShares CSV, SSGA XLSX, or DWS Xtrackers XLSX).
      * Parser is chosen from the URL hostname — see API `holdingsUrl` validation.
      */
     holdingsDistributionUrl: text("holdings_distribution_url"),
@@ -216,7 +216,7 @@ export const providerHoldingsCache = pgTable("provider_holdings_cache", {
     .primaryKey()
     .references(() => instruments.id, { onDelete: "cascade" }),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
-  /** Same label as `distributions.source` for this fetch (`ishares_holdings_csv`, `ssga_holdings_xlsx`). */
+  /** Same label as `distributions.source` for this fetch (`ishares_holdings_csv`, `ssga_holdings_xlsx`, `xtrackers_holdings_xlsx`). */
   source: text("source").notNull(),
   /** CSV UTF-8 text, or base64-encoded XLSX bytes. */
   raw: text("raw").notNull(),

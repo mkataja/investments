@@ -1,4 +1,7 @@
-export type HoldingsProviderKind = "ishares_csv" | "ssga_xlsx";
+export type HoldingsProviderKind =
+  | "ishares_csv"
+  | "ssga_xlsx"
+  | "xtrackers_xlsx";
 
 function hostnameMatches(host: string, rootDomain: string): boolean {
   const h = host.toLowerCase();
@@ -24,6 +27,9 @@ export function resolveHoldingsProviderKind(
   }
   if (hostnameMatches(host, "ssga.com")) {
     return "ssga_xlsx";
+  }
+  if (hostnameMatches(host, "dws.com")) {
+    return "xtrackers_xlsx";
   }
   return null;
 }
@@ -63,7 +69,7 @@ export function validateHoldingsDistributionUrl(
     return {
       ok: false,
       message:
-        "Unsupported holdings URL host. Use iShares (ishares.com) or SPDR / SSGA (ssga.com).",
+        "Unsupported holdings URL host. Use iShares (ishares.com), SPDR / SSGA (ssga.com), or Xtrackers / DWS (dws.com).",
     };
   }
   return { ok: true, normalized: u.toString(), provider };

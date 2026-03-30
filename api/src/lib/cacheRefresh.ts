@@ -13,6 +13,7 @@ import { db } from "../db.js";
 import { fetchProviderHoldingsBytes } from "../distributions/fetchProviderHoldings.js";
 import { parseIsharesHoldingsCsv } from "../distributions/parseIsharesHoldingsCsv.js";
 import { parseSsgaHoldingsXlsx } from "../distributions/parseSsgaHoldingsXlsx.js";
+import { parseXtrackersHoldingsXlsx } from "../distributions/parseXtrackersHoldingsXlsx.js";
 import { roundWeights } from "../distributions/roundWeights.js";
 import {
   fetchSeligsonHtml,
@@ -166,6 +167,10 @@ export async function writeProviderHoldingsDistributionCache(
     payload = parseIsharesHoldingsCsv(text);
     source = "ishares_holdings_csv";
     raw = text;
+  } else if (v.provider === "xtrackers_xlsx") {
+    payload = parseXtrackersHoldingsXlsx(bytes);
+    source = "xtrackers_holdings_xlsx";
+    raw = Buffer.from(bytes).toString("base64");
   } else {
     payload = parseSsgaHoldingsXlsx(bytes);
     source = "ssga_holdings_xlsx";
