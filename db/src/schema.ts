@@ -26,28 +26,6 @@ export const users = pgTable("users", {
 });
 
 /**
- * One row per user; portfolio-wide preferences not tied to a broker or instrument.
- */
-export const portfolioSettings = pgTable("portfolio_settings", {
-  userId: integer("user_id")
-    .primaryKey()
-    .references(() => users.id, { onDelete: "cascade" }),
-  /** Amount reserved as emergency cash; excluded from investable allocation in distribution views (future). */
-  emergencyFundEur: numeric("emergency_fund_eur", {
-    precision: 24,
-    scale: 8,
-  })
-    .notNull()
-    .default("0"),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
-
-/**
  * One row per named portfolio bucket; transactions are scoped to a portfolio.
  */
 export const portfolios = pgTable(
@@ -58,6 +36,13 @@ export const portfolios = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    /** Amount reserved as emergency cash; drives asset mix cash vs excess split for this portfolio. */
+    emergencyFundEur: numeric("emergency_fund_eur", {
+      precision: 24,
+      scale: 8,
+    })
+      .notNull()
+      .default("0"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -315,11 +300,7 @@ export const seligsonFundValueCache = pgTable("seligson_fund_value_cache", {
     .defaultNow(),
 });
 
-export const usersRelations = relations(users, ({ one, many }) => ({
-  portfolioSettings: one(portfolioSettings, {
-    fields: [users.id],
-    references: [portfolioSettings.userId],
-  }),
+export const usersRelations = relations(users, ({ many }) => ({
   brokers: many(brokers),
   transactions: many(transactions),
   portfolios: many(portfolios),
@@ -332,16 +313,6 @@ export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
   }),
   transactions: many(transactions),
 }));
-
-export const portfolioSettingsRelations = relations(
-  portfolioSettings,
-  ({ one }) => ({
-    user: one(users, {
-      fields: [portfolioSettings.userId],
-      references: [users.id],
-    }),
-  }),
-);
 
 export const brokersRelations = relations(brokers, ({ many, one }) => ({
   user: one(users, {
