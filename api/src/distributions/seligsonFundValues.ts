@@ -14,6 +14,14 @@ const FUND_VALUES_URL =
 
 const USER_AGENT = "InvestmentsTracker/0.1 (personal)";
 
+/**
+ * Short `FundValues_FI.html` link labels that do not substring-match the FundViewer fund name.
+ * Values are lowercased needles checked against the normalized DB name.
+ */
+const FUND_VALUES_TABLE_LABEL_ALIASES: Readonly<Record<string, string>> = {
+  "global brands": "top 25 brands",
+};
+
 export type ParsedFundValueRow = {
   fundLabel: string;
   value: number;
@@ -30,7 +38,10 @@ export async function fetchSeligsonFundValuesHtml(): Promise<string> {
   return res.text();
 }
 
-/** Parse Finnish fund NAV: thousands `5,589 €` or decimal `2,7224 €`. */
+/**
+ * Parse Finnish fund NAV: comma is the decimal separator; spaces and `.` group thousands
+ * (e.g. `1 234,56 €`, `1.234,56 €`, `2,7224 €`). Never treat `,` as a thousands separator.
+ */
 function parseArvoCell(
   text: string,
 ): { value: number; currency: string } | null {
@@ -39,13 +50,26 @@ function parseArvoCell(
   if (!m?.[1]) {
     return null;
   }
-  let numRaw = m[1].replace(/\s/g, "");
-  if (/,\d{3}(?:\D|$)/.test(numRaw)) {
-    numRaw = numRaw.replace(/,/g, "");
+  const numPart = m[1].trim();
+  let n: number;
+  const lastComma = numPart.lastIndexOf(",");
+  if (lastComma >= 0) {
+    const intRaw = numPart
+      .slice(0, lastComma)
+      .replace(/\s/g, "")
+      .replace(/\./g, "");
+    const fracRaw = numPart.slice(lastComma + 1).replace(/\s/g, "");
+    if (!/^\d+$/.test(intRaw) || !/^\d+$/.test(fracRaw)) {
+      return null;
+    }
+    n = Number.parseFloat(`${intRaw}.${fracRaw}`);
   } else {
-    numRaw = numRaw.replace(",", ".");
+    let compact = numPart.replace(/\s/g, "");
+    if (/^\d{1,3}(\.\d{3})+$/.test(compact)) {
+      compact = compact.replace(/\./g, "");
+    }
+    n = Number.parseFloat(compact);
   }
-  const n = Number.parseFloat(numRaw);
   if (!Number.isFinite(n) || n <= 0) {
     return null;
   }
@@ -102,6 +126,10 @@ export function fundValuesRowMatchesDbName(
 ): boolean {
   const a = normalizeSeligsonFundNameForMatch(tableLabel).toLowerCase();
   const b = normalizeSeligsonFundNameForMatch(dbFundName).toLowerCase();
+  const aliasNeedle = FUND_VALUES_TABLE_LABEL_ALIASES[a];
+  if (aliasNeedle !== undefined) {
+    return b.includes(aliasNeedle);
+  }
   if (a === b) {
     return true;
   }

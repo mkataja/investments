@@ -53,6 +53,8 @@ Authoritative detail is **`db/src/schema.ts`** and migrations. Conceptually:
 
 The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`seligson_funds`** row ( **`fetchSeligsonFundName`** ). Failures are surfaced as HTTP errors with a message body. Exact routes and status codes are defined in **`api`**—read there before changing.
 
+**FundValues NAV (`FundValues_FI.html`)** uses shorter link text than FundViewer in some rows; **`fundValuesRowMatchesDbName`** includes **aliases** (e.g. table **`Global Brands`** ↔ DB name containing **Top 25 Brands**) in **`FUND_VALUES_TABLE_LABEL_ALIASES`** in **`api/src/distributions/seligsonFundValues.ts`**.
+
 ## Caching and refresh
 
 - **On create:** **`POST /instruments`** for ETF/stock (Yahoo) and **`custom`** (Seligson) **writes `distributions` + raw caches + `prices` (when data is available) immediately** (same fetch path as refresh). Create fails with **502** if the cache write fails (instrument row is not left behind).
