@@ -5,6 +5,7 @@ import {
   brokers,
   distributionCache,
   instruments,
+  isInstrumentKindAllowedForBrokerCode,
   seligsonFunds,
   transactions,
 } from "@investments/db";
@@ -357,6 +358,23 @@ async function findOrCreateSeligsonFundByFid(fid: number) {
 }
 
 app.get("/instruments", async (c) => {
+  const brokerIdRaw = c.req.query("brokerId")?.trim();
+  let brokerCodeForFilter: string | null = null;
+  if (brokerIdRaw != null && brokerIdRaw !== "") {
+    const brokerId = Number.parseInt(brokerIdRaw, 10);
+    if (!Number.isFinite(brokerId) || brokerId < 1) {
+      return c.json({ message: "Invalid brokerId" }, 400);
+    }
+    const [b] = await db
+      .select({ code: brokers.code })
+      .from(brokers)
+      .where(eq(brokers.id, brokerId));
+    if (!b) {
+      return c.json({ message: "Broker not found" }, 404);
+    }
+    brokerCodeForFilter = b.code;
+  }
+
   const joined = await db
     .select({
       instrument: instruments,
@@ -387,7 +405,7 @@ app.get("/instruments", async (c) => {
     }
   }
 
-  const payload = joined.map(({ instrument, cache, seligsonFund: fund }) => ({
+  let payload = joined.map(({ instrument, cache, seligsonFund: fund }) => ({
     ...instrument,
     netQuantity: netQtyByInstrument.get(instrument.id) ?? 0,
     distribution: cache
@@ -400,6 +418,12 @@ app.get("/instruments", async (c) => {
       : null,
     seligsonFund: fund ? { id: fund.id, fid: fund.fid, name: fund.name } : null,
   }));
+
+  if (brokerCodeForFilter != null) {
+    payload = payload.filter((row) =>
+      isInstrumentKindAllowedForBrokerCode(brokerCodeForFilter, row.kind),
+    );
+  }
 
   return c.json(payload);
 });
