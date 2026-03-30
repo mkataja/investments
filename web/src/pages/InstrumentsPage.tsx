@@ -1,5 +1,10 @@
-import { geoBucketDisplayIcon, geoBucketDisplayTitle } from "@investments/db";
-import { useCallback, useEffect, useState } from "react";
+import {
+  geoBucketDisplayIcon,
+  geoBucketDisplayTitle,
+  instrumentKindDisplayLabel,
+  instrumentTickerDisplay,
+} from "@investments/db";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiDelete, apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import {
@@ -72,7 +77,7 @@ function DistributionSummary({
                 >
                   {geoBucketDisplayIcon(s.bucket)}
                 </span>
-                <span className="font-mono tabular-nums">{s.pctLabel}</span>
+                <span className="tabular-nums">{s.pctLabel}</span>
               </span>
             ))
           ) : (
@@ -95,7 +100,7 @@ function DistributionSummary({
                 >
                   {s.icon}
                 </span>
-                <span className="font-mono tabular-nums">{s.pctLabel}</span>
+                <span className="tabular-nums">{s.pctLabel}</span>
               </span>
             ))
           ) : (
@@ -103,7 +108,7 @@ function DistributionSummary({
           )}
         </div>
       </div>
-      <p className="text-[11px] text-slate-500 leading-snug">
+      <p className="text-[11px] text-slate-500 leading-snug font-sans">
         <span className="font-medium text-emerald-900">{source}</span>
         <span className="text-slate-400"> · </span>
         {new Date(fetchedAt).toLocaleString()}
@@ -266,12 +271,36 @@ export function InstrumentsPage() {
 
   const refreshableCount = rows.filter((r) => r.kind !== "cash_account").length;
 
+  const sortedRows = useMemo(
+    () =>
+      [...rows].sort((a, b) => {
+        const ta = instrumentTickerDisplay(a);
+        const tb = instrumentTickerDisplay(b);
+        const aEmpty = ta == null || ta === "";
+        const bEmpty = tb == null || tb === "";
+        if (aEmpty !== bEmpty) {
+          return aEmpty ? 1 : -1;
+        }
+        const byTicker = (ta ?? "").localeCompare(tb ?? "", undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+        if (byTicker !== 0) {
+          return byTicker;
+        }
+        return a.displayName.localeCompare(b.displayName, undefined, {
+          sensitivity: "base",
+        });
+      }),
+    [rows],
+  );
+
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="w-full min-w-0 space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold text-slate-900">Instruments</h1>
-          <p className="text-slate-600 text-sm mt-1 max-w-xl">
+          <p className="text-slate-600 text-sm mt-1">
             Each row is one registered instrument. Distributions are cached
             geographic and sector weights from Yahoo or Seligson for that
             symbol—nothing here is aggregated from your transactions or
@@ -310,24 +339,27 @@ export function InstrumentsPage() {
         <table className="min-w-full text-sm">
           <thead className="bg-slate-100 text-slate-700">
             <tr>
-              <th className="text-left p-2 font-medium">ID</th>
               <th className="text-left p-2 font-medium">Kind</th>
+              <th className="text-left p-2 font-medium">Ticker</th>
               <th className="text-left p-2 font-medium">Name</th>
               <th className="text-left p-2 font-medium">Distribution</th>
               <th className="text-right p-2 font-medium w-40">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((i) => {
+            {sortedRows.map((i) => {
               const rowRefreshing = refreshingId === i.id || refreshingAll;
+              const ticker = instrumentTickerDisplay(i);
               return (
                 <tr key={i.id} className="border-t border-slate-100 align-top">
-                  <td className="p-2 font-mono text-slate-600">{i.id}</td>
-                  <td className="p-2 text-slate-800">{i.kind}</td>
+                  <td className="p-2 text-slate-800">
+                    {instrumentKindDisplayLabel(i.kind)}
+                  </td>
+                  <td className="p-2 text-slate-700">{ticker ?? "—"}</td>
                   <td className="p-2 font-medium text-slate-900">
                     {i.displayName}
                   </td>
-                  <td className="p-2 min-w-[14rem] max-w-xl align-top">
+                  <td className="p-2 min-w-[14rem] max-w-xl align-top font-mono">
                     {i.distribution ? (
                       <DistributionSummary
                         payload={i.distribution.payload}
@@ -335,7 +367,9 @@ export function InstrumentsPage() {
                         fetchedAt={i.distribution.fetchedAt}
                       />
                     ) : (
-                      <span className="text-slate-400">No cache yet</span>
+                      <span className="text-slate-400 font-sans">
+                        No cache yet
+                      </span>
                     )}
                   </td>
                   <td className="p-2 text-right">
