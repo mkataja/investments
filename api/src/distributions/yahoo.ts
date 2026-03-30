@@ -1,11 +1,14 @@
 import type { DistributionPayload } from "@investments/db";
-import { resolveRegionKeyToIso } from "@investments/db";
+import {
+  mapYahooSectorToCanonicalId,
+  resolveRegionKeyToIso,
+} from "@investments/db";
 import type { QuoteSummaryResult } from "yahoo-finance2/modules/quoteSummary-iface";
 import { yahooFinance } from "../lib/yahooClient.js";
 import { withYahooRetries } from "../lib/yahooUpstream.js";
 import { mergeYahooWeightRows } from "./types.js";
 
-function normalizeYahooRegionsToIsoKeys(
+function normalizeYahooCountriesToIsoKeys(
   regions: Record<string, number>,
 ): Record<string, number> {
   const out: Record<string, number> = {};
@@ -16,6 +19,17 @@ function normalizeYahooRegionsToIsoKeys(
     } else {
       out[k] = w;
     }
+  }
+  return out;
+}
+
+function mapYahooSectorWeightsToCanonical(
+  sectors: Record<string, number>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, w] of Object.entries(sectors)) {
+    const id = mapYahooSectorToCanonicalId(k);
+    out[id] = (out[id] ?? 0) + w;
   }
   return out;
 }
@@ -83,6 +97,35 @@ export function displayNameFromYahooLookup(
   return (a || b || symbol).trim();
 }
 
+/** `quoteSummary` `price` module — used for `prices` upsert (no `quote()` call). */
+export function extractYahooPriceFromQuoteSummaryRaw(
+  raw: YahooQuoteSummaryRaw,
+): { price: number; currency: string } | null {
+  const p = raw.price as Record<string, unknown> | undefined;
+  if (!p) {
+    return null;
+  }
+  const rp = p.regularMarketPrice;
+  let n: number | null = null;
+  if (typeof rp === "number" && Number.isFinite(rp)) {
+    n = rp;
+  } else if (rp && typeof rp === "object" && "raw" in rp) {
+    const x = (rp as { raw?: unknown }).raw;
+    if (typeof x === "number" && Number.isFinite(x)) {
+      n = x;
+    }
+  }
+  const cur = p.currency;
+  const c =
+    typeof cur === "string" && cur.trim().length > 0
+      ? cur.trim().toUpperCase()
+      : null;
+  if (n === null || !(n > 0) || !c) {
+    return null;
+  }
+  return { price: n, currency: c };
+}
+
 export function normalizeYahooDistribution(
   raw: YahooQuoteSummaryRaw,
   symbol: string,
@@ -91,40 +134,41 @@ export function normalizeYahooDistribution(
   const top = raw.topHoldings as Record<string, unknown> | undefined;
   const fund = raw.fundProfile as Record<string, unknown> | undefined;
 
-  let sectors = mergeYahooWeightRows(top?.sectorWeightings);
-  if (Object.keys(sectors).length === 0) {
-    sectors = mergeYahooWeightRows(fund?.sectorWeightings);
+  let rawSectors = mergeYahooWeightRows(top?.sectorWeightings);
+  if (Object.keys(rawSectors).length === 0) {
+    rawSectors = mergeYahooWeightRows(fund?.sectorWeightings);
   }
 
   const asset = raw.assetProfile;
-  if (Object.keys(sectors).length === 0 && asset?.sector) {
-    sectors = { [asset.sector]: 1 };
+  if (Object.keys(rawSectors).length === 0 && asset?.sector) {
+    rawSectors = { [asset.sector]: 1 };
     notes.push(
       `Stock ${symbol}: single sector from assetProfile (${asset.industry ?? "n/a"}).`,
     );
   }
 
-  let regions = mergeYahooWeightRows(top?.countryWeightings);
-  if (Object.keys(regions).length === 0) {
-    regions = mergeYahooWeightRows(fund?.countryWeightings);
+  let countries = mergeYahooWeightRows(top?.countryWeightings);
+  if (Object.keys(countries).length === 0) {
+    countries = mergeYahooWeightRows(fund?.countryWeightings);
   }
 
-  if (Object.keys(regions).length === 0 && asset?.country) {
-    regions = { [asset.country]: 1 };
+  if (Object.keys(countries).length === 0 && asset?.country) {
+    countries = { [asset.country]: 1 };
     notes.push(`Stock ${symbol}: geography set to issuer country only.`);
   }
 
-  regions = normalizeYahooRegionsToIsoKeys(regions);
+  countries = normalizeYahooCountriesToIsoKeys(countries);
+  const sectors = mapYahooSectorWeightsToCanonical(rawSectors);
 
   if (Object.keys(sectors).length === 0) {
     notes.push(`No sector breakdown for ${symbol}.`);
   }
-  if (Object.keys(regions).length === 0) {
-    notes.push(`No region breakdown for ${symbol}.`);
+  if (Object.keys(countries).length === 0) {
+    notes.push(`No country breakdown for ${symbol}.`);
   }
 
   return {
-    payload: { regions, sectors },
+    payload: { countries, sectors },
     notes,
   };
 }

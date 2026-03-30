@@ -1,6 +1,6 @@
 import {
   aggregateRegionsToGeoBuckets,
-  distributionCache,
+  distributions,
   instruments,
 } from "@investments/db";
 import type { DistributionPayload } from "@investments/db";
@@ -101,12 +101,12 @@ export async function getPortfolioDistributions(): Promise<{
 
     const [cached] = await db
       .select()
-      .from(distributionCache)
-      .where(eq(distributionCache.instrumentId, inst.id));
+      .from(distributions)
+      .where(eq(distributions.instrumentId, inst.id));
 
     const payload = cached?.payload as DistributionPayload | undefined;
-    if (payload?.regions && Object.keys(payload.regions).length > 0) {
-      mergeWeighted(regions, payload.regions, w);
+    if (payload?.countries && Object.keys(payload.countries).length > 0) {
+      mergeWeighted(regions, payload.countries, w);
     }
     if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
       mergeWeighted(sectors, payload.sectors, w);

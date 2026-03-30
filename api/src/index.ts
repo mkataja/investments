@@ -4,13 +4,15 @@ import {
   type BrokerType,
   SUPPORTED_CASH_CURRENCY_CODES,
   brokers,
-  distributionCache,
+  distributions,
   instruments,
   isInstrumentKindAllowedForBrokerType,
   normalizeCashAccountIsoCountryCode,
   normalizeYahooSymbolForStorage,
+  seligsonDistributionCache,
   seligsonFunds,
   transactions,
+  yahooFinanceCache,
 } from "@investments/db";
 import {
   type InferSelectModel,
@@ -674,7 +676,11 @@ const cashInstrumentPatchIn = z
 
 type JoinedInstrumentRow = {
   instrument: InferSelectModel<typeof instruments>;
-  cache: InferSelectModel<typeof distributionCache> | null;
+  distribution: InferSelectModel<typeof distributions> | null;
+  yahooFinanceCache: InferSelectModel<typeof yahooFinanceCache> | null;
+  seligsonDistributionCache: InferSelectModel<
+    typeof seligsonDistributionCache
+  > | null;
   seligsonFund: InferSelectModel<typeof seligsonFunds> | null;
   broker: InferSelectModel<typeof brokers> | null;
 };
@@ -683,16 +689,29 @@ function mapJoinedRowToInstrumentPayload(
   row: JoinedInstrumentRow,
   netQuantity: number,
 ) {
-  const { instrument, cache, seligsonFund: fund, broker: br } = row;
+  const {
+    instrument,
+    distribution,
+    yahooFinanceCache: yahooRow,
+    seligsonDistributionCache: seligsonRow,
+    seligsonFund: fund,
+    broker: br,
+  } = row;
   return {
     ...instrument,
     netQuantity,
-    distribution: cache
+    distribution: distribution
       ? {
-          fetchedAt: cache.fetchedAt,
-          source: cache.source,
-          payload: cache.payload,
-          rawPayload: cache.rawPayload ?? null,
+          fetchedAt: distribution.fetchedAt,
+          source: distribution.source,
+          payload: distribution.payload,
+          yahooFinance: yahooRow ? { raw: yahooRow.raw } : null,
+          seligsonDistribution: seligsonRow
+            ? {
+                countryHtml: seligsonRow.countryHtml,
+                otherDistributionHtml: seligsonRow.otherDistributionHtml,
+              }
+            : null,
         }
       : null,
     seligsonFund: fund ? { id: fund.id, fid: fund.fid, name: fund.name } : null,
@@ -712,14 +731,21 @@ async function loadInstrumentPayloadById(
   const joined = await db
     .select({
       instrument: instruments,
-      cache: distributionCache,
+      distribution: distributions,
+      yahooFinanceCache: yahooFinanceCache,
+      seligsonDistributionCache: seligsonDistributionCache,
       seligsonFund: seligsonFunds,
       broker: brokers,
     })
     .from(instruments)
+    .leftJoin(distributions, eq(instruments.id, distributions.instrumentId))
     .leftJoin(
-      distributionCache,
-      eq(instruments.id, distributionCache.instrumentId),
+      yahooFinanceCache,
+      eq(instruments.id, yahooFinanceCache.instrumentId),
+    )
+    .leftJoin(
+      seligsonDistributionCache,
+      eq(instruments.id, seligsonDistributionCache.instrumentId),
     )
     .leftJoin(seligsonFunds, eq(instruments.seligsonFundId, seligsonFunds.id))
     .leftJoin(brokers, eq(instruments.brokerId, brokers.id))
@@ -796,14 +822,21 @@ app.get("/instruments", async (c) => {
   const joined = await db
     .select({
       instrument: instruments,
-      cache: distributionCache,
+      distribution: distributions,
+      yahooFinanceCache: yahooFinanceCache,
+      seligsonDistributionCache: seligsonDistributionCache,
       seligsonFund: seligsonFunds,
       broker: brokers,
     })
     .from(instruments)
+    .leftJoin(distributions, eq(instruments.id, distributions.instrumentId))
     .leftJoin(
-      distributionCache,
-      eq(instruments.id, distributionCache.instrumentId),
+      yahooFinanceCache,
+      eq(instruments.id, yahooFinanceCache.instrumentId),
+    )
+    .leftJoin(
+      seligsonDistributionCache,
+      eq(instruments.id, seligsonDistributionCache.instrumentId),
     )
     .leftJoin(seligsonFunds, eq(instruments.seligsonFundId, seligsonFunds.id))
     .leftJoin(brokers, eq(instruments.brokerId, brokers.id))
@@ -1129,9 +1162,6 @@ app.delete("/instruments/:id", async (c) => {
   }
   await db.transaction(async (tx) => {
     await tx.delete(transactions).where(eq(transactions.instrumentId, id));
-    await tx
-      .delete(distributionCache)
-      .where(eq(distributionCache.instrumentId, id));
     await tx.delete(instruments).where(eq(instruments.id, id));
   });
   return c.body(null, 204);
@@ -1165,14 +1195,26 @@ app.get("/portfolio/distributions", async (c) => {
 
 app.get("/distribution-cache/:instrumentId", async (c) => {
   const instrumentId = Number.parseInt(c.req.param("instrumentId"), 10);
-  const [row] = await db
+  const [dist] = await db
     .select()
-    .from(distributionCache)
-    .where(eq(distributionCache.instrumentId, instrumentId));
-  if (!row) {
+    .from(distributions)
+    .where(eq(distributions.instrumentId, instrumentId));
+  const [yfc] = await db
+    .select()
+    .from(yahooFinanceCache)
+    .where(eq(yahooFinanceCache.instrumentId, instrumentId));
+  const [sdc] = await db
+    .select()
+    .from(seligsonDistributionCache)
+    .where(eq(seligsonDistributionCache.instrumentId, instrumentId));
+  if (!dist && !yfc && !sdc) {
     return c.json(null);
   }
-  return c.json(row);
+  return c.json({
+    distributions: dist ?? null,
+    yahooFinanceCache: yfc ?? null,
+    seligsonDistributionCache: sdc ?? null,
+  });
 });
 
 if (devToolsAllowed()) {

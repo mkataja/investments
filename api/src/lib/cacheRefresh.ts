@@ -1,12 +1,22 @@
-import { distributionCache, instruments, seligsonFunds } from "@investments/db";
+import {
+  distributions,
+  instruments,
+  prices,
+  seligsonDistributionCache,
+  seligsonFunds,
+  yahooFinanceCache,
+} from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
+import { roundWeights } from "../distributions/roundWeights.js";
 import {
   fetchSeligsonHtml,
   parseSeligsonDistributions,
 } from "../distributions/seligson.js";
+import { upsertSeligsonFundValuesFromPage } from "../distributions/seligsonFundValues.js";
 import type { YahooQuoteSummaryRaw } from "../distributions/yahoo.js";
 import {
+  extractYahooPriceFromQuoteSummaryRaw,
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
 } from "../distributions/yahoo.js";
@@ -35,26 +45,69 @@ export async function writeYahooDistributionCache(
   symbol: string,
   fetchedAt: Date = new Date(),
 ): Promise<void> {
-  const { payload } = normalizeYahooDistribution(raw, symbol);
-  const rawPayload = jsonCloneForStorage(raw);
-  await db
-    .insert(distributionCache)
-    .values({
-      instrumentId,
-      fetchedAt,
-      source: "yahoo",
-      payload,
-      rawPayload,
-    })
-    .onConflictDoUpdate({
-      target: distributionCache.instrumentId,
-      set: {
+  const { payload: rawPayload } = normalizeYahooDistribution(raw, symbol);
+  const payload = {
+    countries: roundWeights(rawPayload.countries),
+    sectors: roundWeights(rawPayload.sectors),
+  };
+  const rawJson = jsonCloneForStorage(raw);
+  const priceExtract = extractYahooPriceFromQuoteSummaryRaw(raw);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(yahooFinanceCache)
+      .values({
+        instrumentId,
+        fetchedAt,
+        raw: rawJson,
+      })
+      .onConflictDoUpdate({
+        target: yahooFinanceCache.instrumentId,
+        set: {
+          fetchedAt,
+          raw: rawJson,
+        },
+      });
+    await tx
+      .delete(seligsonDistributionCache)
+      .where(eq(seligsonDistributionCache.instrumentId, instrumentId));
+    await tx
+      .insert(distributions)
+      .values({
+        instrumentId,
         fetchedAt,
         source: "yahoo",
         payload,
-        rawPayload,
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: distributions.instrumentId,
+        set: {
+          fetchedAt,
+          source: "yahoo",
+          payload,
+        },
+      });
+    if (priceExtract) {
+      await tx
+        .insert(prices)
+        .values({
+          instrumentId,
+          quotedPrice: String(priceExtract.price),
+          currency: priceExtract.currency,
+          fetchedAt,
+          source: "yahoo_quote_summary",
+        })
+        .onConflictDoUpdate({
+          target: prices.instrumentId,
+          set: {
+            quotedPrice: String(priceExtract.price),
+            currency: priceExtract.currency,
+            fetchedAt,
+            source: "yahoo_quote_summary",
+          },
+        });
+    }
+  });
 }
 
 export async function writeSeligsonDistributionCache(
@@ -62,30 +115,58 @@ export async function writeSeligsonDistributionCache(
   fid: number,
   fetchedAt: Date = new Date(),
 ): Promise<void> {
-  const [html40, html20] = await Promise.all([
+  const [otherDistributionHtml, countryHtml] = await Promise.all([
     fetchSeligsonHtml(fid, 40),
     fetchSeligsonHtml(fid, 20),
   ]);
-  const { payload } = parseSeligsonDistributions(html40, html20);
-  const rawPayload = { html40, html20 };
-  await db
-    .insert(distributionCache)
-    .values({
-      instrumentId,
-      fetchedAt,
-      source: "seligson_scrape",
-      payload,
-      rawPayload,
-    })
-    .onConflictDoUpdate({
-      target: distributionCache.instrumentId,
-      set: {
+  const { payload: rawPayload } = parseSeligsonDistributions(
+    otherDistributionHtml,
+    countryHtml,
+  );
+  const payload = {
+    countries: roundWeights(rawPayload.countries),
+    sectors: roundWeights(rawPayload.sectors),
+  };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(seligsonDistributionCache)
+      .values({
+        instrumentId,
+        fetchedAt,
+        countryHtml,
+        otherDistributionHtml,
+      })
+      .onConflictDoUpdate({
+        target: seligsonDistributionCache.instrumentId,
+        set: {
+          fetchedAt,
+          countryHtml,
+          otherDistributionHtml,
+        },
+      });
+    await tx
+      .delete(yahooFinanceCache)
+      .where(eq(yahooFinanceCache.instrumentId, instrumentId));
+    await tx
+      .insert(distributions)
+      .values({
+        instrumentId,
         fetchedAt,
         source: "seligson_scrape",
         payload,
-        rawPayload,
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: distributions.instrumentId,
+        set: {
+          fetchedAt,
+          source: "seligson_scrape",
+          payload,
+        },
+      });
+  });
+
+  await upsertSeligsonFundValuesFromPage(db, fetchedAt);
 }
 
 export type RefreshDistributionResult =
@@ -107,11 +188,11 @@ export async function refreshDistributionCacheForInstrumentId(
     return { skipped: true, reason: "cash_account" };
   }
 
-  const [cached] = await db
+  const [distRow] = await db
     .select()
-    .from(distributionCache)
-    .where(eq(distributionCache.instrumentId, instrumentId));
-  if (cached?.source === "manual") {
+    .from(distributions)
+    .where(eq(distributions.instrumentId, instrumentId));
+  if (distRow?.source === "manual") {
     return { skipped: true, reason: "manual" };
   }
 
@@ -169,8 +250,8 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
 
     const [cached] = await db
       .select()
-      .from(distributionCache)
-      .where(eq(distributionCache.instrumentId, inst.id));
+      .from(distributions)
+      .where(eq(distributions.instrumentId, inst.id));
 
     if (cached?.source === "manual") {
       continue;
