@@ -1,5 +1,5 @@
 const RATE_LIMIT_MESSAGE =
-  "Yahoo Finance rate limit or temporary block — try again later.";
+  "Yahoo Finance rate limit or temporary block - try again later.";
 
 function errorText(e: unknown): string {
   if (typeof e === "string") {

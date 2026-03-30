@@ -58,7 +58,7 @@ describe("formatTransactionTotalValueForDisplay", () => {
 
   it("returns em dash when notional is not finite", () => {
     expect(formatTransactionTotalValueForDisplay("buy", "x", "1", "EUR")).toBe(
-      "—",
+      "-",
     );
   });
 });

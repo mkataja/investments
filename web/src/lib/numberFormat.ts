@@ -40,7 +40,7 @@ export function formatTransactionTotalValueForDisplay(
 ): string {
   const q = Number(quantity.trim());
   const p = Number(unitPrice.trim());
-  if (!Number.isFinite(q) || !Number.isFinite(p)) return "—";
+  if (!Number.isFinite(q) || !Number.isFinite(p)) return "-";
   if (instrumentKind === "cash_account") {
     return `${formatUnitPriceForDisplay(String(q * p))} ${currency}`;
   }

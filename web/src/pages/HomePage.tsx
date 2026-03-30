@@ -531,7 +531,7 @@ export function HomePage() {
                       </td>
                       <td className="p-2 text-right tabular-nums">
                         {p.unitPriceEur == null
-                          ? "—"
+                          ? "-"
                           : formatUnitPriceForDisplay(String(p.unitPriceEur))}
                       </td>
                       <td className="p-2 text-right tabular-nums">
@@ -623,7 +623,7 @@ export function HomePage() {
                       <td className="p-2 text-right">
                         {instrumentById.get(t.instrumentId)?.kind ===
                         "cash_account" ? (
-                          "—"
+                          "-"
                         ) : (
                           <>
                             {formatTransactionUnitPriceForDisplay(

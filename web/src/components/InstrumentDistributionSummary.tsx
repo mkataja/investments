@@ -32,7 +32,7 @@ export function DistributionSummary({
               </span>
             ))
           ) : (
-            <span>—</span>
+            <span>-</span>
           )}
         </div>
       </div>
@@ -55,7 +55,7 @@ export function DistributionSummary({
               </span>
             ))
           ) : (
-            <span className="py-0.5">—</span>
+            <span className="py-0.5">-</span>
           )}
         </div>
       </div>

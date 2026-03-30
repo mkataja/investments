@@ -214,7 +214,7 @@ export function EditInstrumentPage() {
           </h1>
           <p className="text-sm text-slate-600">
             <span className="font-mono text-slate-800">
-              {initial.yahooSymbol ?? "—"}
+              {initial.yahooSymbol ?? "-"}
             </span>{" "}
             - {initial.displayName}
           </p>
@@ -312,7 +312,7 @@ export function EditInstrumentPage() {
               >
                 {cashBrokers.length === 0 ? (
                   <option value="">
-                    No cash-account-type broker — add one under Brokers
+                    No cash-account-type broker - add one under Brokers
                   </option>
                 ) : (
                   cashBrokers.map((b) => (

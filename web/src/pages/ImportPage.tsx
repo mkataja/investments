@@ -380,8 +380,8 @@ export function ImportPage() {
           Export <strong className="font-medium">Transactions</strong> from
           Degiro (CSV). Each row must resolve to exactly one instrument (etf,
           stock, or Seligson fund): by{" "}
-          <strong className="font-medium">ISIN</strong> in the database, or—if
-          ISIN is missing on the instrument—via OpenFIGI to your{" "}
+          <strong className="font-medium">ISIN</strong> in the database, or - if
+          ISIN is missing on the instrument - via OpenFIGI to your{" "}
           <strong className="font-medium">Yahoo symbol</strong>. If the CSV
           contains unknown ISINs, we fetch Yahoo details and you can add them in
           one step. Only EUR trades are imported.

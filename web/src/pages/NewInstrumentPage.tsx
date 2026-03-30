@@ -346,7 +346,7 @@ export function NewInstrumentPage() {
                 >
                   {seligsonBrokers.length === 0 ? (
                     <option value="">
-                      No Seligson-type broker — add one under Brokers
+                      No Seligson-type broker - add one under Brokers
                     </option>
                   ) : (
                     seligsonBrokers.map((b) => (
@@ -395,7 +395,7 @@ export function NewInstrumentPage() {
                 >
                   {cashBrokers.length === 0 ? (
                     <option value="">
-                      No cash-account-type broker — add one under Brokers
+                      No cash-account-type broker - add one under Brokers
                     </option>
                   ) : (
                     cashBrokers.map((b) => (

@@ -37,7 +37,7 @@ export function instrumentKindColumnLabel(
   switch (row.kind) {
     case "custom": {
       const n = row.broker?.name?.trim();
-      return n && n.length > 0 ? n : "—";
+      return n && n.length > 0 ? n : "-";
     }
     case "cash_account": {
       const base = instrumentKindDisplayLabel("cash_account");
