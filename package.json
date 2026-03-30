@@ -12,7 +12,7 @@
     "db:studio": "pnpm --filter @investments/db studio",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "test": "pnpm --filter @investments/api test"
+    "test": "pnpm --filter @investments/api test && pnpm --filter @investments/web test"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

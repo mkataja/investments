@@ -85,7 +85,7 @@ Shared **primary** controls (`Button`, `ButtonLink`) and a minimal style referen
 ### Before commit or sign-off
 
 - **Lint:** always run **`pnpm lint`** (root **`biome check`**) and fix reported issues before **committing** or **treating work as complete**.
-- **Tests:** run **affected** tests—packages, apps, or areas your change touches—before committing or signing off. Prefer the narrowest command that covers your edits (e.g. a package’s **`test`** script via **`pnpm --filter`** when present), not an unnecessary full-repo run unless the change warrants it. Root **`pnpm test`** runs **`@investments/api`** Vitest (CSV import parser tests).
+- **Tests:** run **affected** tests—packages, apps, or areas your change touches—before committing or signing off. Prefer the narrowest command that covers your edits (e.g. a package’s **`test`** script via **`pnpm --filter`** when present), not an unnecessary full-repo run unless the change warrants it. Root **`pnpm test`** runs Vitest in **`@investments/api`** (CSV import parser tests) then **`@investments/web`**.
 
 ### Git commits
 

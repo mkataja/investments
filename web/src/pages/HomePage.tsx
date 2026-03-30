@@ -14,6 +14,7 @@ import { apiGet, apiPost } from "../api";
 import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
+import { roundQuantityForDisplay } from "../lib/roundQuantityForDisplay";
 
 type Broker = {
   id: number;
@@ -444,7 +445,9 @@ export function HomePage() {
                   <td className="p-2">{t.tradeDate}</td>
                   <td className="p-2">{t.side}</td>
                   <td className="p-2 text-right">{t.instrumentId}</td>
-                  <td className="p-2 text-right font-mono">{t.quantity}</td>
+                  <td className="p-2 text-right">
+                    {roundQuantityForDisplay(t.quantity)}
+                  </td>
                   <td className="p-2 text-right font-mono">
                     {t.unitPrice} {t.currency}
                   </td>
