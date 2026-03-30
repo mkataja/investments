@@ -65,6 +65,7 @@ export function normalizeDegiroDataRow(
 export const DEGIRO_CSV_EXTERNAL_SOURCE = "degiro_csv" as const;
 
 const COL_DATE = 0;
+const COL_PRODUCT = 2;
 const COL_ISIN = 3;
 const COL_REF_EXCHANGE = 4;
 const COL_VENUE = 5;
@@ -75,6 +76,8 @@ const COL_CURRENCY = 8;
 export type DegiroParsedRow = {
   tradeDate: string;
   isin: string;
+  /** Degiro “Product” column (fund / security name). */
+  product: string;
   /** Degiro “Reference exchange” (e.g. XET, EAM, HSE). */
   referenceExchange: string;
   /** Degiro “Venue” MIC-style code (e.g. XETA, XAMS, XHEL). */
@@ -216,6 +219,8 @@ export function parseDegiroTransactionsCsv(
       continue;
     }
 
+    const product = normalizeDegiroCell(normalized[COL_PRODUCT] ?? "");
+
     const referenceExchange = normalizeDegiroCell(
       normalized[COL_REF_EXCHANGE] ?? "",
     ).toUpperCase();
@@ -270,6 +275,7 @@ export function parseDegiroTransactionsCsv(
     rows.push({
       tradeDate,
       isin,
+      product,
       referenceExchange,
       venue,
       side,

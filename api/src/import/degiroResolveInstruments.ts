@@ -1,5 +1,6 @@
 import type { InstrumentRow } from "../lib/valuation.js";
 import {
+  type OpenFigiMappingRow,
   fetchOpenFigiMapping,
   yahooSymbolCandidatesFromOpenFigiRows,
 } from "./openFigi.js";
@@ -28,6 +29,8 @@ export async function resolveDegiroInstrumentIds(
       missingIsins: string[];
       ambiguousIsins: string[];
       message: string;
+      /** Present when `missingIsins` is non-empty (OpenFIGI rows per ISIN). */
+      openFigiByIsin?: Map<string, OpenFigiMappingRow[]>;
     }
 > {
   const idsByIsin = new Map<string, number[]>();
@@ -139,6 +142,7 @@ export async function resolveDegiroInstrumentIds(
       ambiguousIsins,
       message:
         "Resolve instruments before import (match ISIN in the database, or register Yahoo-listed instruments so OpenFIGI can map ISIN → Yahoo symbol).",
+      openFigiByIsin: missingIsins.length > 0 ? openFigiByIsin : undefined,
     };
   }
 

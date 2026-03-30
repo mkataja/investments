@@ -8,7 +8,7 @@ import {
   seligsonFunds,
   transactions,
 } from "@investments/db";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
@@ -24,6 +24,7 @@ import {
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
 } from "./distributions/yahoo.js";
+import { buildDegiroInstrumentProposals } from "./import/degiroInstrumentProposals.js";
 import { resolveDegiroInstrumentIds } from "./import/degiroResolveInstruments.js";
 import {
   DEGIRO_CSV_EXTERNAL_SOURCE,
@@ -33,14 +34,22 @@ import {
   refreshDistributionCacheForInstrumentId,
   refreshStaleDistributionCaches,
   writeSeligsonDistributionCache,
-  writeYahooDistributionCache,
 } from "./lib/cacheRefresh.js";
+import { insertEtfStockFromYahoo } from "./lib/createYahooInstrument.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
 import { loadOpenPositions } from "./lib/positions.js";
 import { formatYahooUpstreamError } from "./lib/yahooUpstream.js";
 import { seedBrokers } from "./seed.js";
 
 const app = new Hono();
+
+const createDegiroInstrumentsSchema = z.array(
+  z.object({
+    isin: z.string().length(12),
+    yahooSymbol: z.string().min(1),
+    kind: z.enum(["etf", "stock"]),
+  }),
+);
 
 app.use(
   "/*",
@@ -112,6 +121,34 @@ app.post("/import/degiro", async (c) => {
     return c.json({ message: "Expected file upload, not string" }, 400);
   }
   const csvText = await (file as File).text();
+
+  const createRaw = body.createInstruments;
+  let createInstrumentsParsed:
+    | z.infer<typeof createDegiroInstrumentsSchema>
+    | undefined;
+  if (createRaw != null && String(createRaw).trim() !== "") {
+    if (typeof createRaw !== "string") {
+      return c.json(
+        {
+          message:
+            'Expected multipart field "createInstruments" as a JSON string (array)',
+        },
+        400,
+      );
+    }
+    let parsedJson: unknown;
+    try {
+      parsedJson = JSON.parse(createRaw);
+    } catch {
+      return c.json({ message: "Invalid createInstruments JSON" }, 400);
+    }
+    const checked = createDegiroInstrumentsSchema.safeParse(parsedJson);
+    if (!checked.success) {
+      return c.json({ message: "Invalid createInstruments payload" }, 400);
+    }
+    createInstrumentsParsed = checked.data;
+  }
+
   const parsed = parseDegiroTransactionsCsv(csvText);
   if (!parsed.ok) {
     return c.json(
@@ -132,6 +169,32 @@ app.post("/import/degiro", async (c) => {
     return c.json({ message: "Broker DEGIRO is not configured" }, 500);
   }
 
+  if (createInstrumentsParsed && createInstrumentsParsed.length > 0) {
+    for (const item of createInstrumentsParsed) {
+      const [dup] = await db
+        .select()
+        .from(instruments)
+        .where(eq(instruments.isin, item.isin))
+        .limit(1);
+      if (dup) {
+        continue;
+      }
+      try {
+        await insertEtfStockFromYahoo(item.kind, item.yahooSymbol, {
+          isinOverride: item.isin,
+        });
+      } catch (e) {
+        const { message, status } = formatYahooUpstreamError(e);
+        return c.json(
+          {
+            message: `Failed to create instrument for ISIN ${item.isin}: ${message}`,
+          },
+          status,
+        );
+      }
+    }
+  }
+
   const uniqueIsins = [...new Set(parsed.rows.map((r) => r.isin))];
   const instRows = await db
     .select()
@@ -140,16 +203,48 @@ app.post("/import/degiro", async (c) => {
 
   const resolved = await resolveDegiroInstrumentIds(uniqueIsins, instRows);
   if (!resolved.ok) {
-    const status = resolved.message.includes("OpenFIGI request failed")
-      ? 502
-      : 400;
+    if (resolved.message.includes("OpenFIGI request failed")) {
+      return c.json(
+        {
+          message: resolved.message,
+          missingIsins: resolved.missingIsins,
+          ambiguousIsins: resolved.ambiguousIsins,
+        },
+        502,
+      );
+    }
+    if (resolved.ambiguousIsins.length > 0) {
+      return c.json(
+        {
+          message: resolved.message,
+          missingIsins: resolved.missingIsins,
+          ambiguousIsins: resolved.ambiguousIsins,
+        },
+        400,
+      );
+    }
+    if (resolved.missingIsins.length > 0) {
+      const proposals = await buildDegiroInstrumentProposals(
+        resolved.missingIsins,
+        parsed.rows,
+        resolved.openFigiByIsin ?? new Map(),
+      );
+      return c.json(
+        {
+          ok: false,
+          needsInstruments: true,
+          proposals,
+        },
+        200,
+      );
+    }
     return c.json(
       {
         message: resolved.message,
         missingIsins: resolved.missingIsins,
         ambiguousIsins: resolved.ambiguousIsins,
       },
-      status,
+      400,
     );
   }
 
@@ -317,35 +412,13 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
   const body = c.req.valid("json");
 
   if (body.kind === "etf" || body.kind === "stock") {
-    let raw: Awaited<ReturnType<typeof fetchYahooQuoteSummaryRaw>>;
     try {
-      raw = await fetchYahooQuoteSummaryRaw(body.yahooSymbol);
+      const row = await insertEtfStockFromYahoo(body.kind, body.yahooSymbol);
+      return c.json(row, 201);
     } catch (e) {
       const { message, status } = formatYahooUpstreamError(e);
       return c.json({ message }, status);
     }
-    const lookup = buildYahooInstrumentLookup(raw, body.yahooSymbol);
-    const displayName = displayNameFromYahooLookup(lookup, body.yahooSymbol);
-    const [row] = await db
-      .insert(instruments)
-      .values({
-        kind: body.kind,
-        displayName,
-        yahooSymbol: body.yahooSymbol,
-        isin: lookup.isin ?? undefined,
-      })
-      .returning();
-    if (!row) {
-      return c.json({ message: "Failed to insert instrument" }, 500);
-    }
-    try {
-      await writeYahooDistributionCache(row.id, raw, body.yahooSymbol);
-    } catch (e) {
-      await db.delete(instruments).where(eq(instruments.id, row.id));
-      const { message, status } = formatYahooUpstreamError(e);
-      return c.json({ message }, status);
-    }
-    return c.json(row, 201);
   }
 
   if (body.kind === "seligson_fund") {
