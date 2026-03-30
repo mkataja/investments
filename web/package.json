@@ -13,6 +13,7 @@
     "@investments/db": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-loading-skeleton": "^3.5.0",
     "react-router": "^7.1.1",
     "react-router-dom": "^7.1.1",
     "recharts": "^2.15.0"

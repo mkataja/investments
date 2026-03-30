@@ -17,6 +17,10 @@ import { apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Modal } from "../components/Modal";
+import {
+  PortfolioViewSkeleton,
+  TransactionsTableSkeleton,
+} from "../components/PortfolioViewSkeleton";
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 import {
   formatTransactionUnitPriceForDisplay,
@@ -92,6 +96,7 @@ export function HomePage() {
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   const load = useCallback(async () => {
     setError(null);
@@ -108,6 +113,8 @@ export function HomePage() {
       setPortfolio(p);
     } catch (e) {
       setError(String(e));
+    } finally {
+      setInitialLoad(false);
     }
   }, []);
 
@@ -375,7 +382,9 @@ export function HomePage() {
         </form>
       </Modal>
 
-      {portfolio && (
+      {initialLoad ? (
+        <PortfolioViewSkeleton />
+      ) : portfolio ? (
         <section className="space-y-4">
           <h2 className="text-xl font-medium text-slate-800">
             Distributions (value-weighted)
@@ -469,54 +478,63 @@ export function HomePage() {
             </table>
           </div>
         </section>
-      )}
+      ) : null}
 
       <section>
         <h2 className="text-xl font-medium text-slate-800 mb-2">
           Transactions
         </h2>
-        <div className="overflow-x-auto border rounded-lg text-sm">
-          <table className="min-w-full">
-            <thead className="bg-slate-100">
-              <tr>
-                <th className="text-left p-2">Date/time</th>
-                <th className="text-left p-2">Side</th>
-                <th className="text-left p-2">Ticker</th>
-                <th className="text-left p-2">Instrument</th>
-                <th className="text-right p-2">Qty</th>
-                <th className="text-right p-2">Price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transactions.map((t) => (
-                <tr key={t.id} className="border-t">
-                  <td className="p-2">
-                    {formatTransactionInstant(t.tradeDate)}
-                  </td>
-                  <td className="p-2">{transactionSideLabel(t.side)}</td>
-                  <td className="p-2 text-left tabular-nums text-slate-700">
-                    {instrumentTickerById.get(t.instrumentId) ?? "—"}
-                  </td>
-                  <td className="p-2 text-left min-w-[12rem]">
-                    {instrumentNameById.get(t.instrumentId) ??
-                      `#${t.instrumentId}`}
-                  </td>
-                  <td className="p-2 text-right">
-                    {roundQuantityForDisplay(t.quantity)}
-                  </td>
-                  <td className="p-2 text-right">
-                    {formatTransactionUnitPriceForDisplay(t.side, t.unitPrice)}{" "}
-                    {t.currency}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-2 text-sm text-slate-600 tabular-nums">
-          {transactions.length}{" "}
-          {transactions.length === 1 ? "transaction" : "transactions"}
-        </p>
+        {initialLoad ? (
+          <TransactionsTableSkeleton />
+        ) : (
+          <>
+            <div className="overflow-x-auto border rounded-lg text-sm">
+              <table className="min-w-full">
+                <thead className="bg-slate-100">
+                  <tr>
+                    <th className="text-left p-2">Date/time</th>
+                    <th className="text-left p-2">Side</th>
+                    <th className="text-left p-2">Ticker</th>
+                    <th className="text-left p-2">Instrument</th>
+                    <th className="text-right p-2">Qty</th>
+                    <th className="text-right p-2">Price</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((t) => (
+                    <tr key={t.id} className="border-t">
+                      <td className="p-2">
+                        {formatTransactionInstant(t.tradeDate)}
+                      </td>
+                      <td className="p-2">{transactionSideLabel(t.side)}</td>
+                      <td className="p-2 text-left tabular-nums text-slate-700">
+                        {instrumentTickerById.get(t.instrumentId) ?? "—"}
+                      </td>
+                      <td className="p-2 text-left min-w-[12rem]">
+                        {instrumentNameById.get(t.instrumentId) ??
+                          `#${t.instrumentId}`}
+                      </td>
+                      <td className="p-2 text-right">
+                        {roundQuantityForDisplay(t.quantity)}
+                      </td>
+                      <td className="p-2 text-right">
+                        {formatTransactionUnitPriceForDisplay(
+                          t.side,
+                          t.unitPrice,
+                        )}{" "}
+                        {t.currency}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-sm text-slate-600 tabular-nums">
+              {transactions.length}{" "}
+              {transactions.length === 1 ? "transaction" : "transactions"}
+            </p>
+          </>
+        )}
       </section>
     </div>
   );
