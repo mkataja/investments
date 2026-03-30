@@ -16,4 +16,9 @@ describe("mapYahooSectorToCanonicalId", () => {
     expect(mapYahooSectorToCanonicalId("")).toBe("other");
     expect(mapYahooSectorToCanonicalId("Weird Sector XYZ")).toBe("other");
   });
+
+  it("maps cash-like labels to cash", () => {
+    expect(mapYahooSectorToCanonicalId("Cash")).toBe("cash");
+    expect(mapYahooSectorToCanonicalId("Money Market")).toBe("cash");
+  });
 });

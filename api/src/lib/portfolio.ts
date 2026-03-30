@@ -215,10 +215,16 @@ export async function getPortfolioDistributions(): Promise<{
       .where(eq(distributions.instrumentId, inst.id));
 
     const payload = cached?.payload as DistributionPayload | undefined;
+    const cashFracRaw =
+      payload?.sectors && typeof payload.sectors.cash === "number"
+        ? payload.sectors.cash
+        : 0;
+    const cashFrac = Math.min(1, Math.max(0, cashFracRaw));
+    const geoScale = 1 - cashFrac;
     if (payload?.countries && Object.keys(payload.countries).length > 0) {
-      mergeWeighted(countryWeights, payload.countries, w);
+      mergeWeighted(countryWeights, payload.countries, w * geoScale);
     } else {
-      missingCountryW += w;
+      missingCountryW += w * geoScale;
     }
     if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
       mergeWeighted(sectors, payload.sectors, w);

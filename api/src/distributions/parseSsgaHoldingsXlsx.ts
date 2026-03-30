@@ -1,6 +1,7 @@
 import { mapYahooSectorToCanonicalId } from "@investments/db";
 import type { DistributionPayload } from "@investments/db";
 import * as XLSX from "xlsx";
+import { isCashAssetLabel } from "./providerHoldingsCash.js";
 import { normalizeYahooCountriesToIsoKeys } from "./yahoo.js";
 
 function findHeaderRow(data: unknown[][]): {
@@ -75,6 +76,9 @@ export function parseSsgaHoldingsXlsx(buf: Uint8Array): DistributionPayload {
   const countryAgg: Record<string, number> = {};
   const sectorAgg: Record<string, number> = {};
 
+  const assetClassCol = col["Asset Class"];
+  const securityTypeCol = col["Security Type"];
+
   for (let r = rowIdx + 1; r < data.length; r++) {
     const row = data[r];
     if (!Array.isArray(row)) {
@@ -84,13 +88,29 @@ export function parseSsgaHoldingsXlsx(buf: Uint8Array): DistributionPayload {
     if (pct == null) {
       continue;
     }
+    const sectorLabel = String(
+      row[col["Sector Classification"] ?? -1] ?? "",
+    ).trim();
+    const assetClass =
+      typeof assetClassCol === "number"
+        ? String(row[assetClassCol] ?? "").trim()
+        : "";
+    const securityType =
+      typeof securityTypeCol === "number"
+        ? String(row[securityTypeCol] ?? "").trim()
+        : "";
+    if (
+      isCashAssetLabel(assetClass) ||
+      isCashAssetLabel(securityType) ||
+      isCashAssetLabel(sectorLabel)
+    ) {
+      sectorAgg.cash = (sectorAgg.cash ?? 0) + pct;
+      continue;
+    }
     const country = String(row[col["Trade Country Name"] ?? -1] ?? "").trim();
     if (!country) {
       continue;
     }
-    const sectorLabel = String(
-      row[col["Sector Classification"] ?? -1] ?? "",
-    ).trim();
     countryAgg[country] = (countryAgg[country] ?? 0) + pct;
     if (sectorLabel) {
       const sid = mapYahooSectorToCanonicalId(sectorLabel);

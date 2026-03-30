@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateHoldingsDistributionUrl } from "@investments/db";
@@ -35,11 +35,25 @@ describe("validateHoldingsDistributionUrl", () => {
 });
 
 describe("parseIsharesHoldingsCsv", () => {
-  it("aggregates CSPX sample", () => {
-    const csv = readFileSync(join(repoRoot, "CSPX_holdings.csv"), "utf-8");
+  it.skipIf(!existsSync(join(repoRoot, "CSPX_holdings.csv")))(
+    "aggregates CSPX sample",
+    () => {
+      const csv = readFileSync(join(repoRoot, "CSPX_holdings.csv"), "utf-8");
+      const { countries, sectors } = parseIsharesHoldingsCsv(csv);
+      expect(countries.US).toBeGreaterThan(0.9);
+      expect(Object.keys(sectors).length).toBeGreaterThan(0);
+    },
+  );
+
+  it("counts cash rows as sector cash and excludes them from countries", () => {
+    const csv = [
+      "Ticker,Name,Sector,Asset Class,Weight (%),Location",
+      "CASH,USD Cash,Cash,Cash,5.00,United States",
+      "AAPL,Apple Inc,Technology,Equity,95.00,United States",
+    ].join("\n");
     const { countries, sectors } = parseIsharesHoldingsCsv(csv);
-    expect(countries.US).toBeGreaterThan(0.9);
-    expect(Object.keys(sectors).length).toBeGreaterThan(0);
+    expect(sectors.cash).toBeCloseTo(0.05, 5);
+    expect(countries.US).toBeCloseTo(0.95, 5);
   });
 });
 

@@ -1,6 +1,7 @@
 import { mapYahooSectorToCanonicalId } from "@investments/db";
 import type { DistributionPayload } from "@investments/db";
 import { parse } from "csv-parse/sync";
+import { isCashAssetLabel } from "./providerHoldingsCash.js";
 import { normalizeYahooCountriesToIsoKeys } from "./yahoo.js";
 
 function stripBom(s: string): string {
@@ -54,11 +55,16 @@ export function parseIsharesHoldingsCsv(csvText: string): DistributionPayload {
     if (w == null) {
       continue;
     }
+    const assetClass = (row["Asset Class"] ?? "").trim();
+    const sectorLabel = (row.Sector ?? "").trim();
+    if (isCashAssetLabel(assetClass) || isCashAssetLabel(sectorLabel)) {
+      sectorAgg.cash = (sectorAgg.cash ?? 0) + w;
+      continue;
+    }
     const loc = (row.Location ?? "").trim();
     if (!loc || loc === "-") {
       continue;
     }
-    const sectorLabel = (row.Sector ?? "").trim();
     countryAgg[loc] = (countryAgg[loc] ?? 0) + w;
     if (sectorLabel) {
       const sid = mapYahooSectorToCanonicalId(sectorLabel);

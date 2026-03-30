@@ -51,6 +51,14 @@ export function mapYahooSectorToCanonicalId(raw: string): DistributionSectorId {
   }
 
   if (
+    s === "cash" ||
+    s.includes("money market") ||
+    s.includes("cash equivalent")
+  ) {
+    return "cash";
+  }
+
+  if (
     s.includes("information technology") ||
     s.includes("technology") ||
     s === "tech"
