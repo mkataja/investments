@@ -1269,10 +1269,24 @@ app.patch("/instruments/:id", async (c) => {
     if (!v.ok) {
       return c.json({ message: v.message }, 400);
     }
+    const prevNorm = validateHoldingsDistributionUrl(
+      existing.holdingsDistributionUrl,
+    ).normalized;
+    const nextNorm = v.normalized;
     await db
       .update(instruments)
       .set({ holdingsDistributionUrl: v.normalized })
       .where(eq(instruments.id, id));
+    if (prevNorm !== nextNorm) {
+      const refresh = await refreshDistributionCacheForInstrumentId(id);
+      if ("skipped" in refresh) {
+        if (refresh.reason === "not_found") {
+          return c.json({ message: "Not found" }, 404);
+        }
+      } else if ("error" in refresh) {
+        return c.json({ message: refresh.error }, refresh.status);
+      }
+    }
     const payload = await loadInstrumentPayloadById(id);
     if (!payload) {
       return c.json({ message: "Not found" }, 404);
