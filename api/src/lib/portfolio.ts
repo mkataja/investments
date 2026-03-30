@@ -1,9 +1,7 @@
 import {
-  USER_ID,
   aggregateRegionsToGeoBuckets,
   distributions,
   instruments,
-  portfolioSettings,
   seligsonFunds,
   yahooFinanceCache,
 } from "@investments/db";
@@ -11,6 +9,7 @@ import type { DistributionPayload } from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { classifyNonCashInstrument } from "./nonCashAssetClass.js";
+import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import { loadOpenPositionsForPortfolio } from "./positions.js";
 import { valuePortfolioRowsEur } from "./valuation.js";
 
@@ -53,11 +52,8 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     valuationSource: string;
   }>;
 }> {
-  const [psRow] = await db
-    .select()
-    .from(portfolioSettings)
-    .where(eq(portfolioSettings.userId, USER_ID));
-  const emergencyFundTargetEurRaw = psRow ? Number(psRow.emergencyFundEur) : 0;
+  const pfRow = await loadPortfolioOwnedByUser(portfolioId);
+  const emergencyFundTargetEurRaw = pfRow ? Number(pfRow.emergencyFundEur) : 0;
   const emergencyFundTargetEur = Number.isFinite(emergencyFundTargetEurRaw)
     ? emergencyFundTargetEurRaw
     : 0;

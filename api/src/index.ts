@@ -10,7 +10,6 @@ import {
   isInstrumentKindAllowedForBrokerType,
   normalizeCashAccountIsoCountryCode,
   normalizeYahooSymbolForStorage,
-  portfolioSettings,
   portfolios,
   providerHoldingsCache,
   seligsonDistributionCache,
@@ -99,42 +98,26 @@ const devToolsAllowed = () =>
 
 app.get("/health", (c) => c.json({ ok: true }));
 
-const settingsPatchIn = z.object({
-  emergencyFundEur: z.number().finite().nonnegative(),
-});
-
-app.get("/settings", async (c) => {
-  const [row] = await db
-    .select()
-    .from(portfolioSettings)
-    .where(eq(portfolioSettings.userId, USER_ID))
-    .limit(1);
-  if (!row) {
-    return c.json({ message: "Settings not found" }, 500);
-  }
-  return c.json({
+function mapPortfolioRow(row: InferSelectModel<typeof portfolios>) {
+  return {
+    ...row,
     emergencyFundEur: Number(row.emergencyFundEur),
-  });
-});
-
-app.patch("/settings", zValidator("json", settingsPatchIn), async (c) => {
-  const body = c.req.valid("json");
-  const [updated] = await db
-    .update(portfolioSettings)
-    .set({ emergencyFundEur: String(body.emergencyFundEur) })
-    .where(eq(portfolioSettings.userId, USER_ID))
-    .returning();
-  if (!updated) {
-    return c.json({ message: "Settings not found" }, 404);
-  }
-  return c.json({
-    emergencyFundEur: Number(updated.emergencyFundEur),
-  });
-});
+  };
+}
 
 const portfolioCreateIn = z.object({
   name: z.string().trim().min(1),
+  emergencyFundEur: z.number().finite().nonnegative().optional(),
 });
+
+const portfolioPatchIn = z
+  .object({
+    name: z.string().trim().min(1).optional(),
+    emergencyFundEur: z.number().finite().nonnegative().optional(),
+  })
+  .refine((o) => o.name != null || o.emergencyFundEur != null, {
+    message: "At least one field is required",
+  });
 
 app.get("/portfolios", async (c) => {
   const rows = await db
@@ -142,7 +125,7 @@ app.get("/portfolios", async (c) => {
     .from(portfolios)
     .where(eq(portfolios.userId, USER_ID))
     .orderBy(asc(portfolios.id));
-  return c.json(rows);
+  return c.json(rows.map(mapPortfolioRow));
 });
 
 app.post("/portfolios", zValidator("json", portfolioCreateIn), async (c) => {
@@ -161,13 +144,67 @@ app.post("/portfolios", zValidator("json", portfolioCreateIn), async (c) => {
   }
   const [row] = await db
     .insert(portfolios)
-    .values({ userId: USER_ID, name })
+    .values({
+      userId: USER_ID,
+      name,
+      emergencyFundEur: String(body.emergencyFundEur ?? 0),
+    })
     .returning();
   if (!row) {
     return c.json({ message: "Failed to create portfolio" }, 500);
   }
-  return c.json(row, 201);
+  return c.json(mapPortfolioRow(row), 201);
 });
+
+app.patch(
+  "/portfolios/:id",
+  zValidator("json", portfolioPatchIn),
+  async (c) => {
+    const id = Number.parseInt(c.req.param("id"), 10);
+    if (!Number.isFinite(id) || id < 1) {
+      return c.json({ message: "Invalid id" }, 400);
+    }
+    const body = c.req.valid("json");
+    const [existing] = await db
+      .select()
+      .from(portfolios)
+      .where(and(eq(portfolios.id, id), eq(portfolios.userId, USER_ID)))
+      .limit(1);
+    if (!existing) {
+      return c.json({ message: "Not found" }, 404);
+    }
+    const nextName = body.name?.trim() ?? existing.name;
+    if (nextName !== existing.name) {
+      const [nameDup] = await db
+        .select({ id: portfolios.id })
+        .from(portfolios)
+        .where(
+          and(eq(portfolios.userId, USER_ID), eq(portfolios.name, nextName)),
+        )
+        .limit(1);
+      if (nameDup && nameDup.id !== id) {
+        return c.json(
+          { message: "A portfolio with this name already exists" },
+          409,
+        );
+      }
+    }
+    const [row] = await db
+      .update(portfolios)
+      .set({
+        name: nextName,
+        ...(body.emergencyFundEur != null
+          ? { emergencyFundEur: String(body.emergencyFundEur) }
+          : {}),
+      })
+      .where(eq(portfolios.id, id))
+      .returning();
+    if (!row) {
+      return c.json({ message: "Not found" }, 404);
+    }
+    return c.json(mapPortfolioRow(row));
+  },
+);
 
 app.get("/brokers", async (c) => {
   const rows = await db.select().from(brokers).orderBy(asc(brokers.id));
