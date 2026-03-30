@@ -1,7 +1,6 @@
 /** Compact display of cached distribution payloads (countries + sectors). */
 
 import {
-  DISTRIBUTION_SECTOR_TITLES,
   type DistributionSectorId,
   GEO_BUCKET_ORDER,
   type GeoBucketId,
@@ -11,6 +10,7 @@ import {
   geoBucketDisplayTitle,
   resolveRegionKeyToIso,
 } from "@investments/db";
+import { DISTRIBUTION_SECTOR_TITLES } from "./sectorTitles.js";
 
 export type GeoBucket = GeoBucketId;
 
@@ -237,7 +237,7 @@ export function formatGeoLine(buckets: Record<GeoBucket, number>): string {
     .join(" · ");
 }
 
-/** Icons for canonical sector ids (`distribution/sectors.ts`). */
+/** Icons for canonical sector ids (`db` sector id vocabulary). */
 export function sectorIcon(sectorId: string): string {
   switch (sectorId) {
     case "cash":

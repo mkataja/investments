@@ -190,7 +190,7 @@ export const transactions = pgTable(
 export type DistributionPayload = {
   /** Uppercase ISO 3166-1 alpha-2 country codes → weights (0–1). */
   countries: Record<string, number>;
-  /** Canonical sector ids (`distribution/sectors.ts`) → weights (0–1). */
+  /** Canonical sector ids (`distribution/sectorIds.ts`) → weights (0–1). */
   sectors: Record<string, number>;
 };
 

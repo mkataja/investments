@@ -1,10 +1,10 @@
 import type { DistributionPayload } from "@investments/db";
 import * as XLSX from "xlsx";
-import { isCashAssetLabel } from "./providerHoldingsCash.js";
 import {
-  mapYahooSectorToCanonicalIdWithWarn,
-  normalizeYahooCountriesToIsoKeys,
-} from "./yahoo.js";
+  mapSectorLabelToCanonicalIdWithWarn,
+  normalizeRegionWeightsToIsoKeys,
+} from "./distributionNormalize.js";
+import { isCashAssetLabel } from "./providerHoldingsCash.js";
 
 /**
  * Xtrackers / DWS constituent export (`etf.dws.com` … `/excel/product/constituent/…`).
@@ -107,13 +107,13 @@ export function parseXtrackersHoldingsXlsx(
     countryAgg[country] = (countryAgg[country] ?? 0) + pct;
     const industryLabel = String(row[industryCol] ?? "").trim();
     if (industryLabel) {
-      const sid = mapYahooSectorToCanonicalIdWithWarn(industryLabel);
+      const sid = mapSectorLabelToCanonicalIdWithWarn(industryLabel);
       sectorAgg[sid] = (sectorAgg[sid] ?? 0) + pct;
     }
   }
 
   return {
-    countries: normalizeYahooCountriesToIsoKeys(countryAgg),
+    countries: normalizeRegionWeightsToIsoKeys(countryAgg),
     sectors: sectorAgg,
   };
 }

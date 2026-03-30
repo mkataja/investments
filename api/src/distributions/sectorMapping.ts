@@ -1,50 +1,10 @@
-/**
- * Canonical sector ids for `distributions.payload.sectors` (JSON keys) and portfolio aggregation.
- */
-
-export const DISTRIBUTION_SECTOR_IDS = [
-  "technology",
-  "healthcare",
-  "financials",
-  "consumer_cyclical",
-  "consumer_defensive",
-  "industrials",
-  "energy",
-  "materials",
-  "real_estate",
-  "utilities",
-  "communication_services",
-  "other",
-  "cash",
-] as const;
-
-export type DistributionSectorId = (typeof DISTRIBUTION_SECTOR_IDS)[number];
-
-export const DISTRIBUTION_SECTOR_TITLES: Record<DistributionSectorId, string> =
-  {
-    technology: "Technology",
-    healthcare: "Healthcare",
-    financials: "Financials",
-    consumer_cyclical: "Consumer cyclical",
-    consumer_defensive: "Consumer defensive",
-    industrials: "Industrials",
-    energy: "Energy",
-    materials: "Materials",
-    real_estate: "Real estate",
-    utilities: "Utilities",
-    communication_services: "Communication services",
-    other: "Other",
-    cash: "Cash",
-  };
-
-export function isDistributionSectorId(s: string): s is DistributionSectorId {
-  return (DISTRIBUTION_SECTOR_IDS as readonly string[]).includes(s);
-}
+import type { DistributionSectorId } from "@investments/db";
 
 /**
- * Map Yahoo / GICS-style sector strings to a canonical id. Unknown labels map to `other`.
+ * Map free-text sector/industry labels (GICS-style, Yahoo, provider exports, etc.) to a canonical id.
+ * Unknown labels map to `other`.
  */
-export function mapYahooSectorToCanonicalId(raw: string): DistributionSectorId {
+export function mapSectorLabelToCanonicalId(raw: string): DistributionSectorId {
   const s = raw.trim().toLowerCase();
   if (!s) {
     return "other";
@@ -139,11 +99,3 @@ export const SELIGSON_FINNISH_SECTOR_LABEL_MAP: Record<
   Terveys: "healthcare",
   Rahoitus: "financials",
 };
-
-export function mapSeligsonFinnishSectorLabelToCanonicalId(
-  label: string,
-): DistributionSectorId {
-  const t = label.trim();
-  const id = SELIGSON_FINNISH_SECTOR_LABEL_MAP[t];
-  return id ?? "other";
-}

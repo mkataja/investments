@@ -1,7 +1,7 @@
 import type { DistributionPayload } from "@investments/db";
-import { SELIGSON_FINNISH_SECTOR_LABEL_MAP } from "@investments/db";
 import { resolveRegionKeyToIso } from "@investments/db";
 import * as cheerio from "cheerio";
+import { SELIGSON_FINNISH_SECTOR_LABEL_MAP } from "./sectorMapping.js";
 
 const SELIGSON_BASE =
   "https://www.seligson.fi/luotain/FundViewer.php?task=intro&lang=0";

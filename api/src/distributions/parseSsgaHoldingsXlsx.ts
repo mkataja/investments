@@ -1,10 +1,10 @@
 import type { DistributionPayload } from "@investments/db";
 import * as XLSX from "xlsx";
-import { isCashAssetLabel } from "./providerHoldingsCash.js";
 import {
-  mapYahooSectorToCanonicalIdWithWarn,
-  normalizeYahooCountriesToIsoKeys,
-} from "./yahoo.js";
+  mapSectorLabelToCanonicalIdWithWarn,
+  normalizeRegionWeightsToIsoKeys,
+} from "./distributionNormalize.js";
+import { isCashAssetLabel } from "./providerHoldingsCash.js";
 
 function findHeaderRow(data: unknown[][]): {
   rowIdx: number;
@@ -115,13 +115,13 @@ export function parseSsgaHoldingsXlsx(buf: Uint8Array): DistributionPayload {
     }
     countryAgg[country] = (countryAgg[country] ?? 0) + pct;
     if (sectorLabel) {
-      const sid = mapYahooSectorToCanonicalIdWithWarn(sectorLabel);
+      const sid = mapSectorLabelToCanonicalIdWithWarn(sectorLabel);
       sectorAgg[sid] = (sectorAgg[sid] ?? 0) + pct;
     }
   }
 
   return {
-    countries: normalizeYahooCountriesToIsoKeys(countryAgg),
+    countries: normalizeRegionWeightsToIsoKeys(countryAgg),
     sectors: sectorAgg,
   };
 }

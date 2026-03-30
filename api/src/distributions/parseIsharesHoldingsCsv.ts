@@ -1,10 +1,10 @@
 import type { DistributionPayload } from "@investments/db";
 import { parse } from "csv-parse/sync";
-import { isCashAssetLabel } from "./providerHoldingsCash.js";
 import {
-  mapYahooSectorToCanonicalIdWithWarn,
-  normalizeYahooCountriesToIsoKeys,
-} from "./yahoo.js";
+  mapSectorLabelToCanonicalIdWithWarn,
+  normalizeRegionWeightsToIsoKeys,
+} from "./distributionNormalize.js";
+import { isCashAssetLabel } from "./providerHoldingsCash.js";
 
 function stripBom(s: string): string {
   return s.charCodeAt(0) === 0xfeff ? s.slice(1) : s;
@@ -69,13 +69,13 @@ export function parseIsharesHoldingsCsv(csvText: string): DistributionPayload {
     }
     countryAgg[loc] = (countryAgg[loc] ?? 0) + w;
     if (sectorLabel) {
-      const sid = mapYahooSectorToCanonicalIdWithWarn(sectorLabel);
+      const sid = mapSectorLabelToCanonicalIdWithWarn(sectorLabel);
       sectorAgg[sid] = (sectorAgg[sid] ?? 0) + w;
     }
   }
 
   return {
-    countries: normalizeYahooCountriesToIsoKeys(countryAgg),
+    countries: normalizeRegionWeightsToIsoKeys(countryAgg),
     sectors: sectorAgg,
   };
 }

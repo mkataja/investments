@@ -1,24 +1,24 @@
-import { mapYahooSectorToCanonicalId } from "@investments/db";
 import { describe, expect, it } from "vitest";
+import { mapSectorLabelToCanonicalId } from "./sectorMapping.js";
 
-describe("mapYahooSectorToCanonicalId", () => {
+describe("mapSectorLabelToCanonicalId", () => {
   it("maps common GICS-style labels", () => {
-    expect(mapYahooSectorToCanonicalId("Technology")).toBe("technology");
-    expect(mapYahooSectorToCanonicalId("Financial Services")).toBe(
+    expect(mapSectorLabelToCanonicalId("Technology")).toBe("technology");
+    expect(mapSectorLabelToCanonicalId("Financial Services")).toBe(
       "financials",
     );
-    expect(mapYahooSectorToCanonicalId("Consumer Cyclical")).toBe(
+    expect(mapSectorLabelToCanonicalId("Consumer Cyclical")).toBe(
       "consumer_cyclical",
     );
   });
 
   it("maps unknown to other", () => {
-    expect(mapYahooSectorToCanonicalId("")).toBe("other");
-    expect(mapYahooSectorToCanonicalId("Weird Sector XYZ")).toBe("other");
+    expect(mapSectorLabelToCanonicalId("")).toBe("other");
+    expect(mapSectorLabelToCanonicalId("Weird Sector XYZ")).toBe("other");
   });
 
   it("maps cash-like labels to cash", () => {
-    expect(mapYahooSectorToCanonicalId("Cash")).toBe("cash");
-    expect(mapYahooSectorToCanonicalId("Money Market")).toBe("cash");
+    expect(mapSectorLabelToCanonicalId("Cash")).toBe("cash");
+    expect(mapSectorLabelToCanonicalId("Money Market")).toBe("cash");
   });
 });

@@ -1,78 +1,19 @@
-import type {
-  DistributionPayload,
-  DistributionSectorId,
-} from "@investments/db";
-import {
-  mapYahooSectorToCanonicalId,
-  resolveRegionKeyToIso,
-} from "@investments/db";
+import type { DistributionPayload } from "@investments/db";
 import type { QuoteSummaryResult } from "yahoo-finance2/modules/quoteSummary-iface";
 import { yahooFinance } from "../lib/yahooClient.js";
 import { withYahooRetries } from "../lib/yahooUpstream.js";
+import {
+  mapSectorLabelToCanonicalIdWithWarn,
+  normalizeRegionWeightsToIsoKeys,
+} from "./distributionNormalize.js";
 import { mergeYahooWeightRows } from "./types.js";
 
-/** Exported for provider holdings parsers (iShares, SSGA) — same rules as Yahoo fund country keys. */
-export function normalizeYahooCountriesToIsoKeys(
-  regions: Record<string, number>,
-): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const [k, w] of Object.entries(regions)) {
-    const iso = resolveRegionKeyToIso(k);
-    if (iso) {
-      out[iso] = (out[iso] ?? 0) + w;
-    } else {
-      console.warn(
-        `Could not map country/region label to ISO 3166-1 alpha-2: ${JSON.stringify(k)}`,
-      );
-      out[k] = w;
-    }
-  }
-  return out;
-}
-
-const EXPLICIT_OTHER_SECTOR_LABELS = new Set([
-  "other",
-  "unknown",
-  "n/a",
-  "na",
-  "-",
-  "misc",
-  "miscellaneous",
-  "unclassified",
-  "not classified",
-]);
-
-/**
- * Same as {@link mapYahooSectorToCanonicalId} with `console.warn` when the label
- * falls through to `other` (excludes empty strings and generic catch-all labels).
- */
-export function mapYahooSectorToCanonicalIdWithWarn(
-  raw: string,
-): DistributionSectorId {
-  const id = mapYahooSectorToCanonicalId(raw);
-  if (id !== "other") {
-    return id;
-  }
-  const trimmed = raw.trim();
-  if (trimmed === "") {
-    return id;
-  }
-  const lower = trimmed.toLowerCase();
-  if (EXPLICIT_OTHER_SECTOR_LABELS.has(lower)) {
-    return id;
-  }
-  console.warn(
-    `Could not map sector label to canonical sector: ${JSON.stringify(raw)}`,
-  );
-  return id;
-}
-
-function mapYahooSectorWeightsToCanonical(
+function mapSectorWeightsToCanonical(
   sectors: Record<string, number>,
 ): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [k, w] of Object.entries(sectors)) {
-    const id = mapYahooSectorToCanonicalIdWithWarn(k);
+    const id = mapSectorLabelToCanonicalIdWithWarn(k);
     out[id] = (out[id] ?? 0) + w;
   }
   return out;
@@ -201,8 +142,8 @@ export function normalizeYahooDistribution(
     notes.push(`Stock ${symbol}: geography set to issuer country only.`);
   }
 
-  countries = normalizeYahooCountriesToIsoKeys(countries);
-  const sectors = mapYahooSectorWeightsToCanonical(rawSectors);
+  countries = normalizeRegionWeightsToIsoKeys(countries);
+  const sectors = mapSectorWeightsToCanonical(rawSectors);
 
   if (Object.keys(sectors).length === 0) {
     notes.push(`No sector breakdown for ${symbol}.`);
