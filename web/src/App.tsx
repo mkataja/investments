@@ -1,6 +1,7 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import { BrokersPage } from "./pages/BrokersPage";
 import { DevPage } from "./pages/DevPage";
+import { EditInstrumentPage } from "./pages/EditInstrumentPage";
 import { HomePage } from "./pages/HomePage";
 import { ImportPage } from "./pages/ImportPage";
 import { InstrumentsPage } from "./pages/InstrumentsPage";
@@ -38,6 +39,10 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/instruments" element={<InstrumentsPage />} />
             <Route path="/instruments/new" element={<NewInstrumentPage />} />
+            <Route
+              path="/instruments/:id/edit"
+              element={<EditInstrumentPage />}
+            />
             <Route path="/brokers" element={<BrokersPage />} />
             <Route path="/import" element={<ImportPage />} />
             <Route path="/dev" element={<DevPage />} />
