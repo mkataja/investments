@@ -1,10 +1,14 @@
+import { parse } from "csv-parse/sync";
 import { describe, expect, it } from "vitest";
 import {
   DEGIRO_TRANSACTIONS_HEADER,
+  extractDegiroOrderId,
   fingerprintDegiroRow,
+  normalizeDegiroDataRow,
   parseDegiroTradeDateDdMmYyyy,
   parseDegiroTransactionsCsv,
   parseEuropeanDecimalString,
+  shouldSkipDegiroNonTradeRow,
 } from "./degiroTransactions.js";
 
 const SAMPLE_ROW =
@@ -56,7 +60,7 @@ describe("parseDegiroTransactionsCsv", () => {
     expect(row?.quantity).toBe("1");
     expect(row?.currency).toBe("EUR");
     expect(row?.unitPrice).toBe("612.7400");
-    expect(row?.externalId).toMatch(/^[a-f0-9]{64}$/);
+    expect(row?.externalId).toBe("b295869f-bb2d-4824-9a1a-39d3e968bb5d");
   });
 
   it("rejects wrong headers", () => {
@@ -108,6 +112,77 @@ describe("parseDegiroTransactionsCsv", () => {
     }
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0]?.quantity).toBe("3");
+  });
+
+  it("skips non-trade rows (e.g. missing ISIN) without failing the CSV", () => {
+    const feeRow =
+      '25-03-2026,15:39,DEGIRO Transaction Fee,,XET,XETA,−1,"1,00",EUR,"1,00",EUR,"1,00",,"0,00","0,00","1,00",,a0000000-0000-4000-8000-000000000001';
+    const csv = `${headerLine()}${SAMPLE_ROW}\n${feeRow}\n`;
+    const result = parseDegiroTransactionsCsv(csv);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.isin).toBe("IE00B5BMR087");
+  });
+
+  it("merges multiple CSV lines with the same Order ID into one transaction (VWAP)", () => {
+    const fillA =
+      '11-04-2023,10:41,ISHARES CORE S&P 500 UCITS ETF USD (ACC),IE00B5BMR087,XET,XETA,−1,"391,9400",EUR,"391,94",EUR,"391,94",,"0,00",,"391,94",,695118b5-023c-4d07-be4d-070deb7f3724';
+    const fillB =
+      '11-04-2023,10:41,ISHARES CORE S&P 500 UCITS ETF USD (ACC),IE00B5BMR087,XET,XETA,−1,"391,9500",EUR,"391,95",EUR,"391,95",,"0,00",,"391,95",,695118b5-023c-4d07-be4d-070deb7f3724';
+    const fillC =
+      '11-04-2023,10:41,ISHARES CORE S&P 500 UCITS ETF USD (ACC),IE00B5BMR087,XET,XETA,−1,"392,0000",EUR,"392,00",EUR,"392,00",,"0,00",,"392,00",,695118b5-023c-4d07-be4d-070deb7f3724';
+    const csv = `${headerLine()}${fillA}\n${fillB}\n${fillC}\n`;
+    const result = parseDegiroTransactionsCsv(csv);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.rows).toHaveLength(1);
+    const row = result.rows[0];
+    expect(row?.quantity).toBe("3");
+    expect(row?.side).toBe("sell");
+    expect(row?.externalId).toBe("695118b5-023c-4d07-be4d-070deb7f3724");
+    expect(row?.unitPrice).toBe("391.963333333333");
+  });
+});
+
+describe("extractDegiroOrderId", () => {
+  it("finds the Order ID UUID in column 16 or 17", () => {
+    const records = parse(`${headerLine()}${SAMPLE_ROW}`, {
+      relax_column_count: true,
+      skip_empty_lines: true,
+    }) as string[][];
+    const row = records[1];
+    expect(row).toBeDefined();
+    const normalized = normalizeDegiroDataRow(
+      row ?? [],
+      DEGIRO_TRANSACTIONS_HEADER.length,
+    );
+    expect(normalized).not.toBeNull();
+    expect(extractDegiroOrderId(normalized ?? [])).toBe(
+      "b295869f-bb2d-4824-9a1a-39d3e968bb5d",
+    );
+  });
+});
+
+describe("shouldSkipDegiroNonTradeRow", () => {
+  it("returns true when ISIN is missing", () => {
+    const feeRow =
+      '25-03-2026,15:39,DEGIRO Transaction Fee,,XET,XETA,−1,"1,00",EUR,"1,00",EUR,"1,00",,"0,00","0,00","1,00",,a0000000-0000-4000-8000-000000000001';
+    const records = parse(`${headerLine()}${feeRow}`, {
+      relax_column_count: true,
+      skip_empty_lines: true,
+    }) as string[][];
+    const row = records[1];
+    const normalized = normalizeDegiroDataRow(
+      row ?? [],
+      DEGIRO_TRANSACTIONS_HEADER.length,
+    );
+    expect(normalized).not.toBeNull();
+    expect(shouldSkipDegiroNonTradeRow(normalized ?? [])).toBe(true);
   });
 });
 

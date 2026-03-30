@@ -5,7 +5,7 @@ import { parse } from "csv-parse/sync";
  * Degiro “Transactions” export: 18 columns as `csv-parse` sees them.
  * The last column is an empty field from the trailing comma after `Order ID`.
  * Data rows sometimes omit the empty field *before* the Order ID UUID (17 columns);
- * {@link normalizeDegiroDataRow} inserts it so fingerprints stay stable.
+ * {@link normalizeDegiroDataRow} inserts it so column alignment stays stable.
  */
 export const DEGIRO_TRANSACTIONS_HEADER: readonly string[] = [
   "Date",
@@ -88,8 +88,24 @@ export type DegiroParsedRow = {
   unitPrice: string;
   currency: string;
   unitPriceEur: string;
-  /** Hex sha256 of canonical row; used as `external_id`. */
+  /**
+   * Upsert key: Degiro Order ID (lowercase UUID) when present; otherwise full-row sha256.
+   */
   externalId: string;
+};
+
+type DegiroFill = {
+  line: number;
+  normalized: string[];
+  tradeDate: string;
+  isin: string;
+  product: string;
+  referenceExchange: string;
+  venue: string;
+  qtySigned: number;
+  priceNum: number;
+  /** Normalized decimal string from the Price column (preserves CSV precision for single-fill rows). */
+  unitPriceStr: string;
 };
 
 function normalizeUnicodeMinus(s: string): string {
@@ -101,7 +117,7 @@ export function normalizeDegiroCell(cell: string): string {
   return normalizeUnicodeMinus(cell.trim());
 }
 
-/** Stable row fingerprint for idempotent imports (Order ID is not unique per line). */
+/** Stable row fingerprint (full normalized row). Used when Order ID is missing. */
 export function fingerprintDegiroRow(cells: readonly string[]): string {
   if (cells.length !== DEGIRO_TRANSACTIONS_HEADER.length) {
     throw new Error(
@@ -110,6 +126,70 @@ export function fingerprintDegiroRow(cells: readonly string[]): string {
   }
   const canonical = cells.map(normalizeDegiroCell).join("|");
   return createHash("sha256").update(canonical, "utf8").digest("hex");
+}
+
+/**
+ * Degiro may put the UUID in column 16 or 17 (extra empty field before Order ID).
+ */
+export function extractDegiroOrderId(normalized: readonly string[]): string {
+  for (const i of [16, 17] as const) {
+    const cell = normalizeDegiroCell(normalized[i] ?? "");
+    if (isDegiroOrderIdCell(cell)) {
+      return cell.toLowerCase();
+    }
+  }
+  return "";
+}
+
+/** Volume-weighted average unit price from fill lines (same currency). */
+export function volumeWeightedAveragePrice(fills: DegiroFill[]): number {
+  let sumAbsQty = 0;
+  let sumPxQty = 0;
+  for (const f of fills) {
+    const a = Math.abs(f.qtySigned);
+    sumAbsQty += a;
+    sumPxQty += f.priceNum * a;
+  }
+  if (sumAbsQty === 0 || !Number.isFinite(sumPxQty)) {
+    throw new Error("Cannot compute average price for empty or invalid fills");
+  }
+  return sumPxQty / sumAbsQty;
+}
+
+/** Plain decimal string for stored unit price (no scientific notation). */
+export function formatDegiroUnitPriceString(n: number): string {
+  if (!Number.isFinite(n)) {
+    throw new Error("Invalid number for unit price");
+  }
+  let s = n.toFixed(12);
+  s = s.replace(/\.?0+$/, "");
+  return s === "" ? "0" : s;
+}
+
+/** Rows without a trade (fees, cash, dividends): skip without failing the whole CSV. */
+export function shouldSkipDegiroNonTradeRow(
+  normalized: readonly string[],
+): boolean {
+  const isin = normalizeDegiroCell(normalized[COL_ISIN] ?? "");
+  if (!/^[A-Z0-9]{12}$/.test(isin)) {
+    return true;
+  }
+  const referenceExchange = normalizeDegiroCell(
+    normalized[COL_REF_EXCHANGE] ?? "",
+  );
+  const venue = normalizeDegiroCell(normalized[COL_VENUE] ?? "");
+  if (referenceExchange.length === 0 || venue.length === 0) {
+    return true;
+  }
+  const qtyStr = parseEuropeanDecimalString(normalized[COL_QTY] ?? "");
+  if (qtyStr === null) {
+    return true;
+  }
+  const qtyNum = Number.parseFloat(qtyStr);
+  if (!Number.isFinite(qtyNum) || qtyNum === 0) {
+    return true;
+  }
+  return false;
 }
 
 /** Parse European decimal string (e.g. `612,7400`, `−1,00`) into a plain decimal string. */
@@ -151,6 +231,108 @@ function headersMatch(actual: string[]): boolean {
   return true;
 }
 
+function validateAndAggregateDegiroFills(
+  fills: DegiroFill[],
+): { row: DegiroParsedRow } | { error: string } {
+  if (fills.length === 0) {
+    return { error: "internal: empty fill group" };
+  }
+  fills.sort((a, b) => a.line - b.line);
+  const first = fills[0];
+  if (!first) {
+    return { error: "internal: empty fill group" };
+  }
+  const sign0 = Math.sign(first.qtySigned);
+  if (sign0 === 0) {
+    return { error: `Line ${first.line}: quantity must be non-zero` };
+  }
+  for (const f of fills) {
+    if (f.isin !== first.isin) {
+      return {
+        error: `Lines ${first.line}–${f.line}: same Order ID has different ISIN`,
+      };
+    }
+    if (f.tradeDate !== first.tradeDate) {
+      return {
+        error: `Lines ${first.line}–${f.line}: same Order ID has different trade dates`,
+      };
+    }
+    if (f.product !== first.product) {
+      return {
+        error: `Lines ${first.line}–${f.line}: same Order ID has different Product`,
+      };
+    }
+    if (f.referenceExchange !== first.referenceExchange) {
+      return {
+        error: `Lines ${first.line}–${f.line}: same Order ID has different Reference exchange`,
+      };
+    }
+    if (f.venue !== first.venue) {
+      return {
+        error: `Lines ${first.line}–${f.line}: same Order ID has different Venue`,
+      };
+    }
+    if (Math.sign(f.qtySigned) !== sign0) {
+      return {
+        error: `Lines ${first.line}–${f.line}: same Order ID has inconsistent buy/sell quantity signs`,
+      };
+    }
+  }
+
+  let sumSigned = 0;
+  for (const f of fills) {
+    sumSigned += f.qtySigned;
+  }
+  const qtyAbs = Math.abs(sumSigned);
+  if (!Number.isFinite(qtyAbs) || qtyAbs === 0) {
+    return {
+      error: `Line ${first.line}: aggregated quantity must be non-zero`,
+    };
+  }
+
+  const side: "buy" | "sell" = sumSigned > 0 ? "buy" : "sell";
+  let unitPrice: string;
+  if (fills.length === 1) {
+    unitPrice = first.unitPriceStr;
+  } else {
+    let avg: number;
+    try {
+      avg = volumeWeightedAveragePrice(fills);
+    } catch {
+      return { error: `Line ${first.line}: could not compute average price` };
+    }
+    unitPrice = formatDegiroUnitPriceString(avg);
+  }
+
+  const orderId = extractDegiroOrderId(first.normalized);
+  let externalId: string;
+  try {
+    externalId =
+      orderId.length > 0 ? orderId : fingerprintDegiroRow(first.normalized);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return { error: `Line ${first.line}: ${msg}` };
+  }
+
+  const quantity = String(qtyAbs);
+
+  return {
+    row: {
+      tradeDate: first.tradeDate,
+      isin: first.isin,
+      product: first.product,
+      referenceExchange: first.referenceExchange,
+      venue: first.venue,
+      side,
+      quantity,
+      unitPrice,
+      currency: "EUR",
+      unitPriceEur: unitPrice,
+      externalId,
+    },
+  };
+}
+
 export type ParseDegiroCsvResult =
   | { ok: true; rows: DegiroParsedRow[] }
   | { ok: false; errors: string[] };
@@ -187,7 +369,7 @@ export function parseDegiroTransactionsCsv(
   }
 
   const expectedCols = DEGIRO_TRANSACTIONS_HEADER.length;
-  const rows: DegiroParsedRow[] = [];
+  const fills: DegiroFill[] = [];
 
   for (let i = 1; i < records.length; i++) {
     const line = i + 1;
@@ -203,6 +385,10 @@ export function parseDegiroTransactionsCsv(
       continue;
     }
 
+    if (shouldSkipDegiroNonTradeRow(normalized)) {
+      continue;
+    }
+
     const currency = normalizeDegiroCell(
       normalized[COL_CURRENCY] ?? "",
     ).toUpperCase();
@@ -214,28 +400,13 @@ export function parseDegiroTransactionsCsv(
     }
 
     const isin = normalizeDegiroCell(normalized[COL_ISIN] ?? "");
-    if (!/^[A-Z0-9]{12}$/.test(isin)) {
-      errors.push(`Line ${line}: invalid or missing ISIN "${isin}"`);
-      continue;
-    }
-
     const product = normalizeDegiroCell(normalized[COL_PRODUCT] ?? "");
-
     const referenceExchange = normalizeDegiroCell(
       normalized[COL_REF_EXCHANGE] ?? "",
     ).toUpperCase();
     const venue = normalizeDegiroCell(
       normalized[COL_VENUE] ?? "",
     ).toUpperCase();
-    if (referenceExchange.length === 0) {
-      errors.push(`Line ${line}: missing Reference exchange`);
-      continue;
-    }
-    if (venue.length === 0) {
-      errors.push(`Line ${line}: missing Venue`);
-      continue;
-    }
-
     const qtyStr = parseEuropeanDecimalString(normalized[COL_QTY] ?? "");
     if (qtyStr === null) {
       errors.push(`Line ${line}: invalid quantity "${normalized[COL_QTY]}"`);
@@ -247,49 +418,73 @@ export function parseDegiroTransactionsCsv(
       continue;
     }
 
-    const qtyAbs = Math.abs(qtyNum);
-    const quantity = String(qtyAbs);
-    const side: "buy" | "sell" = qtyNum > 0 ? "buy" : "sell";
-
     const priceStr = parseEuropeanDecimalString(normalized[COL_PRICE] ?? "");
     if (priceStr === null) {
       errors.push(`Line ${line}: invalid price "${normalized[COL_PRICE]}"`);
       continue;
     }
-
+    const priceNum = Number.parseFloat(priceStr);
+    if (!Number.isFinite(priceNum)) {
+      errors.push(`Line ${line}: invalid price "${normalized[COL_PRICE]}"`);
+      continue;
+    }
     const tradeDate = parseDegiroTradeDateDdMmYyyy(normalized[COL_DATE] ?? "");
     if (!tradeDate) {
       errors.push(`Line ${line}: invalid date "${normalized[COL_DATE]}"`);
       continue;
     }
 
-    let externalId: string;
-    try {
-      externalId = fingerprintDegiroRow(normalized);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      errors.push(`Line ${line}: ${msg}`);
-      continue;
-    }
-
-    rows.push({
+    fills.push({
+      line,
+      normalized,
       tradeDate,
       isin,
       product,
       referenceExchange,
       venue,
-      side,
-      quantity,
-      unitPrice: priceStr,
-      currency,
-      unitPriceEur: priceStr,
-      externalId,
+      qtySigned: qtyNum,
+      priceNum,
+      unitPriceStr: priceStr,
     });
   }
 
   if (errors.length > 0) {
     return { ok: false, errors };
   }
+
+  const byOrderId = new Map<string, DegiroFill[]>();
+  for (const f of fills) {
+    const oid = extractDegiroOrderId(f.normalized);
+    const key = oid.length > 0 ? oid : `__noid_${f.line}`;
+    const list = byOrderId.get(key);
+    if (list) {
+      list.push(f);
+    } else {
+      byOrderId.set(key, [f]);
+    }
+  }
+
+  const rows: DegiroParsedRow[] = [];
+  for (const [, group] of byOrderId) {
+    const out = validateAndAggregateDegiroFills(group);
+    if ("error" in out) {
+      errors.push(out.error);
+    } else {
+      rows.push(out.row);
+    }
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  rows.sort((a, b) => {
+    const d = a.tradeDate.localeCompare(b.tradeDate);
+    if (d !== 0) {
+      return d;
+    }
+    return a.externalId.localeCompare(b.externalId);
+  });
 
   return { ok: true, rows };
 }
