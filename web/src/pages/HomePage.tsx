@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { transactionInstrumentSelectLabel } from "@investments/db";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -10,6 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { apiGet, apiPost } from "../api";
+import { Button } from "../components/Button";
+import { Modal } from "../components/Modal";
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 
 type Broker = { id: number; code: string; name: string };
@@ -18,11 +21,7 @@ type Instrument = {
   kind: string;
   displayName: string;
   yahooSymbol: string | null;
-  seligsonFundId: number | null;
-  cashGeoKey: string | null;
-  cashCurrency: string | null;
-  cashInterestType: string | null;
-  markPriceEur: string | null;
+  seligsonFund: { id: number; fid: number; name: string } | null;
 };
 type Transaction = {
   id: number;
@@ -55,7 +54,6 @@ function toChartData(rec: Record<string, number>) {
 
 export function HomePage() {
   const [brokers, setBrokers] = useState<Broker[]>([]);
-  const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,14 +61,12 @@ export function HomePage() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [b, i, t, p] = await Promise.all([
+      const [b, t, p] = await Promise.all([
         apiGet<Broker[]>("/brokers"),
-        apiGet<Instrument[]>("/instruments"),
         apiGet<Transaction[]>("/transactions"),
         apiGet<Portfolio>("/portfolio/distributions"),
       ]);
       setBrokers(b);
-      setInstruments(i);
       setTransactions(t);
       setPortfolio(p);
     } catch (e) {
@@ -82,19 +78,70 @@ export function HomePage() {
     void load();
   }, [load]);
 
+  const [txnModalOpen, setTxnModalOpen] = useState(false);
+  const [txnInstruments, setTxnInstruments] = useState<Instrument[]>([]);
+  const [txnInstrumentsLoading, setTxnInstrumentsLoading] = useState(false);
+  const brokerSelectRef = useRef<HTMLSelectElement>(null);
+
   const [txnForm, setTxnForm] = useState({
     brokerId: 1,
     tradeDate: new Date().toISOString().slice(0, 10),
     side: "buy" as "buy" | "sell",
-    instrumentId: 1,
+    instrumentId: 0,
     quantity: "1",
     unitPrice: "0",
     currency: "EUR",
     unitPriceEur: "",
   });
 
+  useEffect(() => {
+    if (!txnModalOpen) {
+      return;
+    }
+    let cancelled = false;
+    setTxnInstrumentsLoading(true);
+    setTxnInstruments([]);
+    void (async () => {
+      try {
+        const list = await apiGet<Instrument[]>(
+          `/instruments?brokerId=${txnForm.brokerId}`,
+        );
+        if (cancelled) {
+          return;
+        }
+        setTxnInstruments(list);
+        setTxnForm((f) => ({
+          ...f,
+          instrumentId: list[0]?.id ?? 0,
+        }));
+        setError(null);
+      } catch (e) {
+        if (!cancelled) {
+          setError(String(e));
+        }
+      } finally {
+        if (!cancelled) {
+          setTxnInstrumentsLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [txnModalOpen, txnForm.brokerId]);
+
+  useEffect(() => {
+    if (!txnModalOpen) {
+      return;
+    }
+    brokerSelectRef.current?.focus();
+  }, [txnModalOpen]);
+
   async function submitTransaction(e: React.FormEvent) {
     e.preventDefault();
+    if (txnForm.instrumentId < 1 || txnInstruments.length === 0) {
+      return;
+    }
     setError(null);
     try {
       const body: Record<string, unknown> = {
@@ -111,6 +158,7 @@ export function HomePage() {
       }
       await apiPost<Transaction>("/transactions", body);
       await load();
+      setTxnModalOpen(false);
     } catch (err) {
       setError(String(err));
     }
@@ -119,7 +167,12 @@ export function HomePage() {
   return (
     <div className="w-full min-w-0 space-y-10">
       <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold text-slate-900">Portfolio</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-3xl font-semibold text-slate-900">Portfolio</h1>
+          <Button type="button" onClick={() => setTxnModalOpen(true)}>
+            Add transaction
+          </Button>
+        </div>
         {error && (
           <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
             {error}
@@ -127,15 +180,16 @@ export function HomePage() {
         )}
       </header>
 
-      <section>
-        <form
-          onSubmit={(e) => void submitTransaction(e)}
-          className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white shadow-sm"
-        >
-          <h2 className="font-medium text-slate-800">New transaction</h2>
+      <Modal
+        title="New transaction"
+        open={txnModalOpen}
+        onClose={() => setTxnModalOpen(false)}
+      >
+        <form onSubmit={(e) => void submitTransaction(e)} className="space-y-3">
           <label className="block text-sm">
             Broker
             <select
+              ref={brokerSelectRef}
               className="mt-1 block w-full border rounded px-2 py-1"
               value={txnForm.brokerId}
               onChange={(e) =>
@@ -183,7 +237,12 @@ export function HomePage() {
             Instrument
             <select
               className="mt-1 block w-full border rounded px-2 py-1"
-              value={txnForm.instrumentId}
+              disabled={txnInstrumentsLoading || txnInstruments.length === 0}
+              value={
+                txnInstruments.some((i) => i.id === txnForm.instrumentId)
+                  ? txnForm.instrumentId
+                  : ""
+              }
               onChange={(e) =>
                 setTxnForm({
                   ...txnForm,
@@ -191,11 +250,24 @@ export function HomePage() {
                 })
               }
             >
-              {instruments.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {i.id} — {i.displayName}
-                </option>
-              ))}
+              {txnInstrumentsLoading ? (
+                <option value="">Loading instruments…</option>
+              ) : txnInstruments.length === 0 ? (
+                <option value="">No instruments for this broker</option>
+              ) : (
+                txnInstruments.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {transactionInstrumentSelectLabel({
+                      kind: i.kind,
+                      displayName: i.displayName,
+                      yahooSymbol: i.yahooSymbol,
+                      seligsonFund: i.seligsonFund
+                        ? { name: i.seligsonFund.name }
+                        : null,
+                    })}
+                  </option>
+                ))
+              )}
             </select>
           </label>
           <label className="block text-sm">
@@ -238,14 +310,18 @@ export function HomePage() {
               }
             />
           </label>
-          <button
+          <Button
             type="submit"
-            className="bg-slate-800 text-white px-4 py-2 rounded"
+            disabled={
+              txnInstrumentsLoading ||
+              txnInstruments.length === 0 ||
+              txnForm.instrumentId < 1
+            }
           >
             Add transaction
-          </button>
+          </Button>
         </form>
-      </section>
+      </Modal>
 
       {portfolio && (
         <section className="space-y-4">
