@@ -46,8 +46,12 @@ export function ImportPage() {
         <h2 className="text-sm font-semibold text-slate-800">Degiro</h2>
         <p className="mt-1 text-sm text-slate-600">
           Export <strong className="font-medium">Transactions</strong> from
-          Degiro (CSV). Each ISIN must match exactly one instrument (etf, stock,
-          or Seligson fund). Only EUR trades are imported.
+          Degiro (CSV). Each row must resolve to exactly one instrument (etf,
+          stock, or Seligson fund): by{" "}
+          <strong className="font-medium">ISIN</strong> in the database, or—if
+          ISIN is missing on the instrument—via OpenFIGI to your{" "}
+          <strong className="font-medium">Yahoo symbol</strong>. Only EUR trades
+          are imported.
         </p>
         <form
           className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
