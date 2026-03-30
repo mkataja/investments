@@ -15,7 +15,7 @@ import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 import {
-  formatUnitPriceForDisplay,
+  formatTransactionUnitPriceForDisplay,
   roundQuantityForDisplay,
 } from "../lib/numberFormat";
 
@@ -46,6 +46,22 @@ function transactionSideLabel(side: string): string {
   if (side === "buy") return "Buy";
   if (side === "sell") return "Sell";
   return side;
+}
+
+function formatDatetimeLocalValue(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function formatTransactionInstant(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return iso;
+  }
+  return d.toLocaleString(undefined, {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
 }
 
 type Portfolio = {
@@ -110,7 +126,7 @@ export function HomePage() {
 
   const [txnForm, setTxnForm] = useState({
     brokerId: 1,
-    tradeDate: new Date().toISOString().slice(0, 10),
+    tradeDate: formatDatetimeLocalValue(new Date()),
     side: "buy" as "buy" | "sell",
     instrumentId: 0,
     quantity: "1",
@@ -171,7 +187,7 @@ export function HomePage() {
     try {
       const body: Record<string, unknown> = {
         brokerId: txnForm.brokerId,
-        tradeDate: txnForm.tradeDate,
+        tradeDate: new Date(txnForm.tradeDate).toISOString(),
         side: txnForm.side,
         instrumentId: txnForm.instrumentId,
         quantity: txnForm.quantity,
@@ -232,9 +248,9 @@ export function HomePage() {
             </select>
           </label>
           <label className="block text-sm">
-            Date
+            Date and time
             <input
-              type="date"
+              type="datetime-local"
               className="mt-1 block w-full border rounded px-2 py-1"
               value={txnForm.tradeDate}
               onChange={(e) =>
@@ -452,7 +468,7 @@ export function HomePage() {
           <table className="min-w-full">
             <thead className="bg-slate-100">
               <tr>
-                <th className="text-left p-2">Date</th>
+                <th className="text-left p-2">Date/time</th>
                 <th className="text-left p-2">Side</th>
                 <th className="text-left p-2">Instrument</th>
                 <th className="text-right p-2">Qty</th>
@@ -462,7 +478,9 @@ export function HomePage() {
             <tbody>
               {transactions.map((t) => (
                 <tr key={t.id} className="border-t">
-                  <td className="p-2">{t.tradeDate}</td>
+                  <td className="p-2">
+                    {formatTransactionInstant(t.tradeDate)}
+                  </td>
                   <td className="p-2">{transactionSideLabel(t.side)}</td>
                   <td className="p-2 text-left min-w-[12rem]">
                     {instrumentNameById.get(t.instrumentId) ??
@@ -472,7 +490,8 @@ export function HomePage() {
                     {roundQuantityForDisplay(t.quantity)}
                   </td>
                   <td className="p-2 text-right">
-                    {formatUnitPriceForDisplay(t.unitPrice)} {t.currency}
+                    {formatTransactionUnitPriceForDisplay(t.side, t.unitPrice)}{" "}
+                    {t.currency}
                   </td>
                 </tr>
               ))}
