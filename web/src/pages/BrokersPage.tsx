@@ -4,9 +4,9 @@ import {
   type BrokerType,
 } from "@investments/db";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../api";
 import { Button } from "../components/Button";
+import { Modal } from "../components/Modal";
 
 type BrokerRow = {
   id: number;
@@ -17,7 +17,10 @@ type BrokerRow = {
 
 export function BrokersPage() {
   const [rows, setRows] = useState<BrokerRow[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  /** `null` = add mode; otherwise editing that id */
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const [name, setName] = useState("");
@@ -27,12 +30,12 @@ export function BrokersPage() {
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
-    setError(null);
+    setPageError(null);
     try {
       const data = await apiGet<BrokerRow[]>("/brokers");
       setRows(data);
     } catch (e) {
-      setError(String(e));
+      setPageError(String(e));
     }
   }, []);
 
@@ -41,69 +44,64 @@ export function BrokersPage() {
   }, [load]);
 
   useEffect(() => {
-    if (editingId == null) {
+    if (modalOpen) {
       nameInputRef.current?.focus();
     }
-  }, [editingId]);
+  }, [modalOpen]);
+
+  function openAddModal() {
+    setEditingId(null);
+    setName("");
+    setCode("");
+    setBrokerType("exchange");
+    setFormError(null);
+    setModalOpen(true);
+  }
 
   function startEdit(row: BrokerRow) {
     setEditingId(row.id);
     setName(row.name);
     setCode(row.code);
     setBrokerType(row.brokerType);
-    setError(null);
+    setFormError(null);
+    setModalOpen(true);
   }
 
-  function cancelEdit() {
+  function closeModal() {
+    setModalOpen(false);
     setEditingId(null);
     setName("");
     setCode("");
     setBrokerType("exchange");
-    setError(null);
+    setFormError(null);
   }
 
-  async function submitCreate(e: React.FormEvent) {
+  async function submitModal(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setFormError(null);
     const n = name.trim();
     if (!n) {
-      setError("Name is required.");
+      setFormError("Name is required.");
       return;
     }
     try {
-      await apiPost<BrokerRow>("/brokers", {
-        name: n,
-        ...(code.trim() ? { code: code.trim() } : {}),
-        brokerType,
-      });
-      cancelEdit();
+      if (editingId == null) {
+        await apiPost<BrokerRow>("/brokers", {
+          name: n,
+          ...(code.trim() ? { code: code.trim() } : {}),
+          brokerType,
+        });
+      } else {
+        await apiPatch<BrokerRow>(`/brokers/${editingId}`, {
+          name: n,
+          code: code.trim(),
+          brokerType,
+        });
+      }
+      closeModal();
       await load();
     } catch (err) {
-      setError(String(err));
-    }
-  }
-
-  async function submitUpdate(e: React.FormEvent) {
-    e.preventDefault();
-    if (editingId == null) {
-      return;
-    }
-    setError(null);
-    const n = name.trim();
-    if (!n) {
-      setError("Name is required.");
-      return;
-    }
-    try {
-      await apiPatch<BrokerRow>(`/brokers/${editingId}`, {
-        name: n,
-        code: code.trim(),
-        brokerType,
-      });
-      cancelEdit();
-      await load();
-    } catch (err) {
-      setError(String(err));
+      setFormError(String(err));
     }
   }
 
@@ -115,48 +113,48 @@ export function BrokersPage() {
     ) {
       return;
     }
-    setError(null);
+    setPageError(null);
     try {
       await apiDelete(`/brokers/${id}`);
-      if (editingId === id) {
-        cancelEdit();
-      }
       await load();
     } catch (err) {
-      setError(String(err));
+      setPageError(String(err));
     }
   }
 
   return (
-    <div className="w-full min-w-0 space-y-8">
-      <header className="space-y-2">
-        <Link to="/" className="text-sm text-emerald-800 hover:underline">
-          ← Portfolio
-        </Link>
-        <h1 className="text-2xl font-semibold text-slate-900">Brokers</h1>
-        <p className="text-sm text-slate-600 max-w-2xl">
-          Add and manage brokers. Code is optional; if omitted, a code is
-          derived from the name. Types control which instruments you can trade
-          at each broker (exchange = Yahoo-backed equities, Seligson = mutual
-          fund integration, cash account = bank-style cash positions).
-        </p>
-        {error && (
-          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-            {error}
-          </p>
-        )}
+    <div className="w-full min-w-0 space-y-6">
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-3xl font-semibold text-slate-900">Brokers</h1>
+        <Button type="button" onClick={() => openAddModal()}>
+          Add broker
+        </Button>
       </header>
 
-      <section className="border border-slate-200 rounded-lg p-4 bg-white space-y-4 max-w-xl">
-        <h2 className="text-sm font-medium text-slate-800">
-          {editingId == null ? "Add broker" : "Edit broker"}
-        </h2>
-        <form
-          onSubmit={(e) =>
-            editingId == null ? void submitCreate(e) : void submitUpdate(e)
-          }
-          className="space-y-3"
-        >
+      <p className="text-sm text-slate-600 max-w-2xl">
+        Code is optional; if omitted, a code is derived from the name. Types
+        control which instruments you can trade at each broker (exchange =
+        Yahoo-backed equities, Seligson = mutual fund integration, cash account
+        = bank-style cash positions).
+      </p>
+
+      {pageError ? (
+        <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+          {pageError}
+        </p>
+      ) : null}
+
+      <Modal
+        title={editingId == null ? "Add broker" : "Edit broker"}
+        open={modalOpen}
+        onClose={closeModal}
+      >
+        <form onSubmit={(e) => void submitModal(e)} className="space-y-3">
+          {formError ? (
+            <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
+              {formError}
+            </p>
+          ) : null}
           <label className="block text-sm">
             Name
             <input
@@ -194,18 +192,16 @@ export function BrokersPage() {
             <Button type="submit">
               {editingId == null ? "Add broker" : "Save changes"}
             </Button>
-            {editingId != null ? (
-              <button
-                type="button"
-                className="text-sm text-slate-700 underline"
-                onClick={() => cancelEdit()}
-              >
-                Cancel
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className="text-sm text-slate-700 underline"
+              onClick={() => closeModal()}
+            >
+              Cancel
+            </button>
           </div>
         </form>
-      </section>
+      </Modal>
 
       <section className="space-y-2">
         <h2 className="text-sm font-medium text-slate-800">All brokers</h2>
