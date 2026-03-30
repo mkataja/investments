@@ -447,13 +447,12 @@ export function HomePage() {
             <table className="min-w-full">
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
-                  <th className="text-left p-2 font-medium">Ticker</th>
                   <th className="text-left p-2 font-medium">Instrument</th>
+                  <th className="text-left p-2 font-medium">Ticker</th>
                   <th className="text-right p-2 font-medium">Qty</th>
                   <th className="text-right p-2 font-medium">Unit EUR</th>
                   <th className="text-right p-2 font-medium">Weight</th>
                   <th className="text-right p-2 font-medium">Value EUR</th>
-                  <th className="text-left p-2 font-medium">Valuation</th>
                 </tr>
               </thead>
               <tbody>
@@ -462,11 +461,11 @@ export function HomePage() {
                     key={p.instrumentId}
                     className="border-t border-slate-100"
                   >
-                    <td className="p-2 text-left tabular-nums text-slate-700">
-                      {instrumentTickerById.get(p.instrumentId) ?? "—"}
-                    </td>
                     <td className="p-2 text-left min-w-[12rem] font-medium text-slate-900">
                       {p.displayName}
+                    </td>
+                    <td className="p-2 text-left tabular-nums text-slate-700">
+                      {instrumentTickerById.get(p.instrumentId) ?? "—"}
                     </td>
                     <td className="p-2 text-right tabular-nums">
                       {roundQuantityForDisplay(String(p.quantity))}
@@ -482,7 +481,6 @@ export function HomePage() {
                     <td className="p-2 text-right tabular-nums">
                       {p.valueEur.toFixed(2)}
                     </td>
-                    <td className="p-2 text-slate-600">{p.valuationSource}</td>
                   </tr>
                 ))}
               </tbody>
@@ -505,8 +503,8 @@ export function HomePage() {
                   <tr>
                     <th className="text-left p-2 font-medium">Date/time</th>
                     <th className="text-left p-2 font-medium">Side</th>
-                    <th className="text-left p-2 font-medium">Ticker</th>
                     <th className="text-left p-2 font-medium">Instrument</th>
+                    <th className="text-left p-2 font-medium">Ticker</th>
                     <th className="text-right p-2 font-medium">Qty</th>
                     <th className="text-right p-2 font-medium">Price</th>
                   </tr>
@@ -518,12 +516,12 @@ export function HomePage() {
                         {formatInstantForDisplay(t.tradeDate)}
                       </td>
                       <td className="p-2">{transactionSideLabel(t.side)}</td>
-                      <td className="p-2 text-left tabular-nums text-slate-700">
-                        {instrumentTickerById.get(t.instrumentId) ?? "—"}
-                      </td>
                       <td className="p-2 text-left min-w-[12rem] font-medium text-slate-900">
                         {instrumentNameById.get(t.instrumentId) ??
                           `#${t.instrumentId}`}
+                      </td>
+                      <td className="p-2 text-left tabular-nums text-slate-700">
+                        {instrumentTickerById.get(t.instrumentId) ?? "—"}
                       </td>
                       <td className="p-2 text-right">
                         {roundQuantityForDisplay(t.quantity)}
