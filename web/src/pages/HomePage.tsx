@@ -32,8 +32,8 @@ import {
 } from "../components/HoldingDistributionTooltip";
 import { Modal } from "../components/Modal";
 import {
+  DistributionBarChartTooltip,
   assetMixPieTooltipFormatter,
-  portfolioDistributionBarTooltipFormatter,
 } from "../components/PortfolioChartTooltips";
 import {
   PortfolioViewSkeleton,
@@ -729,9 +729,7 @@ export function HomePage() {
                     height={80}
                   />
                   <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
-                  <Tooltip
-                    formatter={portfolioDistributionBarTooltipFormatter}
-                  />
+                  <DistributionBarChartTooltip />
                   {showDistributionCompare ? (
                     <>
                       <Bar
@@ -774,9 +772,7 @@ export function HomePage() {
                     height={80}
                   />
                   <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
-                  <Tooltip
-                    formatter={portfolioDistributionBarTooltipFormatter}
-                  />
+                  <DistributionBarChartTooltip />
                   {showDistributionCompare ? (
                     <>
                       <Bar
@@ -820,7 +816,7 @@ export function HomePage() {
                   height={80}
                 />
                 <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
-                <Tooltip formatter={portfolioDistributionBarTooltipFormatter} />
+                <DistributionBarChartTooltip />
                 {showDistributionCompare ? (
                   <>
                     <Bar
