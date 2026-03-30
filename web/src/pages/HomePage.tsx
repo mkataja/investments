@@ -40,6 +40,12 @@ type Transaction = {
   currency: string;
 };
 
+function transactionSideLabel(side: string): string {
+  if (side === "buy") return "Buy";
+  if (side === "sell") return "Sell";
+  return side;
+}
+
 type Portfolio = {
   regions: Record<string, number>;
   sectors: Record<string, number>;
@@ -444,7 +450,7 @@ export function HomePage() {
               {transactions.map((t) => (
                 <tr key={t.id} className="border-t">
                   <td className="p-2">{t.tradeDate}</td>
-                  <td className="p-2">{t.side}</td>
+                  <td className="p-2">{transactionSideLabel(t.side)}</td>
                   <td className="p-2 text-right">{t.instrumentId}</td>
                   <td className="p-2 text-right">
                     {roundQuantityForDisplay(t.quantity)}
