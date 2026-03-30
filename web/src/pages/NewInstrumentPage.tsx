@@ -181,7 +181,7 @@ export function NewInstrumentPage() {
                 className="mt-1 block w-full border rounded px-2 py-1 font-mono"
                 value={yahooSymbol}
                 onChange={(e) => setYahooSymbol(e.target.value)}
-                placeholder="e.g. IWDA.AS"
+                placeholder={kind === "stock" ? "BRK-B" : "SXR8.DE"}
               />
             </label>
             <button
