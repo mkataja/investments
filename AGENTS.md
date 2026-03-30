@@ -1,6 +1,6 @@
 # Agent instructions — investments tracker
 
-This file is for **coding agents** (Cursor, etc.) working in this repository. Read it before making non-trivial changes.
+This file is for **coding agents** (Cursor, etc.) working in this repository.
 
 When you change **architecture, conventions, env, API surface, or domain rules** in a way future agents would need to know, **update this file in the same change** (or a follow-up commit) so it stays accurate. Stale agent instructions are worse than none.
 
@@ -74,6 +74,12 @@ The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`
 - **pnpm**; workspace packages **`@investments/db`**, **`@investments/api`**, **`@investments/web`**.
 - **Biome** — [`biome.json`](biome.json).
 
+## Practical instructions
+
+### Code style
+
+- **Reusable utilities:** small, pure or broadly reusable helper functions should live in separate **`lib/`** modules (e.g. **`api/src/lib`**, **`web/src/lib`**) rather than inlined in route handlers, pages, or feature files.
+
 ### Web UI polish
 
 When changing **`web`** forms and flows, include small UX improvements when they are an obvious fit—**e.g. focus the primary input** after the user picks a type or advances a step, sensible defaults, tooltips when they add value, keyboard affordances. Keep scope tight: polish that ships with the feature, not unrelated refactors.
@@ -94,7 +100,7 @@ Shared **primary** controls (`Button`, `ButtonLink`) and a minimal style referen
 - **No** long bodies by default; extra lines only when truly useful (e.g. breaking changes).
 - Prefer **small, well-scoped commits** when practical.
 
-## When changing behavior
+### When changing behavior
 
 - **Schema:** edit Drizzle in `db`, **`pnpm db:generate`**, commit migrations, **`pnpm db:migrate`** locally.
 - **Seligson HTML:** parsers are **brittle**—extend with care and prefer tests or fallbacks.
