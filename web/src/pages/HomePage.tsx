@@ -40,9 +40,12 @@ import {
 import { formatInstantForDisplay } from "../lib/dateTimeFormat";
 import {
   allCountriesChartData,
+  allCountriesChartDataDual,
   formatPercentWidth4From01,
   portfolioRegionBarRows,
+  portfolioRegionBarRowsDual,
   portfolioSectorBarRows,
+  portfolioSectorBarRowsDual,
 } from "../lib/distributionDisplay";
 import {
   formatTransactionTotalValueForDisplay,
@@ -51,7 +54,9 @@ import {
   roundQuantityForDisplay,
 } from "../lib/numberFormat";
 import {
+  readStoredComparePortfolioId,
   readStoredPortfolioId,
+  writeStoredComparePortfolioId,
   writeStoredPortfolioId,
 } from "../lib/portfolioSelection";
 import { NewTransactionModal } from "./home/NewTransactionModal";
@@ -138,6 +143,15 @@ const ASSET_MIX_COLORS = {
   cashExcess: "#0369a1",
 } as const;
 
+const DIST_CHART_COLORS = {
+  regionPrimary: "#0f766e",
+  regionCompare: "#34d399",
+  sectorPrimary: "#334155",
+  sectorCompare: "#94a3b8",
+  countryPrimary: "#0369a1",
+  countryCompare: "#38bdf8",
+} as const;
+
 const HOLDING_DIST_TOOLTIP_OFFSET = 12;
 
 function holdingDistributionTooltipBody(
@@ -218,11 +232,17 @@ export function HomePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [comparePortfolio, setComparePortfolio] = useState<Portfolio | null>(
+    null,
+  );
   const [portfolioEntities, setPortfolioEntities] = useState<PortfolioEntity[]>(
     [],
   );
   const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(
     null,
+  );
+  const [comparePortfolioId, setComparePortfolioId] = useState<number | null>(
+    () => readStoredComparePortfolioId(),
   );
   const [error, setError] = useState<string | null>(null);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -269,30 +289,52 @@ export function HomePage() {
         setSelectedPortfolioId(pid);
         return;
       }
+      let cmpId = comparePortfolioId;
+      if (pid == null) {
+        cmpId = null;
+        if (comparePortfolioId != null) {
+          writeStoredComparePortfolioId(null);
+        }
+      } else if (
+        cmpId != null &&
+        (cmpId === pid || !plist.some((x) => x.id === cmpId))
+      ) {
+        cmpId = null;
+        writeStoredComparePortfolioId(null);
+      }
+      if (cmpId !== comparePortfolioId) {
+        setComparePortfolioId(cmpId);
+        return;
+      }
       if (pid == null) {
         setBrokers([]);
         setTransactions([]);
         setInstruments([]);
         setPortfolio(null);
+        setComparePortfolio(null);
         return;
       }
       writeStoredPortfolioId(pid);
-      const [b, t, inst, p] = await Promise.all([
+      const [b, t, inst, p, pCmp] = await Promise.all([
         apiGet<Broker[]>("/brokers"),
         apiGet<Transaction[]>(`/transactions?portfolioId=${pid}`),
         apiGet<Instrument[]>("/instruments"),
         apiGet<Portfolio>(`/portfolio/distributions?portfolioId=${pid}`),
+        cmpId != null
+          ? apiGet<Portfolio>(`/portfolio/distributions?portfolioId=${cmpId}`)
+          : Promise.resolve(null),
       ]);
       setBrokers(b);
       setTransactions(t);
       setInstruments(inst);
       setPortfolio(p);
+      setComparePortfolio(pCmp);
     } catch (e) {
       setError(String(e));
     } finally {
       setInitialLoad(false);
     }
-  }, [selectedPortfolioId]);
+  }, [selectedPortfolioId, comparePortfolioId]);
 
   const instrumentNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -322,6 +364,68 @@ export function HomePage() {
     if (!portfolio) return [];
     return [...portfolio.positions].sort((a, b) => b.weight - a.weight);
   }, [portfolio]);
+
+  const showDistributionCompare =
+    comparePortfolioId != null && comparePortfolioId !== selectedPortfolioId;
+
+  const selectedPortfolioLabel = useMemo(() => {
+    if (selectedPortfolioId == null) {
+      return "Portfolio";
+    }
+    return (
+      portfolioEntities.find((p) => p.id === selectedPortfolioId)?.name ??
+      "Portfolio"
+    );
+  }, [selectedPortfolioId, portfolioEntities]);
+
+  const comparePortfolioLabel = useMemo(() => {
+    if (comparePortfolioId == null) {
+      return "Compare";
+    }
+    return (
+      portfolioEntities.find((p) => p.id === comparePortfolioId)?.name ??
+      "Compare"
+    );
+  }, [comparePortfolioId, portfolioEntities]);
+
+  const regionBarChartData = useMemo(() => {
+    if (!portfolio) {
+      return [];
+    }
+    if (!showDistributionCompare) {
+      return portfolioRegionBarRows(portfolio.regions);
+    }
+    return portfolioRegionBarRowsDual(
+      portfolio.regions,
+      comparePortfolio?.regions ?? {},
+    );
+  }, [portfolio, comparePortfolio, showDistributionCompare]);
+
+  const sectorBarChartData = useMemo(() => {
+    if (!portfolio) {
+      return [];
+    }
+    if (!showDistributionCompare) {
+      return portfolioSectorBarRows(portfolio.sectors);
+    }
+    return portfolioSectorBarRowsDual(
+      portfolio.sectors,
+      comparePortfolio?.sectors ?? {},
+    );
+  }, [portfolio, comparePortfolio, showDistributionCompare]);
+
+  const countryBarChartData = useMemo(() => {
+    if (!portfolio) {
+      return [];
+    }
+    if (!showDistributionCompare) {
+      return allCountriesChartData(portfolio.countries);
+    }
+    return allCountriesChartDataDual(
+      portfolio.countries,
+      comparePortfolio?.countries ?? {},
+    );
+  }, [portfolio, comparePortfolio, showDistributionCompare]);
 
   const assetMixPieData = useMemo(() => {
     if (!portfolio) return [];
@@ -472,6 +576,32 @@ export function HomePage() {
                       {pe.name}
                     </option>
                   ))}
+                </select>
+              </label>
+            ) : null}
+            {portfolioEntities.length > 1 ? (
+              <label className="text-sm text-slate-700 flex items-center gap-2">
+                <span className="whitespace-nowrap">Compare</span>
+                <select
+                  className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[10rem]"
+                  value={comparePortfolioId ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const id = v === "" ? null : Number.parseInt(v, 10);
+                    const next = id != null && Number.isFinite(id) ? id : null;
+                    setComparePortfolioId(next);
+                    writeStoredComparePortfolioId(next);
+                    setComparePortfolio(null);
+                  }}
+                >
+                  <option value="">None</option>
+                  {portfolioEntities
+                    .filter((pe) => pe.id !== selectedPortfolioId)
+                    .map((pe) => (
+                      <option key={pe.id} value={pe.id}>
+                        {pe.name}
+                      </option>
+                    ))}
                 </select>
               </label>
             ) : null}
@@ -660,7 +790,7 @@ export function HomePage() {
                 Regions
               </h3>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={portfolioRegionBarRows(portfolio.regions)}>
+                <BarChart data={regionBarChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="name"
@@ -672,7 +802,31 @@ export function HomePage() {
                   <Tooltip
                     formatter={(v: number) => formatPercentWidth4From01(v)}
                   />
-                  <Bar dataKey="value" fill="#0f766e" name="Weight" />
+                  {showDistributionCompare ? (
+                    <>
+                      <Bar
+                        dataKey="primary"
+                        fill={DIST_CHART_COLORS.regionPrimary}
+                        name={selectedPortfolioLabel}
+                      />
+                      <Bar
+                        dataKey="compare"
+                        fill={DIST_CHART_COLORS.regionCompare}
+                        name={comparePortfolioLabel}
+                      />
+                      <Legend
+                        verticalAlign="top"
+                        height={28}
+                        wrapperStyle={{ fontSize: "12px" }}
+                      />
+                    </>
+                  ) : (
+                    <Bar
+                      dataKey="value"
+                      fill={DIST_CHART_COLORS.regionPrimary}
+                      name="Weight"
+                    />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -681,7 +835,7 @@ export function HomePage() {
                 Sectors
               </h3>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={portfolioSectorBarRows(portfolio.sectors)}>
+                <BarChart data={sectorBarChartData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="name"
@@ -693,7 +847,31 @@ export function HomePage() {
                   <Tooltip
                     formatter={(v: number) => formatPercentWidth4From01(v)}
                   />
-                  <Bar dataKey="value" fill="#334155" name="Weight" />
+                  {showDistributionCompare ? (
+                    <>
+                      <Bar
+                        dataKey="primary"
+                        fill={DIST_CHART_COLORS.sectorPrimary}
+                        name={selectedPortfolioLabel}
+                      />
+                      <Bar
+                        dataKey="compare"
+                        fill={DIST_CHART_COLORS.sectorCompare}
+                        name={comparePortfolioLabel}
+                      />
+                      <Legend
+                        verticalAlign="top"
+                        height={28}
+                        wrapperStyle={{ fontSize: "12px" }}
+                      />
+                    </>
+                  ) : (
+                    <Bar
+                      dataKey="value"
+                      fill={DIST_CHART_COLORS.sectorPrimary}
+                      name="Weight"
+                    />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -703,7 +881,7 @@ export function HomePage() {
               Countries
             </h3>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={allCountriesChartData(portfolio.countries)}>
+              <BarChart data={countryBarChartData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="name"
@@ -715,7 +893,31 @@ export function HomePage() {
                 <Tooltip
                   formatter={(v: number) => formatPercentWidth4From01(v)}
                 />
-                <Bar dataKey="value" fill="#0369a1" name="Weight" />
+                {showDistributionCompare ? (
+                  <>
+                    <Bar
+                      dataKey="primary"
+                      fill={DIST_CHART_COLORS.countryPrimary}
+                      name={selectedPortfolioLabel}
+                    />
+                    <Bar
+                      dataKey="compare"
+                      fill={DIST_CHART_COLORS.countryCompare}
+                      name={comparePortfolioLabel}
+                    />
+                    <Legend
+                      verticalAlign="top"
+                      height={28}
+                      wrapperStyle={{ fontSize: "12px" }}
+                    />
+                  </>
+                ) : (
+                  <Bar
+                    dataKey="value"
+                    fill={DIST_CHART_COLORS.countryPrimary}
+                    name="Weight"
+                  />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </div>
