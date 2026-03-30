@@ -99,11 +99,12 @@ export function TransactionsTableSkeleton() {
             <tr>
               <th className="text-left p-2 font-medium">Date/time</th>
               <th className="text-left p-2 font-medium">Side</th>
-              <th className="text-left p-2 font-medium">Ticker</th>
               <th className="text-left p-2 font-medium">Instrument</th>
+              <th className="text-left p-2 font-medium">Ticker</th>
               <th className="text-right p-2 font-medium">Qty</th>
               <th className="text-right p-2 font-medium">Price</th>
               <th className="text-right p-2 font-medium">Value</th>
+              <th className="text-left p-2 font-medium w-40">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -124,11 +125,11 @@ export function TransactionsTableSkeleton() {
                 <td className="p-2">
                   <BlockSkeleton className="h-4 w-10" />
                 </td>
-                <td className="p-2">
-                  <BlockSkeleton className="h-4 w-16" />
-                </td>
                 <td className="p-2 min-w-[12rem]">
                   <BlockSkeleton className="h-4 w-48 max-w-full" />
+                </td>
+                <td className="p-2">
+                  <BlockSkeleton className="h-4 w-16" />
                 </td>
                 <td className="p-2 text-right">
                   <BlockSkeleton className="ml-auto h-4 w-12" />
@@ -138,6 +139,9 @@ export function TransactionsTableSkeleton() {
                 </td>
                 <td className="p-2 text-right">
                   <BlockSkeleton className="ml-auto h-4 w-28" />
+                </td>
+                <td className="p-2">
+                  <BlockSkeleton className="h-4 w-20" />
                 </td>
               </tr>
             ))}

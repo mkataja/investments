@@ -4,7 +4,7 @@ import {
   transactionInstrumentSelectLabel,
 } from "@investments/db";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { apiGet, apiPost } from "../../api";
+import { apiGet, apiPatch, apiPost } from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import {
@@ -25,8 +25,11 @@ type Instrument = {
   seligsonFund: { id: number; fid: number; name: string } | null;
   cashCurrency?: string | null;
 };
-type Transaction = {
+
+/** Row shape for editing an existing transaction (from GET /transactions). */
+export type EditTransactionSource = {
   id: number;
+  portfolioId: number;
   brokerId: number;
   tradeDate: string;
   side: string;
@@ -34,7 +37,47 @@ type Transaction = {
   quantity: string;
   unitPrice: string;
   currency: string;
+  unitPriceEur?: string | null;
 };
+
+type TxnFormState = {
+  brokerId: number;
+  tradeDate: string;
+  side: "buy" | "sell";
+  instrumentId: number;
+  quantity: string;
+  unitPrice: string;
+  currency: string;
+  unitPriceEur: string;
+};
+
+function buildTxnForm(
+  edit: EditTransactionSource | null | undefined,
+  brokers: Broker[],
+): TxnFormState {
+  if (edit) {
+    return {
+      brokerId: edit.brokerId,
+      tradeDate: formatLocalDateTimeYmdHm(new Date(edit.tradeDate)),
+      side: edit.side === "sell" ? "sell" : "buy",
+      instrumentId: edit.instrumentId,
+      quantity: edit.quantity,
+      unitPrice: edit.unitPrice,
+      currency: edit.currency.trim().toUpperCase(),
+      unitPriceEur: edit.unitPriceEur?.trim() ?? "",
+    };
+  }
+  return {
+    brokerId: brokers[0]?.id ?? 1,
+    tradeDate: formatLocalDateTimeYmdHm(new Date()),
+    side: "buy",
+    instrumentId: 0,
+    quantity: "1",
+    unitPrice: "0",
+    currency: "EUR",
+    unitPriceEur: "",
+  };
+}
 
 function transactionModalInstrumentLabel(i: Instrument): string {
   return transactionInstrumentSelectLabel({
@@ -50,6 +93,8 @@ export type NewTransactionModalProps = {
   onClose: () => void;
   brokers: Broker[];
   portfolioId: number;
+  /** When set, the modal PATCHes this transaction instead of POSTing a new one. */
+  editTransaction?: EditTransactionSource | null;
   onTransactionAdded: () => Promise<void>;
   onError: (message: string | null) => void;
 };
@@ -59,23 +104,16 @@ export function NewTransactionModal({
   onClose,
   brokers,
   portfolioId,
+  editTransaction,
   onTransactionAdded,
   onError,
 }: NewTransactionModalProps) {
+  const [txnForm, setTxnForm] = useState(() =>
+    buildTxnForm(editTransaction, brokers),
+  );
   const [txnInstruments, setTxnInstruments] = useState<Instrument[]>([]);
   const [txnInstrumentsLoading, setTxnInstrumentsLoading] = useState(false);
   const brokerSelectRef = useRef<HTMLSelectElement>(null);
-
-  const [txnForm, setTxnForm] = useState({
-    brokerId: 1,
-    tradeDate: formatLocalDateTimeYmdHm(new Date()),
-    side: "buy" as "buy" | "sell",
-    instrumentId: 0,
-    quantity: "1",
-    unitPrice: "0",
-    currency: "EUR",
-    unitPriceEur: "",
-  });
 
   useEffect(() => {
     if (!open) {
@@ -84,10 +122,18 @@ export function NewTransactionModal({
     let cancelled = false;
     setTxnInstrumentsLoading(true);
     setTxnInstruments([]);
+    const brokerIdForFetch =
+      editTransaction != null && editTransaction.brokerId === txnForm.brokerId
+        ? editTransaction.brokerId
+        : txnForm.brokerId;
+    const isInitialEditSync =
+      editTransaction != null &&
+      editTransaction.brokerId === brokerIdForFetch &&
+      editTransaction.brokerId === txnForm.brokerId;
     void (async () => {
       try {
         const list = await apiGet<Instrument[]>(
-          `/instruments?brokerId=${txnForm.brokerId}`,
+          `/instruments?brokerId=${brokerIdForFetch}`,
         );
         if (cancelled) {
           return;
@@ -100,6 +146,10 @@ export function NewTransactionModal({
           ),
         );
         setTxnInstruments(sorted);
+        if (isInitialEditSync) {
+          onError(null);
+          return;
+        }
         const first = sorted[0];
         const firstIsCash = first?.kind === "cash_account";
         setTxnForm((f) => ({
@@ -128,7 +178,7 @@ export function NewTransactionModal({
     return () => {
       cancelled = true;
     };
-  }, [open, txnForm.brokerId, onError]);
+  }, [open, txnForm.brokerId, editTransaction, onError]);
 
   const selectedTxnInstrument = useMemo(
     () => txnInstruments.find((i) => i.id === txnForm.instrumentId),
@@ -150,7 +200,8 @@ export function NewTransactionModal({
 
   async function submitTransaction(e: React.FormEvent) {
     e.preventDefault();
-    if (portfolioId < 1) {
+    const effectivePortfolioId = editTransaction?.portfolioId ?? portfolioId;
+    if (effectivePortfolioId < 1) {
       onError("Select a portfolio first.");
       return;
     }
@@ -168,7 +219,7 @@ export function NewTransactionModal({
     }
     try {
       const body: Record<string, unknown> = {
-        portfolioId,
+        portfolioId: effectivePortfolioId,
         brokerId: txnForm.brokerId,
         tradeDate: tradeDateParsed.toISOString(),
         instrumentId: txnForm.instrumentId,
@@ -187,7 +238,11 @@ export function NewTransactionModal({
           body.unitPriceEur = txnForm.unitPriceEur;
         }
       }
-      await apiPost<Transaction>("/transactions", body);
+      if (editTransaction) {
+        await apiPatch(`/transactions/${editTransaction.id}`, body);
+      } else {
+        await apiPost("/transactions", body);
+      }
       await onTransactionAdded();
       onClose();
     } catch (err) {
@@ -195,8 +250,14 @@ export function NewTransactionModal({
     }
   }
 
+  const isEdit = editTransaction != null;
+
   return (
-    <Modal title="New transaction" open={open} onClose={onClose}>
+    <Modal
+      title={isEdit ? "Edit transaction" : "New transaction"}
+      open={open}
+      onClose={onClose}
+    >
       <form onSubmit={(e) => void submitTransaction(e)} className="space-y-3">
         <label className="block text-sm">
           Broker
@@ -393,7 +454,7 @@ export function NewTransactionModal({
             (isCashTxn && !cashSumValid)
           }
         >
-          Add transaction
+          {isEdit ? "Save" : "Add transaction"}
         </Button>
       </form>
     </Modal>

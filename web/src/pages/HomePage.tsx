@@ -25,7 +25,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { apiGet, apiPatch, apiPost } from "../api";
+import { apiDelete, apiGet, apiPatch, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import {
@@ -90,6 +90,7 @@ type Transaction = {
   quantity: string;
   unitPrice: string;
   currency: string;
+  unitPriceEur?: string | null;
 };
 
 type PortfolioEntity = {
@@ -455,6 +456,8 @@ export function HomePage() {
   }, [load]);
 
   const [txnModalOpen, setTxnModalOpen] = useState(false);
+  const [editingTransaction, setEditingTransaction] =
+    useState<Transaction | null>(null);
 
   async function submitNewPortfolio(e: FormEvent) {
     e.preventDefault();
@@ -633,7 +636,10 @@ export function HomePage() {
             <Button
               type="button"
               disabled={selectedPortfolioId == null}
-              onClick={() => setTxnModalOpen(true)}
+              onClick={() => {
+                setEditingTransaction(null);
+                setTxnModalOpen(true);
+              }}
             >
               Add transaction
             </Button>
@@ -715,10 +721,15 @@ export function HomePage() {
       </Modal>
 
       <NewTransactionModal
+        key={txnModalOpen ? (editingTransaction?.id ?? "new") : "closed"}
         open={txnModalOpen}
-        onClose={() => setTxnModalOpen(false)}
+        onClose={() => {
+          setTxnModalOpen(false);
+          setEditingTransaction(null);
+        }}
         brokers={brokers}
         portfolioId={selectedPortfolioId ?? 0}
+        editTransaction={editingTransaction}
         onTransactionAdded={load}
         onError={setError}
       />
@@ -1028,6 +1039,7 @@ export function HomePage() {
                     <th className="text-right p-2 font-medium">Qty</th>
                     <th className="text-right p-2 font-medium">Price</th>
                     <th className="text-right p-2 font-medium">Value</th>
+                    <th className="text-left p-2 font-medium w-40">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1081,6 +1093,42 @@ export function HomePage() {
                           t.currency,
                           instrumentById.get(t.instrumentId)?.kind,
                         )}
+                      </td>
+                      <td className="p-2 space-x-3 whitespace-nowrap">
+                        <button
+                          type="button"
+                          className="text-emerald-800 underline text-sm"
+                          onClick={() => {
+                            setEditingTransaction(t);
+                            setTxnModalOpen(true);
+                          }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="text-red-700 underline text-sm"
+                          onClick={() => {
+                            if (
+                              !window.confirm(
+                                "Delete this transaction? This cannot be undone.",
+                              )
+                            ) {
+                              return;
+                            }
+                            setError(null);
+                            void (async () => {
+                              try {
+                                await apiDelete(`/transactions/${t.id}`);
+                                await load();
+                              } catch (err) {
+                                setError(String(err));
+                              }
+                            })();
+                          }}
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}

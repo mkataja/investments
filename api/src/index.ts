@@ -447,6 +447,108 @@ app.post("/transactions", zValidator("json", transactionIn), async (c) => {
   return c.json(row, 201);
 });
 
+app.patch("/transactions/:id", zValidator("json", transactionIn), async (c) => {
+  const rawId = c.req.param("id");
+  const id = Number.parseInt(rawId ?? "", 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid transaction id" }, 400);
+  }
+  const [existing] = await db
+    .select()
+    .from(transactions)
+    .where(and(eq(transactions.id, id), eq(transactions.userId, USER_ID)))
+    .limit(1);
+  if (!existing) {
+    return c.json({ message: "Transaction not found" }, 404);
+  }
+  const body = c.req.valid("json");
+  const [brk] = await db
+    .select()
+    .from(brokers)
+    .where(eq(brokers.id, body.brokerId));
+  if (!brk) {
+    return c.json({ message: "Broker not found" }, 404);
+  }
+  const [inst] = await db
+    .select()
+    .from(instruments)
+    .where(eq(instruments.id, body.instrumentId));
+  if (!inst) {
+    return c.json({ message: "Instrument not found" }, 404);
+  }
+  if (
+    !isInstrumentKindAllowedForBrokerType(
+      brk.brokerType as BrokerType,
+      inst.kind,
+    )
+  ) {
+    return c.json(
+      { message: "This instrument is not allowed for this broker" },
+      400,
+    );
+  }
+  if (inst.kind === "custom" || inst.kind === "cash_account") {
+    if (inst.brokerId !== body.brokerId) {
+      return c.json(
+        { message: "Instrument is not linked to this broker" },
+        400,
+      );
+    }
+  }
+  const [pf] = await db
+    .select()
+    .from(portfolios)
+    .where(
+      and(eq(portfolios.id, body.portfolioId), eq(portfolios.userId, USER_ID)),
+    )
+    .limit(1);
+  if (!pf) {
+    return c.json({ message: "Portfolio not found" }, 404);
+  }
+  if (pf.userId !== brk.userId) {
+    return c.json(
+      { message: "Portfolio and broker must belong to the same user" },
+      400,
+    );
+  }
+  const unitPriceEurValue =
+    body.unitPriceEur != null && String(body.unitPriceEur).trim() !== ""
+      ? String(body.unitPriceEur)
+      : null;
+  const [row] = await db
+    .update(transactions)
+    .set({
+      portfolioId: body.portfolioId,
+      brokerId: body.brokerId,
+      tradeDate: body.tradeDate,
+      side: body.side,
+      instrumentId: body.instrumentId,
+      quantity: String(body.quantity),
+      unitPrice: String(body.unitPrice),
+      currency: body.currency.toUpperCase(),
+      unitPriceEur: unitPriceEurValue,
+    })
+    .where(eq(transactions.id, id))
+    .returning();
+  return c.json(row);
+});
+
+app.delete("/transactions/:id", async (c) => {
+  const rawId = c.req.param("id");
+  const id = Number.parseInt(rawId ?? "", 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid transaction id" }, 400);
+  }
+  const deleted = await db
+    .delete(transactions)
+    .where(and(eq(transactions.id, id), eq(transactions.userId, USER_ID)))
+    .returning({ id: transactions.id });
+  if (deleted.length === 0) {
+    return c.json({ message: "Transaction not found" }, 404);
+  }
+  return c.body(null, 204);
+});
+
 app.post("/import/degiro", async (c) => {
   let body: Record<string, unknown>;
   try {
