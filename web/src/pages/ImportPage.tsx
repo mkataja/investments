@@ -1,7 +1,19 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { HttpError, apiPostFormData } from "../api";
+import { HttpError, apiGet, apiPostFormData } from "../api";
 import { Button } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
+import {
+  readStoredPortfolioId,
+  writeStoredPortfolioId,
+} from "../lib/portfolioSelection";
+
+type PortfolioEntity = {
+  id: number;
+  userId: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 type DegiroOk = {
   ok: true;
@@ -99,6 +111,26 @@ export function ImportPage() {
     string[] | null
   >(null);
 
+  const [portfolios, setPortfolios] = useState<PortfolioEntity[]>([]);
+  const [importPortfolioId, setImportPortfolioId] = useState<number | null>(
+    null,
+  );
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const list = await apiGet<PortfolioEntity[]>("/portfolios");
+        setPortfolios(list);
+        const stored = readStoredPortfolioId();
+        const pick =
+          list.find((p) => p.id === stored)?.id ?? list[0]?.id ?? null;
+        setImportPortfolioId(pick);
+      } catch {
+        setPortfolios([]);
+      }
+    })();
+  }, []);
+
   useEffect(() => {
     if (pending === null) {
       return;
@@ -125,6 +157,9 @@ export function ImportPage() {
     try {
       const form = new FormData();
       form.append("file", degiroFile);
+      if (importPortfolioId != null) {
+        form.append("portfolioId", String(importPortfolioId));
+      }
       const data = await apiPostFormData<
         DegiroOk | DegiroNeedsInstruments | { message?: string }
       >("/import/degiro", form);
@@ -182,6 +217,9 @@ export function ImportPage() {
     try {
       const form = new FormData();
       form.append("file", degiroFile);
+      if (importPortfolioId != null) {
+        form.append("portfolioId", String(importPortfolioId));
+      }
       form.append(
         "createInstruments",
         JSON.stringify(
@@ -244,6 +282,9 @@ export function ImportPage() {
     try {
       const form = new FormData();
       form.append("file", ibkrFile);
+      if (importPortfolioId != null) {
+        form.append("portfolioId", String(importPortfolioId));
+      }
       const data = await apiPostFormData<DegiroOk>("/import/ibkr", form);
       if (
         data &&
@@ -308,6 +349,9 @@ export function ImportPage() {
     try {
       const form = new FormData();
       form.append("file", seligsonFile);
+      if (importPortfolioId != null) {
+        form.append("portfolioId", String(importPortfolioId));
+      }
       const data = await apiPostFormData<DegiroOk>("/import/seligson", form);
       if (
         data &&
@@ -373,6 +417,32 @@ export function ImportPage() {
           Upload broker exports to add or refresh transactions idempotently.
         </p>
       </div>
+
+      {portfolios.length > 0 ? (
+        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+          <label className="block text-sm text-slate-700">
+            Import into portfolio
+            <select
+              className="mt-1 block w-full max-w-md border border-slate-300 rounded px-2 py-1.5 text-sm bg-white"
+              value={importPortfolioId ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                const id = v === "" ? null : Number.parseInt(v, 10);
+                if (id != null && Number.isFinite(id)) {
+                  setImportPortfolioId(id);
+                  writeStoredPortfolioId(id);
+                }
+              }}
+            >
+              {portfolios.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      ) : null}
 
       <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="text-sm font-semibold text-slate-800">Degiro</h2>

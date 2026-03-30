@@ -49,6 +49,7 @@ export type NewTransactionModalProps = {
   open: boolean;
   onClose: () => void;
   brokers: Broker[];
+  portfolioId: number;
   onTransactionAdded: () => Promise<void>;
   onError: (message: string | null) => void;
 };
@@ -57,6 +58,7 @@ export function NewTransactionModal({
   open,
   onClose,
   brokers,
+  portfolioId,
   onTransactionAdded,
   onError,
 }: NewTransactionModalProps) {
@@ -148,6 +150,10 @@ export function NewTransactionModal({
 
   async function submitTransaction(e: React.FormEvent) {
     e.preventDefault();
+    if (portfolioId < 1) {
+      onError("Select a portfolio first.");
+      return;
+    }
     if (txnForm.instrumentId < 1 || txnInstruments.length === 0) {
       return;
     }
@@ -162,6 +168,7 @@ export function NewTransactionModal({
     }
     try {
       const body: Record<string, unknown> = {
+        portfolioId,
         brokerId: txnForm.brokerId,
         tradeDate: tradeDateParsed.toISOString(),
         instrumentId: txnForm.instrumentId,

@@ -3,6 +3,7 @@ import {
   instrumentTickerDisplay,
 } from "@investments/db";
 import {
+  type FormEvent,
   type ReactNode,
   useCallback,
   useEffect,
@@ -23,13 +24,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { apiGet } from "../api";
+import { apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import {
   CashAccountDistributionSummary,
   DistributionSummary,
 } from "../components/InstrumentDistributionSummary";
+import { Modal } from "../components/Modal";
 import {
   PortfolioViewSkeleton,
   TransactionsTableSkeleton,
@@ -47,6 +49,10 @@ import {
   formatUnitPriceForDisplay,
   roundQuantityForDisplay,
 } from "../lib/numberFormat";
+import {
+  readStoredPortfolioId,
+  writeStoredPortfolioId,
+} from "../lib/portfolioSelection";
 import { NewTransactionModal } from "./home/NewTransactionModal";
 
 type Broker = {
@@ -70,6 +76,7 @@ type Instrument = {
 };
 type Transaction = {
   id: number;
+  portfolioId: number;
   brokerId: number;
   tradeDate: string;
   side: string;
@@ -77,6 +84,14 @@ type Transaction = {
   quantity: string;
   unitPrice: string;
   currency: string;
+};
+
+type PortfolioEntity = {
+  id: number;
+  userId: number;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
 };
 
 function transactionSideLabel(side: string, instrumentKind?: string): string {
@@ -221,17 +236,45 @@ export function HomePage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
+  const [portfolioEntities, setPortfolioEntities] = useState<PortfolioEntity[]>(
+    [],
+  );
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [initialLoad, setInitialLoad] = useState(true);
+  const [newPortfolioOpen, setNewPortfolioOpen] = useState(false);
+  const [newPortfolioName, setNewPortfolioName] = useState("");
+  const [newPortfolioBusy, setNewPortfolioBusy] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
     try {
+      const plist = await apiGet<PortfolioEntity[]>("/portfolios");
+      setPortfolioEntities(plist);
+      const stored = readStoredPortfolioId();
+      let pid = selectedPortfolioId;
+      if (pid == null || !plist.some((x) => x.id === pid)) {
+        pid = plist.find((x) => x.id === stored)?.id ?? plist[0]?.id ?? null;
+      }
+      if (pid !== selectedPortfolioId) {
+        setSelectedPortfolioId(pid);
+        return;
+      }
+      if (pid == null) {
+        setBrokers([]);
+        setTransactions([]);
+        setInstruments([]);
+        setPortfolio(null);
+        return;
+      }
+      writeStoredPortfolioId(pid);
       const [b, t, inst, p] = await Promise.all([
         apiGet<Broker[]>("/brokers"),
-        apiGet<Transaction[]>("/transactions"),
+        apiGet<Transaction[]>(`/transactions?portfolioId=${pid}`),
         apiGet<Instrument[]>("/instruments"),
-        apiGet<Portfolio>("/portfolio/distributions"),
+        apiGet<Portfolio>(`/portfolio/distributions?portfolioId=${pid}`),
       ]);
       setBrokers(b);
       setTransactions(t);
@@ -242,7 +285,7 @@ export function HomePage() {
     } finally {
       setInitialLoad(false);
     }
-  }, []);
+  }, [selectedPortfolioId]);
 
   const instrumentNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -302,6 +345,30 @@ export function HomePage() {
 
   const [txnModalOpen, setTxnModalOpen] = useState(false);
 
+  async function submitNewPortfolio(e: FormEvent) {
+    e.preventDefault();
+    const name = newPortfolioName.trim();
+    if (name.length === 0) {
+      return;
+    }
+    setNewPortfolioBusy(true);
+    setError(null);
+    try {
+      const row = await apiPost<PortfolioEntity>("/portfolios", { name });
+      setPortfolioEntities((prev) =>
+        [...prev, row].sort((a, b) => a.id - b.id),
+      );
+      setSelectedPortfolioId(row.id);
+      writeStoredPortfolioId(row.id);
+      setNewPortfolioOpen(false);
+      setNewPortfolioName("");
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setNewPortfolioBusy(false);
+    }
+  }
+
   const [holdingTooltip, setHoldingTooltip] = useState<null | {
     instrumentId: number;
     displayName: string;
@@ -327,8 +394,45 @@ export function HomePage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-semibold text-slate-900">Portfolio</h1>
           <div className="flex flex-wrap items-center gap-2">
+            {portfolioEntities.length > 0 ? (
+              <>
+                <label className="text-sm text-slate-700 flex items-center gap-2">
+                  <span className="whitespace-nowrap">View</span>
+                  <select
+                    className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[10rem]"
+                    value={selectedPortfolioId ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const id = v === "" ? null : Number.parseInt(v, 10);
+                      setSelectedPortfolioId(
+                        id != null && Number.isFinite(id) ? id : null,
+                      );
+                    }}
+                  >
+                    {portfolioEntities.map((pe) => (
+                      <option key={pe.id} value={pe.id}>
+                        {pe.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setNewPortfolioName("");
+                    setNewPortfolioOpen(true);
+                  }}
+                >
+                  New portfolio
+                </Button>
+              </>
+            ) : null}
             <ButtonLink to="/import">Import transactions</ButtonLink>
-            <Button type="button" onClick={() => setTxnModalOpen(true)}>
+            <Button
+              type="button"
+              disabled={selectedPortfolioId == null}
+              onClick={() => setTxnModalOpen(true)}
+            >
               Add transaction
             </Button>
           </div>
@@ -336,10 +440,35 @@ export function HomePage() {
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </header>
 
+      <Modal
+        title="New portfolio"
+        open={newPortfolioOpen}
+        onClose={() => setNewPortfolioOpen(false)}
+      >
+        <form
+          onSubmit={(e) => void submitNewPortfolio(e)}
+          className="space-y-3"
+        >
+          <label className="block text-sm">
+            Name
+            <input
+              className="mt-1 block w-full border border-slate-300 rounded px-2 py-1"
+              value={newPortfolioName}
+              onChange={(e) => setNewPortfolioName(e.target.value)}
+              autoComplete="off"
+            />
+          </label>
+          <Button type="submit" disabled={newPortfolioBusy}>
+            Create
+          </Button>
+        </form>
+      </Modal>
+
       <NewTransactionModal
         open={txnModalOpen}
         onClose={() => setTxnModalOpen(false)}
         brokers={brokers}
+        portfolioId={selectedPortfolioId ?? 0}
         onTransactionAdded={load}
         onError={setError}
       />
