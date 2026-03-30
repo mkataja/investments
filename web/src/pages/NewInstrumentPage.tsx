@@ -10,11 +10,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiGet, apiPost } from "../api";
 import { ErrorAlert } from "../components/ErrorAlert";
+import { ProviderHoldingsUrlHint } from "../components/ProviderHoldingsUrlHint";
 import { FormFieldsCardSkeleton } from "../components/skeletonPrimitives";
-import {
-  ISHARES_HOLDINGS_EXAMPLE_URL,
-  SPDR_HOLDINGS_EXAMPLE_URL,
-} from "../lib/holdingsExampleUrls";
 
 type Kind = "etf" | "stock" | "custom" | "cash_account";
 
@@ -304,16 +301,7 @@ export function NewInstrumentPage() {
                 onChange={(e) => setHoldingsDistributionUrl(e.target.value)}
               />
             </label>
-            <div className="mt-2 space-y-1.5 text-xs text-slate-600">
-              <p className="font-mono break-all">
-                <span className="text-slate-500">iShares example: </span>
-                {ISHARES_HOLDINGS_EXAMPLE_URL}
-              </p>
-              <p className="font-mono break-all">
-                <span className="text-slate-500">SPDR example: </span>
-                {SPDR_HOLDINGS_EXAMPLE_URL}
-              </p>
-            </div>
+            <ProviderHoldingsUrlHint />
             {yahooPreview && (
               <div className="text-sm text-slate-700 space-y-1 border-t pt-3 mt-2">
                 <p>
