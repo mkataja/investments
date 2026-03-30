@@ -61,21 +61,11 @@ async function resolveEurPerUsdFromBatch(
   return getEurPerUsd();
 }
 
-function markOrNone(inst: InstrumentRow, qty: number): ValuationResult {
-  if (inst.markPriceEur) {
-    const m = Number.parseFloat(String(inst.markPriceEur));
-    if (Number.isFinite(m)) {
-      return {
-        valueEur: qty * m,
-        source: "mark_eur",
-        detail: "instrument.mark_price_eur",
-      };
-    }
-  }
+function noQuoteResult(): ValuationResult {
   return {
     valueEur: 0,
     source: "none",
-    detail: "No quote or mark_price_eur",
+    detail: "No quote",
   };
 }
 
@@ -87,7 +77,7 @@ function valueYahooRow(
 ): ValuationResult {
   const sym = inst.yahooSymbol;
   if (!sym) {
-    return markOrNone(inst, qty);
+    return noQuoteResult();
   }
   const q = quotes[sym];
   const price = q?.regularMarketPrice;
@@ -101,12 +91,12 @@ function valueYahooRow(
       detail: `${sym} @ ${price} ${cur ?? ""}`,
     };
   }
-  return markOrNone(inst, qty);
+  return noQuoteResult();
 }
 
 export type ValuationResult = {
   valueEur: number;
-  source: "yahoo_quote" | "mark_eur" | "cash" | "none";
+  source: "yahoo_quote" | "cash" | "none";
   detail: string;
 };
 
@@ -156,6 +146,6 @@ export async function valuePortfolioRowsEur(
     if (inst.yahooSymbol) {
       return valueYahooRow(inst, qty, quotes, eurPerUsd);
     }
-    return markOrNone(inst, qty);
+    return noQuoteResult();
   });
 }

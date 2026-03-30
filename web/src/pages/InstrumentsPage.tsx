@@ -44,7 +44,6 @@ type InstrumentListItem = {
   cashGeoKey: string | null;
   cashCurrency: string | null;
   cashInterestType: string | null;
-  markPriceEur: string | null;
   createdAt: string;
   netQuantity: number;
   distribution: {

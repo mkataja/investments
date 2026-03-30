@@ -28,7 +28,6 @@ describe("resolveDegiroInstrumentIds", () => {
         cashGeoKey: null,
         cashCurrency: null,
         cashInterestType: null,
-        markPriceEur: null,
         createdAt: new Date(),
       },
     ];
@@ -58,7 +57,6 @@ describe("resolveDegiroInstrumentIds", () => {
         cashGeoKey: null,
         cashCurrency: null,
         cashInterestType: null,
-        markPriceEur: null,
         createdAt: new Date(),
       },
     ];

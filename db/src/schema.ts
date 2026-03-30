@@ -67,8 +67,6 @@ export const instruments = pgTable(
     /** Nominal currency for cash_account quantity (see SUPPORTED_CASH_CURRENCY_CODES). */
     cashCurrency: text("cash_currency"),
     cashInterestType: text("cash_interest_type"),
-    /** Manual mark for valuation (e.g. Seligson fund NAV) when Yahoo quote is unavailable */
-    markPriceEur: numeric("mark_price_eur", { precision: 24, scale: 8 }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

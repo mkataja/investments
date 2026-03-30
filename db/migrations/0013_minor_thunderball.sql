@@ -1,0 +1,1 @@
+ALTER TABLE "instruments" DROP COLUMN "mark_price_eur";
