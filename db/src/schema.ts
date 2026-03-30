@@ -1,4 +1,4 @@
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   date,
@@ -55,24 +55,36 @@ export const instruments = pgTable("instruments", {
     .defaultNow(),
 });
 
-export const transactions = pgTable("transactions", {
-  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-  brokerId: integer("broker_id")
-    .notNull()
-    .references(() => brokers.id),
-  tradeDate: date("trade_date").notNull(),
-  side: text("side").notNull(),
-  instrumentId: integer("instrument_id")
-    .notNull()
-    .references(() => instruments.id),
-  quantity: numeric("quantity", { precision: 24, scale: 8 }).notNull(),
-  unitPrice: numeric("unit_price", { precision: 24, scale: 8 }).notNull(),
-  currency: text("currency").notNull(),
-  unitPriceEur: numeric("unit_price_eur", { precision: 24, scale: 8 }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const transactions = pgTable(
+  "transactions",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    brokerId: integer("broker_id")
+      .notNull()
+      .references(() => brokers.id),
+    tradeDate: date("trade_date").notNull(),
+    side: text("side").notNull(),
+    instrumentId: integer("instrument_id")
+      .notNull()
+      .references(() => instruments.id),
+    quantity: numeric("quantity", { precision: 24, scale: 8 }).notNull(),
+    unitPrice: numeric("unit_price", { precision: 24, scale: 8 }).notNull(),
+    currency: text("currency").notNull(),
+    unitPriceEur: numeric("unit_price_eur", { precision: 24, scale: 8 }),
+    /** Import source label, e.g. `degiro_csv`. Null for manually entered rows. */
+    externalSource: text("external_source"),
+    /** Stable id within `external_source` (e.g. row fingerprint). Null for manual rows. */
+    externalId: text("external_id"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("transactions_broker_external_uidx")
+      .on(t.brokerId, t.externalSource, t.externalId)
+      .where(sql`${t.externalId} IS NOT NULL`),
+  ],
+);
 
 export const distributionCache = pgTable("distribution_cache", {
   instrumentId: integer("instrument_id")

@@ -29,6 +29,13 @@
       "when": 1774474640587,
       "tag": "0003_optimal_clint_barton",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1774480000000,
+      "tag": "0004_transactions_external",
+      "breakpoints": true
     }
   ]
 }
