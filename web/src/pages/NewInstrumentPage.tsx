@@ -1,4 +1,5 @@
 import {
+  type BrokerType,
   type CashCurrencyCode,
   DEFAULT_CASH_CURRENCY,
   SUPPORTED_CASH_CURRENCY_CODES,
@@ -7,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiGet, apiPost } from "../api";
 
-type Kind = "etf" | "stock" | "seligson_fund" | "cash_account";
+type Kind = "etf" | "stock" | "custom" | "cash_account";
 
 type YahooLookupResponse = {
   lookup: {
@@ -29,24 +30,58 @@ type InstrumentRow = {
   displayName: string;
 };
 
+type BrokerRow = {
+  id: number;
+  code: string;
+  name: string;
+  brokerType: BrokerType;
+};
+
 export function NewInstrumentPage() {
   const navigate = useNavigate();
   const [error, setError] = useState<string | null>(null);
   const [kind, setKind] = useState<Kind | null>(null);
 
+  const [brokers, setBrokers] = useState<BrokerRow[]>([]);
+
   const yahooSymbolInputRef = useRef<HTMLInputElement>(null);
   const seligsonFidInputRef = useRef<HTMLInputElement>(null);
   const cashDisplayNameInputRef = useRef<HTMLInputElement>(null);
 
+  const [customBrokerId, setCustomBrokerId] = useState<number | "">("");
+  const [cashBrokerId, setCashBrokerId] = useState<number | "">("");
+
+  useEffect(() => {
+    void apiGet<BrokerRow[]>("/brokers")
+      .then(setBrokers)
+      .catch((e) => setError(String(e)));
+  }, []);
+
   useEffect(() => {
     if (kind === "etf" || kind === "stock") {
       yahooSymbolInputRef.current?.focus();
-    } else if (kind === "seligson_fund") {
+    } else if (kind === "custom") {
       seligsonFidInputRef.current?.focus();
     } else if (kind === "cash_account") {
       cashDisplayNameInputRef.current?.focus();
     }
   }, [kind]);
+
+  useEffect(() => {
+    const seligsonBrokers = brokers.filter((b) => b.brokerType === "seligson");
+    const first = seligsonBrokers[0];
+    if (kind === "custom" && first != null && customBrokerId === "") {
+      setCustomBrokerId(first.id);
+    }
+  }, [kind, brokers, customBrokerId]);
+
+  useEffect(() => {
+    const cashBrokers = brokers.filter((b) => b.brokerType === "cash_account");
+    const first = cashBrokers[0];
+    if (kind === "cash_account" && first != null && cashBrokerId === "") {
+      setCashBrokerId(first.id);
+    }
+  }, [kind, brokers, cashBrokerId]);
 
   const [yahooSymbol, setYahooSymbol] = useState("");
   const [yahooPreview, setYahooPreview] = useState<YahooLookupResponse | null>(
@@ -93,14 +128,21 @@ export function NewInstrumentPage() {
           kind,
           yahooSymbol: s,
         });
-      } else if (kind === "seligson_fund") {
+      } else if (kind === "custom") {
         const fid = Number.parseInt(seligsonFid, 10);
         if (!Number.isFinite(fid) || fid <= 0) {
           setError("Enter a valid Seligson FID (positive integer).");
           return;
         }
+        if (customBrokerId === "" || typeof customBrokerId !== "number") {
+          setError(
+            "Select a Seligson-type broker (add one under Brokers if needed).",
+          );
+          return;
+        }
         await apiPost<InstrumentRow>("/instruments", {
-          kind: "seligson_fund",
+          kind: "custom",
+          brokerId: customBrokerId,
           seligsonFid: fid,
         });
       } else if (kind === "cash_account") {
@@ -114,8 +156,15 @@ export function NewInstrumentPage() {
           setError("Enter a geo key (e.g. country code).");
           return;
         }
+        if (cashBrokerId === "" || typeof cashBrokerId !== "number") {
+          setError(
+            "Select a cash-account-type broker (add one under Brokers if needed).",
+          );
+          return;
+        }
         await apiPost<InstrumentRow>("/instruments", {
           kind: "cash_account",
+          brokerId: cashBrokerId,
           displayName: name,
           currency: cashCurrency,
           cashGeoKey: geo,
@@ -129,6 +178,9 @@ export function NewInstrumentPage() {
       setError(String(err));
     }
   }
+
+  const seligsonBrokers = brokers.filter((b) => b.brokerType === "seligson");
+  const cashBrokers = brokers.filter((b) => b.brokerType === "cash_account");
 
   return (
     <div className="w-full min-w-0 space-y-8">
@@ -154,7 +206,7 @@ export function NewInstrumentPage() {
               [
                 ["etf", "ETF"],
                 ["stock", "Stock"],
-                ["seligson_fund", "Seligson fund"],
+                ["custom", "Custom (Seligson)"],
                 ["cash_account", "Cash account"],
               ] as const
             ).map(([value, label]) => (
@@ -222,8 +274,32 @@ export function NewInstrumentPage() {
           </div>
         ) : null}
 
-        {kind === "seligson_fund" ? (
+        {kind === "custom" ? (
           <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
+            <label className="block text-sm">
+              Broker
+              <select
+                className="mt-1 block w-full border rounded px-2 py-1"
+                value={customBrokerId === "" ? "" : String(customBrokerId)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCustomBrokerId(v === "" ? "" : Number.parseInt(v, 10));
+                }}
+                required
+              >
+                {seligsonBrokers.length === 0 ? (
+                  <option value="">
+                    No Seligson-type broker — add one under Brokers
+                  </option>
+                ) : (
+                  seligsonBrokers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.code})
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
             <label className="block text-sm">
               Seligson FID
               <input
@@ -245,6 +321,30 @@ export function NewInstrumentPage() {
 
         {kind === "cash_account" ? (
           <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
+            <label className="block text-sm">
+              Broker
+              <select
+                className="mt-1 block w-full border rounded px-2 py-1"
+                value={cashBrokerId === "" ? "" : String(cashBrokerId)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCashBrokerId(v === "" ? "" : Number.parseInt(v, 10));
+                }}
+                required
+              >
+                {cashBrokers.length === 0 ? (
+                  <option value="">
+                    No cash-account-type broker — add one under Brokers
+                  </option>
+                ) : (
+                  cashBrokers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.code})
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
             <label className="block text-sm">
               Display name
               <input

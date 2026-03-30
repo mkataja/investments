@@ -192,6 +192,20 @@ app.delete("/brokers/:id", async (c) => {
       409,
     );
   }
+  const [instCountRow] = await db
+    .select({ n: count() })
+    .from(instruments)
+    .where(eq(instruments.brokerId, id));
+  const instN = Number(instCountRow?.n ?? 0);
+  if (instN > 0) {
+    return c.json(
+      {
+        message:
+          "Cannot delete a broker that has instruments linked to it; remove or reassign those instruments first",
+      },
+      409,
+    );
+  }
   await db.delete(brokers).where(eq(brokers.id, id));
   return c.body(null, 204);
 });
@@ -327,7 +341,7 @@ app.post("/import/degiro", async (c) => {
   const instRows = await db
     .select()
     .from(instruments)
-    .where(inArray(instruments.kind, ["etf", "stock", "seligson_fund"]));
+    .where(inArray(instruments.kind, ["etf", "stock", "custom"]));
 
   const resolved = await resolveDegiroInstrumentIds(uniqueIsins, instRows);
   if (!resolved.ok) {
@@ -444,11 +458,13 @@ const instrumentIn = z.discriminatedUnion("kind", [
     yahooSymbol: z.string().min(1).transform(normalizeYahooSymbolForStorage),
   }),
   z.object({
-    kind: z.literal("seligson_fund"),
+    kind: z.literal("custom"),
+    brokerId: z.number().int().positive(),
     seligsonFid: z.number().int().positive(),
   }),
   z.object({
     kind: z.literal("cash_account"),
+    brokerId: z.number().int().positive(),
     displayName: z.string().min(1),
     currency: cashCurrencySchema,
     cashGeoKey: z.string().trim().min(1),
@@ -507,6 +523,7 @@ app.get("/instruments", async (c) => {
       instrument: instruments,
       cache: distributionCache,
       seligsonFund: seligsonFunds,
+      broker: brokers,
     })
     .from(instruments)
     .leftJoin(
@@ -514,6 +531,7 @@ app.get("/instruments", async (c) => {
       eq(instruments.id, distributionCache.instrumentId),
     )
     .leftJoin(seligsonFunds, eq(instruments.seligsonFundId, seligsonFunds.id))
+    .leftJoin(brokers, eq(instruments.brokerId, brokers.id))
     .orderBy(asc(instruments.id));
 
   const qtyRows = await db
@@ -532,19 +550,31 @@ app.get("/instruments", async (c) => {
     }
   }
 
-  let payload = joined.map(({ instrument, cache, seligsonFund: fund }) => ({
-    ...instrument,
-    netQuantity: netQtyByInstrument.get(instrument.id) ?? 0,
-    distribution: cache
-      ? {
-          fetchedAt: cache.fetchedAt,
-          source: cache.source,
-          payload: cache.payload,
-          rawPayload: cache.rawPayload ?? null,
-        }
-      : null,
-    seligsonFund: fund ? { id: fund.id, fid: fund.fid, name: fund.name } : null,
-  }));
+  let payload = joined.map(
+    ({ instrument, cache, seligsonFund: fund, broker: br }) => ({
+      ...instrument,
+      netQuantity: netQtyByInstrument.get(instrument.id) ?? 0,
+      distribution: cache
+        ? {
+            fetchedAt: cache.fetchedAt,
+            source: cache.source,
+            payload: cache.payload,
+            rawPayload: cache.rawPayload ?? null,
+          }
+        : null,
+      seligsonFund: fund
+        ? { id: fund.id, fid: fund.fid, name: fund.name }
+        : null,
+      broker: br
+        ? {
+            id: br.id,
+            code: br.code,
+            name: br.name,
+            brokerType: br.brokerType,
+          }
+        : null,
+    }),
+  );
 
   if (brokerTypeForFilter != null) {
     payload = payload.filter((row) =>
@@ -589,7 +619,20 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
     }
   }
 
-  if (body.kind === "seligson_fund") {
+  if (body.kind === "custom") {
+    const [br] = await db
+      .select()
+      .from(brokers)
+      .where(eq(brokers.id, body.brokerId));
+    if (!br) {
+      return c.json({ message: "Broker not found" }, 404);
+    }
+    if (br.brokerType !== "seligson") {
+      return c.json(
+        { message: "Custom instruments require a Seligson-type broker" },
+        400,
+      );
+    }
     let fund: Awaited<ReturnType<typeof findOrCreateSeligsonFundByFid>>;
     try {
       fund = await findOrCreateSeligsonFundByFid(body.seligsonFid);
@@ -600,9 +643,10 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
     const [row] = await db
       .insert(instruments)
       .values({
-        kind: "seligson_fund",
+        kind: "custom",
         displayName: fund.name,
         seligsonFundId: fund.id,
+        brokerId: body.brokerId,
       })
       .returning();
     if (!row) {
@@ -619,6 +663,19 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
   }
 
   if (body.kind === "cash_account") {
+    const [br] = await db
+      .select()
+      .from(brokers)
+      .where(eq(brokers.id, body.brokerId));
+    if (!br) {
+      return c.json({ message: "Broker not found" }, 404);
+    }
+    if (br.brokerType !== "cash_account") {
+      return c.json(
+        { message: "Cash instruments require a cash-account-type broker" },
+        400,
+      );
+    }
     const [row] = await db
       .insert(instruments)
       .values({
@@ -626,6 +683,7 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
         displayName: body.displayName,
         cashCurrency: body.currency,
         cashGeoKey: body.cashGeoKey,
+        brokerId: body.brokerId,
       })
       .returning();
     return c.json(row, 201);

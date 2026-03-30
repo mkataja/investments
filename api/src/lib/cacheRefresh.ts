@@ -118,7 +118,7 @@ export async function refreshDistributionCacheForInstrumentId(
   const now = new Date();
 
   try {
-    if (inst.kind === "seligson_fund" && inst.seligsonFundId) {
+    if (inst.kind === "custom" && inst.seligsonFundId) {
       const [sf] = await db
         .select()
         .from(seligsonFunds)
@@ -183,7 +183,7 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
     }
 
     try {
-      if (inst.kind === "seligson_fund" && inst.seligsonFundId) {
+      if (inst.kind === "custom" && inst.seligsonFundId) {
         const [sf] = await db
           .select()
           .from(seligsonFunds)

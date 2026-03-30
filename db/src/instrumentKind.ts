@@ -4,7 +4,7 @@
 export const INSTRUMENT_KINDS = [
   "etf",
   "stock",
-  "seligson_fund",
+  "custom",
   "cash_account",
 ] as const;
 
@@ -13,7 +13,7 @@ export type InstrumentKind = (typeof INSTRUMENT_KINDS)[number];
 export const INSTRUMENT_KIND_DISPLAY: Record<InstrumentKind, string> = {
   etf: "ETF",
   stock: "Stock",
-  seligson_fund: "Seligson",
+  custom: "Custom",
   cash_account: "Cash",
 };
 
@@ -30,7 +30,7 @@ export function instrumentTickerDisplay(row: {
   if (row.kind === "etf" || row.kind === "stock") {
     return row.yahooSymbol;
   }
-  if (row.kind === "seligson_fund" && row.seligsonFund) {
+  if (row.kind === "custom" && row.seligsonFund) {
     return String(row.seligsonFund.fid);
   }
   return null;

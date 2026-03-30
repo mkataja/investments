@@ -64,6 +64,13 @@
       "when": 1774867091035,
       "tag": "0008_loving_scalphunter",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1774867204783,
+      "tag": "0009_special_doctor_spectrum",
+      "breakpoints": true
     }
   ]
 }

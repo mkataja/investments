@@ -58,6 +58,11 @@ export const instruments = pgTable(
     seligsonFundId: integer("seligson_fund_id").references(
       () => seligsonFunds.id,
     ),
+    /**
+     * Required for `custom` (e.g. Seligson) and `cash_account`; null for `etf`/`stock`.
+     * See `instruments_broker_id_kind_ck`.
+     */
+    brokerId: integer("broker_id").references(() => brokers.id),
     /** Required when `kind` is `cash_account` (see table CHECK). */
     cashGeoKey: text("cash_geo_key"),
     /** Nominal currency for cash_account quantity (see SUPPORTED_CASH_CURRENCY_CODES). */
@@ -73,6 +78,14 @@ export const instruments = pgTable(
     check(
       "instruments_cash_geo_required_ck",
       sql`(${t.kind} <> 'cash_account') OR (${t.cashGeoKey} IS NOT NULL AND length(trim(${t.cashGeoKey})) > 0)`,
+    ),
+    check(
+      "instruments_broker_id_kind_ck",
+      sql`(
+        (${t.kind} IN ('etf', 'stock') AND ${t.brokerId} IS NULL)
+        OR
+        (${t.kind} IN ('custom', 'cash_account') AND ${t.brokerId} IS NOT NULL)
+      )`,
     ),
   ],
 );
@@ -132,6 +145,7 @@ export const distributionCache = pgTable("distribution_cache", {
 
 export const brokersRelations = relations(brokers, ({ many }) => ({
   transactions: many(transactions),
+  instruments: many(instruments),
 }));
 
 export const seligsonFundsRelations = relations(seligsonFunds, ({ many }) => ({
@@ -142,6 +156,10 @@ export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
   seligsonFund: one(seligsonFunds, {
     fields: [instruments.seligsonFundId],
     references: [seligsonFunds.id],
+  }),
+  broker: one(brokers, {
+    fields: [instruments.brokerId],
+    references: [brokers.id],
   }),
   transactions: many(transactions),
   distributionCache: one(distributionCache, {

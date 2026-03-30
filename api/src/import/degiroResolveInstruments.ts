@@ -11,8 +11,8 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function isTradableKind(k: string): k is "etf" | "stock" | "seligson_fund" {
-  return k === "etf" || k === "stock" || k === "seligson_fund";
+function isTradableKind(k: string): k is "etf" | "stock" | "custom" {
+  return k === "etf" || k === "stock" || k === "custom";
 }
 
 /**

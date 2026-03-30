@@ -17,7 +17,7 @@ export function transactionInstrumentSelectLabel(
     }
     return name;
   }
-  if (row.kind === "seligson_fund") {
+  if (row.kind === "custom") {
     const n = row.seligsonFund?.name?.trim();
     return n && n.length > 0 ? n : name;
   }

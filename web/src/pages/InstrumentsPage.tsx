@@ -31,6 +31,13 @@ type InstrumentListItem = {
   yahooSymbol: string | null;
   isin: string | null;
   seligsonFundId: number | null;
+  brokerId: number | null;
+  broker: {
+    id: number;
+    code: string;
+    name: string;
+    brokerType: string;
+  } | null;
   cashGeoKey: string | null;
   cashCurrency: string | null;
   cashInterestType: string | null;
@@ -357,6 +364,7 @@ export function InstrumentsPage() {
             <tr>
               <th className="text-left p-2 font-medium">Kind</th>
               <th className="text-left p-2 font-medium">Ticker</th>
+              <th className="text-left p-2 font-medium">Broker</th>
               <th className="text-left p-2 font-medium">Name</th>
               <th className="text-left p-2 font-medium">Distribution</th>
               <th className="text-right p-2 font-medium w-40">Actions</th>
@@ -372,6 +380,9 @@ export function InstrumentsPage() {
                     {instrumentKindDisplayLabel(i.kind)}
                   </td>
                   <td className="p-2 text-slate-700">{ticker ?? "—"}</td>
+                  <td className="p-2 text-slate-600 text-xs">
+                    {i.broker?.name ?? "—"}
+                  </td>
                   <td className="p-2 font-medium text-slate-900">
                     {i.displayName}
                   </td>
