@@ -11,6 +11,7 @@ import {
   normalizeCashAccountIsoCountryCode,
   normalizeYahooSymbolForStorage,
   portfolioSettings,
+  portfolios,
   providerHoldingsCache,
   seligsonDistributionCache,
   seligsonFunds,
@@ -68,7 +69,11 @@ import {
 import { insertEtfStockFromYahoo } from "./lib/createYahooInstrument.js";
 import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
-import { loadOpenPositions } from "./lib/positions.js";
+import {
+  loadPortfolioOwnedByUser,
+  resolvePortfolioIdFromImportBody,
+} from "./lib/portfolioAccess.js";
+import { loadOpenPositionsForPortfolio } from "./lib/positions.js";
 import { formatYahooUpstreamError } from "./lib/yahooUpstream.js";
 import { runDevMigrations } from "./runDevMigrations.js";
 
@@ -125,6 +130,43 @@ app.patch("/settings", zValidator("json", settingsPatchIn), async (c) => {
   return c.json({
     emergencyFundEur: Number(updated.emergencyFundEur),
   });
+});
+
+const portfolioCreateIn = z.object({
+  name: z.string().trim().min(1),
+});
+
+app.get("/portfolios", async (c) => {
+  const rows = await db
+    .select()
+    .from(portfolios)
+    .where(eq(portfolios.userId, USER_ID))
+    .orderBy(asc(portfolios.id));
+  return c.json(rows);
+});
+
+app.post("/portfolios", zValidator("json", portfolioCreateIn), async (c) => {
+  const body = c.req.valid("json");
+  const name = body.name.trim();
+  const [dup] = await db
+    .select({ id: portfolios.id })
+    .from(portfolios)
+    .where(and(eq(portfolios.userId, USER_ID), eq(portfolios.name, name)))
+    .limit(1);
+  if (dup) {
+    return c.json(
+      { message: "A portfolio with this name already exists" },
+      409,
+    );
+  }
+  const [row] = await db
+    .insert(portfolios)
+    .values({ userId: USER_ID, name })
+    .returning();
+  if (!row) {
+    return c.json({ message: "Failed to create portfolio" }, 500);
+  }
+  return c.json(row, 201);
 });
 
 app.get("/brokers", async (c) => {
@@ -253,6 +295,7 @@ app.delete("/brokers/:id", async (c) => {
 });
 
 const transactionIn = z.object({
+  portfolioId: z.number().int().positive(),
   brokerId: z.number().int().positive(),
   tradeDate: z
     .string()
@@ -277,9 +320,22 @@ const transactionIn = z.object({
 });
 
 app.get("/transactions", async (c) => {
+  const raw = c.req.query("portfolioId")?.trim();
+  if (!raw) {
+    return c.json({ message: "portfolioId query required" }, 400);
+  }
+  const portfolioId = Number.parseInt(raw, 10);
+  if (!Number.isFinite(portfolioId) || portfolioId < 1) {
+    return c.json({ message: "Invalid portfolioId" }, 400);
+  }
+  const pf = await loadPortfolioOwnedByUser(portfolioId);
+  if (!pf) {
+    return c.json({ message: "Portfolio not found" }, 404);
+  }
   const rows = await db
     .select()
     .from(transactions)
+    .where(eq(transactions.portfolioId, portfolioId))
     .orderBy(desc(transactions.tradeDate));
   return c.json(rows);
 });
@@ -319,10 +375,27 @@ app.post("/transactions", zValidator("json", transactionIn), async (c) => {
       );
     }
   }
+  const [pf] = await db
+    .select()
+    .from(portfolios)
+    .where(
+      and(eq(portfolios.id, body.portfolioId), eq(portfolios.userId, USER_ID)),
+    )
+    .limit(1);
+  if (!pf) {
+    return c.json({ message: "Portfolio not found" }, 404);
+  }
+  if (pf.userId !== brk.userId) {
+    return c.json(
+      { message: "Portfolio and broker must belong to the same user" },
+      400,
+    );
+  }
   const [row] = await db
     .insert(transactions)
     .values({
       userId: brk.userId,
+      portfolioId: body.portfolioId,
       brokerId: body.brokerId,
       tradeDate: body.tradeDate,
       side: body.side,
@@ -399,6 +472,19 @@ app.post("/import/degiro", async (c) => {
   if (!degiroBroker) {
     return c.json({ message: 'Broker named "Degiro" is not configured' }, 500);
   }
+
+  const resolvedPortfolio = await resolvePortfolioIdFromImportBody(body);
+  if (!resolvedPortfolio.ok) {
+    const m = resolvedPortfolio.message;
+    if (resolvedPortfolio.status === 400) {
+      return c.json({ message: m }, 400);
+    }
+    if (resolvedPortfolio.status === 404) {
+      return c.json({ message: m }, 404);
+    }
+    return c.json({ message: m }, 500);
+  }
+  const importPortfolioId = resolvedPortfolio.portfolioId;
 
   if (createInstrumentsParsed && createInstrumentsParsed.length > 0) {
     for (const item of createInstrumentsParsed) {
@@ -488,6 +574,7 @@ app.post("/import/degiro", async (c) => {
     }
     return {
       userId: degiroBroker.userId,
+      portfolioId: importPortfolioId,
       brokerId: degiroBroker.id,
       tradeDate: new Date(r.tradeDate),
       side: r.side,
@@ -512,6 +599,7 @@ app.post("/import/degiro", async (c) => {
       ],
       set: {
         userId: sql`excluded.user_id`,
+        portfolioId: sql`excluded.portfolio_id`,
         tradeDate: sql`excluded.trade_date`,
         side: sql`excluded.side`,
         instrumentId: sql`excluded.instrument_id`,
@@ -528,6 +616,7 @@ app.post("/import/degiro", async (c) => {
         OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
         OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
         OR ${transactions.unitPriceEur} IS DISTINCT FROM ${sql.raw("excluded.unit_price_eur")}
+        OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
       )`,
     })
     .returning({ id: transactions.id });
@@ -575,6 +664,19 @@ app.post("/import/ibkr", async (c) => {
     return c.json({ message: 'Broker named "IBKR" is not configured' }, 500);
   }
 
+  const resolvedPortfolioIbkr = await resolvePortfolioIdFromImportBody(body);
+  if (!resolvedPortfolioIbkr.ok) {
+    const m = resolvedPortfolioIbkr.message;
+    if (resolvedPortfolioIbkr.status === 400) {
+      return c.json({ message: m }, 400);
+    }
+    if (resolvedPortfolioIbkr.status === 404) {
+      return c.json({ message: m }, 404);
+    }
+    return c.json({ message: m }, 500);
+  }
+  const importPortfolioIdIbkr = resolvedPortfolioIbkr.portfolioId;
+
   const instRows = await db
     .select()
     .from(instruments)
@@ -611,6 +713,7 @@ app.post("/import/ibkr", async (c) => {
     }
     return {
       userId: ibkrBroker.userId,
+      portfolioId: importPortfolioIdIbkr,
       brokerId: ibkrBroker.id,
       tradeDate: new Date(r.tradeDate),
       side: r.side,
@@ -635,6 +738,7 @@ app.post("/import/ibkr", async (c) => {
       ],
       set: {
         userId: sql`excluded.user_id`,
+        portfolioId: sql`excluded.portfolio_id`,
         tradeDate: sql`excluded.trade_date`,
         side: sql`excluded.side`,
         instrumentId: sql`excluded.instrument_id`,
@@ -651,6 +755,7 @@ app.post("/import/ibkr", async (c) => {
         OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
         OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
         OR ${transactions.unitPriceEur} IS DISTINCT FROM ${sql.raw("excluded.unit_price_eur")}
+        OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
       )`,
     })
     .returning({ id: transactions.id });
@@ -700,6 +805,19 @@ app.post("/import/seligson", async (c) => {
       500,
     );
   }
+
+  const resolvedPortfolioSg = await resolvePortfolioIdFromImportBody(body);
+  if (!resolvedPortfolioSg.ok) {
+    const m = resolvedPortfolioSg.message;
+    if (resolvedPortfolioSg.status === 400) {
+      return c.json({ message: m }, 400);
+    }
+    if (resolvedPortfolioSg.status === 404) {
+      return c.json({ message: m }, 404);
+    }
+    return c.json({ message: m }, 500);
+  }
+  const importPortfolioIdSg = resolvedPortfolioSg.portfolioId;
 
   const joined = await db
     .select({
@@ -775,6 +893,7 @@ app.post("/import/seligson", async (c) => {
     }
     return {
       userId: seligsonBroker.userId,
+      portfolioId: importPortfolioIdSg,
       brokerId: seligsonBroker.id,
       tradeDate: new Date(r.tradeDate),
       side: r.side,
@@ -799,6 +918,7 @@ app.post("/import/seligson", async (c) => {
       ],
       set: {
         userId: sql`excluded.user_id`,
+        portfolioId: sql`excluded.portfolio_id`,
         tradeDate: sql`excluded.trade_date`,
         side: sql`excluded.side`,
         instrumentId: sql`excluded.instrument_id`,
@@ -815,6 +935,7 @@ app.post("/import/seligson", async (c) => {
         OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
         OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
         OR ${transactions.unitPriceEur} IS DISTINCT FROM ${sql.raw("excluded.unit_price_eur")}
+        OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
       )`,
     })
     .returning({ id: transactions.id });
@@ -952,8 +1073,11 @@ function mapJoinedRowToInstrumentPayload(
   };
 }
 
+type NetQtyScope = { kind: "portfolio"; portfolioId: number } | { kind: "all" };
+
 async function loadInstrumentPayloadById(
   id: number,
+  netQtyScope: NetQtyScope = { kind: "all" },
 ): Promise<ReturnType<typeof mapJoinedRowToInstrumentPayload> | null> {
   const joined = await db
     .select({
@@ -990,12 +1114,22 @@ async function loadInstrumentPayloadById(
   if (!row) {
     return null;
   }
+  const netWhere =
+    netQtyScope.kind === "portfolio"
+      ? and(
+          eq(transactions.instrumentId, id),
+          eq(transactions.portfolioId, netQtyScope.portfolioId),
+        )
+      : and(
+          eq(transactions.instrumentId, id),
+          eq(transactions.userId, USER_ID),
+        );
   const [qtyRow] = await db
     .select({
       qty: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.side} = 'buy' THEN ${transactions.quantity}::numeric ELSE -${transactions.quantity}::numeric END), 0)`,
     })
     .from(transactions)
-    .where(eq(transactions.instrumentId, id));
+    .where(netWhere);
   const q =
     qtyRow?.qty != null && qtyRow.qty !== ""
       ? Number.parseFloat(qtyRow.qty)
@@ -1034,6 +1168,20 @@ async function findOrCreateSeligsonFundByFid(fid: number) {
 }
 
 app.get("/instruments", async (c) => {
+  const portfolioIdRaw = c.req.query("portfolioId")?.trim();
+  let portfolioIdForNet: number | null = null;
+  if (portfolioIdRaw != null && portfolioIdRaw !== "") {
+    const pid = Number.parseInt(portfolioIdRaw, 10);
+    if (!Number.isFinite(pid) || pid < 1) {
+      return c.json({ message: "Invalid portfolioId" }, 400);
+    }
+    const p = await loadPortfolioOwnedByUser(pid);
+    if (!p) {
+      return c.json({ message: "Portfolio not found" }, 404);
+    }
+    portfolioIdForNet = pid;
+  }
+
   const brokerIdRaw = c.req.query("brokerId")?.trim();
   let brokerTypeForFilter: string | null = null;
   let filterBrokerId: number | null = null;
@@ -1087,6 +1235,11 @@ app.get("/instruments", async (c) => {
       qty: sql<string>`SUM(CASE WHEN ${transactions.side} = 'buy' THEN ${transactions.quantity}::numeric ELSE -${transactions.quantity}::numeric END)`,
     })
     .from(transactions)
+    .where(
+      portfolioIdForNet != null
+        ? eq(transactions.portfolioId, portfolioIdForNet)
+        : eq(transactions.userId, USER_ID),
+    )
     .groupBy(transactions.instrumentId);
 
   const netQtyByInstrument = new Map<number, number>();
@@ -1147,7 +1300,20 @@ app.get("/instruments/:id", async (c) => {
   if (!Number.isFinite(id) || id < 1) {
     return c.json({ message: "Invalid id" }, 400);
   }
-  const payload = await loadInstrumentPayloadById(id);
+  const portfolioIdRaw = c.req.query("portfolioId")?.trim();
+  let netQtyScope: NetQtyScope = { kind: "all" };
+  if (portfolioIdRaw != null && portfolioIdRaw !== "") {
+    const pid = Number.parseInt(portfolioIdRaw, 10);
+    if (!Number.isFinite(pid) || pid < 1) {
+      return c.json({ message: "Invalid portfolioId" }, 400);
+    }
+    const p = await loadPortfolioOwnedByUser(pid);
+    if (!p) {
+      return c.json({ message: "Portfolio not found" }, 404);
+    }
+    netQtyScope = { kind: "portfolio", portfolioId: pid };
+  }
+  const payload = await loadInstrumentPayloadById(id, netQtyScope);
   if (!payload) {
     return c.json({ message: "Not found" }, 404);
   }
@@ -1397,9 +1563,10 @@ app.patch("/instruments/:id", async (c) => {
     if (!v.ok) {
       return c.json({ message: v.message }, 400);
     }
-    const prevNorm = validateHoldingsDistributionUrl(
+    const prevValidated = validateHoldingsDistributionUrl(
       existing.holdingsDistributionUrl,
-    ).normalized;
+    );
+    const prevNorm = prevValidated.ok ? prevValidated.normalized : null;
     const nextNorm = v.normalized;
     await db
       .update(instruments)
@@ -1469,7 +1636,19 @@ app.delete("/instruments/:id", async (c) => {
 });
 
 app.get("/positions", async (c) => {
-  const pos = await loadOpenPositions();
+  const raw = c.req.query("portfolioId")?.trim();
+  if (!raw) {
+    return c.json({ message: "portfolioId query required" }, 400);
+  }
+  const portfolioId = Number.parseInt(raw, 10);
+  if (!Number.isFinite(portfolioId) || portfolioId < 1) {
+    return c.json({ message: "Invalid portfolioId" }, 400);
+  }
+  const pf = await loadPortfolioOwnedByUser(portfolioId);
+  if (!pf) {
+    return c.json({ message: "Portfolio not found" }, 404);
+  }
+  const pos = await loadOpenPositionsForPortfolio(portfolioId);
   const instRows =
     pos.length === 0
       ? []
@@ -1490,7 +1669,19 @@ app.get("/positions", async (c) => {
 });
 
 app.get("/portfolio/distributions", async (c) => {
-  const data = await getPortfolioDistributions();
+  const raw = c.req.query("portfolioId")?.trim();
+  if (!raw) {
+    return c.json({ message: "portfolioId query required" }, 400);
+  }
+  const portfolioId = Number.parseInt(raw, 10);
+  if (!Number.isFinite(portfolioId) || portfolioId < 1) {
+    return c.json({ message: "Invalid portfolioId" }, 400);
+  }
+  const pf = await loadPortfolioOwnedByUser(portfolioId);
+  if (!pf) {
+    return c.json({ message: "Portfolio not found" }, 404);
+  }
+  const data = await getPortfolioDistributions(portfolioId);
   return c.json(data);
 });
 
