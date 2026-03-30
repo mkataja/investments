@@ -1,3 +1,4 @@
+import { normalizeYahooSymbolForStorage } from "@investments/db";
 import {
   type YahooInstrumentLookup,
   buildYahooInstrumentLookup,
@@ -10,18 +11,6 @@ import {
   type OpenFigiMappingRow,
   yahooSymbolCandidatesFromOpenFigiRows,
 } from "./openFigi.js";
-
-/** Canonical form for storage (e.g. `SXR8.de` → `SXR8.de`, `SLG-OMXH25.HE` keeps prefix). */
-function normalizeYahooSymbolForStorage(s: string): string {
-  const t = s.trim();
-  const i = t.lastIndexOf(".");
-  if (i <= 0) {
-    return t;
-  }
-  const base = t.slice(0, i);
-  const suf = t.slice(i + 1).toLowerCase();
-  return `${base}.${suf}`;
-}
 
 export type DegiroInstrumentProposalOk = {
   isin: string;

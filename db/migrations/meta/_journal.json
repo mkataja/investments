@@ -50,6 +50,13 @@
       "when": 1774864585245,
       "tag": "0006_overconfident_boomerang",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1774865000000,
+      "tag": "0007_yahoo_symbol_uppercase",
+      "breakpoints": true
     }
   ]
 }

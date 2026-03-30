@@ -6,6 +6,7 @@ import {
   distributionCache,
   instruments,
   isInstrumentKindAllowedForBrokerCode,
+  normalizeYahooSymbolForStorage,
   seligsonFunds,
   transactions,
 } from "@investments/db";
@@ -47,7 +48,7 @@ const app = new Hono();
 const createDegiroInstrumentsSchema = z.array(
   z.object({
     isin: z.string().length(12),
-    yahooSymbol: z.string().min(1),
+    yahooSymbol: z.string().min(1).transform(normalizeYahooSymbolForStorage),
     kind: z.enum(["etf", "stock"]),
   }),
 );
@@ -314,7 +315,7 @@ const cashCurrencySchema = z.enum(
 const instrumentIn = z.discriminatedUnion("kind", [
   z.object({
     kind: z.enum(["etf", "stock"]),
-    yahooSymbol: z.string().min(1),
+    yahooSymbol: z.string().min(1).transform(normalizeYahooSymbolForStorage),
   }),
   z.object({
     kind: z.literal("seligson_fund"),

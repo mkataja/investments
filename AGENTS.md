@@ -10,7 +10,7 @@ Personal **multi-broker portfolio tracker**: transactions are recorded per broke
 
 **Data sources for distributions** (implementation lives under `api`; details drift—read code when editing):
 
-- **ETFs / stocks:** Yahoo Finance via **`yahoo-finance2` v3** (shared **`YahooFinance`** instance in `api`, `quoteSummary` + `quote`). Symbols are stored as **`yahooSymbol`**. Unofficial API—Yahoo may **429 / block** by IP; the API maps that to a readable message and **503**, uses **retries with backoff** on `quoteSummary`, **batches `quote`** for portfolio valuation, and **staggers** startup distribution refresh for Yahoo rows (optional **`YAHOO_MIN_INTERVAL_MS`**, default ~900ms). **Caching** reduces repeated calls.
+- **ETFs / stocks:** Yahoo Finance via **`yahoo-finance2` v3** (shared **`YahooFinance`** instance in `api`, `quoteSummary` + `quote`). Symbols are stored as **`yahooSymbol`**, trimmed and uppercased (**`normalizeYahooSymbolForStorage`** in **`@investments/db`**). Unofficial API—Yahoo may **429 / block** by IP; the API maps that to a readable message and **503**, uses **retries with backoff** on `quoteSummary`, **batches `quote`** for portfolio valuation, and **staggers** startup distribution refresh for Yahoo rows (optional **`YAHOO_MIN_INTERVAL_MS`**, default ~900ms). **Caching** reduces repeated calls.
 - **Seligson mutual funds:** **HTML scrape** of Seligson FundViewer (sector/region breakdown view; **`fid`** in the URL must match **`seligson_funds`** in the DB). Users register funds via **`/instruments/new`** (FID only); **`seligson_funds`** rows are **find-or-created** by the API, not edited via a separate admin app.
 - **Cash (`cash_account`):** no external fetch for valuation beyond FX—nominal balance is in **`cash_currency`** (see **`SUPPORTED_CASH_CURRENCY_CODES`** in `db`); **`cash_geo_key`** is **required** (DB CHECK) and is an ISO-like region key for **`/instruments`** display. **Not** used for portfolio distribution chart weights (see below).
 - **Stocks:** sector/industry from Yahoo when present; geography is often **issuer-country-only** as a simplification, not economic exposure.
@@ -25,7 +25,7 @@ pnpm workspace — see [`pnpm-workspace.yaml`](pnpm-workspace.yaml):
 
 | Package | Role |
 | --- | --- |
-| [`db`](db) | Drizzle schema, SQL migrations, shared types, **`currencies.ts`**, **`geo/`** (ISO country resolution + default geo buckets for portfolio/instruments UI), **`brokerInstrumentRules`**, **`instrumentSelectLabel`** (transaction UI labels) |
+| [`db`](db) | Drizzle schema, SQL migrations, shared types, **`currencies.ts`**, **`yahooSymbol.ts`** (canonical Yahoo ticker normalization), **`geo/`** (ISO country resolution + default geo buckets for portfolio/instruments UI), **`brokerInstrumentRules`**, **`instrumentSelectLabel`** (transaction UI labels) |
 | [`api`](api) | Hono API, valuation, distribution fetch/normalize, cache refresh |
 | [`web`](web) | Vite + React + Tailwind; portfolio UI, **instruments list** at `/instruments`, **new instrument** at `/instruments/new`, **Degiro CSV import** at `/import`, dev data checks |
 

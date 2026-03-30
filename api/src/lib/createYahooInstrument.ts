@@ -1,4 +1,4 @@
-import { instruments } from "@investments/db";
+import { instruments, normalizeYahooSymbolForStorage } from "@investments/db";
 import { eq } from "drizzle-orm";
 import { db } from "../db.js";
 import {
@@ -18,9 +18,10 @@ export async function insertEtfStockFromYahoo(
   yahooSymbol: string,
   options?: { isinOverride?: string | null },
 ): Promise<InstrumentRow> {
-  const raw = await fetchYahooQuoteSummaryRaw(yahooSymbol);
-  const lookup = buildYahooInstrumentLookup(raw, yahooSymbol);
-  const displayName = displayNameFromYahooLookup(lookup, yahooSymbol);
+  const symbol = normalizeYahooSymbolForStorage(yahooSymbol);
+  const raw = await fetchYahooQuoteSummaryRaw(symbol);
+  const lookup = buildYahooInstrumentLookup(raw, symbol);
+  const displayName = displayNameFromYahooLookup(lookup, symbol);
   const isin =
     options?.isinOverride != null && options.isinOverride.trim().length > 0
       ? options.isinOverride.trim()
@@ -30,7 +31,7 @@ export async function insertEtfStockFromYahoo(
     .values({
       kind,
       displayName,
-      yahooSymbol,
+      yahooSymbol: symbol,
       isin: isin ?? undefined,
     })
     .returning();
@@ -38,7 +39,7 @@ export async function insertEtfStockFromYahoo(
     throw new Error("Failed to insert instrument");
   }
   try {
-    await writeYahooDistributionCache(row.id, raw, yahooSymbol);
+    await writeYahooDistributionCache(row.id, raw, symbol);
   } catch (e) {
     await db.delete(instruments).where(eq(instruments.id, row.id));
     throw e;
