@@ -35,6 +35,7 @@ Scripts and tool versions: **root [`package.json`](package.json)**. Local setup,
 
 - **PostgreSQL** via Docker Compose; persistent data under **`.data/postgres`** (gitignored). Compose image, host port, and credentials belong in **compose + README**, not here.
 - API loads **`.env` from the repository root** (see `api` DB bootstrap). **`DATABASE_URL`** is required for a real DB connection unless tests mock it—exact loading logic is in code.
+- In **non-production**, the API **runs pending Drizzle migrations on startup** (`api/src/runDevMigrations.ts`) so the DB matches the schema after pulls. **Production** should still apply migrations in deploy (**`pnpm db:migrate`** or equivalent); startup migration is skipped when **`NODE_ENV=production`**.
 
 ## Domain model (mental map)
 

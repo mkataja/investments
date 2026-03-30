@@ -63,6 +63,7 @@ import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
 import { loadOpenPositions } from "./lib/positions.js";
 import { formatYahooUpstreamError } from "./lib/yahooUpstream.js";
+import { runDevMigrations } from "./runDevMigrations.js";
 
 const app = new Hono();
 
@@ -1346,10 +1347,19 @@ if (devToolsAllowed()) {
 
 const port = Number.parseInt(process.env.PORT ?? "3001", 10);
 
-setImmediate(() => {
-  void refreshStaleDistributionCaches();
-});
+async function start(): Promise<void> {
+  await runDevMigrations();
 
-serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`API listening on http://localhost:${info.port}`);
+  setImmediate(() => {
+    void refreshStaleDistributionCaches();
+  });
+
+  serve({ fetch: app.fetch, port }, (info) => {
+    console.log(`API listening on http://localhost:${info.port}`);
+  });
+}
+
+void start().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });
