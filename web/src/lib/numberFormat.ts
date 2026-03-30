@@ -14,6 +14,20 @@ export function formatUnitPriceForDisplay(raw: string): string {
 }
 
 /**
+ * Unit price in the transactions table: buys shown as negative (cash out), sells unchanged.
+ */
+export function formatTransactionUnitPriceForDisplay(
+  side: string,
+  raw: string,
+): string {
+  const t = raw.trim();
+  const n = Number(t);
+  if (!Number.isFinite(n)) return t;
+  const signed = side === "buy" ? -n : n;
+  return formatUnitPriceForDisplay(String(signed));
+}
+
+/**
  * Whole-share display: nearest integer via Math.round (ties toward +∞), not truncating
  * (not Math.trunc, |0, or parseInt on fractional strings).
  * Decimal strings that are visually whole numbers use the integer part only to avoid FP drift.

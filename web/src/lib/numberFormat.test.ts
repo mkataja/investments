@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatTransactionUnitPriceForDisplay,
   formatUnitPriceForDisplay,
   roundQuantityForDisplay,
 } from "./numberFormat";
@@ -18,6 +19,17 @@ describe("formatUnitPriceForDisplay", () => {
 
   it("returns trimmed input when not a finite number", () => {
     expect(formatUnitPriceForDisplay("  n/a  ")).toBe("n/a");
+  });
+});
+
+describe("formatTransactionUnitPriceForDisplay", () => {
+  it("shows buy prices as negative and sell prices as stored", () => {
+    expect(formatTransactionUnitPriceForDisplay("buy", "10.5")).toBe("-10.5");
+    expect(formatTransactionUnitPriceForDisplay("sell", "10.5")).toBe("10.5");
+  });
+
+  it("returns trimmed input when not a finite number", () => {
+    expect(formatTransactionUnitPriceForDisplay("buy", "  x  ")).toBe("x");
   });
 });
 
