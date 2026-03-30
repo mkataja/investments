@@ -27,6 +27,9 @@ export async function getPortfolioDistributions(): Promise<{
   positions: Array<{
     instrumentId: number;
     displayName: string;
+    quantity: number;
+    /** EUR per one unit (position value ÷ quantity); null if not meaningful. */
+    unitPriceEur: number | null;
     weight: number;
     valueEur: number;
     valuationSource: string;
@@ -110,13 +113,23 @@ export async function getPortfolioDistributions(): Promise<{
     }
   }
 
-  const positions = valued.map((row) => ({
-    instrumentId: row.inst.id,
-    displayName: row.inst.displayName,
-    weight: totalValueEur > 0 ? row.valueEur / totalValueEur : 0,
-    valueEur: row.valueEur,
-    valuationSource: row.source,
-  }));
+  const positions = valued.map((row) => {
+    const qty = row.qty;
+    const valueEur = row.valueEur;
+    const unitPriceEur =
+      Math.abs(qty) > 1e-12 && Number.isFinite(valueEur)
+        ? valueEur / qty
+        : null;
+    return {
+      instrumentId: row.inst.id,
+      displayName: row.inst.displayName,
+      quantity: qty,
+      unitPriceEur,
+      weight: totalValueEur > 0 ? valueEur / totalValueEur : 0,
+      valueEur,
+      valuationSource: row.source,
+    };
+  });
 
   const regionsBucketed: Record<string, number> = {};
   const merged = aggregateRegionsToGeoBuckets(regions);
