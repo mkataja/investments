@@ -128,19 +128,58 @@ export const transactions = pgTable(
   ],
 );
 
-export const distributionCache = pgTable("distribution_cache", {
+export type DistributionPayload = {
+  /** Uppercase ISO 3166-1 alpha-2 country codes → weights (0–1). */
+  countries: Record<string, number>;
+  /** Canonical sector ids (`distribution/sectors.ts`) → weights (0–1). */
+  sectors: Record<string, number>;
+};
+
+export const yahooFinanceCache = pgTable("yahoo_finance_cache", {
   instrumentId: integer("instrument_id")
     .primaryKey()
-    .references(() => instruments.id),
+    .references(() => instruments.id, { onDelete: "cascade" }),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  raw: jsonb("raw").notNull(),
+});
+
+export const seligsonDistributionCache = pgTable(
+  "seligson_distribution_cache",
+  {
+    instrumentId: integer("instrument_id")
+      .primaryKey()
+      .references(() => instruments.id, { onDelete: "cascade" }),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+    countryHtml: text("country_html").notNull(),
+    otherDistributionHtml: text("other_distribution_html").notNull(),
+  },
+);
+
+export const distributions = pgTable("distributions", {
+  instrumentId: integer("instrument_id")
+    .primaryKey()
+    .references(() => instruments.id, { onDelete: "cascade" }),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
   source: text("source").notNull(),
-  /** Normalized region/sector weights (current processing). */
-  payload: jsonb("payload").notNull(),
-  /**
-   * Upstream snapshot for reprocessing without refetch: Yahoo `quoteSummary`-shaped JSON,
-   * or Seligson FundViewer HTML string. Omitted for manual rows and legacy rows.
-   */
-  rawPayload: jsonb("raw_payload").$type<unknown>(),
+  payload: jsonb("payload").$type<DistributionPayload>().notNull(),
+});
+
+export const prices = pgTable("prices", {
+  instrumentId: integer("instrument_id")
+    .primaryKey()
+    .references(() => instruments.id, { onDelete: "cascade" }),
+  quotedPrice: numeric("quoted_price", { precision: 24, scale: 8 }).notNull(),
+  currency: text("currency").notNull(),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  source: text("source").notNull(),
+});
+
+export const seligsonFundValueCache = pgTable("seligson_fund_value_cache", {
+  seligsonFundId: integer("seligson_fund_id")
+    .primaryKey()
+    .references(() => seligsonFunds.id, { onDelete: "cascade" }),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  raw: jsonb("raw").notNull(),
 });
 
 export const brokersRelations = relations(brokers, ({ many }) => ({
@@ -148,9 +187,16 @@ export const brokersRelations = relations(brokers, ({ many }) => ({
   instruments: many(instruments),
 }));
 
-export const seligsonFundsRelations = relations(seligsonFunds, ({ many }) => ({
-  instruments: many(instruments),
-}));
+export const seligsonFundsRelations = relations(
+  seligsonFunds,
+  ({ many, one }) => ({
+    instruments: many(instruments),
+    valueCache: one(seligsonFundValueCache, {
+      fields: [seligsonFunds.id],
+      references: [seligsonFundValueCache.seligsonFundId],
+    }),
+  }),
+);
 
 export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
   seligsonFund: one(seligsonFunds, {
@@ -162,9 +208,21 @@ export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
     references: [brokers.id],
   }),
   transactions: many(transactions),
-  distributionCache: one(distributionCache, {
+  distribution: one(distributions, {
     fields: [instruments.id],
-    references: [distributionCache.instrumentId],
+    references: [distributions.instrumentId],
+  }),
+  yahooFinanceCache: one(yahooFinanceCache, {
+    fields: [instruments.id],
+    references: [yahooFinanceCache.instrumentId],
+  }),
+  seligsonDistributionCache: one(seligsonDistributionCache, {
+    fields: [instruments.id],
+    references: [seligsonDistributionCache.instrumentId],
+  }),
+  price: one(prices, {
+    fields: [instruments.id],
+    references: [prices.instrumentId],
   }),
 }));
 
@@ -179,17 +237,46 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   }),
 }));
 
-export const distributionCacheRelations = relations(
-  distributionCache,
+export const yahooFinanceCacheRelations = relations(
+  yahooFinanceCache,
   ({ one }) => ({
     instrument: one(instruments, {
-      fields: [distributionCache.instrumentId],
+      fields: [yahooFinanceCache.instrumentId],
       references: [instruments.id],
     }),
   }),
 );
 
-export type DistributionPayload = {
-  regions: Record<string, number>;
-  sectors: Record<string, number>;
-};
+export const seligsonDistributionCacheRelations = relations(
+  seligsonDistributionCache,
+  ({ one }) => ({
+    instrument: one(instruments, {
+      fields: [seligsonDistributionCache.instrumentId],
+      references: [instruments.id],
+    }),
+  }),
+);
+
+export const distributionsRelations = relations(distributions, ({ one }) => ({
+  instrument: one(instruments, {
+    fields: [distributions.instrumentId],
+    references: [instruments.id],
+  }),
+}));
+
+export const pricesRelations = relations(prices, ({ one }) => ({
+  instrument: one(instruments, {
+    fields: [prices.instrumentId],
+    references: [instruments.id],
+  }),
+}));
+
+export const seligsonFundValueCacheRelations = relations(
+  seligsonFundValueCache,
+  ({ one }) => ({
+    seligsonFund: one(seligsonFunds, {
+      fields: [seligsonFundValueCache.seligsonFundId],
+      references: [seligsonFunds.id],
+    }),
+  }),
+);

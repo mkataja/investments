@@ -187,15 +187,6 @@ export function countryCodeToBucket(iso: string): GeoBucketId {
   return "emerging_markets";
 }
 
-/** Legacy Seligson macro keys (pre–country-level scrape) → bucket id */
-const LEGACY_SELIGSON_MACRO: Record<string, GeoBucketId> = {
-  europe: "europe",
-  north_america: "north_america",
-  /** Coarse APAC region without country split; blend is mostly EM / non-developed APAC */
-  pacific: "emerging_markets",
-  emerging: "emerging_markets",
-};
-
 function emptyBuckets(): Record<GeoBucketId, number> {
   return {
     finland: 0,
@@ -209,7 +200,7 @@ function emptyBuckets(): Record<GeoBucketId, number> {
 }
 
 /**
- * Aggregate region weights (ISO keys and/or resolvable labels, plus legacy macro keys)
+ * Aggregate country/label weights (ISO keys and/or resolvable labels)
  * into fixed geo buckets. Keys that do not resolve to ISO go to **`unknown`** (not EM).
  */
 export function aggregateRegionsToGeoBuckets(
@@ -221,11 +212,6 @@ export function aggregateRegionsToGeoBuckets(
       continue;
     }
     const key = rawKey.trim();
-    const macro = LEGACY_SELIGSON_MACRO[key.toLowerCase()];
-    if (macro) {
-      out[macro] += w;
-      continue;
-    }
     const iso = resolveRegionKeyToIso(key);
     if (iso) {
       const b = countryCodeToBucket(iso);

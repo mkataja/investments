@@ -1,5 +1,6 @@
 export * from "./brokerInstrumentRules.js";
 export * from "./brokerTypes.js";
+export * from "./distribution/sectors.js";
 export * from "./currencies.js";
 export * from "./geo/index.js";
 export * from "./instrumentKind.js";
