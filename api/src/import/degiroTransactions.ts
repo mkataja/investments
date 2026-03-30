@@ -110,7 +110,7 @@ type DegiroFill = {
   unitPriceStr: string;
 };
 
-function normalizeUnicodeMinus(s: string): string {
+export function normalizeUnicodeMinus(s: string): string {
   return s.replace(/\u2212/g, "-");
 }
 
