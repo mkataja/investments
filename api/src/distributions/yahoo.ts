@@ -1,4 +1,7 @@
-import type { DistributionPayload } from "@investments/db";
+import type {
+  DistributionPayload,
+  DistributionSectorId,
+} from "@investments/db";
 import {
   mapYahooSectorToCanonicalId,
   resolveRegionKeyToIso,
@@ -27,12 +30,49 @@ export function normalizeYahooCountriesToIsoKeys(
   return out;
 }
 
+const EXPLICIT_OTHER_SECTOR_LABELS = new Set([
+  "other",
+  "unknown",
+  "n/a",
+  "na",
+  "-",
+  "misc",
+  "miscellaneous",
+  "unclassified",
+  "not classified",
+]);
+
+/**
+ * Same as {@link mapYahooSectorToCanonicalId} with `console.warn` when the label
+ * falls through to `other` (excludes empty strings and generic catch-all labels).
+ */
+export function mapYahooSectorToCanonicalIdWithWarn(
+  raw: string,
+): DistributionSectorId {
+  const id = mapYahooSectorToCanonicalId(raw);
+  if (id !== "other") {
+    return id;
+  }
+  const trimmed = raw.trim();
+  if (trimmed === "") {
+    return id;
+  }
+  const lower = trimmed.toLowerCase();
+  if (EXPLICIT_OTHER_SECTOR_LABELS.has(lower)) {
+    return id;
+  }
+  console.warn(
+    `Could not map sector label to canonical sector: ${JSON.stringify(raw)}`,
+  );
+  return id;
+}
+
 function mapYahooSectorWeightsToCanonical(
   sectors: Record<string, number>,
 ): Record<string, number> {
   const out: Record<string, number> = {};
   for (const [k, w] of Object.entries(sectors)) {
-    const id = mapYahooSectorToCanonicalId(k);
+    const id = mapYahooSectorToCanonicalIdWithWarn(k);
     out[id] = (out[id] ?? 0) + w;
   }
   return out;
