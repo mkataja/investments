@@ -1,4 +1,7 @@
-import type { DistributionPayload } from "@investments/db";
+import {
+  type DistributionPayload,
+  normalizeIsinForStorage,
+} from "@investments/db";
 import type { QuoteSummaryResult } from "yahoo-finance2/modules/quoteSummary-iface";
 import { yahooFinance } from "../lib/yahooClient.js";
 import { withYahooRetries } from "../lib/yahooUpstream.js";
@@ -24,6 +27,7 @@ const MODULES = [
   "fundProfile",
   "assetProfile",
   "summaryDetail",
+  "quoteType",
   "price",
 ] as const;
 
@@ -48,6 +52,34 @@ export type YahooInstrumentLookup = {
   quoteType: string | null;
 };
 
+/**
+ * Yahoo puts ISIN on `assetProfile` for many listings; some ETFs expose it on
+ * other `quoteSummary` modules. Coalesce and normalize.
+ */
+export function extractIsinFromQuoteSummaryRaw(
+  raw: YahooQuoteSummaryRaw,
+): string | null {
+  const blocks: unknown[] = [
+    raw.assetProfile,
+    raw.fundProfile,
+    raw.quoteType,
+    raw.price,
+    raw.summaryDetail,
+  ];
+  for (const b of blocks) {
+    if (b && typeof b === "object" && "isin" in b) {
+      const v = (b as { isin?: unknown }).isin;
+      if (typeof v === "string") {
+        const n = normalizeIsinForStorage(v);
+        if (n) {
+          return n;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 export function buildYahooInstrumentLookup(
   raw: YahooQuoteSummaryRaw,
   symbol: string,
@@ -65,7 +97,7 @@ export function buildYahooInstrumentLookup(
     symbol,
     shortName,
     longName,
-    isin: typeof asset?.isin === "string" ? asset.isin : null,
+    isin: extractIsinFromQuoteSummaryRaw(raw),
     sector: typeof asset?.sector === "string" ? asset.sector : null,
     industry: typeof asset?.industry === "string" ? asset.industry : null,
     country: typeof asset?.country === "string" ? asset.country : null,

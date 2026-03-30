@@ -50,6 +50,11 @@ import {
   DEGIRO_CSV_EXTERNAL_SOURCE,
   parseDegiroTransactionsCsv,
 } from "./import/degiroTransactions.js";
+import { resolveIbkrInstrumentRows } from "./import/ibkrResolveInstruments.js";
+import {
+  IBKR_CSV_EXTERNAL_SOURCE,
+  parseIbkrTransactionsCsv,
+} from "./import/ibkrTransactions.js";
 import {
   SELIGSON_TSV_EXTERNAL_SOURCE,
   normalizeSeligsonFundNameForMatch,
@@ -534,6 +539,129 @@ app.post("/import/degiro", async (c) => {
   return c.json({ ok: true, processed, changed, unchanged });
 });
 
+app.post("/import/ibkr", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = (await c.req.parseBody({ all: true })) as Record<string, unknown>;
+  } catch {
+    return c.json({ message: "Invalid multipart body" }, 400);
+  }
+  const file = body.file;
+  if (file == null) {
+    return c.json({ message: 'Expected multipart field "file"' }, 400);
+  }
+  if (typeof file === "string") {
+    return c.json({ message: "Expected file upload, not string" }, 400);
+  }
+  const csvText = await (file as File).text();
+
+  const parsed = parseIbkrTransactionsCsv(csvText);
+  if (!parsed.ok) {
+    return c.json(
+      { message: "CSV validation failed", errors: parsed.errors },
+      400,
+    );
+  }
+  if (parsed.rows.length === 0) {
+    return c.json({ message: "No transaction rows to import" }, 400);
+  }
+
+  const [ibkrBroker] = await db
+    .select()
+    .from(brokers)
+    .where(and(eq(brokers.name, "IBKR"), eq(brokers.userId, USER_ID)))
+    .limit(1);
+  if (!ibkrBroker) {
+    return c.json({ message: 'Broker named "IBKR" is not configured' }, 500);
+  }
+
+  const instRows = await db
+    .select()
+    .from(instruments)
+    .where(inArray(instruments.kind, ["etf", "stock", "custom"]));
+
+  const resolved = resolveIbkrInstrumentRows(
+    parsed.rows.map((r) => ({ symbolRaw: r.symbolRaw, isin: r.isin })),
+    instRows,
+  );
+  if (!resolved.ok) {
+    return c.json(
+      {
+        message: resolved.message,
+        missingSymbols: resolved.missingSymbols,
+        ambiguousSymbols: resolved.ambiguousSymbols,
+        ...(resolved.ambiguousIsins != null &&
+        resolved.ambiguousIsins.length > 0
+          ? { ambiguousIsins: resolved.ambiguousIsins }
+          : {}),
+        ...(resolved.missingIsins != null && resolved.missingIsins.length > 0
+          ? { missingIsins: resolved.missingIsins }
+          : {}),
+      },
+      400,
+    );
+  }
+
+  const { instrumentIds } = resolved;
+
+  const values = parsed.rows.map((r, i) => {
+    const instrumentId = instrumentIds[i];
+    if (instrumentId === undefined) {
+      throw new Error(`Missing instrument for row ${i}`);
+    }
+    return {
+      userId: ibkrBroker.userId,
+      brokerId: ibkrBroker.id,
+      tradeDate: new Date(r.tradeDate),
+      side: r.side,
+      instrumentId,
+      quantity: r.quantity,
+      unitPrice: r.unitPrice,
+      currency: r.currency,
+      unitPriceEur: r.unitPriceEur,
+      externalSource: IBKR_CSV_EXTERNAL_SOURCE,
+      externalId: r.externalId,
+    };
+  });
+
+  const written = await db
+    .insert(transactions)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [
+        transactions.brokerId,
+        transactions.externalSource,
+        transactions.externalId,
+      ],
+      set: {
+        userId: sql`excluded.user_id`,
+        tradeDate: sql`excluded.trade_date`,
+        side: sql`excluded.side`,
+        instrumentId: sql`excluded.instrument_id`,
+        quantity: sql`excluded.quantity`,
+        unitPrice: sql`excluded.unit_price`,
+        currency: sql`excluded.currency`,
+        unitPriceEur: sql`excluded.unit_price_eur`,
+      },
+      setWhere: sql`(
+        ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
+        OR ${transactions.side} IS DISTINCT FROM ${sql.raw("excluded.side")}
+        OR ${transactions.instrumentId} IS DISTINCT FROM ${sql.raw("excluded.instrument_id")}
+        OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
+        OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
+        OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
+        OR ${transactions.unitPriceEur} IS DISTINCT FROM ${sql.raw("excluded.unit_price_eur")}
+      )`,
+    })
+    .returning({ id: transactions.id });
+
+  const processed = values.length;
+  const changed = written.length;
+  const unchanged = processed - changed;
+
+  return c.json({ ok: true, processed, changed, unchanged });
+});
+
 app.post("/import/seligson", async (c) => {
   let body: Record<string, unknown>;
   try {
@@ -738,7 +866,7 @@ const etfStockInstrumentPatchIn = z
     message: "At least one field is required",
   });
 
-/** Cash accounts and ETF/stock (holdings URL only) accept PATCH. */
+/** Cash accounts and ETF/stock accept PATCH. */
 const cashInstrumentPatchIn = z
   .object({
     displayName: z.string().trim().min(1).optional(),

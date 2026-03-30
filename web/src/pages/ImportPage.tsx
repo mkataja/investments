@@ -74,6 +74,22 @@ export function ImportPage() {
   const [pending, setPending] = useState<DegiroNeedsInstruments | null>(null);
   const [selectedIsin, setSelectedIsin] = useState<Record<string, boolean>>({});
 
+  const [ibkrFile, setIbkrFile] = useState<File | null>(null);
+  const [ibkrError, setIbkrError] = useState<string | null>(null);
+  const [ibkrResult, setIbkrResult] = useState<DegiroOk | null>(null);
+  const [ibkrMissingSymbols, setIbkrMissingSymbols] = useState<string[] | null>(
+    null,
+  );
+  const [ibkrAmbiguousSymbols, setIbkrAmbiguousSymbols] = useState<
+    string[] | null
+  >(null);
+  const [ibkrAmbiguousIsins, setIbkrAmbiguousIsins] = useState<string[] | null>(
+    null,
+  );
+  const [ibkrMissingIsins, setIbkrMissingIsins] = useState<string[] | null>(
+    null,
+  );
+
   const [seligsonError, setSeligsonError] = useState<string | null>(null);
   const [seligsonResult, setSeligsonResult] = useState<DegiroOk | null>(null);
   const [seligsonMissingFunds, setSeligsonMissingFunds] = useState<
@@ -207,6 +223,72 @@ export function ImportPage() {
       setError("Import did not complete. Check the API response.");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onSubmitIbkr(e: FormEvent) {
+    e.preventDefault();
+    setIbkrError(null);
+    setIbkrResult(null);
+    setIbkrMissingSymbols(null);
+    setIbkrAmbiguousSymbols(null);
+    setIbkrAmbiguousIsins(null);
+    setIbkrMissingIsins(null);
+    if (!ibkrFile) {
+      setIbkrError("Choose a CSV file first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", ibkrFile);
+      const data = await apiPostFormData<DegiroOk>("/import/ibkr", form);
+      if (
+        data &&
+        typeof data === "object" &&
+        "ok" in data &&
+        data.ok === true &&
+        "processed" in data &&
+        "changed" in data &&
+        "unchanged" in data
+      ) {
+        setIbkrResult(data as DegiroOk);
+        return;
+      }
+      setIbkrError("Unexpected response from server.");
+    } catch (err) {
+      if (
+        err instanceof HttpError &&
+        err.body !== null &&
+        typeof err.body === "object"
+      ) {
+        const o = err.body as {
+          message?: string;
+          missingSymbols?: string[];
+          ambiguousSymbols?: string[];
+          ambiguousIsins?: string[];
+          missingIsins?: string[];
+        };
+        if (o.ambiguousIsins && o.ambiguousIsins.length > 0) {
+          setIbkrAmbiguousIsins(o.ambiguousIsins);
+          setIbkrError(o.message ?? err.message);
+        } else if (o.missingSymbols && o.missingSymbols.length > 0) {
+          setIbkrMissingSymbols(o.missingSymbols);
+          if (o.missingIsins && o.missingIsins.length > 0) {
+            setIbkrMissingIsins(o.missingIsins);
+          }
+          setIbkrError(o.message ?? err.message);
+        } else if (o.ambiguousSymbols && o.ambiguousSymbols.length > 0) {
+          setIbkrAmbiguousSymbols(o.ambiguousSymbols);
+          setIbkrError(o.message ?? err.message);
+        } else {
+          setIbkrError(o.message ?? err.message);
+        }
+      } else {
+        setIbkrError(err instanceof Error ? err.message : String(err));
+      }
     } finally {
       setBusy(false);
     }
@@ -410,6 +492,104 @@ export function ImportPage() {
               </Button>
             </form>
           </div>
+        ) : null}
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-800">
+          Interactive Brokers
+        </h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Activity CSV: flat export with ISIN (recommended) or legacy Statement
+          rows with <strong className="font-medium">Transaction History</strong>
+          . Broker <strong className="font-medium">IBKR</strong>; instruments
+          match by ISIN when present, otherwise Yahoo symbol. Forex lines are
+          skipped.
+        </p>
+        <form
+          className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+          onSubmit={onSubmitIbkr}
+        >
+          <div className="min-w-0 flex-1">
+            <label htmlFor="ibkr-csv" className="sr-only">
+              IBKR CSV file
+            </label>
+            <input
+              id="ibkr-csv"
+              name="file"
+              type="file"
+              accept=".csv,text/csv"
+              className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border file:border-slate-300 file:bg-slate-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-100"
+              onChange={(ev) => {
+                const f = ev.target.files?.[0];
+                setIbkrFile(f ?? null);
+                setIbkrResult(null);
+                setIbkrError(null);
+                setIbkrMissingSymbols(null);
+                setIbkrAmbiguousSymbols(null);
+                setIbkrAmbiguousIsins(null);
+                setIbkrMissingIsins(null);
+              }}
+            />
+          </div>
+          {ibkrFile !== null ? (
+            <Button type="submit" disabled={busy}>
+              {busy ? "Working…" : "Import"}
+            </Button>
+          ) : null}
+        </form>
+        {ibkrError !== null ? (
+          <ErrorAlert className="mt-3">
+            <div className="whitespace-pre-wrap break-words">{ibkrError}</div>
+            {ibkrMissingIsins !== null && ibkrMissingIsins.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-0.5 pl-5">
+                {ibkrMissingIsins.map((isin) => (
+                  <li key={isin} className="break-words font-mono text-sm">
+                    {isin}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {ibkrAmbiguousIsins !== null && ibkrAmbiguousIsins.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-0.5 pl-5">
+                {ibkrAmbiguousIsins.map((isin) => (
+                  <li key={isin} className="break-words font-mono text-sm">
+                    {isin}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {ibkrMissingSymbols !== null && ibkrMissingSymbols.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-0.5 pl-5">
+                {ibkrMissingSymbols.map((sym) => (
+                  <li key={sym} className="break-words font-mono text-sm">
+                    {sym}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {ibkrAmbiguousSymbols !== null &&
+            ibkrAmbiguousSymbols.length > 0 ? (
+              <ul className="mt-2 list-disc space-y-0.5 pl-5">
+                {ibkrAmbiguousSymbols.map((sym) => (
+                  <li key={sym} className="break-words font-mono text-sm">
+                    {sym}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </ErrorAlert>
+        ) : null}
+        {ibkrResult !== null ? (
+          <p className="mt-3 text-sm text-emerald-800">
+            Processed {ibkrResult.processed} transaction
+            {ibkrResult.processed === 1 ? "" : "s"}: {ibkrResult.changed}{" "}
+            written to the database
+            {ibkrResult.unchanged > 0
+              ? `, ${ibkrResult.unchanged} already up to date`
+              : ""}
+            .
+          </p>
         ) : null}
       </section>
 
