@@ -2,7 +2,12 @@ import { type FormEvent, useEffect, useState } from "react";
 import { apiPostFormData } from "../api";
 import { Button } from "../components/Button";
 
-type DegiroOk = { ok: true; processed: number };
+type DegiroOk = {
+  ok: true;
+  processed: number;
+  changed: number;
+  unchanged: number;
+};
 
 type DegiroProposalOk = {
   isin: string;
@@ -89,7 +94,9 @@ export function ImportPage() {
         typeof data === "object" &&
         "ok" in data &&
         data.ok === true &&
-        "processed" in data
+        "processed" in data &&
+        "changed" in data &&
+        "unchanged" in data
       ) {
         setResult(data as DegiroOk);
         return;
@@ -154,7 +161,9 @@ export function ImportPage() {
         typeof data === "object" &&
         "ok" in data &&
         data.ok === true &&
-        "processed" in data
+        "processed" in data &&
+        "changed" in data &&
+        "unchanged" in data
       ) {
         setPending(null);
         setResult(data as DegiroOk);
@@ -225,8 +234,13 @@ export function ImportPage() {
         ) : null}
         {result !== null ? (
           <p className="mt-3 text-sm text-emerald-800">
-            Imported {result.processed} transaction
-            {result.processed === 1 ? "" : "s"} (upserted idempotently).
+            Processed {result.processed} transaction
+            {result.processed === 1 ? "" : "s"}: {result.changed} written to the
+            database
+            {result.unchanged > 0
+              ? `, ${result.unchanged} already up to date`
+              : ""}
+            .
           </p>
         ) : null}
 

@@ -269,7 +269,7 @@ app.post("/import/degiro", async (c) => {
     };
   });
 
-  await db
+  const written = await db
     .insert(transactions)
     .values(values)
     .onConflictDoUpdate({
@@ -287,9 +287,23 @@ app.post("/import/degiro", async (c) => {
         currency: sql`excluded.currency`,
         unitPriceEur: sql`excluded.unit_price_eur`,
       },
-    });
+      setWhere: sql`(
+        ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
+        OR ${transactions.side} IS DISTINCT FROM ${sql.raw("excluded.side")}
+        OR ${transactions.instrumentId} IS DISTINCT FROM ${sql.raw("excluded.instrument_id")}
+        OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
+        OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
+        OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
+        OR ${transactions.unitPriceEur} IS DISTINCT FROM ${sql.raw("excluded.unit_price_eur")}
+      )`,
+    })
+    .returning({ id: transactions.id });
 
-  return c.json({ ok: true, processed: values.length });
+  const processed = values.length;
+  const changed = written.length;
+  const unchanged = processed - changed;
+
+  return c.json({ ok: true, processed, changed, unchanged });
 });
 
 const cashCurrencySchema = z.enum(
