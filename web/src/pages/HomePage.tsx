@@ -451,8 +451,8 @@ export function HomePage() {
                   <th className="text-left p-2 font-medium">Ticker</th>
                   <th className="text-right p-2 font-medium">Qty</th>
                   <th className="text-right p-2 font-medium">Unit EUR</th>
-                  <th className="text-right p-2 font-medium">Weight</th>
                   <th className="text-right p-2 font-medium">Value EUR</th>
+                  <th className="text-right p-2 font-medium">Weight</th>
                 </tr>
               </thead>
               <tbody>
@@ -476,10 +476,10 @@ export function HomePage() {
                         : formatUnitPriceForDisplay(String(p.unitPriceEur))}
                     </td>
                     <td className="p-2 text-right tabular-nums">
-                      {formatPercentWidth4From01(p.weight)}
+                      {p.valueEur.toFixed(2)}
                     </td>
                     <td className="p-2 text-right tabular-nums">
-                      {p.valueEur.toFixed(2)}
+                      {formatPercentWidth4From01(p.weight)}
                     </td>
                   </tr>
                 ))}
