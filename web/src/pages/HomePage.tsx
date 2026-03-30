@@ -28,6 +28,7 @@ import {
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 import {
   formatTransactionUnitPriceForDisplay,
+  formatUnitPriceForDisplay,
   roundQuantityForDisplay,
 } from "../lib/numberFormat";
 
@@ -68,6 +69,8 @@ type Portfolio = {
   positions: Array<{
     instrumentId: number;
     displayName: string;
+    quantity: number;
+    unitPriceEur: number | null;
     weight: number;
     valueEur: number;
     valuationSource: string;
@@ -439,12 +442,15 @@ export function HomePage() {
               </ResponsiveContainer>
             </div>
           </div>
+          <h3 className="text-lg font-medium text-slate-800 mb-2">Holdings</h3>
           <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
             <table className="min-w-full">
               <thead className="bg-slate-100 text-slate-700">
                 <tr>
                   <th className="text-left p-2 font-medium">Ticker</th>
                   <th className="text-left p-2 font-medium">Instrument</th>
+                  <th className="text-right p-2 font-medium">Qty</th>
+                  <th className="text-right p-2 font-medium">Unit EUR</th>
                   <th className="text-right p-2 font-medium">Weight</th>
                   <th className="text-right p-2 font-medium">Value EUR</th>
                   <th className="text-left p-2 font-medium">Valuation</th>
@@ -461,6 +467,14 @@ export function HomePage() {
                     </td>
                     <td className="p-2 text-left min-w-[12rem] font-medium text-slate-900">
                       {p.displayName}
+                    </td>
+                    <td className="p-2 text-right tabular-nums">
+                      {roundQuantityForDisplay(String(p.quantity))}
+                    </td>
+                    <td className="p-2 text-right tabular-nums">
+                      {p.unitPriceEur == null
+                        ? "—"
+                        : formatUnitPriceForDisplay(String(p.unitPriceEur))}
                     </td>
                     <td className="p-2 text-right tabular-nums">
                       {formatPercentWidth4From01(p.weight)}
