@@ -136,27 +136,7 @@ const ASSET_MIX_COLORS = {
   equities: "#0f766e",
   bonds: "#6d28d9",
   cashExcess: "#0369a1",
-  emergency: "#15803d",
 } as const;
-
-function EmergencyFundWarningIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className={className}
-      role="img"
-    >
-      <title>Warning</title>
-      <path
-        fillRule="evenodd"
-        d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
 
 const HOLDING_DIST_TOOLTIP_OFFSET = 12;
 
@@ -358,13 +338,13 @@ export function HomePage() {
         value: aa.cashExcessEur,
         fill: ASSET_MIX_COLORS.cashExcess,
       },
-      {
-        name: "Emergency fund",
-        value: aa.emergencyFundSliceEur,
-        fill: ASSET_MIX_COLORS.emergency,
-      },
     ].filter((d) => d.value > 1e-9);
   }, [portfolio]);
+
+  const assetMixPieTotalEur = useMemo(
+    () => assetMixPieData.reduce((s, d) => s + d.value, 0),
+    [assetMixPieData],
+  );
 
   useEffect(() => {
     void load();
@@ -621,10 +601,15 @@ export function HomePage() {
             Distributions (value-weighted)
           </h2>
           <p className="text-slate-600 text-sm">
-            Total estimated EUR:{" "}
+            Total estimated:{" "}
             <span className="tabular-nums">
               {portfolio.totalValueEur.toFixed(2)}
-            </span>
+            </span>{" "}
+            EUR (incl.{" "}
+            <span className="tabular-nums">
+              {portfolio.assetAllocation.emergencyFundSliceEur.toFixed(2)}
+            </span>{" "}
+            EUR emergency fund)
             {portfolio.mixedCurrencyWarning && (
               <span className="text-amber-700 ml-2">
                 Mixed-currency warning (see API).
@@ -655,7 +640,7 @@ export function HomePage() {
                     <Tooltip
                       formatter={(v: number) =>
                         `${v.toFixed(2)} EUR (${(
-                          (v / portfolio.totalValueEur) * 100
+                          (v / assetMixPieTotalEur) * 100
                         ).toFixed(1)}%)`
                       }
                     />
@@ -663,23 +648,6 @@ export function HomePage() {
                       verticalAlign="bottom"
                       height={52}
                       wrapperStyle={{ fontSize: "12px" }}
-                      formatter={(value) => {
-                        if (
-                          value === "Emergency fund" &&
-                          portfolio.assetAllocation.cashBelowEmergencyTarget
-                        ) {
-                          return (
-                            <span
-                              className="inline-flex items-center gap-1 text-slate-700"
-                              title="Cash is below emergency fund target"
-                            >
-                              {value}
-                              <EmergencyFundWarningIcon className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                            </span>
-                          );
-                        }
-                        return value;
-                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>

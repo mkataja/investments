@@ -11,10 +11,15 @@ export function PortfolioViewSkeleton() {
         Distributions (value-weighted)
       </h2>
       <p className="text-slate-600 text-sm">
-        Total estimated EUR:{" "}
+        Total estimated:{" "}
         <span className="tabular-nums inline-block align-middle min-w-[5rem]">
           <BlockSkeleton className="h-4 w-20 inline-block" />
-        </span>
+        </span>{" "}
+        EUR (incl.{" "}
+        <span className="tabular-nums inline-block align-middle min-w-[4rem]">
+          <BlockSkeleton className="h-4 w-16 inline-block" />
+        </span>{" "}
+        EUR emergency fund)
       </p>
       <div className="max-w-md">
         <h3 className="text-sm font-medium text-slate-700 mb-1">Asset mix</h3>
