@@ -76,7 +76,9 @@ The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`
 
 ### Web UI polish
 
-When changing **`web`** forms and flows, include small UX improvements when they are an obvious fit—**e.g. focus the primary input** after the user picks a type or advances a step, sensible defaults, keyboard affordances. Keep scope tight: polish that ships with the feature, not unrelated refactors.
+When changing **`web`** forms and flows, include small UX improvements when they are an obvious fit—**e.g. focus the primary input** after the user picks a type or advances a step, sensible defaults, tooltips when they add value, keyboard affordances. Keep scope tight: polish that ships with the feature, not unrelated refactors.
+
+Do **not** generate extra UI copy texts **unless the user explicitly asks**. Only add the minimum amount of copy necessary for the feature to be usable.
 
 Shared **primary** controls (`Button`, `ButtonLink`) and a minimal style reference: **[`web/design-system.md`](web/design-system.md)**.
 
