@@ -81,6 +81,16 @@ function toChartData(rec: Record<string, number>) {
   return Object.entries(rec).map(([name, value]) => ({ name, value }));
 }
 
+function instrumentTickerCell(
+  instrumentId: number,
+  instrumentById: Map<number, Instrument>,
+  instrumentTickerById: Map<number, string | null>,
+): string {
+  const inst = instrumentById.get(instrumentId);
+  if (inst?.seligsonFund != null) return "-";
+  return instrumentTickerById.get(instrumentId) ?? "—";
+}
+
 export function HomePage() {
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -117,6 +127,14 @@ export function HomePage() {
     return m;
   }, [instruments]);
 
+  const instrumentById = useMemo(() => {
+    const m = new Map<number, Instrument>();
+    for (const i of instruments) {
+      m.set(i.id, i);
+    }
+    return m;
+  }, [instruments]);
+
   const instrumentTickerById = useMemo(() => {
     const m = new Map<number, string | null>();
     for (const i of instruments) {
@@ -124,6 +142,11 @@ export function HomePage() {
     }
     return m;
   }, [instruments]);
+
+  const holdingsSortedByWeight = useMemo(() => {
+    if (!portfolio) return [];
+    return [...portfolio.positions].sort((a, b) => b.weight - a.weight);
+  }, [portfolio]);
 
   useEffect(() => {
     void load();
@@ -456,33 +479,40 @@ export function HomePage() {
                 </tr>
               </thead>
               <tbody>
-                {portfolio.positions.map((p) => (
-                  <tr
-                    key={p.instrumentId}
-                    className="border-t border-slate-100"
-                  >
-                    <td className="p-2 text-left min-w-[12rem] font-medium text-slate-900">
-                      {p.displayName}
-                    </td>
-                    <td className="p-2 text-left tabular-nums text-slate-700">
-                      {instrumentTickerById.get(p.instrumentId) ?? "—"}
-                    </td>
-                    <td className="p-2 text-right tabular-nums">
-                      {roundQuantityForDisplay(String(p.quantity))}
-                    </td>
-                    <td className="p-2 text-right tabular-nums">
-                      {p.unitPriceEur == null
-                        ? "—"
-                        : formatUnitPriceForDisplay(String(p.unitPriceEur))}
-                    </td>
-                    <td className="p-2 text-right tabular-nums">
-                      {p.valueEur.toFixed(2)}
-                    </td>
-                    <td className="p-2 text-right tabular-nums">
-                      {formatPercentWidth4From01(p.weight)}
-                    </td>
-                  </tr>
-                ))}
+                {holdingsSortedByWeight.map((p) => {
+                  const ticker = instrumentTickerCell(
+                    p.instrumentId,
+                    instrumentById,
+                    instrumentTickerById,
+                  );
+                  return (
+                    <tr
+                      key={p.instrumentId}
+                      className="border-t border-slate-100"
+                    >
+                      <td className="p-2 text-left min-w-[12rem] font-medium text-slate-900">
+                        {p.displayName}
+                      </td>
+                      <td className="p-2 text-left tabular-nums text-slate-700">
+                        {ticker}
+                      </td>
+                      <td className="p-2 text-right tabular-nums">
+                        {roundQuantityForDisplay(String(p.quantity))}
+                      </td>
+                      <td className="p-2 text-right tabular-nums">
+                        {p.unitPriceEur == null
+                          ? "—"
+                          : formatUnitPriceForDisplay(String(p.unitPriceEur))}
+                      </td>
+                      <td className="p-2 text-right tabular-nums">
+                        {p.valueEur.toFixed(2)}
+                      </td>
+                      <td className="p-2 text-right tabular-nums">
+                        {formatPercentWidth4From01(p.weight)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -521,7 +551,11 @@ export function HomePage() {
                           `#${t.instrumentId}`}
                       </td>
                       <td className="p-2 text-left tabular-nums text-slate-700">
-                        {instrumentTickerById.get(t.instrumentId) ?? "—"}
+                        {instrumentTickerCell(
+                          t.instrumentId,
+                          instrumentById,
+                          instrumentTickerById,
+                        )}
                       </td>
                       <td className="p-2 text-right">
                         {roundQuantityForDisplay(t.quantity)}
