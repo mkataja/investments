@@ -14,8 +14,10 @@ import { apiGet, apiPost } from "../api";
 import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
-import { formatUnitPriceForDisplay } from "../lib/formatUnitPriceForDisplay";
-import { roundQuantityForDisplay } from "../lib/roundQuantityForDisplay";
+import {
+  formatUnitPriceForDisplay,
+  roundQuantityForDisplay,
+} from "../lib/numberFormat";
 
 type Broker = {
   id: number;
