@@ -1,6 +1,8 @@
-/** Compact display of cached distribution payloads (regions + sectors). */
+/** Compact display of cached distribution payloads (countries + sectors). */
 
 import {
+  DISTRIBUTION_SECTOR_TITLES,
+  type DistributionSectorId,
   GEO_BUCKET_ORDER,
   type GeoBucketId,
   aggregateRegionsToGeoBuckets,
@@ -13,9 +15,9 @@ export { aggregateRegionsToGeoBuckets, GEO_BUCKET_ORDER };
 
 /** @deprecated Use aggregateRegionsToGeoBuckets */
 export function aggregateRegionsToBuckets(
-  regions: Record<string, number>,
+  countries: Record<string, number>,
 ): Record<GeoBucket, number> {
-  return aggregateRegionsToGeoBuckets(regions);
+  return aggregateRegionsToGeoBuckets(countries);
 }
 
 const NBSP = "\u00a0";
@@ -33,20 +35,27 @@ export type SectorRow = {
   pctLabel: string;
 };
 
-const sectorNameCmp = (a: string, b: string) =>
+const sectorTitleCmp = (a: string, b: string) =>
   a.localeCompare(b, undefined, { sensitivity: "base" });
 
-/** Sectors in fixed alphabetical order by sector name (not by weight). */
+function sectorTitleForId(id: string): string {
+  const t = DISTRIBUTION_SECTOR_TITLES[id as DistributionSectorId];
+  return t ?? id;
+}
+
+/** Sectors in fixed alphabetical order by display title (not by weight). */
 export function sortedSectorsForDisplay(
   sectors: Record<string, number>,
 ): SectorRow[] {
   return Object.entries(sectors)
     .filter(([, v]) => typeof v === "number" && Number.isFinite(v) && v > 0)
-    .sort((a, b) => sectorNameCmp(a[0], b[0]))
-    .map(([name, w]) => ({
-      name,
+    .sort((a, b) =>
+      sectorTitleCmp(sectorTitleForId(a[0]), sectorTitleForId(b[0])),
+    )
+    .map(([id, w]) => ({
+      name: sectorTitleForId(id),
       weight: w,
-      icon: sectorIcon(name),
+      icon: sectorIcon(id),
       pctLabel: formatPercentWidth4From01(w),
     }));
 }
@@ -90,64 +99,46 @@ export function formatGeoLine(buckets: Record<GeoBucket, number>): string {
     .join(" · ");
 }
 
-export function sectorIcon(sectorName: string): string {
-  const s = sectorName.toLowerCase();
-  if (s === "cash") {
-    return "💵";
+/** Icons for canonical sector ids (`distribution/sectors.ts`). */
+export function sectorIcon(sectorId: string): string {
+  switch (sectorId) {
+    case "cash":
+      return "💵";
+    case "technology":
+      return "💻";
+    case "healthcare":
+      return "⚕️";
+    case "financials":
+      return "🏦";
+    case "consumer_cyclical":
+      return "🛍️";
+    case "consumer_defensive":
+      return "🥫";
+    case "industrials":
+      return "🏭";
+    case "energy":
+      return "🛢️";
+    case "materials":
+      return "🧱";
+    case "real_estate":
+      return "🏢";
+    case "utilities":
+      return "💡";
+    case "communication_services":
+      return "📡";
+    case "other":
+      return "📊";
+    default:
+      return "📊";
   }
-  if (
-    s.includes("tech") ||
-    s.includes("information technology") ||
-    s === "technology"
-  ) {
-    return "💻";
-  }
-  if (s.includes("health")) {
-    return "⚕️";
-  }
-  if (s.includes("financial")) {
-    return "🏦";
-  }
-  if (s.includes("consumer")) {
-    return "🛒";
-  }
-  if (s.includes("industrial")) {
-    return "🏭";
-  }
-  if (s.includes("energy")) {
-    return "🛢️";
-  }
-  if (s.includes("material")) {
-    return "🧱";
-  }
-  if (s.includes("real estate") || s.includes("reit")) {
-    return "🏢";
-  }
-  if (s.includes("utilit")) {
-    return "💡";
-  }
-  if (
-    s.includes("communication") ||
-    s.includes("telecom") ||
-    s.includes("media")
-  ) {
-    return "📡";
-  }
-  if (s.includes("staple")) {
-    return "🥫";
-  }
-  if (s.includes("discretionary")) {
-    return "🛍️";
-  }
-  return "📊";
 }
 
 export function formatDistributionTooltip(
-  regions: Record<string, number>,
+  countries: Record<string, number>,
   sectors: Record<string, number>,
 ): string {
   const lines: string[] = [];
-  const g = aggregateRegionsToGeoBuckets(regions);
+  const g = aggregateRegionsToGeoBuckets(countries);
   const geoSegs = geoSegmentsForDisplay(g);
   const geoParts = geoSegs.map(
     (s) => `${s.bucket} ${formatPercentWidth4From01(g[s.bucket])}`,
@@ -157,8 +148,10 @@ export function formatDistributionTooltip(
   }
   const secParts = Object.entries(sectors)
     .filter(([, v]) => typeof v === "number" && v > 0.0005)
-    .sort((a, b) => sectorNameCmp(a[0], b[0]))
-    .map(([k, v]) => `${k} ${formatPercentWidth4From01(v)}`);
+    .sort((a, b) =>
+      sectorTitleCmp(sectorTitleForId(a[0]), sectorTitleForId(b[0])),
+    )
+    .map(([k, v]) => `${sectorTitleForId(k)} ${formatPercentWidth4From01(v)}`);
   if (secParts.length > 0) {
     lines.push(`Sectors: ${secParts.join(", ")}`);
   }

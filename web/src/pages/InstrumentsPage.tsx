@@ -1,4 +1,5 @@
 import {
+  type DistributionPayload,
   geoBucketDisplayIcon,
   geoBucketDisplayTitle,
   instrumentKindColumnLabel,
@@ -16,11 +17,6 @@ import {
   geoSegmentsForDisplay,
   sortedSectorsForDisplay,
 } from "../lib/distributionDisplay";
-
-type DistributionPayload = {
-  regions: Record<string, number>;
-  sectors: Record<string, number>;
-};
 
 type SeligsonFundSummary = {
   id: number;
@@ -50,8 +46,11 @@ type InstrumentListItem = {
     fetchedAt: string;
     source: string;
     payload: DistributionPayload;
-    /** Yahoo quoteSummary JSON or Seligson HTML; absent for manual/legacy cache. */
-    rawPayload?: unknown;
+    yahooFinance?: { raw: unknown } | null;
+    seligsonDistribution?: {
+      countryHtml: string;
+      otherDistributionHtml: string;
+    } | null;
   } | null;
   seligsonFund: SeligsonFundSummary | null;
 };
@@ -67,7 +66,7 @@ function DistributionSummary({
   fetchedAt?: string;
 }) {
   const geoSegs = geoSegmentsForDisplay(
-    aggregateRegionsToBuckets(payload.regions),
+    aggregateRegionsToBuckets(payload.countries),
   );
   const sectorRows = sortedSectorsForDisplay(payload.sectors);
   return (
@@ -134,8 +133,8 @@ function DistributionSummary({
 function cashAccountSyntheticPayload(cashGeoKey: string): DistributionPayload {
   const trimmed = cashGeoKey.trim();
   return {
-    regions: trimmed.length > 0 ? { [trimmed]: 1 } : {},
-    sectors: { Cash: 1 },
+    countries: trimmed.length > 0 ? { [trimmed.toUpperCase()]: 1 } : {},
+    sectors: { cash: 1 },
   };
 }
 
