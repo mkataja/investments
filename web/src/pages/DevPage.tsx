@@ -52,7 +52,7 @@ export function DevPage() {
         <h2 className="text-lg font-medium">Yahoo Finance</h2>
         <div className="flex gap-2 flex-wrap items-center">
           <input
-            className="border rounded px-2 py-1 font-mono"
+            className="border rounded px-2 py-1"
             value={symbol}
             onChange={(e) => setSymbol(e.target.value)}
             placeholder="Symbol"
@@ -75,7 +75,7 @@ export function DevPage() {
         <h2 className="text-lg font-medium">Seligson FundViewer</h2>
         <div className="flex gap-2 flex-wrap items-center">
           <input
-            className="border rounded px-2 py-1 font-mono"
+            className="border rounded px-2 py-1"
             value={fid}
             onChange={(e) => setFid(e.target.value)}
             placeholder="fid"

@@ -268,7 +268,7 @@ export function NewInstrumentPage() {
               Yahoo symbol
               <input
                 ref={yahooSymbolInputRef}
-                className="mt-1 block w-full border rounded px-2 py-1 font-mono"
+                className="mt-1 block w-full border rounded px-2 py-1"
                 value={yahooSymbol}
                 onChange={(e) => setYahooSymbol(e.target.value)}
                 placeholder={kind === "stock" ? "BRK-B" : "SXR8.DE"}

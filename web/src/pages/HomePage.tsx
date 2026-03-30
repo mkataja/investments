@@ -534,10 +534,7 @@ export function HomePage() {
                     textAnchor="end"
                     height={80}
                   />
-                  <YAxis
-                    tickFormatter={(v) => formatPercentWidth4From01(v)}
-                    tick={{ fontFamily: "ui-monospace, monospace" }}
-                  />
+                  <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
                   <Tooltip
                     formatter={(v: number) => formatPercentWidth4From01(v)}
                   />
@@ -558,10 +555,7 @@ export function HomePage() {
                     textAnchor="end"
                     height={80}
                   />
-                  <YAxis
-                    tickFormatter={(v) => formatPercentWidth4From01(v)}
-                    tick={{ fontFamily: "ui-monospace, monospace" }}
-                  />
+                  <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
                   <Tooltip
                     formatter={(v: number) => formatPercentWidth4From01(v)}
                   />
