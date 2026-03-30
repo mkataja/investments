@@ -3,6 +3,7 @@ import {
   type CashCurrencyCode,
   DEFAULT_CASH_CURRENCY,
   SUPPORTED_CASH_CURRENCY_CODES,
+  normalizeCashAccountIsoCountryCode,
 } from "@investments/db";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -180,9 +181,11 @@ export function NewInstrumentPage() {
           setError("Enter a display name.");
           return;
         }
-        const geo = cashGeoKey.trim();
-        if (!geo) {
-          setError("Enter a geo key (e.g. country code).");
+        const geoIso = normalizeCashAccountIsoCountryCode(cashGeoKey);
+        if (geoIso == null) {
+          setError(
+            "Enter a valid ISO 3166-1 alpha-2 country code (e.g. FI, US).",
+          );
           return;
         }
         if (cashBrokerId === "" || typeof cashBrokerId !== "number") {
@@ -196,7 +199,7 @@ export function NewInstrumentPage() {
           brokerId: cashBrokerId,
           displayName: name,
           currency: cashCurrency,
-          cashGeoKey: geo,
+          cashGeoKey: geoIso,
         });
       } else {
         setError("Choose an instrument type.");
@@ -411,7 +414,8 @@ export function NewInstrumentPage() {
               />
             </label>
             <p className="text-xs text-slate-500">
-              Cash account country is not used for portfolio distribution calculations.
+              Cash account country is not used for portfolio distribution
+              calculations.
             </p>
           </div>
         ) : null}

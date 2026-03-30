@@ -7,6 +7,7 @@ import {
   distributionCache,
   instruments,
   isInstrumentKindAllowedForBrokerType,
+  normalizeCashAccountIsoCountryCode,
   normalizeYahooSymbolForStorage,
   seligsonFunds,
   transactions,
@@ -442,7 +443,15 @@ const instrumentIn = z.discriminatedUnion("kind", [
     brokerId: z.number().int().positive(),
     displayName: z.string().min(1),
     currency: cashCurrencySchema,
-    cashGeoKey: z.string().trim().min(1),
+    cashGeoKey: z
+      .string()
+      .trim()
+      .min(1)
+      .transform((s) => normalizeCashAccountIsoCountryCode(s))
+      .refine((s): s is string => s !== null, {
+        message:
+          "cashGeoKey must be a valid ISO 3166-1 alpha-2 country code (e.g. FI, US)",
+      }),
   }),
 ]);
 
