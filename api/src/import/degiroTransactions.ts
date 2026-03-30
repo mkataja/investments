@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import { parse } from "csv-parse/sync";
 
-/** Degiro “Transactions” export: 19 columns (incl. empty headers and trailing empty cell). */
+/**
+ * Degiro “Transactions” export: 18 columns as `csv-parse` sees them.
+ * The last column is an empty field from the trailing comma after `Order ID`.
+ * Data rows sometimes omit the empty field *before* the Order ID UUID (17 columns);
+ * {@link normalizeDegiroDataRow} inserts it so fingerprints stay stable.
+ */
 export const DEGIRO_TRANSACTIONS_HEADER: readonly string[] = [
   "Date",
   "Time",
@@ -22,6 +27,40 @@ export const DEGIRO_TRANSACTIONS_HEADER: readonly string[] = [
   "Order ID",
   "",
 ] as const;
+
+const DEGIRO_ORDER_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isDegiroOrderIdCell(s: string): boolean {
+  return DEGIRO_ORDER_ID_RE.test(normalizeDegiroCell(s));
+}
+
+/**
+ * Normalize a data row to {@link DEGIRO_TRANSACTIONS_HEADER}.length columns.
+ * Degiro sometimes omits the empty column between “Total EUR” and “Order ID”.
+ */
+export function normalizeDegiroDataRow(
+  cells: readonly string[],
+  expectedLen: number,
+): string[] | null {
+  const row = cells.map((c) => String(c));
+  while (
+    row.length > expectedLen &&
+    normalizeDegiroCell(row[row.length - 1] ?? "") === ""
+  ) {
+    row.pop();
+  }
+  if (row.length === expectedLen) {
+    return row;
+  }
+  if (row.length === expectedLen - 1) {
+    const last = row[row.length - 1] ?? "";
+    if (isDegiroOrderIdCell(last)) {
+      return [...row.slice(0, -1), "", last];
+    }
+  }
+  return null;
+}
 
 export const DEGIRO_CSV_EXTERNAL_SOURCE = "degiro_csv" as const;
 
@@ -114,7 +153,7 @@ export function parseDegiroTransactionsCsv(
   let records: string[][];
   try {
     records = parse(csvText, {
-      relax_column_count: false,
+      relax_column_count: true,
       skip_empty_lines: true,
       bom: true,
     }) as string[][];
@@ -138,6 +177,7 @@ export function parseDegiroTransactionsCsv(
     return { ok: false, errors };
   }
 
+  const expectedCols = DEGIRO_TRANSACTIONS_HEADER.length;
   const rows: DegiroParsedRow[] = [];
 
   for (let i = 1; i < records.length; i++) {
@@ -146,15 +186,16 @@ export function parseDegiroTransactionsCsv(
     if (!cells) {
       continue;
     }
-    if (cells.length !== DEGIRO_TRANSACTIONS_HEADER.length) {
+    const normalized = normalizeDegiroDataRow(cells, expectedCols);
+    if (normalized === null) {
       errors.push(
-        `Line ${line}: expected ${DEGIRO_TRANSACTIONS_HEADER.length} columns, got ${cells.length}`,
+        `Line ${line}: could not normalize to ${expectedCols} columns (got ${cells.length}); check Degiro Transactions CSV shape`,
       );
       continue;
     }
 
     const currency = normalizeDegiroCell(
-      cells[COL_CURRENCY] ?? "",
+      normalized[COL_CURRENCY] ?? "",
     ).toUpperCase();
     if (currency !== "EUR") {
       errors.push(
@@ -163,15 +204,15 @@ export function parseDegiroTransactionsCsv(
       continue;
     }
 
-    const isin = normalizeDegiroCell(cells[COL_ISIN] ?? "");
+    const isin = normalizeDegiroCell(normalized[COL_ISIN] ?? "");
     if (!/^[A-Z0-9]{12}$/.test(isin)) {
       errors.push(`Line ${line}: invalid or missing ISIN "${isin}"`);
       continue;
     }
 
-    const qtyStr = parseEuropeanDecimalString(cells[COL_QTY] ?? "");
+    const qtyStr = parseEuropeanDecimalString(normalized[COL_QTY] ?? "");
     if (qtyStr === null) {
-      errors.push(`Line ${line}: invalid quantity "${cells[COL_QTY]}"`);
+      errors.push(`Line ${line}: invalid quantity "${normalized[COL_QTY]}"`);
       continue;
     }
     const qtyNum = Number.parseFloat(qtyStr);
@@ -184,21 +225,21 @@ export function parseDegiroTransactionsCsv(
     const quantity = String(qtyAbs);
     const side: "buy" | "sell" = qtyNum > 0 ? "buy" : "sell";
 
-    const priceStr = parseEuropeanDecimalString(cells[COL_PRICE] ?? "");
+    const priceStr = parseEuropeanDecimalString(normalized[COL_PRICE] ?? "");
     if (priceStr === null) {
-      errors.push(`Line ${line}: invalid price "${cells[COL_PRICE]}"`);
+      errors.push(`Line ${line}: invalid price "${normalized[COL_PRICE]}"`);
       continue;
     }
 
-    const tradeDate = parseDegiroTradeDateDdMmYyyy(cells[COL_DATE] ?? "");
+    const tradeDate = parseDegiroTradeDateDdMmYyyy(normalized[COL_DATE] ?? "");
     if (!tradeDate) {
-      errors.push(`Line ${line}: invalid date "${cells[COL_DATE]}"`);
+      errors.push(`Line ${line}: invalid date "${normalized[COL_DATE]}"`);
       continue;
     }
 
     let externalId: string;
     try {
-      externalId = fingerprintDegiroRow(cells);
+      externalId = fingerprintDegiroRow(normalized);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       errors.push(`Line ${line}: ${msg}`);

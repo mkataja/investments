@@ -93,6 +93,19 @@ describe("parseDegiroTransactionsCsv", () => {
     }
     expect(a.rows[0]?.externalId).toBe(b.rows[0]?.externalId);
   });
+
+  it("normalizes rows when Degiro omits the empty column before Order ID", () => {
+    const shortRow =
+      '10-05-2023,15:32,ISHARES CORE S&P 500 UCITS ETF USD (ACC),IE00B5BMR087,XET,XETA,−3,"393,1200",EUR,"1179,36",EUR,"1179,36",,"0,00",,"1179,36",ff5b6ebc-da85-40f2-bef2-67002192af88';
+    const csv = `${headerLine()}${shortRow}\n`;
+    const result = parseDegiroTransactionsCsv(csv);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0]?.quantity).toBe("3");
+  });
 });
 
 describe("fingerprintDegiroRow", () => {
