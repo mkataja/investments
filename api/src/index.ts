@@ -11,9 +11,11 @@ import {
   normalizeCashAccountIsoCountryCode,
   normalizeYahooSymbolForStorage,
   portfolioSettings,
+  providerHoldingsCache,
   seligsonDistributionCache,
   seligsonFunds,
   transactions,
+  validateHoldingsDistributionUrl,
   yahooFinanceCache,
 } from "@investments/db";
 import {
@@ -293,7 +295,12 @@ app.post("/transactions", zValidator("json", transactionIn), async (c) => {
   if (!inst) {
     return c.json({ message: "Instrument not found" }, 404);
   }
-  if (!isInstrumentKindAllowedForBrokerType(brk.brokerType, inst.kind)) {
+  if (
+    !isInstrumentKindAllowedForBrokerType(
+      brk.brokerType as BrokerType,
+      inst.kind,
+    )
+  ) {
     return c.json(
       { message: "This instrument is not allowed for this broker" },
       400,
@@ -699,6 +706,7 @@ const instrumentIn = z.discriminatedUnion("kind", [
   z.object({
     kind: z.enum(["etf", "stock"]),
     yahooSymbol: z.string().min(1).transform(normalizeYahooSymbolForStorage),
+    holdingsDistributionUrl: z.string().optional(),
   }),
   z.object({
     kind: z.literal("custom"),
@@ -722,7 +730,15 @@ const instrumentIn = z.discriminatedUnion("kind", [
   }),
 ]);
 
-/** Only **`cash_account`** instruments accept PATCH (synced kinds are not editable). */
+const etfStockInstrumentPatchIn = z
+  .object({
+    holdingsDistributionUrl: z.union([z.string(), z.null()]).optional(),
+  })
+  .refine((o) => o.holdingsDistributionUrl !== undefined, {
+    message: "At least one field is required",
+  });
+
+/** Cash accounts and ETF/stock (holdings URL only) accept PATCH. */
 const cashInstrumentPatchIn = z
   .object({
     displayName: z.string().trim().min(1).optional(),
@@ -755,6 +771,7 @@ type JoinedInstrumentRow = {
   seligsonDistributionCache: InferSelectModel<
     typeof seligsonDistributionCache
   > | null;
+  providerHoldingsCache: InferSelectModel<typeof providerHoldingsCache> | null;
   seligsonFund: InferSelectModel<typeof seligsonFunds> | null;
   broker: InferSelectModel<typeof brokers> | null;
 };
@@ -768,12 +785,20 @@ function mapJoinedRowToInstrumentPayload(
     distribution,
     yahooFinanceCache: yahooRow,
     seligsonDistributionCache: seligsonRow,
+    providerHoldingsCache: providerHoldingsRow,
     seligsonFund: fund,
     broker: br,
   } = row;
   return {
     ...instrument,
     netQuantity,
+    providerHoldings: providerHoldingsRow
+      ? {
+          source: providerHoldingsRow.source,
+          fetchedAt: providerHoldingsRow.fetchedAt,
+          raw: providerHoldingsRow.raw,
+        }
+      : null,
     distribution: distribution
       ? {
           fetchedAt: distribution.fetchedAt,
@@ -808,6 +833,7 @@ async function loadInstrumentPayloadById(
       distribution: distributions,
       yahooFinanceCache: yahooFinanceCache,
       seligsonDistributionCache: seligsonDistributionCache,
+      providerHoldingsCache: providerHoldingsCache,
       seligsonFund: seligsonFunds,
       broker: brokers,
     })
@@ -820,6 +846,10 @@ async function loadInstrumentPayloadById(
     .leftJoin(
       seligsonDistributionCache,
       eq(instruments.id, seligsonDistributionCache.instrumentId),
+    )
+    .leftJoin(
+      providerHoldingsCache,
+      eq(instruments.id, providerHoldingsCache.instrumentId),
     )
     .leftJoin(seligsonFunds, eq(instruments.seligsonFundId, seligsonFunds.id))
     .leftJoin(brokers, eq(instruments.brokerId, brokers.id))
@@ -901,6 +931,7 @@ app.get("/instruments", async (c) => {
       distribution: distributions,
       yahooFinanceCache: yahooFinanceCache,
       seligsonDistributionCache: seligsonDistributionCache,
+      providerHoldingsCache: providerHoldingsCache,
       seligsonFund: seligsonFunds,
       broker: brokers,
     })
@@ -913,6 +944,10 @@ app.get("/instruments", async (c) => {
     .leftJoin(
       seligsonDistributionCache,
       eq(instruments.id, seligsonDistributionCache.instrumentId),
+    )
+    .leftJoin(
+      providerHoldingsCache,
+      eq(instruments.id, providerHoldingsCache.instrumentId),
     )
     .leftJoin(seligsonFunds, eq(instruments.seligsonFundId, seligsonFunds.id))
     .leftJoin(brokers, eq(instruments.brokerId, brokers.id))
@@ -996,7 +1031,22 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
 
   if (body.kind === "etf" || body.kind === "stock") {
     try {
-      const row = await insertEtfStockFromYahoo(body.kind, body.yahooSymbol);
+      if (
+        body.holdingsDistributionUrl != null &&
+        body.holdingsDistributionUrl.trim().length > 0
+      ) {
+        const v = validateHoldingsDistributionUrl(body.holdingsDistributionUrl);
+        if (!v.ok) {
+          return c.json({ message: v.message }, 400);
+        }
+      }
+      const row = await insertEtfStockFromYahoo(body.kind, body.yahooSymbol, {
+        holdingsDistributionUrl:
+          body.holdingsDistributionUrl != null &&
+          body.holdingsDistributionUrl.trim().length > 0
+            ? body.holdingsDistributionUrl
+            : null,
+      });
       return c.json(row, 201);
     } catch (e) {
       const { message, status } = formatYahooUpstreamError(e);
@@ -1112,31 +1162,27 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
   return c.json({ message: "Unsupported instrument kind" }, 400);
 });
 
-app.patch(
-  "/instruments/:id",
-  zValidator("json", cashInstrumentPatchIn),
-  async (c) => {
-    const id = Number.parseInt(c.req.param("id"), 10);
-    if (!Number.isFinite(id) || id < 1) {
-      return c.json({ message: "Invalid id" }, 400);
+app.patch("/instruments/:id", async (c) => {
+  const id = Number.parseInt(c.req.param("id"), 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid id" }, 400);
+  }
+  const [existing] = await db
+    .select()
+    .from(instruments)
+    .where(eq(instruments.id, id));
+  if (!existing) {
+    return c.json({ message: "Not found" }, 404);
+  }
+
+  const rawBody: unknown = await c.req.json();
+
+  if (existing.kind === "cash_account") {
+    const parsed = cashInstrumentPatchIn.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json({ message: parsed.error.flatten() }, 400);
     }
-    const body = c.req.valid("json");
-    const [existing] = await db
-      .select()
-      .from(instruments)
-      .where(eq(instruments.id, id));
-    if (!existing) {
-      return c.json({ message: "Not found" }, 404);
-    }
-    if (existing.kind !== "cash_account") {
-      return c.json(
-        {
-          message:
-            "Only cash account instruments can be edited; ETF, stock, and Seligson-linked instruments are synced from their source",
-        },
-        400,
-      );
-    }
+    const body = parsed.data;
 
     const updates: {
       displayName?: string;
@@ -1211,8 +1257,37 @@ app.patch(
       return c.json({ message: "Not found" }, 404);
     }
     return c.json(payload);
-  },
-);
+  }
+
+  if (existing.kind === "etf" || existing.kind === "stock") {
+    const parsed = etfStockInstrumentPatchIn.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json({ message: parsed.error.flatten() }, 400);
+    }
+    const body = parsed.data;
+    const v = validateHoldingsDistributionUrl(body.holdingsDistributionUrl);
+    if (!v.ok) {
+      return c.json({ message: v.message }, 400);
+    }
+    await db
+      .update(instruments)
+      .set({ holdingsDistributionUrl: v.normalized })
+      .where(eq(instruments.id, id));
+    const payload = await loadInstrumentPayloadById(id);
+    if (!payload) {
+      return c.json({ message: "Not found" }, 404);
+    }
+    return c.json(payload);
+  }
+
+  return c.json(
+    {
+      message:
+        "Unsupported instrument kind for PATCH (only cash accounts and ETF/stock)",
+    },
+    400,
+  );
+});
 
 app.post("/instruments/:id/refresh-distribution", async (c) => {
   const id = Number.parseInt(c.req.param("id"), 10);
