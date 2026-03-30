@@ -8,6 +8,7 @@ import { apiDelete, apiGet, apiPatch, apiPost } from "../api";
 import { Button } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Modal } from "../components/Modal";
+import { BrokersTableSkeleton } from "../components/listPageSkeletons";
 
 type BrokerRow = {
   id: number;
@@ -17,6 +18,7 @@ type BrokerRow = {
 
 export function BrokersPage() {
   const [rows, setRows] = useState<BrokerRow[]>([]);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -35,6 +37,8 @@ export function BrokersPage() {
       setRows(data);
     } catch (e) {
       setPageError(String(e));
+    } finally {
+      setInitialLoad(false);
     }
   }, []);
 
@@ -180,43 +184,47 @@ export function BrokersPage() {
       </Modal>
 
       <section className="space-y-2">
-        <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-left">
-                <th className="px-3 py-2 font-medium">Name</th>
-                <th className="px-3 py-2 font-medium">Type</th>
-                <th className="px-3 py-2 font-medium w-40">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="border-b border-slate-100">
-                  <td className="px-3 py-2">{r.name}</td>
-                  <td className="px-3 py-2">
-                    {BROKER_TYPE_DISPLAY[r.brokerType]}
-                  </td>
-                  <td className="px-3 py-2 space-x-3 whitespace-nowrap">
-                    <button
-                      type="button"
-                      className="text-emerald-800 underline text-sm"
-                      onClick={() => startEdit(r)}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      className="text-red-700 underline text-sm"
-                      onClick={() => void remove(r.id)}
-                    >
-                      Delete
-                    </button>
-                  </td>
+        {initialLoad ? (
+          <BrokersTableSkeleton />
+        ) : (
+          <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-left">
+                  <th className="px-3 py-2 font-medium">Name</th>
+                  <th className="px-3 py-2 font-medium">Type</th>
+                  <th className="px-3 py-2 font-medium w-40">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id} className="border-b border-slate-100">
+                    <td className="px-3 py-2">{r.name}</td>
+                    <td className="px-3 py-2">
+                      {BROKER_TYPE_DISPLAY[r.brokerType]}
+                    </td>
+                    <td className="px-3 py-2 space-x-3 whitespace-nowrap">
+                      <button
+                        type="button"
+                        className="text-emerald-800 underline text-sm"
+                        onClick={() => startEdit(r)}
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="text-red-700 underline text-sm"
+                        onClick={() => void remove(r.id)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
     </div>
   );

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiGet, apiPost } from "../api";
 import { ErrorAlert } from "../components/ErrorAlert";
+import { FormFieldsCardSkeleton } from "../components/skeletonPrimitives";
 
 type Kind = "etf" | "stock" | "custom" | "cash_account";
 
@@ -44,6 +45,7 @@ export function NewInstrumentPage() {
   const [kind, setKind] = useState<Kind | null>(null);
 
   const [brokers, setBrokers] = useState<BrokerRow[]>([]);
+  const [brokersLoading, setBrokersLoading] = useState(true);
 
   const yahooSymbolInputRef = useRef<HTMLInputElement>(null);
   const seligsonFidInputRef = useRef<HTMLInputElement>(null);
@@ -53,9 +55,11 @@ export function NewInstrumentPage() {
   const [cashBrokerId, setCashBrokerId] = useState<number | "">("");
 
   useEffect(() => {
+    setBrokersLoading(true);
     void apiGet<BrokerRow[]>("/brokers")
       .then(setBrokers)
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(String(e)))
+      .finally(() => setBrokersLoading(false));
   }, []);
 
   useEffect(() => {
@@ -304,122 +308,133 @@ export function NewInstrumentPage() {
         ) : null}
 
         {kind === "custom" ? (
-          <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
-            <label className="block text-sm">
-              Broker
-              <select
-                className="mt-1 block w-full border rounded px-2 py-1"
-                value={customBrokerId === "" ? "" : String(customBrokerId)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setCustomBrokerId(v === "" ? "" : Number.parseInt(v, 10));
-                }}
-                required
-              >
-                {seligsonBrokers.length === 0 ? (
-                  <option value="">
-                    No Seligson-type broker — add one under Brokers
-                  </option>
-                ) : (
-                  seligsonBrokers.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
+          brokersLoading ? (
+            <FormFieldsCardSkeleton ariaLabel="Loading brokers" fields={3} />
+          ) : (
+            <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
+              <label className="block text-sm">
+                Broker
+                <select
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  value={customBrokerId === "" ? "" : String(customBrokerId)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCustomBrokerId(v === "" ? "" : Number.parseInt(v, 10));
+                  }}
+                  required
+                >
+                  {seligsonBrokers.length === 0 ? (
+                    <option value="">
+                      No Seligson-type broker — add one under Brokers
                     </option>
-                  ))
-                )}
-              </select>
-            </label>
-            <label className="block text-sm">
-              Seligson FID
-              <input
-                ref={seligsonFidInputRef}
-                type="number"
-                min={1}
-                className="mt-1 block w-full border rounded px-2 py-1"
-                value={seligsonFid}
-                onChange={(e) => setSeligsonFid(e.target.value)}
-                placeholder="FundViewer fid=…"
-              />
-            </label>
-            <p className="text-xs text-slate-500">
-              The fund name is loaded from Seligson when you create the
-              instrument.
-            </p>
-          </div>
+                  ) : (
+                    seligsonBrokers.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <label className="block text-sm">
+                Seligson FID
+                <input
+                  ref={seligsonFidInputRef}
+                  type="number"
+                  min={1}
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  value={seligsonFid}
+                  onChange={(e) => setSeligsonFid(e.target.value)}
+                  placeholder="FundViewer fid=…"
+                />
+              </label>
+              <p className="text-xs text-slate-500">
+                The fund name is loaded from Seligson when you create the
+                instrument.
+              </p>
+            </div>
+          )
         ) : null}
 
         {kind === "cash_account" ? (
-          <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
-            <label className="block text-sm">
-              Broker
-              <select
-                className="mt-1 block w-full border rounded px-2 py-1"
-                value={cashBrokerId === "" ? "" : String(cashBrokerId)}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setCashBrokerId(v === "" ? "" : Number.parseInt(v, 10));
-                }}
-                required
-              >
-                {cashBrokers.length === 0 ? (
-                  <option value="">
-                    No cash-account-type broker — add one under Brokers
-                  </option>
-                ) : (
-                  cashBrokers.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
+          brokersLoading ? (
+            <FormFieldsCardSkeleton ariaLabel="Loading brokers" fields={4} />
+          ) : (
+            <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
+              <label className="block text-sm">
+                Broker
+                <select
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  value={cashBrokerId === "" ? "" : String(cashBrokerId)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCashBrokerId(v === "" ? "" : Number.parseInt(v, 10));
+                  }}
+                  required
+                >
+                  {cashBrokers.length === 0 ? (
+                    <option value="">
+                      No cash-account-type broker — add one under Brokers
                     </option>
-                  ))
-                )}
-              </select>
-            </label>
-            <label className="block text-sm">
-              Display name
-              <input
-                ref={cashDisplayNameInputRef}
-                className="mt-1 block w-full border rounded px-2 py-1"
-                required
-                value={cashDisplayName}
-                onChange={(e) => setCashDisplayName(e.target.value)}
-              />
-            </label>
-            <label className="block text-sm">
-              Currency
-              <select
-                className="mt-1 block w-full border rounded px-2 py-1"
-                value={cashCurrency}
-                onChange={(e) =>
-                  setCashCurrency(e.target.value as CashCurrencyCode)
-                }
-              >
-                {SUPPORTED_CASH_CURRENCY_CODES.map((code) => (
-                  <option key={code} value={code}>
-                    {code}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              Country code
-              <input
-                className="mt-1 block w-full border rounded px-2 py-1"
-                required
-                value={cashGeoKey}
-                onChange={(e) => setCashGeoKey(e.target.value)}
-                placeholder="ISO 2-letter code (e.g. FI)"
-              />
-            </label>
-            <p className="text-xs text-slate-500">
-              Cash account country is not used for portfolio distribution
-              calculations.
-            </p>
-          </div>
+                  ) : (
+                    cashBrokers.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              </label>
+              <label className="block text-sm">
+                Display name
+                <input
+                  ref={cashDisplayNameInputRef}
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  required
+                  value={cashDisplayName}
+                  onChange={(e) => setCashDisplayName(e.target.value)}
+                />
+              </label>
+              <label className="block text-sm">
+                Currency
+                <select
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  value={cashCurrency}
+                  onChange={(e) =>
+                    setCashCurrency(e.target.value as CashCurrencyCode)
+                  }
+                >
+                  {SUPPORTED_CASH_CURRENCY_CODES.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm">
+                Country code
+                <input
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  required
+                  value={cashGeoKey}
+                  onChange={(e) => setCashGeoKey(e.target.value)}
+                  placeholder="ISO 2-letter code (e.g. FI)"
+                />
+              </label>
+              <p className="text-xs text-slate-500">
+                Cash account country is not used for portfolio distribution
+                calculations.
+              </p>
+            </div>
+          )
         ) : null}
 
         <button
           type="submit"
-          disabled={!kind}
+          disabled={
+            !kind ||
+            (brokersLoading && (kind === "custom" || kind === "cash_account"))
+          }
           className="bg-emerald-700 disabled:bg-slate-300 text-white px-4 py-2 rounded"
         >
           Create instrument

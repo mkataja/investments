@@ -10,6 +10,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPatch } from "../api";
 import { ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
+import { EditInstrumentPageSkeleton } from "../components/listPageSkeletons";
+import { FormFieldsCardSkeleton } from "../components/skeletonPrimitives";
 
 type InstrumentDetail = {
   id: number;
@@ -35,6 +37,7 @@ export function EditInstrumentPage() {
   const [loading, setLoading] = useState(true);
   const [initial, setInitial] = useState<InstrumentDetail | null>(null);
   const [brokers, setBrokers] = useState<BrokerRow[]>([]);
+  const [brokersLoading, setBrokersLoading] = useState(true);
 
   const [displayName, setDisplayName] = useState("");
   const [cashBrokerId, setCashBrokerId] = useState<number | "">("");
@@ -44,9 +47,11 @@ export function EditInstrumentPage() {
   const [cashGeoKey, setCashGeoKey] = useState("");
 
   useEffect(() => {
+    setBrokersLoading(true);
     void apiGet<BrokerRow[]>("/brokers")
       .then(setBrokers)
-      .catch((e) => setError(String(e)));
+      .catch((e) => setError(String(e)))
+      .finally(() => setBrokersLoading(false));
   }, []);
 
   useEffect(() => {
@@ -127,11 +132,7 @@ export function EditInstrumentPage() {
   }
 
   if (loading) {
-    return (
-      <div className="w-full min-w-0 space-y-4">
-        <p className="text-slate-600 text-sm">Loading…</p>
-      </div>
-    );
+    return <EditInstrumentPageSkeleton />;
   }
 
   if (!initial) {
@@ -185,72 +186,77 @@ export function EditInstrumentPage() {
       </header>
 
       <form onSubmit={(e) => void submit(e)} className="space-y-6">
-        <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
-          <label className="block text-sm">
-            Broker
-            <select
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={cashBrokerId === "" ? "" : String(cashBrokerId)}
-              onChange={(e) => {
-                const v = e.target.value;
-                setCashBrokerId(v === "" ? "" : Number.parseInt(v, 10));
-              }}
-              required
-            >
-              {cashBrokers.length === 0 ? (
-                <option value="">
-                  No cash-account-type broker — add one under Brokers
-                </option>
-              ) : (
-                cashBrokers.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
+        {brokersLoading ? (
+          <FormFieldsCardSkeleton ariaLabel="Loading brokers" fields={4} />
+        ) : (
+          <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
+            <label className="block text-sm">
+              Broker
+              <select
+                className="mt-1 block w-full border rounded px-2 py-1"
+                value={cashBrokerId === "" ? "" : String(cashBrokerId)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCashBrokerId(v === "" ? "" : Number.parseInt(v, 10));
+                }}
+                required
+              >
+                {cashBrokers.length === 0 ? (
+                  <option value="">
+                    No cash-account-type broker — add one under Brokers
                   </option>
-                ))
-              )}
-            </select>
-          </label>
-          <label className="block text-sm">
-            Display name
-            <input
-              className="mt-1 block w-full border rounded px-2 py-1"
-              required
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Currency
-            <select
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={cashCurrency}
-              onChange={(e) =>
-                setCashCurrency(e.target.value as CashCurrencyCode)
-              }
-            >
-              {SUPPORTED_CASH_CURRENCY_CODES.map((code) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            Country code
-            <input
-              className="mt-1 block w-full border rounded px-2 py-1"
-              required
-              value={cashGeoKey}
-              onChange={(e) => setCashGeoKey(e.target.value)}
-              placeholder="ISO 2-letter code (e.g. FI)"
-            />
-          </label>
-        </div>
+                ) : (
+                  cashBrokers.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            </label>
+            <label className="block text-sm">
+              Display name
+              <input
+                className="mt-1 block w-full border rounded px-2 py-1"
+                required
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+              />
+            </label>
+            <label className="block text-sm">
+              Currency
+              <select
+                className="mt-1 block w-full border rounded px-2 py-1"
+                value={cashCurrency}
+                onChange={(e) =>
+                  setCashCurrency(e.target.value as CashCurrencyCode)
+                }
+              >
+                {SUPPORTED_CASH_CURRENCY_CODES.map((code) => (
+                  <option key={code} value={code}>
+                    {code}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm">
+              Country code
+              <input
+                className="mt-1 block w-full border rounded px-2 py-1"
+                required
+                value={cashGeoKey}
+                onChange={(e) => setCashGeoKey(e.target.value)}
+                placeholder="ISO 2-letter code (e.g. FI)"
+              />
+            </label>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-3">
           <button
             type="submit"
-            className="bg-emerald-700 text-white px-4 py-2 rounded"
+            disabled={brokersLoading}
+            className="bg-emerald-700 text-white px-4 py-2 rounded disabled:bg-slate-300 disabled:cursor-not-allowed"
           >
             Save
           </button>

@@ -1,20 +1,4 @@
-import Skeleton from "react-loading-skeleton";
-
-const skeletonColors = {
-  baseColor: "#e2e8f0",
-  highlightColor: "#f1f5f9",
-};
-
-function BlockSkeleton({ className }: { className?: string }) {
-  return (
-    <Skeleton
-      {...skeletonColors}
-      className={className}
-      borderRadius={6}
-      enableAnimation
-    />
-  );
-}
+import { BlockSkeleton } from "./skeletonPrimitives";
 
 export function PortfolioViewSkeleton() {
   return (

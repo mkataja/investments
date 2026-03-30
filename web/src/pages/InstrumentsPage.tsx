@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import { apiDelete, apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
+import { InstrumentsTableSkeleton } from "../components/listPageSkeletons";
 import {
   aggregateRegionsToBuckets,
   geoSegmentsForDisplay,
@@ -182,6 +183,7 @@ function RowRefreshSpinner({ className }: { className?: string }) {
 
 export function InstrumentsPage() {
   const [rows, setRows] = useState<InstrumentListItem[]>([]);
+  const [initialLoad, setInitialLoad] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -196,6 +198,8 @@ export function InstrumentsPage() {
       setRows(data);
     } catch (e) {
       setError(String(e));
+    } finally {
+      setInitialLoad(false);
     }
   }, []);
 
@@ -335,6 +339,7 @@ export function InstrumentsPage() {
         <div className="flex flex-wrap items-center gap-3">
           <Button
             disabled={
+              initialLoad ||
               refreshableCount === 0 ||
               refreshingAll ||
               refreshingId !== null ||
@@ -356,102 +361,109 @@ export function InstrumentsPage() {
         </p>
       )}
 
-      <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-100 text-slate-700">
-            <tr>
-              <th className="text-left p-2 font-medium">Kind</th>
-              <th className="text-left p-2 font-medium">Ticker</th>
-              <th className="text-left p-2 font-medium">Name</th>
-              <th className="text-left p-2 font-medium">Distribution</th>
-              <th className="text-right p-2 font-medium w-40">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedRows.map((i) => {
-              const rowRefreshing = refreshingId === i.id || refreshingAll;
-              const ticker = instrumentTickerDisplay(i);
-              return (
-                <tr key={i.id} className="border-t border-slate-100 align-top">
-                  <td className="p-2 text-slate-800">
-                    {instrumentKindColumnLabel(i)}
-                  </td>
-                  <td className="p-2 text-slate-700">{ticker ?? "—"}</td>
-                  <td className="p-2 font-medium text-slate-900">
-                    {i.displayName}
-                  </td>
-                  <td className="p-2 min-w-[14rem] max-w-xl align-top font-mono">
-                    {i.kind === "cash_account" ? (
-                      <CashAccountDistributionSummary
-                        cashGeoKey={i.cashGeoKey ?? ""}
-                      />
-                    ) : i.distribution ? (
-                      <DistributionSummary
-                        payload={i.distribution.payload}
-                        source={i.distribution.source}
-                        fetchedAt={i.distribution.fetchedAt}
-                      />
-                    ) : (
-                      <span className="text-slate-400 font-sans">
-                        No cache yet
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-2 text-right">
-                    <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end sm:gap-3">
-                      {i.kind === "cash_account" && (
-                        <Link
-                          to={`/instruments/${i.id}/edit`}
-                          className="text-sm text-emerald-800 hover:underline"
-                        >
-                          Edit
-                        </Link>
+      {initialLoad ? (
+        <InstrumentsTableSkeleton />
+      ) : (
+        <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm">
+          <table className="min-w-full text-sm">
+            <thead className="bg-slate-100 text-slate-700">
+              <tr>
+                <th className="text-left p-2 font-medium">Kind</th>
+                <th className="text-left p-2 font-medium">Ticker</th>
+                <th className="text-left p-2 font-medium">Name</th>
+                <th className="text-left p-2 font-medium">Distribution</th>
+                <th className="text-right p-2 font-medium w-40">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sortedRows.map((i) => {
+                const rowRefreshing = refreshingId === i.id || refreshingAll;
+                const ticker = instrumentTickerDisplay(i);
+                return (
+                  <tr
+                    key={i.id}
+                    className="border-t border-slate-100 align-top"
+                  >
+                    <td className="p-2 text-slate-800">
+                      {instrumentKindColumnLabel(i)}
+                    </td>
+                    <td className="p-2 text-slate-700">{ticker ?? "—"}</td>
+                    <td className="p-2 font-medium text-slate-900">
+                      {i.displayName}
+                    </td>
+                    <td className="p-2 min-w-[14rem] max-w-xl align-top font-mono">
+                      {i.kind === "cash_account" ? (
+                        <CashAccountDistributionSummary
+                          cashGeoKey={i.cashGeoKey ?? ""}
+                        />
+                      ) : i.distribution ? (
+                        <DistributionSummary
+                          payload={i.distribution.payload}
+                          source={i.distribution.source}
+                          fetchedAt={i.distribution.fetchedAt}
+                        />
+                      ) : (
+                        <span className="text-slate-400 font-sans">
+                          No cache yet
+                        </span>
                       )}
-                      {i.kind !== "cash_account" && (
+                    </td>
+                    <td className="p-2 text-right">
+                      <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end sm:gap-3">
+                        {i.kind === "cash_account" && (
+                          <Link
+                            to={`/instruments/${i.id}/edit`}
+                            className="text-sm text-emerald-800 hover:underline"
+                          >
+                            Edit
+                          </Link>
+                        )}
+                        {i.kind !== "cash_account" && (
+                          <button
+                            type="button"
+                            disabled={
+                              refreshingId === i.id ||
+                              deletingId === i.id ||
+                              refreshingAll
+                            }
+                            onClick={() => void refreshDistribution(i)}
+                            aria-busy={rowRefreshing}
+                            className="text-sm text-emerald-800 hover:underline disabled:opacity-50 inline-flex items-center justify-end gap-1.5"
+                          >
+                            {rowRefreshing ? (
+                              <>
+                                <RowRefreshSpinner className="text-emerald-800" />
+                                <span>Refreshing…</span>
+                              </>
+                            ) : (
+                              "Refresh"
+                            )}
+                          </button>
+                        )}
                         <button
                           type="button"
                           disabled={
-                            refreshingId === i.id ||
                             deletingId === i.id ||
+                            refreshingId === i.id ||
                             refreshingAll
                           }
-                          onClick={() => void refreshDistribution(i)}
-                          aria-busy={rowRefreshing}
-                          className="text-sm text-emerald-800 hover:underline disabled:opacity-50 inline-flex items-center justify-end gap-1.5"
+                          onClick={() => void removeInstrument(i)}
+                          className="text-sm text-red-700 hover:underline disabled:opacity-50"
                         >
-                          {rowRefreshing ? (
-                            <>
-                              <RowRefreshSpinner className="text-emerald-800" />
-                              <span>Refreshing…</span>
-                            </>
-                          ) : (
-                            "Refresh"
-                          )}
+                          {deletingId === i.id ? "Removing…" : "Remove"}
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        disabled={
-                          deletingId === i.id ||
-                          refreshingId === i.id ||
-                          refreshingAll
-                        }
-                        onClick={() => void removeInstrument(i)}
-                        className="text-sm text-red-700 hover:underline disabled:opacity-50"
-                      >
-                        {deletingId === i.id ? "Removing…" : "Remove"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        {rows.length === 0 && !error && (
-          <p className="p-6 text-slate-500 text-sm">No instruments yet.</p>
-        )}
-      </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {rows.length === 0 && !error && (
+            <p className="p-6 text-slate-500 text-sm">No instruments yet.</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
