@@ -11,7 +11,8 @@
     "db:migrate": "pnpm --filter @investments/db migrate",
     "db:studio": "pnpm --filter @investments/db studio",
     "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down"
+    "docker:down": "docker compose down",
+    "test": "pnpm --filter @investments/api test"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

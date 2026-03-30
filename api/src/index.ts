@@ -8,7 +8,7 @@ import {
   seligsonFunds,
   transactions,
 } from "@investments/db";
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
@@ -24,6 +24,10 @@ import {
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
 } from "./distributions/yahoo.js";
+import {
+  DEGIRO_CSV_EXTERNAL_SOURCE,
+  parseDegiroTransactionsCsv,
+} from "./import/degiroTransactions.js";
 import {
   refreshDistributionCacheForInstrumentId,
   refreshStaleDistributionCaches,
@@ -90,6 +94,127 @@ app.post("/transactions", zValidator("json", transactionIn), async (c) => {
     })
     .returning();
   return c.json(row, 201);
+});
+
+app.post("/import/degiro", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = (await c.req.parseBody({ all: true })) as Record<string, unknown>;
+  } catch {
+    return c.json({ message: "Invalid multipart body" }, 400);
+  }
+  const file = body.file;
+  if (file == null) {
+    return c.json({ message: 'Expected multipart field "file"' }, 400);
+  }
+  if (typeof file === "string") {
+    return c.json({ message: "Expected file upload, not string" }, 400);
+  }
+  const csvText = await (file as File).text();
+  const parsed = parseDegiroTransactionsCsv(csvText);
+  if (!parsed.ok) {
+    return c.json(
+      { message: "CSV validation failed", errors: parsed.errors },
+      400,
+    );
+  }
+  if (parsed.rows.length === 0) {
+    return c.json({ message: "No transaction rows to import" }, 400);
+  }
+
+  const [degiroBroker] = await db
+    .select()
+    .from(brokers)
+    .where(eq(brokers.code, "DEGIRO"))
+    .limit(1);
+  if (!degiroBroker) {
+    return c.json({ message: "Broker DEGIRO is not configured" }, 500);
+  }
+
+  const uniqueIsins = [...new Set(parsed.rows.map((r) => r.isin))];
+  const instRows = await db
+    .select()
+    .from(instruments)
+    .where(
+      and(
+        inArray(instruments.isin, uniqueIsins),
+        inArray(instruments.kind, ["etf", "stock", "seligson_fund"]),
+      ),
+    );
+
+  const idsByIsin = new Map<string, number[]>();
+  for (const row of instRows) {
+    if (!row.isin) {
+      continue;
+    }
+    const list = idsByIsin.get(row.isin) ?? [];
+    list.push(row.id);
+    idsByIsin.set(row.isin, list);
+  }
+
+  const missingIsins: string[] = [];
+  const ambiguousIsins: string[] = [];
+  for (const isin of uniqueIsins) {
+    const ids = idsByIsin.get(isin) ?? [];
+    if (ids.length === 0) {
+      missingIsins.push(isin);
+    } else if (ids.length > 1) {
+      ambiguousIsins.push(isin);
+    }
+  }
+  if (missingIsins.length > 0 || ambiguousIsins.length > 0) {
+    return c.json(
+      {
+        message:
+          "Resolve instruments before import (ISIN must match exactly one etf, stock, or seligson_fund).",
+        missingIsins,
+        ambiguousIsins,
+      },
+      400,
+    );
+  }
+
+  const values = parsed.rows.map((r) => {
+    const ids = idsByIsin.get(r.isin);
+    const instrumentId = ids?.[0];
+    if (instrumentId === undefined) {
+      throw new Error(`Missing instrument for ISIN ${r.isin}`);
+    }
+    return {
+      brokerId: degiroBroker.id,
+      tradeDate: r.tradeDate,
+      side: r.side,
+      instrumentId,
+      quantity: r.quantity,
+      unitPrice: r.unitPrice,
+      currency: r.currency,
+      unitPriceEur: r.unitPriceEur,
+      externalSource: DEGIRO_CSV_EXTERNAL_SOURCE,
+      externalId: r.externalId,
+    };
+  });
+
+  await db
+    .insert(transactions)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [
+        transactions.brokerId,
+        transactions.externalSource,
+        transactions.externalId,
+      ],
+      set: {
+        tradeDate: sql`excluded.trade_date`,
+        side: sql`excluded.side`,
+        instrumentId: sql`excluded.instrument_id`,
+        quantity: sql`excluded.quantity`,
+        unitPrice: sql`excluded.unit_price`,
+        currency: sql`excluded.currency`,
+        unitPriceEur: sql`excluded.unit_price_eur`,
+      },
+    });
+
+  return c.json({ ok: true, processed: values.length });
 });
 
 const cashCurrencySchema = z.enum(
