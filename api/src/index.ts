@@ -61,7 +61,6 @@ import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
 import { loadOpenPositions } from "./lib/positions.js";
 import { formatYahooUpstreamError } from "./lib/yahooUpstream.js";
-import { seedBrokers } from "./seed.js";
 
 const app = new Hono();
 
@@ -1301,13 +1300,9 @@ if (devToolsAllowed()) {
 
 const port = Number.parseInt(process.env.PORT ?? "3001", 10);
 
-seedBrokers()
-  .then(() => {
-    setImmediate(() => {
-      void refreshStaleDistributionCaches();
-    });
-  })
-  .catch(console.error);
+setImmediate(() => {
+  void refreshStaleDistributionCaches();
+});
 
 serve({ fetch: app.fetch, port }, (info) => {
   console.log(`API listening on http://localhost:${info.port}`);
