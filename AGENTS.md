@@ -40,7 +40,7 @@ Scripts and tool versions: **root [`package.json`](package.json)**. Local setup,
 
 Authoritative detail is **`db/src/schema.ts`** and migrations. Conceptually:
 
-- **`brokers`:** seeded broker codes (Seligson, Degiro, IBKR, Svea). **`SELIGSON`** is for Seligson mutual funds only; other brokers use listed instruments and cash accounts. Shared rule: **`isInstrumentKindAllowedForBrokerCode`** in **`@investments/db`** ( **`brokerInstrumentRules.ts`** ).
+- **`brokers`:** seeded broker codes (Seligson, Degiro, IBKR, Svea). **`SELIGSON`** → mutual funds only; default equity brokers → ETF/stock only; **`CASH_ACCOUNT_BROKER_CODES`** in **`brokerInstrumentRules.ts`** (e.g. **`SVEA`**) may also use **`cash_account`** instruments. Shared rule: **`isInstrumentKindAllowedForBrokerCode`** in **`@investments/db`**.
 - **`seligson_funds`:** Seligson products keyed by **`fid`** (unique); **`name`**, notes, active flag. Rows are created when adding a Seligson instrument ( **`POST /instruments`** with **`seligsonFid`** ) or reused if **`fid`** already exists.
 - **`instruments`:** **`kind`** (`etf` | `stock` | `seligson_fund` | `cash_account`), identifiers and cash/Seligson fields as in schema; optional **`mark_price_eur`** when Yahoo quotes are not used.
 - **`transactions`:** trades with **`currency`** and optional **`unit_price_eur`** for EUR-side reporting; optional **`external_source`** / **`external_id`** for idempotent broker imports (e.g. Degiro **Order ID** UUID).
