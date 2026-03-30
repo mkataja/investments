@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { zValidator } from "@hono/zod-validator";
 import {
   type BrokerType,
+  IMPLICIT_DEFAULT_USER_ID,
   SUPPORTED_CASH_CURRENCY_CODES,
   brokers,
   distributions,
@@ -9,6 +10,7 @@ import {
   isInstrumentKindAllowedForBrokerType,
   normalizeCashAccountIsoCountryCode,
   normalizeYahooSymbolForStorage,
+  portfolioSettings,
   seligsonDistributionCache,
   seligsonFunds,
   transactions,
@@ -83,6 +85,39 @@ const devToolsAllowed = () =>
   process.env.NODE_ENV === "development" || process.env.DEV_TOOLS === "true";
 
 app.get("/health", (c) => c.json({ ok: true }));
+
+const settingsPatchIn = z.object({
+  emergencyFundEur: z.number().finite().nonnegative(),
+});
+
+app.get("/settings", async (c) => {
+  const [row] = await db
+    .select()
+    .from(portfolioSettings)
+    .where(eq(portfolioSettings.userId, IMPLICIT_DEFAULT_USER_ID))
+    .limit(1);
+  if (!row) {
+    return c.json({ message: "Settings not found" }, 500);
+  }
+  return c.json({
+    emergencyFundEur: Number(row.emergencyFundEur),
+  });
+});
+
+app.patch("/settings", zValidator("json", settingsPatchIn), async (c) => {
+  const body = c.req.valid("json");
+  const [updated] = await db
+    .update(portfolioSettings)
+    .set({ emergencyFundEur: String(body.emergencyFundEur) })
+    .where(eq(portfolioSettings.userId, IMPLICIT_DEFAULT_USER_ID))
+    .returning();
+  if (!updated) {
+    return c.json({ message: "Settings not found" }, 404);
+  }
+  return c.json({
+    emergencyFundEur: Number(updated.emergencyFundEur),
+  });
+});
 
 app.get("/brokers", async (c) => {
   const rows = await db.select().from(brokers).orderBy(asc(brokers.id));

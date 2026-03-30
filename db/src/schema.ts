@@ -11,6 +11,32 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
+/**
+ * Placeholder for future auth; the migration seeds one implicit default user (id 1).
+ */
+export const users = pgTable("users", {
+  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * One row per user; portfolio-wide preferences not tied to a broker or instrument.
+ */
+export const portfolioSettings = pgTable("portfolio_settings", {
+  userId: integer("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  /** Amount reserved as emergency cash; excluded from investable allocation in distribution views (future). */
+  emergencyFundEur: numeric("emergency_fund_eur", {
+    precision: 24,
+    scale: 8,
+  })
+    .notNull()
+    .default("0"),
+});
+
 export const brokers = pgTable(
   "brokers",
   {
@@ -181,6 +207,23 @@ export const seligsonFundValueCache = pgTable("seligson_fund_value_cache", {
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
   raw: jsonb("raw").notNull(),
 });
+
+export const usersRelations = relations(users, ({ one }) => ({
+  portfolioSettings: one(portfolioSettings, {
+    fields: [users.id],
+    references: [portfolioSettings.userId],
+  }),
+}));
+
+export const portfolioSettingsRelations = relations(
+  portfolioSettings,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [portfolioSettings.userId],
+      references: [users.id],
+    }),
+  }),
+);
 
 export const brokersRelations = relations(brokers, ({ many }) => ({
   transactions: many(transactions),

@@ -25,9 +25,9 @@ pnpm workspace — see [`pnpm-workspace.yaml`](pnpm-workspace.yaml):
 
 | Package | Role |
 | --- | --- |
-| [`db`](db) | Drizzle schema, SQL migrations, shared types, **`currencies.ts`**, **`yahooSymbol.ts`** (canonical Yahoo ticker normalization), **`geo/`** (ISO country resolution + default geo buckets for portfolio/instruments UI), **`brokerInstrumentRules`**, **`instrumentSelectLabel`** (transaction UI labels) |
+| [`db`](db) | Drizzle schema, SQL migrations, shared types, **`currencies.ts`**, **`yahooSymbol.ts`** (canonical Yahoo ticker normalization), **`geo/`** (ISO country resolution + default geo buckets for portfolio/instruments UI), **`brokerInstrumentRules`**, **`instrumentSelectLabel`** (transaction UI labels), **`userDefaults`** (`IMPLICIT_DEFAULT_USER_ID` for portfolio settings until auth) |
 | [`api`](api) | Hono API, valuation, distribution fetch/normalize, cache refresh |
-| [`web`](web) | Vite + React + Tailwind; portfolio UI, **brokers** at `/brokers`, **instruments list** at `/instruments`, **new instrument** at `/instruments/new`, **Degiro CSV + Seligson TSV import** at `/import`, dev data checks |
+| [`web`](web) | Vite + React + Tailwind; portfolio UI, **brokers** at `/brokers`, **settings** at `/settings`, **instruments list** at `/instruments`, **new instrument** at `/instruments/new`, **Degiro CSV + Seligson TSV import** at `/import`, dev data checks |
 
 Scripts and tool versions: **root [`package.json`](package.json)**. Local setup, ports, and env keys: **[`README.md`](README.md)** and **[`.env.example`](.env.example)** — **do not duplicate** those here; they change often.
 
@@ -40,6 +40,8 @@ Scripts and tool versions: **root [`package.json`](package.json)**. Local setup,
 
 Authoritative detail is **`db/src/schema.ts`** and migrations. Conceptually:
 
+- **`users`:** placeholder for future auth; the migration inserts one implicit default row (**`id` = `1`**). **`IMPLICIT_DEFAULT_USER_ID`** in **`@investments/db`** (`userDefaults.ts`) is the API’s current scope for portfolio-level settings.
+- **`portfolio_settings`:** one row per **`users.id`** (**`user_id`** PK); **`emergency_fund_eur`**. Today the API reads/writes only the default user’s row (**`GET/PATCH /settings`**).
 - **`brokers`:** **`name`** is unique. The API does not insert default broker rows at startup. **`broker_type`** is **`exchange`** (Yahoo-backed equities), **`seligson`** (custom integrations / mutual funds), or **`cash_account`** (cash balances only—no equities). CRUD via **`GET/POST/PATCH/DELETE /brokers`** ( **`/brokers`** in **`web`** ). Which instrument kinds are allowed per broker: **`isInstrumentKindAllowedForBrokerType`** in **`@investments/db`** (**`cash_account`** → **`cash_account`** instruments only).
 - **`seligson_funds`:** Seligson products keyed by **`fid`** (unique); **`name`**, notes, active flag. Rows are created when adding a **`custom`** instrument ( **`POST /instruments`** with **`seligsonFid`** and a Seligson-type **`brokerId`** ) or reused if **`fid`** already exists.
 - **`instruments`:** **`kind`** (`etf` | `stock` | `custom` | `cash_account`). **`broker_id`** is **null** for **`etf`/`stock`**, **required** for **`custom`** and **`cash_account`** (identifies which broker’s integration applies). **`custom`** rows may reference **`seligson_fund_id`** when that broker’s pipeline uses Seligson fund data.
@@ -65,6 +67,7 @@ The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`
 ## API and web (where to look)
 
 - **HTTP routes, CORS, dev-only routes, validation:** **`api`** entrypoint / modules — single source of truth; **do not maintain a duplicate route list in this file.**
+- **`GET/PATCH /settings`** returns or updates **`{ emergencyFundEur }`** for **`IMPLICIT_DEFAULT_USER_ID`** ( **`portfolio_settings`** row); **`PATCH`** body **`emergencyFundEur`** ≥ **0**.
 - **`GET /instruments`** returns each instrument row plus **`netQuantity`** (sum of buys minus sells), optional joined **`distribution`** (`fetchedAt`, `source`, **`payload`** with **`countries` / `sectors`**, optional **`yahooFinance`** / **`seligsonDistribution`** raw snapshots), optional **`broker`** summary (`id`, `name`, `brokerType`) when **`broker_id`** is set, and optional **`seligsonFund`** (`id`, `fid`, `name`) for **`custom`** Seligson-linked rows. Optional query **`brokerId`**: returns only instruments allowed for that broker’s **`broker_type`** (same rules as **`isInstrumentKindAllowedForBrokerType`**), and **`custom`** / **`cash_account`** rows must also match **`instruments.broker_id`** to that broker; **`400`** / **`404`** for invalid or missing broker id.
 - **`POST /transactions`** validates **`broker_id`** + **`instrument_id`**: the instrument kind must be allowed for the broker type, and **`custom`** / **`cash_account`** instruments must belong to the same broker (**`instrument.broker_id`**).
 - **`GET /instruments/:id`** returns the same shape as one list element; **`404`** if missing.
