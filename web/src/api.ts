@@ -1,5 +1,18 @@
 const base = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
 
+/** Thrown by {@link apiPostFormData} on non-OK responses; {@link body} is set when the response was JSON. */
+export class HttpError extends Error {
+  readonly status: number;
+  readonly body: unknown;
+
+  constructor(message: string, status: number, body: unknown) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+    this.body = body;
+  }
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${base}${path}`);
   if (!res.ok) {
@@ -41,7 +54,14 @@ export async function apiPostFormData<T>(
     body: form,
   });
   if (!res.ok) {
-    throw new Error(`${res.status} ${await res.text()}`);
+    const text = await res.text();
+    let body: unknown;
+    try {
+      body = JSON.parse(text) as unknown;
+    } catch {
+      body = undefined;
+    }
+    throw new HttpError(`${res.status} ${text}`, res.status, body);
   }
   return res.json() as Promise<T>;
 }

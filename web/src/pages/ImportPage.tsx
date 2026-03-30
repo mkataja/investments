@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { apiPostFormData } from "../api";
+import { HttpError, apiPostFormData } from "../api";
 import { Button } from "../components/Button";
 
 type DegiroOk = {
@@ -240,19 +240,40 @@ export function ImportPage() {
       }
       setSeligsonError("Unexpected response from server.");
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const parsed = tryParseImportErrorJson(msg);
-      if (parsed?.missingFundNames && parsed.missingFundNames.length > 0) {
-        setSeligsonMissingFunds(parsed.missingFundNames);
-        setSeligsonError(parsed.message ?? msg);
-      } else if (
-        parsed?.ambiguousFundNames &&
-        parsed.ambiguousFundNames.length > 0
+      if (
+        err instanceof HttpError &&
+        err.body !== null &&
+        typeof err.body === "object"
       ) {
-        setSeligsonAmbiguousFunds(parsed.ambiguousFundNames);
-        setSeligsonError(parsed.message ?? msg);
+        const o = err.body as {
+          message?: string;
+          missingFundNames?: string[];
+          ambiguousFundNames?: string[];
+        };
+        if (o.missingFundNames && o.missingFundNames.length > 0) {
+          setSeligsonMissingFunds(o.missingFundNames);
+          setSeligsonError(o.message ?? err.message);
+        } else if (o.ambiguousFundNames && o.ambiguousFundNames.length > 0) {
+          setSeligsonAmbiguousFunds(o.ambiguousFundNames);
+          setSeligsonError(o.message ?? err.message);
+        } else {
+          setSeligsonError(o.message ?? err.message);
+        }
       } else {
-        setSeligsonError(msg);
+        const msg = err instanceof Error ? err.message : String(err);
+        const parsed = tryParseImportErrorJson(msg);
+        if (parsed?.missingFundNames && parsed.missingFundNames.length > 0) {
+          setSeligsonMissingFunds(parsed.missingFundNames);
+          setSeligsonError(parsed.message ?? msg);
+        } else if (
+          parsed?.ambiguousFundNames &&
+          parsed.ambiguousFundNames.length > 0
+        ) {
+          setSeligsonAmbiguousFunds(parsed.ambiguousFundNames);
+          setSeligsonError(parsed.message ?? msg);
+        } else {
+          setSeligsonError(msg);
+        }
       }
     } finally {
       setBusy(false);
@@ -432,23 +453,28 @@ export function ImportPage() {
           ) : null}
         </form>
         {seligsonError !== null ? (
-          <div className="mt-3 space-y-2">
-            <pre className="whitespace-pre-wrap break-words rounded border border-red-200 bg-red-50 p-3 text-xs text-red-900">
-              {seligsonError}
-            </pre>
+          <div
+            className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-xs text-red-900"
+            role="alert"
+          >
+            <p className="whitespace-pre-wrap break-words">{seligsonError}</p>
             {seligsonMissingFunds !== null &&
             seligsonMissingFunds.length > 0 ? (
-              <ul className="list-inside list-disc text-sm text-red-900">
+              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm">
                 {seligsonMissingFunds.map((name) => (
-                  <li key={name}>{name}</li>
+                  <li key={name} className="break-words">
+                    {name}
+                  </li>
                 ))}
               </ul>
             ) : null}
             {seligsonAmbiguousFunds !== null &&
             seligsonAmbiguousFunds.length > 0 ? (
-              <ul className="list-inside list-disc text-sm text-red-900">
+              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm">
                 {seligsonAmbiguousFunds.map((name) => (
-                  <li key={name}>{name}</li>
+                  <li key={name} className="break-words">
+                    {name}
+                  </li>
                 ))}
               </ul>
             ) : null}
