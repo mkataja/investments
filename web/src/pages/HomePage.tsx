@@ -36,8 +36,10 @@ import {
 } from "../components/PortfolioViewSkeleton";
 import { formatInstantForDisplay } from "../lib/dateTimeFormat";
 import {
+  allCountriesChartData,
   formatPercentWidth4From01,
-  topCountriesChartData,
+  portfolioRegionBarRows,
+  portfolioSectorBarRows,
 } from "../lib/distributionDisplay";
 import {
   formatTransactionUnitPriceForDisplay,
@@ -136,10 +138,6 @@ function EmergencyFundWarningIcon({ className }: { className?: string }) {
       />
     </svg>
   );
-}
-
-function toChartData(rec: Record<string, number>) {
-  return Object.entries(rec).map(([name, value]) => ({ name, value }));
 }
 
 const HOLDING_DIST_TOOLTIP_OFFSET = 12;
@@ -424,7 +422,7 @@ export function HomePage() {
                 Regions
               </h3>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={toChartData(portfolio.regions)}>
+                <BarChart data={portfolioRegionBarRows(portfolio.regions)}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="name"
@@ -445,7 +443,7 @@ export function HomePage() {
                 Sectors
               </h3>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={toChartData(portfolio.sectors)}>
+                <BarChart data={portfolioSectorBarRows(portfolio.sectors)}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="name"
@@ -457,7 +455,6 @@ export function HomePage() {
                   <Tooltip
                     formatter={(v: number) => formatPercentWidth4From01(v)}
                   />
-                  <Legend />
                   <Bar dataKey="value" fill="#334155" name="Weight" />
                 </BarChart>
               </ResponsiveContainer>
@@ -465,10 +462,10 @@ export function HomePage() {
           </div>
           <div className="h-64">
             <h3 className="text-sm font-medium text-slate-700 mb-2">
-              Countries (top 15 + other)
+              Countries
             </h3>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topCountriesChartData(portfolio.countries, 15)}>
+              <BarChart data={allCountriesChartData(portfolio.countries)}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="name"

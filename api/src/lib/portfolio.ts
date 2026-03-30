@@ -197,6 +197,8 @@ export async function getPortfolioDistributions(): Promise<{
 
   const countryWeights: Record<string, number> = {};
   const sectors: Record<string, number> = {};
+  let missingCountryW = 0;
+  let missingSectorW = 0;
 
   for (const row of valued) {
     const { inst } = row;
@@ -215,10 +217,21 @@ export async function getPortfolioDistributions(): Promise<{
     const payload = cached?.payload as DistributionPayload | undefined;
     if (payload?.countries && Object.keys(payload.countries).length > 0) {
       mergeWeighted(countryWeights, payload.countries, w);
+    } else {
+      missingCountryW += w;
     }
     if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
       mergeWeighted(sectors, payload.sectors, w);
+    } else {
+      missingSectorW += w;
     }
+  }
+
+  if (missingCountryW > 0) {
+    countryWeights.__portfolio_unknown__ = missingCountryW;
+  }
+  if (missingSectorW > 0) {
+    sectors.__portfolio_unknown__ = missingSectorW;
   }
 
   const positions = valued.map((row) => {

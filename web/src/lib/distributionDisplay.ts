@@ -8,6 +8,7 @@ import {
   aggregateRegionsToGeoBuckets,
   countryIsoToFlagEmoji,
   geoBucketDisplayIcon,
+  geoBucketDisplayTitle,
   resolveRegionKeyToIso,
 } from "@investments/db";
 
@@ -17,6 +18,11 @@ export { aggregateRegionsToGeoBuckets, GEO_BUCKET_ORDER };
 
 /** Weights merged under this key could not be resolved to ISO (see `resolveRegionKeyToIso`). */
 export const UNMAPPED_COUNTRY_KEY = "__unmapped__";
+
+/** Synthetic key from API for non-cash holdings with no distribution cache (see `api` portfolio merge). */
+export const PORTFOLIO_UNKNOWN_COUNTRY_KEY = "__portfolio_unknown__";
+
+const CHART_UNKNOWN_LABEL = "Unknown";
 
 /** @deprecated Use aggregateRegionsToGeoBuckets */
 export function aggregateRegionsToBuckets(
@@ -65,7 +71,7 @@ export function topCountriesSegmentsForDisplay(
   const restW = entries.slice(topN).reduce((s, [, w]) => s + w, 0);
   const segments: CountrySegment[] = top.map(([k, w]) => ({
     key: k,
-    label: k === UNMAPPED_COUNTRY_KEY ? "Unmapped" : k,
+    label: k === UNMAPPED_COUNTRY_KEY ? CHART_UNKNOWN_LABEL : k,
     icon: k === UNMAPPED_COUNTRY_KEY ? "⚠️" : countryIsoToFlagEmoji(k),
     pctLabel: formatPercentWidth4From01(w),
     weight: w,
@@ -82,23 +88,67 @@ export function topCountriesSegmentsForDisplay(
   return segments;
 }
 
-/** Bar chart rows: top `topN` countries by weight plus optional "Other" for the rest. */
-export function topCountriesChartData(
+/** Country bar chart: all ISO / unknown segments sorted by weight; **Unknown** last. */
+export function allCountriesChartData(
   countries: Record<string, number>,
-  topN: number,
 ): Array<{ name: string; value: number }> {
   const norm = normalizeCountryWeightsForDisplay(countries);
-  const entries = Object.entries(norm).sort((a, b) => b[1] - a[1]);
-  const top = entries.slice(0, topN);
-  const restW = entries.slice(topN).reduce((s, [, w]) => s + w, 0);
-  const data = top.map(([iso, v]) => ({
-    name: iso === UNMAPPED_COUNTRY_KEY ? "Unmapped" : iso,
-    value: v,
-  }));
-  if (restW > 0.0005) {
-    data.push({ name: "Other", value: restW });
-  }
-  return data;
+  const rows = Object.entries(norm)
+    .filter(([, v]) => v > 0.0005)
+    .map(([k, v]) => ({
+      key: k,
+      name: k === UNMAPPED_COUNTRY_KEY ? CHART_UNKNOWN_LABEL : k,
+      value: v,
+    }));
+  return sortBarChartRowsUnknownLast(
+    rows,
+    (r) => r.key === UNMAPPED_COUNTRY_KEY,
+  );
+}
+
+function sortBarChartRowsUnknownLast(
+  rows: Array<{ key: string; name: string; value: number }>,
+  isUnknown: (r: { key: string }) => boolean,
+): Array<{ name: string; value: number }> {
+  const unk = rows.filter(isUnknown);
+  const kn = rows.filter((r) => !isUnknown(r));
+  kn.sort((a, b) => b.value - a.value);
+  unk.sort((a, b) => b.value - a.value);
+  return [...kn, ...unk].map(({ name, value }) => ({ name, value }));
+}
+
+/** Regions bar chart: sorted by weight; geo bucket **unknown** last. */
+export function portfolioRegionBarRows(
+  regions: Record<string, number>,
+): Array<{ name: string; value: number }> {
+  const rows = Object.entries(regions)
+    .filter(([, v]) => v > 0.0005)
+    .map(([id, value]) => ({
+      key: id,
+      name:
+        id === "unknown"
+          ? CHART_UNKNOWN_LABEL
+          : geoBucketDisplayTitle(id as GeoBucketId),
+      value,
+    }));
+  return sortBarChartRowsUnknownLast(rows, (r) => r.key === "unknown");
+}
+
+/** Sectors bar chart: sorted by weight; no-cache **Unknown** last. */
+export function portfolioSectorBarRows(
+  sectors: Record<string, number>,
+): Array<{ name: string; value: number }> {
+  const rows = Object.entries(sectors)
+    .filter(([, v]) => v > 0.0005)
+    .map(([id, value]) => ({
+      key: id,
+      name: sectorTitleForId(id),
+      value,
+    }));
+  return sortBarChartRowsUnknownLast(
+    rows,
+    (r) => r.key === PORTFOLIO_UNKNOWN_COUNTRY_KEY,
+  );
 }
 
 const NBSP = "\u00a0";
@@ -120,6 +170,9 @@ const sectorTitleCmp = (a: string, b: string) =>
   a.localeCompare(b, undefined, { sensitivity: "base" });
 
 function sectorTitleForId(id: string): string {
+  if (id === PORTFOLIO_UNKNOWN_COUNTRY_KEY) {
+    return CHART_UNKNOWN_LABEL;
+  }
   const t = DISTRIBUTION_SECTOR_TITLES[id as DistributionSectorId];
   return t ?? id;
 }
@@ -228,7 +281,7 @@ export function formatDistributionTooltip(
     .sort((a, b) => b[1] - a[1])
     .slice(0, 12)
     .map(([k, v]) => {
-      const label = k === UNMAPPED_COUNTRY_KEY ? "Unmapped" : k;
+      const label = k === UNMAPPED_COUNTRY_KEY ? CHART_UNKNOWN_LABEL : k;
       return `${label} ${formatPercentWidth4From01(v)}`;
     });
   if (countryParts.length > 0) {
