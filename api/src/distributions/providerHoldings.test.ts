@@ -66,6 +66,17 @@ describe("parseIsharesHoldingsCsv", () => {
     expect(sectors.cash).toBeCloseTo(0.05, 5);
     expect(countries.US).toBeCloseTo(0.95, 5);
   });
+
+  it("maps iShares Location Korea (South) to KR (EIMI-style label)", () => {
+    const csv = [
+      "Ticker,Name,Sector,Asset Class,Weight (%),Location",
+      '005930,SAMSUNG ELECTRONICS LTD,Information Technology,Equity,4.00,"Korea (South)"',
+      "2330,TAIWAN SEMICONDUCTOR,Information Technology,Equity,6.00,Taiwan",
+    ].join("\n");
+    const { countries } = parseIsharesHoldingsCsv(csv);
+    expect(countries.KR).toBeCloseTo(0.04, 5);
+    expect(countries.TW).toBeCloseTo(0.06, 5);
+  });
 });
 
 describe("parseSsgaHoldingsXlsx", () => {

@@ -33,6 +33,8 @@ const LABEL_TO_ISO: Record<string, string> = Object.fromEntries(
     ["south korea", "KR"],
     ["north korea", "KP"],
     ["korea", "KR"],
+    ["korea (south)", "KR"],
+    ["korea (north)", "KP"],
     ["republic of korea", "KR"],
     ["czech republic", "CZ"],
     ["czechia", "CZ"],
