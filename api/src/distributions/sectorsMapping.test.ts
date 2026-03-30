@@ -21,5 +21,6 @@ describe("mapSectorLabelToCanonicalId", () => {
   it("maps cash-like labels to cash", () => {
     expect(mapSectorLabelToCanonicalId("Cash")).toBe("cash");
     expect(mapSectorLabelToCanonicalId("Money Market")).toBe("cash");
+    expect(mapSectorLabelToCanonicalId("Cash and/or Derivatives")).toBe("cash");
   });
 });

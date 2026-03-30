@@ -15,6 +15,9 @@ export function isCashAssetLabel(raw: string): boolean {
   if (s.includes("cash equivalent")) {
     return true;
   }
+  if (s.includes("cash and/or")) {
+    return true;
+  }
   if (s.includes("short-term investment")) {
     return true;
   }

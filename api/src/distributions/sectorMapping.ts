@@ -13,7 +13,8 @@ export function mapSectorLabelToCanonicalId(raw: string): DistributionSectorId {
   if (
     s === "cash" ||
     s.includes("money market") ||
-    s.includes("cash equivalent")
+    s.includes("cash equivalent") ||
+    s.includes("cash and/or")
   ) {
     return "cash";
   }

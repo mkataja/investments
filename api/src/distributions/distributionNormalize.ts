@@ -1,5 +1,5 @@
 import type { DistributionSectorId } from "@investments/db";
-import { resolveRegionKeyToIso } from "@investments/db";
+import { normLabel, resolveRegionKeyToIso } from "@investments/db";
 import { mapSectorLabelToCanonicalId } from "./sectorMapping.js";
 
 /**
@@ -14,15 +14,23 @@ export function normalizeRegionWeightsToIsoKeys(
     const iso = resolveRegionKeyToIso(k);
     if (iso) {
       out[iso] = (out[iso] ?? 0) + w;
-    } else {
+    } else if (!EXPLICIT_UNMAPPED_REGION_LABELS.has(normLabel(k))) {
       console.warn(
         `Could not map country/region label to ISO 3166-1 alpha-2: ${JSON.stringify(k)}`,
       );
+      out[k] = w;
+    } else {
       out[k] = w;
     }
   }
   return out;
 }
+
+/** Region labels with no ISO mapping; weight kept under the raw key (see `aggregateRegionsToGeoBuckets`). */
+const EXPLICIT_UNMAPPED_REGION_LABELS = new Set([
+  "unassigned",
+  "european union",
+]);
 
 const EXPLICIT_OTHER_SECTOR_LABELS = new Set([
   "other",
@@ -34,6 +42,7 @@ const EXPLICIT_OTHER_SECTOR_LABELS = new Set([
   "miscellaneous",
   "unclassified",
   "not classified",
+  "unassigned",
 ]);
 
 /**

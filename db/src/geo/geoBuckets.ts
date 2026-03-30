@@ -1,4 +1,4 @@
-import { resolveRegionKeyToIso } from "./countryIso.js";
+import { normLabel, resolveRegionKeyToIso } from "./countryIso.js";
 
 export const GEO_BUCKET_ORDER = [
   "finland",
@@ -212,6 +212,10 @@ export function aggregateRegionsToGeoBuckets(
       continue;
     }
     const key = rawKey.trim();
+    if (normLabel(key) === "european union") {
+      out.europe += w;
+      continue;
+    }
     const iso = resolveRegionKeyToIso(key);
     if (iso) {
       const b = countryCodeToBucket(iso);

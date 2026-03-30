@@ -10,6 +10,7 @@ export {
   type GeoBucketId,
 } from "./geoBuckets.js";
 export {
+  normLabel,
   normalizeRegionsToIsoKeys,
   resolveRegionKeyToIso,
 } from "./countryIso.js";

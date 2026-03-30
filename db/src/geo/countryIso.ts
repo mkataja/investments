@@ -6,7 +6,8 @@
  * covered; add new `LABEL_TO_ISO` entries when FundViewer introduces new spellings.
  */
 
-function normLabel(s: string): string {
+/** Same normalization as {@link resolveRegionKeyToIso} for label lookups. */
+export function normLabel(s: string): string {
   return s.trim().toLowerCase().replace(/_/g, " ").replace(/\s+/g, " ");
 }
 
