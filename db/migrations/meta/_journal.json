@@ -43,6 +43,13 @@
       "when": 1774492000000,
       "tag": "0005_instruments_cash_geo_required",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1774864585245,
+      "tag": "0006_overconfident_boomerang",
+      "breakpoints": true
     }
   ]
 }

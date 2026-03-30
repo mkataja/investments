@@ -91,9 +91,16 @@ export const transactions = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("transactions_broker_external_uidx")
-      .on(t.brokerId, t.externalSource, t.externalId)
-      .where(sql`${t.externalId} IS NOT NULL`),
+    /**
+     * Non-partial unique index so `INSERT ... ON CONFLICT (broker_id, external_source, external_id)`
+     * matches (PostgreSQL does not infer partial unique indexes for ON CONFLICT).
+     * Multiple rows with `external_id` NULL remain allowed (NULLs are distinct in unique indexes).
+     */
+    uniqueIndex("transactions_broker_external_uidx").on(
+      t.brokerId,
+      t.externalSource,
+      t.externalId,
+    ),
   ],
 );
 
