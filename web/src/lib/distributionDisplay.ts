@@ -124,15 +124,19 @@ function sectorTitleForId(id: string): string {
   return t ?? id;
 }
 
-/** Sectors in fixed alphabetical order by display title (not by weight). */
+/** Sectors sorted by weight descending, then by display title for ties. */
 export function sortedSectorsForDisplay(
   sectors: Record<string, number>,
 ): SectorRow[] {
   return Object.entries(sectors)
     .filter(([, v]) => typeof v === "number" && Number.isFinite(v) && v > 0)
-    .sort((a, b) =>
-      sectorTitleCmp(sectorTitleForId(a[0]), sectorTitleForId(b[0])),
-    )
+    .sort((a, b) => {
+      const dw = b[1] - a[1];
+      if (dw !== 0) {
+        return dw;
+      }
+      return sectorTitleCmp(sectorTitleForId(a[0]), sectorTitleForId(b[0]));
+    })
     .map(([id, w]) => ({
       name: sectorTitleForId(id),
       weight: w,
