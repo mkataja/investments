@@ -10,7 +10,7 @@ This app uses **Tailwind CSS** with a small set of shared primitives. Extend her
 
 | Export | Role |
 | --- | --- |
-| `Button` | `<button>` — defaults to `type="button"`; pass `type="submit"` in forms. |
+| `Button` | `<button>` - defaults to `type="button"`; pass `type="submit"` in forms. |
 | `ButtonLink` | React Router `<Link>` with the same surface styles (navigation that looks like the primary button). |
 | `buttonPrimaryClassName` | Raw class string if you need the same look on another element (rare). |
 
@@ -19,7 +19,7 @@ This app uses **Tailwind CSS** with a small set of shared primitives. Extend her
 ## Not covered yet
 
 - **Inline / table actions** (e.g. “Refresh”, “Remove”) often stay **text links** (`text-emerald-800` / `text-red-700` + underline) for density; migrate only when a screen needs consistency with primary controls.
-- **Destructive** primary styling is undefined — use text-style danger or add a `variant` when needed.
+- **Destructive** primary styling is undefined - use text-style danger or add a `variant` when needed.
 
 ## Conventions
 
