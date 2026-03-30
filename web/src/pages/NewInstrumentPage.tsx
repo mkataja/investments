@@ -95,6 +95,36 @@ export function NewInstrumentPage() {
   );
   const [cashGeoKey, setCashGeoKey] = useState("");
 
+  const prevCashBrokerIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (kind !== "cash_account") {
+      prevCashBrokerIdRef.current = null;
+      return;
+    }
+    if (cashBrokerId === "" || typeof cashBrokerId !== "number") {
+      return;
+    }
+    const broker = brokers.find(
+      (b) => b.id === cashBrokerId && b.brokerType === "cash_account",
+    );
+    if (!broker) {
+      return;
+    }
+    const prevId = prevCashBrokerIdRef.current;
+    if (prevId === cashBrokerId) {
+      return;
+    }
+    const prevBroker =
+      prevId != null ? brokers.find((b) => b.id === prevId) : null;
+    const shouldSync =
+      cashDisplayName === "" ||
+      (prevBroker != null && cashDisplayName === prevBroker.name);
+    if (shouldSync) {
+      setCashDisplayName(broker.name);
+    }
+    prevCashBrokerIdRef.current = cashBrokerId;
+  }, [kind, cashBrokerId, brokers, cashDisplayName]);
+
   async function previewYahoo() {
     setError(null);
     setYahooPreview(null);
