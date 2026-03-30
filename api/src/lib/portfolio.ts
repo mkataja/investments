@@ -20,6 +20,8 @@ function mergeWeighted(
 }
 
 export async function getPortfolioDistributions(): Promise<{
+  /** Value-weighted merge of per-instrument country weights (ISO or resolvable labels), before geo bucketing. */
+  countries: Record<string, number>;
   regions: Record<string, number>;
   sectors: Record<string, number>;
   totalValueEur: number;
@@ -38,6 +40,7 @@ export async function getPortfolioDistributions(): Promise<{
   const pos = await loadOpenPositions();
   if (pos.length === 0) {
     return {
+      countries: {},
       regions: {},
       sectors: {},
       totalValueEur: 0,
@@ -87,7 +90,7 @@ export async function getPortfolioDistributions(): Promise<{
     0,
   );
 
-  const regions: Record<string, number> = {};
+  const countryWeights: Record<string, number> = {};
   const sectors: Record<string, number> = {};
 
   for (const row of valued) {
@@ -106,7 +109,7 @@ export async function getPortfolioDistributions(): Promise<{
 
     const payload = cached?.payload as DistributionPayload | undefined;
     if (payload?.countries && Object.keys(payload.countries).length > 0) {
-      mergeWeighted(regions, payload.countries, w);
+      mergeWeighted(countryWeights, payload.countries, w);
     }
     if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
       mergeWeighted(sectors, payload.sectors, w);
@@ -132,7 +135,7 @@ export async function getPortfolioDistributions(): Promise<{
   });
 
   const regionsBucketed: Record<string, number> = {};
-  const merged = aggregateRegionsToGeoBuckets(regions);
+  const merged = aggregateRegionsToGeoBuckets(countryWeights);
   for (const [k, v] of Object.entries(merged)) {
     if (v > 0) {
       regionsBucketed[k] = v;
@@ -140,6 +143,7 @@ export async function getPortfolioDistributions(): Promise<{
   }
 
   return {
+    countries: countryWeights,
     regions: regionsBucketed,
     sectors,
     totalValueEur,
