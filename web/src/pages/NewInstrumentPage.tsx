@@ -8,6 +8,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiGet, apiPost } from "../api";
+import { ErrorAlert } from "../components/ErrorAlert";
 
 type Kind = "etf" | "stock" | "custom" | "cash_account";
 
@@ -223,11 +224,7 @@ export function NewInstrumentPage() {
         <h1 className="text-2xl font-semibold text-slate-900">
           New instrument
         </h1>
-        {error && (
-          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-            {error}
-          </p>
-        )}
+        {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </header>
 
       <form onSubmit={(e) => void submit(e)} className="space-y-6">

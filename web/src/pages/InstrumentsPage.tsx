@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiDelete, apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
+import { ErrorAlert } from "../components/ErrorAlert";
 import {
   aggregateRegionsToBuckets,
   geoSegmentsForDisplay,
@@ -347,11 +348,7 @@ export function InstrumentsPage() {
         </div>
       </header>
 
-      {error && (
-        <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-          {error}
-        </p>
-      )}
+      {error ? <ErrorAlert>{error}</ErrorAlert> : null}
 
       {notice && (
         <p className="text-emerald-900 text-sm bg-emerald-50 border border-emerald-200 rounded px-3 py-2">

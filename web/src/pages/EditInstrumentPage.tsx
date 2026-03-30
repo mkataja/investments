@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPatch } from "../api";
 import { ButtonLink } from "../components/Button";
+import { ErrorAlert } from "../components/ErrorAlert";
 
 type InstrumentDetail = {
   id: number;
@@ -119,7 +120,7 @@ export function EditInstrumentPage() {
   if (!Number.isFinite(id) || id < 1) {
     return (
       <div className="w-full min-w-0 space-y-4">
-        <p className="text-red-600 text-sm">Invalid instrument id.</p>
+        <ErrorAlert>Invalid instrument id.</ErrorAlert>
         <ButtonLink to="/instruments">Back to instruments</ButtonLink>
       </div>
     );
@@ -136,11 +137,7 @@ export function EditInstrumentPage() {
   if (!initial) {
     return (
       <div className="w-full min-w-0 space-y-4">
-        {error && (
-          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-            {error}
-          </p>
-        )}
+        {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         <ButtonLink to="/instruments">Back to instruments</ButtonLink>
       </div>
     );
@@ -184,11 +181,7 @@ export function EditInstrumentPage() {
         <h1 className="text-2xl font-semibold text-slate-900">
           Edit cash account
         </h1>
-        {error && (
-          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-            {error}
-          </p>
-        )}
+        {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </header>
 
       <form onSubmit={(e) => void submit(e)} className="space-y-6">

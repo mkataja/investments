@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
+import { ErrorAlert } from "../components/ErrorAlert";
 import { Modal } from "../components/Modal";
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 import {
@@ -228,11 +229,7 @@ export function HomePage() {
             </Button>
           </div>
         </div>
-        {error && (
-          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-            {error}
-          </p>
-        )}
+        {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </header>
 
       <Modal

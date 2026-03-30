@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { HttpError, apiPostFormData } from "../api";
 import { Button } from "../components/Button";
+import { ErrorAlert } from "../components/ErrorAlert";
 
 type DegiroOk = {
   ok: true;
@@ -333,9 +334,9 @@ export function ImportPage() {
           ) : null}
         </form>
         {error !== null ? (
-          <pre className="mt-3 whitespace-pre-wrap break-words rounded border border-red-200 bg-red-50 p-3 text-xs text-red-900">
-            {error}
-          </pre>
+          <ErrorAlert className="mt-3">
+            <div className="whitespace-pre-wrap break-words">{error}</div>
+          </ErrorAlert>
         ) : null}
         {result !== null ? (
           <p className="mt-3 text-sm text-emerald-800">
@@ -401,7 +402,7 @@ export function ImportPage() {
                       <span className="font-mono text-xs text-slate-600">
                         {p.isin}
                       </span>
-                      <p className="mt-1 text-sm text-red-800">{p.error}</p>
+                      <p className="mt-1 text-red-600">{p.error}</p>
                     </div>
                   )}
                 </li>
@@ -453,14 +454,13 @@ export function ImportPage() {
           ) : null}
         </form>
         {seligsonError !== null ? (
-          <div
-            className="mt-3 rounded border border-red-200 bg-red-50 p-3 text-xs text-red-900"
-            role="alert"
-          >
-            <p className="whitespace-pre-wrap break-words">{seligsonError}</p>
+          <ErrorAlert className="mt-3">
+            <div className="whitespace-pre-wrap break-words">
+              {seligsonError}
+            </div>
             {seligsonMissingFunds !== null &&
             seligsonMissingFunds.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm">
+              <ul className="mt-2 list-disc space-y-0.5 pl-5">
                 {seligsonMissingFunds.map((name) => (
                   <li key={name} className="break-words">
                     {name}
@@ -470,7 +470,7 @@ export function ImportPage() {
             ) : null}
             {seligsonAmbiguousFunds !== null &&
             seligsonAmbiguousFunds.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm">
+              <ul className="mt-2 list-disc space-y-0.5 pl-5">
                 {seligsonAmbiguousFunds.map((name) => (
                   <li key={name} className="break-words">
                     {name}
@@ -478,7 +478,7 @@ export function ImportPage() {
                 ))}
               </ul>
             ) : null}
-          </div>
+          </ErrorAlert>
         ) : null}
         {seligsonResult !== null ? (
           <p className="mt-3 text-sm text-emerald-800">

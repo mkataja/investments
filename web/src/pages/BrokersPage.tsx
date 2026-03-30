@@ -6,6 +6,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../api";
 import { Button } from "../components/Button";
+import { ErrorAlert } from "../components/ErrorAlert";
 import { Modal } from "../components/Modal";
 
 type BrokerRow = {
@@ -124,11 +125,7 @@ export function BrokersPage() {
         </Button>
       </header>
 
-      {pageError ? (
-        <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-          {pageError}
-        </p>
-      ) : null}
+      {pageError ? <ErrorAlert>{pageError}</ErrorAlert> : null}
 
       <p className="text-sm text-slate-600 max-w-2xl">
         Names must be unique. Types control which instruments you can trade at
@@ -142,11 +139,7 @@ export function BrokersPage() {
         onClose={closeModal}
       >
         <form onSubmit={(e) => void submitModal(e)} className="space-y-3">
-          {formError ? (
-            <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
-              {formError}
-            </p>
-          ) : null}
+          {formError ? <ErrorAlert>{formError}</ErrorAlert> : null}
           <label className="block text-sm">
             Name
             <input
