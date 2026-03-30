@@ -23,6 +23,9 @@ export function InstrumentsTableSkeleton() {
           <tr>
             <th className="text-left p-2 font-medium">Kind</th>
             <th className="text-left p-2 font-medium">Ticker</th>
+            <th className="text-left p-2 font-medium whitespace-nowrap">
+              ISIN
+            </th>
             <th className="text-left p-2 font-medium">Name</th>
             <th className="text-left p-2 font-medium">Distribution</th>
             <th className="text-left p-2 font-medium whitespace-nowrap">
@@ -39,6 +42,9 @@ export function InstrumentsTableSkeleton() {
               </td>
               <td className="p-2">
                 <BlockSkeleton className="h-4 w-14" />
+              </td>
+              <td className="p-2">
+                <BlockSkeleton className="h-4 w-28" />
               </td>
               <td className="p-2">
                 <BlockSkeleton className="h-4 w-36 max-w-full" />

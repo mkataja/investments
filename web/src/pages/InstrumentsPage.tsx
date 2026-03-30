@@ -271,6 +271,9 @@ export function InstrumentsPage() {
               <tr>
                 <th className="text-left p-2 font-medium">Kind</th>
                 <th className="text-left p-2 font-medium">Ticker</th>
+                <th className="text-left p-2 font-medium whitespace-nowrap">
+                  ISIN
+                </th>
                 <th className="text-left p-2 font-medium">Name</th>
                 <th className="text-left p-2 font-medium">Distribution</th>
                 <th className="text-left p-2 font-medium whitespace-nowrap">
@@ -291,7 +294,10 @@ export function InstrumentsPage() {
                     <td className="p-2 text-slate-800">
                       {instrumentKindColumnLabel(i)}
                     </td>
-                    <td className="p-2 text-slate-700">{ticker ?? "—"}</td>
+                    <td className="p-2 text-slate-700">{ticker ?? "-"}</td>
+                    <td className="p-2 text-slate-700 font-mono text-xs tabular-nums whitespace-nowrap">
+                      {i.isin ?? "-"}
+                    </td>
                     <td className="p-2 font-medium text-slate-900">
                       {i.displayName}
                     </td>
@@ -310,17 +316,17 @@ export function InstrumentsPage() {
                     </td>
                     <td className="p-2 align-top text-left min-w-[10rem] max-w-xs">
                       {i.kind === "cash_account" ? (
-                        <span className="text-slate-400 font-sans">—</span>
+                        <span className="text-slate-400 font-sans">-</span>
                       ) : i.distribution ? (
                         i.distribution.fetchedAt !== "" ? (
                           <span className="text-[11px] text-slate-600 tabular-nums font-sans">
                             {formatInstantForDisplay(i.distribution.fetchedAt)}
                           </span>
                         ) : (
-                          <span className="text-slate-400 font-sans">—</span>
+                          <span className="text-slate-400 font-sans">-</span>
                         )
                       ) : (
-                        <span className="text-slate-400 font-sans">—</span>
+                        <span className="text-slate-400 font-sans">-</span>
                       )}
                     </td>
                     <td className="p-2 text-right">
