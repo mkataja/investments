@@ -1,4 +1,7 @@
-import { transactionInstrumentSelectLabel } from "@investments/db";
+import {
+  instrumentTickerDisplay,
+  transactionInstrumentSelectLabel,
+} from "@investments/db";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
@@ -111,6 +114,14 @@ export function HomePage() {
     const m = new Map<number, string>();
     for (const i of instruments) {
       m.set(i.id, i.displayName);
+    }
+    return m;
+  }, [instruments]);
+
+  const instrumentTickerById = useMemo(() => {
+    const m = new Map<number, string | null>();
+    for (const i of instruments) {
+      m.set(i.id, instrumentTickerDisplay(i));
     }
     return m;
   }, [instruments]);
@@ -470,6 +481,7 @@ export function HomePage() {
               <tr>
                 <th className="text-left p-2">Date/time</th>
                 <th className="text-left p-2">Side</th>
+                <th className="text-left p-2">Ticker</th>
                 <th className="text-left p-2">Instrument</th>
                 <th className="text-right p-2">Qty</th>
                 <th className="text-right p-2">Price</th>
@@ -482,6 +494,9 @@ export function HomePage() {
                     {formatTransactionInstant(t.tradeDate)}
                   </td>
                   <td className="p-2">{transactionSideLabel(t.side)}</td>
+                  <td className="p-2 text-left tabular-nums text-slate-700">
+                    {instrumentTickerById.get(t.instrumentId) ?? "—"}
+                  </td>
                   <td className="p-2 text-left min-w-[12rem]">
                     {instrumentNameById.get(t.instrumentId) ??
                       `#${t.instrumentId}`}
@@ -498,6 +513,10 @@ export function HomePage() {
             </tbody>
           </table>
         </div>
+        <p className="mt-2 text-sm text-slate-600 tabular-nums">
+          {transactions.length}{" "}
+          {transactions.length === 1 ? "transaction" : "transactions"}
+        </p>
       </section>
     </div>
   );
