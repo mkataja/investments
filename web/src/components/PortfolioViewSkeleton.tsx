@@ -98,6 +98,7 @@ export function TransactionsTableSkeleton() {
               <th className="text-left p-2 font-medium">Instrument</th>
               <th className="text-right p-2 font-medium">Qty</th>
               <th className="text-right p-2 font-medium">Price</th>
+              <th className="text-right p-2 font-medium">Value</th>
             </tr>
           </thead>
           <tbody>
@@ -129,6 +130,9 @@ export function TransactionsTableSkeleton() {
                 </td>
                 <td className="p-2 text-right">
                   <BlockSkeleton className="ml-auto h-4 w-24" />
+                </td>
+                <td className="p-2 text-right">
+                  <BlockSkeleton className="ml-auto h-4 w-28" />
                 </td>
               </tr>
             ))}

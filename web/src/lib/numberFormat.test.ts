@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatTransactionTotalValueForDisplay,
   formatTransactionUnitPriceForDisplay,
   formatUnitPriceForDisplay,
   roundQuantityForDisplay,
@@ -30,6 +31,35 @@ describe("formatTransactionUnitPriceForDisplay", () => {
 
   it("returns trimmed input when not a finite number", () => {
     expect(formatTransactionUnitPriceForDisplay("buy", "  x  ")).toBe("x");
+  });
+});
+
+describe("formatTransactionTotalValueForDisplay", () => {
+  it("uses signed notional for non-cash (buy outflow, sell inflow)", () => {
+    expect(
+      formatTransactionTotalValueForDisplay("buy", "10", "5.5", "EUR"),
+    ).toBe("-55 EUR");
+    expect(
+      formatTransactionTotalValueForDisplay("sell", "10", "5.5", "EUR"),
+    ).toBe("55 EUR");
+  });
+
+  it("uses unsigned sum for cash_account", () => {
+    expect(
+      formatTransactionTotalValueForDisplay(
+        "sell",
+        "100",
+        "1",
+        "USD",
+        "cash_account",
+      ),
+    ).toBe("100 USD");
+  });
+
+  it("returns em dash when notional is not finite", () => {
+    expect(formatTransactionTotalValueForDisplay("buy", "x", "1", "EUR")).toBe(
+      "—",
+    );
   });
 });
 

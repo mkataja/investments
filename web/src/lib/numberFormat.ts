@@ -28,6 +28,27 @@ export function formatTransactionUnitPriceForDisplay(
 }
 
 /**
+ * Line notional in trade currency: `quantity × unitPrice`, signed like
+ * {@link formatTransactionUnitPriceForDisplay} for non-cash; cash accounts use unsigned sum.
+ */
+export function formatTransactionTotalValueForDisplay(
+  side: string,
+  quantity: string,
+  unitPrice: string,
+  currency: string,
+  instrumentKind?: string,
+): string {
+  const q = Number(quantity.trim());
+  const p = Number(unitPrice.trim());
+  if (!Number.isFinite(q) || !Number.isFinite(p)) return "—";
+  if (instrumentKind === "cash_account") {
+    return `${formatUnitPriceForDisplay(String(q * p))} ${currency}`;
+  }
+  const signed = side === "buy" ? -q * p : q * p;
+  return `${formatUnitPriceForDisplay(String(signed))} ${currency}`;
+}
+
+/**
  * Whole-share display: nearest integer via Math.round (ties toward +∞), not truncating
  * (not Math.trunc, |0, or parseInt on fractional strings).
  * Decimal strings that are visually whole numbers use the integer part only to avoid FP drift.

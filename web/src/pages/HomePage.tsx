@@ -42,6 +42,7 @@ import {
   portfolioSectorBarRows,
 } from "../lib/distributionDisplay";
 import {
+  formatTransactionTotalValueForDisplay,
   formatTransactionUnitPriceForDisplay,
   formatUnitPriceForDisplay,
   roundQuantityForDisplay,
@@ -587,6 +588,7 @@ export function HomePage() {
                     <th className="text-left p-2 font-medium">Ticker</th>
                     <th className="text-right p-2 font-medium">Qty</th>
                     <th className="text-right p-2 font-medium">Price</th>
+                    <th className="text-right p-2 font-medium">Value</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -630,6 +632,15 @@ export function HomePage() {
                             )}{" "}
                             {t.currency}
                           </>
+                        )}
+                      </td>
+                      <td className="p-2 text-right tabular-nums">
+                        {formatTransactionTotalValueForDisplay(
+                          t.side,
+                          t.quantity,
+                          t.unitPrice,
+                          t.currency,
+                          instrumentById.get(t.instrumentId)?.kind,
                         )}
                       </td>
                     </tr>
