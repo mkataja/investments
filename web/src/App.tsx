@@ -14,9 +14,6 @@ export function App() {
           <Link to="/" className="text-emerald-800 hover:underline">
             Portfolio
           </Link>
-          <Link to="/brokers" className="text-emerald-800 hover:underline">
-            Brokers
-          </Link>
           <Link to="/import" className="text-emerald-800 hover:underline">
             Import transactions
           </Link>
@@ -28,6 +25,9 @@ export function App() {
             className="text-emerald-800 hover:underline"
           >
             New instrument
+          </Link>
+          <Link to="/brokers" className="text-emerald-800 hover:underline">
+            Brokers
           </Link>
           <Link to="/dev" className="text-emerald-800 hover:underline">
             Data checks
