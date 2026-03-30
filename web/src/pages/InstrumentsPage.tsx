@@ -10,12 +10,12 @@ import { apiDelete, apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { InstrumentsTableSkeleton } from "../components/listPageSkeletons";
+import { formatInstantForDisplay } from "../lib/dateTimeFormat";
 import {
   aggregateRegionsToBuckets,
   geoSegmentsForDisplay,
   sortedSectorsForDisplay,
 } from "../lib/distributionDisplay";
-import { formatDistributionFetchedAt } from "../lib/formatDistributionFetchedAt";
 
 type DistributionPayload = {
   regions: Record<string, number>;
@@ -124,7 +124,7 @@ function DistributionSummary({
         {fetchedAt != null && fetchedAt !== "" ? (
           <>
             <span className="text-slate-400"> · </span>
-            {formatDistributionFetchedAt(fetchedAt)}
+            {formatInstantForDisplay(fetchedAt)}
           </>
         ) : null}
       </p>

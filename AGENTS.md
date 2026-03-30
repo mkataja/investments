@@ -82,6 +82,7 @@ The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`
 ### Code style
 
 - **Reusable utilities:** small, pure or broadly reusable helper functions should live in separate **`lib/`** modules (e.g. **`api/src/lib`**, **`web/src/lib`**) rather than inlined in route handlers, pages, or feature files.
+- **Web date/time display:** use **`web/src/lib/dateTimeFormat.ts`** — calendar dates **`YYYY-MM-DD`**; with time **`YYYY-MM-DD HH:mm`** (local 24h).
 
 ### Web UI polish
 

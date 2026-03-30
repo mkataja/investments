@@ -21,6 +21,10 @@ import {
   PortfolioViewSkeleton,
   TransactionsTableSkeleton,
 } from "../components/PortfolioViewSkeleton";
+import {
+  formatDateTimeLocalInputValue,
+  formatInstantForDisplay,
+} from "../lib/dateTimeFormat";
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 import {
   formatTransactionUnitPriceForDisplay,
@@ -54,22 +58,6 @@ function transactionSideLabel(side: string): string {
   if (side === "buy") return "Buy";
   if (side === "sell") return "Sell";
   return side;
-}
-
-function formatDatetimeLocalValue(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function formatTransactionInstant(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) {
-    return iso;
-  }
-  return d.toLocaleString(undefined, {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
 }
 
 type Portfolio = {
@@ -145,7 +133,7 @@ export function HomePage() {
 
   const [txnForm, setTxnForm] = useState({
     brokerId: 1,
-    tradeDate: formatDatetimeLocalValue(new Date()),
+    tradeDate: formatDateTimeLocalInputValue(new Date()),
     side: "buy" as "buy" | "sell",
     instrumentId: 0,
     quantity: "1",
@@ -504,7 +492,7 @@ export function HomePage() {
                   {transactions.map((t) => (
                     <tr key={t.id} className="border-t">
                       <td className="p-2">
-                        {formatTransactionInstant(t.tradeDate)}
+                        {formatInstantForDisplay(t.tradeDate)}
                       </td>
                       <td className="p-2">{transactionSideLabel(t.side)}</td>
                       <td className="p-2 text-left tabular-nums text-slate-700">
