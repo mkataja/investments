@@ -71,6 +71,13 @@
       "when": 1774867204783,
       "tag": "0009_special_doctor_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1774868037711,
+      "tag": "0010_rich_xavin",
+      "breakpoints": true
     }
   ]
 }

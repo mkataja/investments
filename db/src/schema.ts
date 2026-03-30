@@ -16,12 +16,12 @@ export const brokers = pgTable(
   "brokers",
   {
     id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-    code: text("code").notNull().unique(),
     name: text("name").notNull(),
     /** See `BROKER_TYPES` in `@investments/db` brokerTypes. */
     brokerType: text("broker_type").notNull().default("exchange"),
   },
   (t) => [
+    uniqueIndex("brokers_name_uidx").on(t.name),
     check(
       "brokers_broker_type_ck",
       sql`${t.brokerType} IN ('exchange', 'seligson', 'cash_account')`,

@@ -44,7 +44,7 @@ Use short, descriptive one-line titles (no `feat:` / `chore:` prefixes).
 
 ## API notes
 
-- **Brokers** are seeded (Seligson, Degiro, IBKR, Svea); manage and add more at `/brokers` (types: exchange, Seligson, cash account).
+- **Brokers** are seeded (Seligson, Degiro, IBKR, Svea); **`name`** is unique. Manage and add more at `/brokers` (types: exchange, Seligson, cash account). Degiro CSV import uses the broker whose **name** is **Degiro**.
 - **Seligson funds** live in `seligson_funds` (fid + name); new rows are created when you add a custom instrument from `/instruments/new` (FID + Seligson-type broker).
 - **Instruments** of kind `custom` reference a `seligson_fund` row when using the Seligson integration; `broker_id` identifies the broker. Distributions are scraped from Seligson FundViewer (`view=40`).
 - **ETFs/stocks** use `yahooSymbol`; distributions come from Yahoo `quoteSummary` (sectors / regions when available).

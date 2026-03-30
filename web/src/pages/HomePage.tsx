@@ -17,7 +17,6 @@ import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 
 type Broker = {
   id: number;
-  code: string;
   name: string;
   brokerType: string;
 };
@@ -206,7 +205,7 @@ export function HomePage() {
             >
               {brokers.map((b) => (
                 <option key={b.id} value={b.id}>
-                  {b.code}
+                  {b.name}
                 </option>
               ))}
             </select>

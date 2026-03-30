@@ -34,11 +34,6 @@ import {
   parseDegiroTransactionsCsv,
 } from "./import/degiroTransactions.js";
 import {
-  assertBrokerCodeAvailableForUpdate,
-  normalizeBrokerCodeInput,
-  resolveBrokerCodeForCreate,
-} from "./lib/brokerMutations.js";
-import {
   refreshDistributionCacheForInstrumentId,
   refreshStaleDistributionCaches,
   writeSeligsonDistributionCache,
@@ -78,36 +73,32 @@ app.get("/brokers", async (c) => {
 
 const brokerCreateIn = z.object({
   name: z.string().trim().min(1),
-  code: z.string().trim().optional(),
   brokerType: z.enum(["exchange", "seligson", "cash_account"]),
 });
 
 const brokerPatchIn = z
   .object({
     name: z.string().trim().min(1).optional(),
-    code: z.string().trim().optional(),
     brokerType: z.enum(["exchange", "seligson", "cash_account"]).optional(),
   })
-  .refine((o) => o.name != null || o.code != null || o.brokerType != null, {
+  .refine((o) => o.name != null || o.brokerType != null, {
     message: "At least one field is required",
   });
 
 app.post("/brokers", zValidator("json", brokerCreateIn), async (c) => {
   const body = c.req.valid("json");
-  const resolved = await resolveBrokerCodeForCreate(body.name, body.code);
-  if (!resolved.ok) {
-    return c.json(
-      { message: `Broker code ${resolved.code} is already in use` },
-      409,
-    );
+  const name = body.name.trim();
+  const [dup] = await db
+    .select({ id: brokers.id })
+    .from(brokers)
+    .where(eq(brokers.name, name))
+    .limit(1);
+  if (dup) {
+    return c.json({ message: "A broker with this name already exists" }, 409);
   }
   const [row] = await db
     .insert(brokers)
-    .values({
-      code: resolved.code,
-      name: body.name.trim(),
-      brokerType: body.brokerType,
-    })
+    .values({ name, brokerType: body.brokerType })
     .returning();
   if (!row) {
     return c.json({ message: "Failed to create broker" }, 500);
@@ -125,37 +116,21 @@ app.patch("/brokers/:id", zValidator("json", brokerPatchIn), async (c) => {
   if (!existing) {
     return c.json({ message: "Not found" }, 404);
   }
-  let nextCode = existing.code;
-  if (body.code !== undefined) {
-    const trimmed = body.code.trim();
-    if (trimmed.length === 0) {
-      return c.json(
-        {
-          message:
-            "Code cannot be empty; omit the field to keep the current code",
-        },
-        400,
-      );
-    }
-    nextCode = normalizeBrokerCodeInput(trimmed);
-    if (nextCode.length === 0) {
-      return c.json({ message: "Invalid code" }, 400);
-    }
-    if (nextCode !== existing.code) {
-      const check = await assertBrokerCodeAvailableForUpdate(id, nextCode);
-      if (check !== true) {
-        return c.json(
-          { message: `Broker code ${check.code} is already in use` },
-          409,
-        );
-      }
+  const nextName = body.name?.trim() ?? existing.name;
+  if (nextName !== existing.name) {
+    const [nameDup] = await db
+      .select({ id: brokers.id })
+      .from(brokers)
+      .where(eq(brokers.name, nextName))
+      .limit(1);
+    if (nameDup && nameDup.id !== id) {
+      return c.json({ message: "A broker with this name already exists" }, 409);
     }
   }
   const [row] = await db
     .update(brokers)
     .set({
-      name: body.name?.trim() ?? existing.name,
-      code: nextCode,
+      name: nextName,
       brokerType: body.brokerType ?? existing.brokerType,
     })
     .where(eq(brokers.id, id))
@@ -305,10 +280,10 @@ app.post("/import/degiro", async (c) => {
   const [degiroBroker] = await db
     .select()
     .from(brokers)
-    .where(eq(brokers.code, "DEGIRO"))
+    .where(eq(brokers.name, "Degiro"))
     .limit(1);
   if (!degiroBroker) {
-    return c.json({ message: "Broker DEGIRO is not configured" }, 500);
+    return c.json({ message: 'Broker named "Degiro" is not configured' }, 500);
   }
 
   if (createInstrumentsParsed && createInstrumentsParsed.length > 0) {
@@ -568,7 +543,6 @@ app.get("/instruments", async (c) => {
       broker: br
         ? {
             id: br.id,
-            code: br.code,
             name: br.name,
             brokerType: br.brokerType,
           }

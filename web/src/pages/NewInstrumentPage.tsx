@@ -32,7 +32,6 @@ type InstrumentRow = {
 
 type BrokerRow = {
   id: number;
-  code: string;
   name: string;
   brokerType: BrokerType;
 };
@@ -294,7 +293,7 @@ export function NewInstrumentPage() {
                 ) : (
                   seligsonBrokers.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.name} ({b.code})
+                      {b.name}
                     </option>
                   ))
                 )}
@@ -339,7 +338,7 @@ export function NewInstrumentPage() {
                 ) : (
                   cashBrokers.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.name} ({b.code})
+                      {b.name}
                     </option>
                   ))
                 )}

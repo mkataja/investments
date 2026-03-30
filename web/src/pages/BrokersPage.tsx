@@ -10,7 +10,6 @@ import { Modal } from "../components/Modal";
 
 type BrokerRow = {
   id: number;
-  code: string;
   name: string;
   brokerType: BrokerType;
 };
@@ -24,7 +23,6 @@ export function BrokersPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
 
   const [name, setName] = useState("");
-  const [code, setCode] = useState("");
   const [brokerType, setBrokerType] = useState<BrokerType>("exchange");
 
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -52,7 +50,6 @@ export function BrokersPage() {
   function openAddModal() {
     setEditingId(null);
     setName("");
-    setCode("");
     setBrokerType("exchange");
     setFormError(null);
     setModalOpen(true);
@@ -61,7 +58,6 @@ export function BrokersPage() {
   function startEdit(row: BrokerRow) {
     setEditingId(row.id);
     setName(row.name);
-    setCode(row.code);
     setBrokerType(row.brokerType);
     setFormError(null);
     setModalOpen(true);
@@ -71,7 +67,6 @@ export function BrokersPage() {
     setModalOpen(false);
     setEditingId(null);
     setName("");
-    setCode("");
     setBrokerType("exchange");
     setFormError(null);
   }
@@ -88,13 +83,11 @@ export function BrokersPage() {
       if (editingId == null) {
         await apiPost<BrokerRow>("/brokers", {
           name: n,
-          ...(code.trim() ? { code: code.trim() } : {}),
           brokerType,
         });
       } else {
         await apiPatch<BrokerRow>(`/brokers/${editingId}`, {
           name: n,
-          code: code.trim(),
           brokerType,
         });
       }
@@ -137,6 +130,12 @@ export function BrokersPage() {
         </p>
       ) : null}
 
+      <p className="text-sm text-slate-600 max-w-2xl">
+        Names must be unique. Types control which instruments you can trade at
+        each broker (exchange = Yahoo-backed equities, Seligson = mutual fund
+        integration, cash account = bank-style cash positions).
+      </p>
+
       <Modal
         title={editingId == null ? "Add broker" : "Edit broker"}
         open={modalOpen}
@@ -156,15 +155,6 @@ export function BrokersPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
-            />
-          </label>
-          <label className="block text-sm">
-            Code <span className="text-slate-500 font-normal">(optional)</span>
-            <input
-              className="mt-1 block w-full border rounded px-2 py-1 font-mono"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              placeholder="Leave empty to derive from name"
             />
           </label>
           <label className="block text-sm">
@@ -202,7 +192,6 @@ export function BrokersPage() {
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left">
                 <th className="px-3 py-2 font-medium">Name</th>
-                <th className="px-3 py-2 font-medium">Code</th>
                 <th className="px-3 py-2 font-medium">Type</th>
                 <th className="px-3 py-2 font-medium w-40">Actions</th>
               </tr>
@@ -211,7 +200,6 @@ export function BrokersPage() {
               {rows.map((r) => (
                 <tr key={r.id} className="border-b border-slate-100">
                   <td className="px-3 py-2">{r.name}</td>
-                  <td className="px-3 py-2 font-mono">{r.code}</td>
                   <td className="px-3 py-2">
                     {BROKER_TYPE_DISPLAY[r.brokerType]}
                   </td>

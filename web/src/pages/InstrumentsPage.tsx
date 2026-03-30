@@ -34,7 +34,6 @@ type InstrumentListItem = {
   brokerId: number | null;
   broker: {
     id: number;
-    code: string;
     name: string;
     brokerType: string;
   } | null;
