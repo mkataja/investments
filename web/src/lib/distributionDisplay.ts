@@ -92,6 +92,9 @@ export function formatGeoLine(buckets: Record<GeoBucket, number>): string {
 
 export function sectorIcon(sectorName: string): string {
   const s = sectorName.toLowerCase();
+  if (s === "cash") {
+    return "💵";
+  }
   if (
     s.includes("tech") ||
     s.includes("information technology") ||

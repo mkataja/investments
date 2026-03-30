@@ -54,7 +54,8 @@ function DistributionSummary({
 }: {
   payload: DistributionPayload;
   source: string;
-  fetchedAt: string;
+  /** Omit for synthetic rows (e.g. cash accounts) where there is no cache timestamp. */
+  fetchedAt?: string;
 }) {
   const geoSegs = geoSegmentsForDisplay(
     aggregateRegionsToBuckets(payload.regions),
@@ -110,10 +111,39 @@ function DistributionSummary({
       </div>
       <p className="text-[11px] text-slate-500 leading-snug font-sans">
         <span className="font-medium text-emerald-900">{source}</span>
-        <span className="text-slate-400"> · </span>
-        {new Date(fetchedAt).toLocaleString()}
+        {fetchedAt != null && fetchedAt !== "" ? (
+          <>
+            <span className="text-slate-400"> · </span>
+            {new Date(fetchedAt).toLocaleString()}
+          </>
+        ) : null}
       </p>
     </div>
+  );
+}
+
+function cashAccountSyntheticPayload(
+  cashGeoKey: string | null,
+): DistributionPayload {
+  const trimmed = cashGeoKey?.trim();
+  const regions =
+    trimmed && trimmed.length > 0
+      ? { [trimmed]: 1 }
+      : ({} as Record<string, number>);
+  return {
+    regions,
+    sectors: { Cash: 1 },
+  };
+}
+
+function CashAccountDistributionSummary({
+  cashGeoKey,
+}: { cashGeoKey: string | null }) {
+  return (
+    <DistributionSummary
+      payload={cashAccountSyntheticPayload(cashGeoKey)}
+      source="Cash account"
+    />
   );
 }
 
@@ -352,7 +382,11 @@ export function InstrumentsPage() {
                     {i.displayName}
                   </td>
                   <td className="p-2 min-w-[14rem] max-w-xl align-top font-mono">
-                    {i.distribution ? (
+                    {i.kind === "cash_account" ? (
+                      <CashAccountDistributionSummary
+                        cashGeoKey={i.cashGeoKey}
+                      />
+                    ) : i.distribution ? (
                       <DistributionSummary
                         payload={i.distribution.payload}
                         source={i.distribution.source}
