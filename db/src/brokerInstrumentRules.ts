@@ -2,8 +2,7 @@ import type { BrokerType } from "./brokerTypes.js";
 
 /**
  * Which `instruments.kind` values are allowed for manual transactions at a given broker.
- * Exchange → ETF/stock. Seligson → custom integrations (mutual funds). Cash-account brokers
- * may also hold Yahoo-backed instruments and cash positions.
+ * Exchange → ETF/stock. Seligson → custom (mutual funds). Cash-account brokers → cash only.
  */
 export function isInstrumentKindAllowedForBrokerType(
   brokerType: BrokerType,
@@ -15,7 +14,7 @@ export function isInstrumentKindAllowedForBrokerType(
     case "seligson":
       return kind === "custom";
     case "cash_account":
-      return kind === "etf" || kind === "stock" || kind === "cash_account";
+      return kind === "cash_account";
     default:
       return false;
   }

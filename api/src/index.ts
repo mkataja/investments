@@ -238,6 +238,34 @@ app.get("/transactions", async (c) => {
 
 app.post("/transactions", zValidator("json", transactionIn), async (c) => {
   const body = c.req.valid("json");
+  const [brk] = await db
+    .select()
+    .from(brokers)
+    .where(eq(brokers.id, body.brokerId));
+  if (!brk) {
+    return c.json({ message: "Broker not found" }, 404);
+  }
+  const [inst] = await db
+    .select()
+    .from(instruments)
+    .where(eq(instruments.id, body.instrumentId));
+  if (!inst) {
+    return c.json({ message: "Instrument not found" }, 404);
+  }
+  if (!isInstrumentKindAllowedForBrokerType(brk.brokerType, inst.kind)) {
+    return c.json(
+      { message: "This instrument is not allowed for this broker" },
+      400,
+    );
+  }
+  if (inst.kind === "custom" || inst.kind === "cash_account") {
+    if (inst.brokerId !== body.brokerId) {
+      return c.json(
+        { message: "Instrument is not linked to this broker" },
+        400,
+      );
+    }
+  }
   const [row] = await db
     .insert(transactions)
     .values({
@@ -804,6 +832,7 @@ async function findOrCreateSeligsonFundByFid(fid: number) {
 app.get("/instruments", async (c) => {
   const brokerIdRaw = c.req.query("brokerId")?.trim();
   let brokerTypeForFilter: string | null = null;
+  let filterBrokerId: number | null = null;
   if (brokerIdRaw != null && brokerIdRaw !== "") {
     const brokerId = Number.parseInt(brokerIdRaw, 10);
     if (!Number.isFinite(brokerId) || brokerId < 1) {
@@ -817,6 +846,7 @@ app.get("/instruments", async (c) => {
       return c.json({ message: "Broker not found" }, 404);
     }
     brokerTypeForFilter = b.brokerType;
+    filterBrokerId = brokerId;
   }
 
   const joined = await db
@@ -865,13 +895,21 @@ app.get("/instruments", async (c) => {
     ),
   );
 
-  if (brokerTypeForFilter != null) {
-    payload = payload.filter((row) =>
-      isInstrumentKindAllowedForBrokerType(
-        brokerTypeForFilter as BrokerType,
-        row.kind,
-      ),
-    );
+  if (brokerTypeForFilter != null && filterBrokerId != null) {
+    payload = payload.filter((row) => {
+      if (
+        !isInstrumentKindAllowedForBrokerType(
+          brokerTypeForFilter as BrokerType,
+          row.kind,
+        )
+      ) {
+        return false;
+      }
+      if (row.kind === "cash_account" || row.kind === "custom") {
+        return row.brokerId === filterBrokerId;
+      }
+      return true;
+    });
   }
 
   return c.json(payload);

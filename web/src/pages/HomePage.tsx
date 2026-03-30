@@ -1,4 +1,6 @@
 import {
+  DEFAULT_CASH_CURRENCY,
+  SUPPORTED_CASH_CURRENCY_CODES,
   instrumentTickerDisplay,
   transactionInstrumentSelectLabel,
 } from "@investments/db";
@@ -43,6 +45,7 @@ type Instrument = {
   displayName: string;
   yahooSymbol: string | null;
   seligsonFund: { id: number; fid: number; name: string } | null;
+  cashCurrency?: string | null;
 };
 type Transaction = {
   id: number;
@@ -55,7 +58,11 @@ type Transaction = {
   currency: string;
 };
 
-function transactionSideLabel(side: string): string {
+function transactionSideLabel(side: string, instrumentKind?: string): string {
+  if (instrumentKind === "cash_account") {
+    if (side === "buy") return "Deposit";
+    if (side === "sell") return "Withdrawal";
+  }
   if (side === "buy") return "Buy";
   if (side === "sell") return "Sell";
   return side;
@@ -184,9 +191,19 @@ export function HomePage() {
           return;
         }
         setTxnInstruments(list);
+        const first = list[0];
+        const firstIsCash = first?.kind === "cash_account";
         setTxnForm((f) => ({
           ...f,
-          instrumentId: list[0]?.id ?? 0,
+          instrumentId: first?.id ?? 0,
+          quantity: firstIsCash ? "" : "1",
+          unitPrice: firstIsCash ? "1" : "0",
+          currency: firstIsCash
+            ? (first?.cashCurrency?.trim().toUpperCase() ??
+              DEFAULT_CASH_CURRENCY)
+            : "EUR",
+          side: "buy",
+          unitPriceEur: "",
         }));
         setError(null);
       } catch (e) {
@@ -204,6 +221,17 @@ export function HomePage() {
     };
   }, [txnModalOpen, txnForm.brokerId]);
 
+  const selectedTxnInstrument = useMemo(
+    () => txnInstruments.find((i) => i.id === txnForm.instrumentId),
+    [txnInstruments, txnForm.instrumentId],
+  );
+  const isCashTxn = selectedTxnInstrument?.kind === "cash_account";
+  const cashSumValid = useMemo(() => {
+    if (!isCashTxn) return true;
+    const s = Number.parseFloat(txnForm.quantity.replace(",", "."));
+    return Number.isFinite(s) && s > 0;
+  }, [isCashTxn, txnForm.quantity]);
+
   useEffect(() => {
     if (!txnModalOpen) {
       return;
@@ -216,19 +244,29 @@ export function HomePage() {
     if (txnForm.instrumentId < 1 || txnInstruments.length === 0) {
       return;
     }
+    if (isCashTxn && !cashSumValid) {
+      return;
+    }
     setError(null);
     try {
       const body: Record<string, unknown> = {
         brokerId: txnForm.brokerId,
         tradeDate: new Date(txnForm.tradeDate).toISOString(),
-        side: txnForm.side,
         instrumentId: txnForm.instrumentId,
-        quantity: txnForm.quantity,
-        unitPrice: txnForm.unitPrice,
-        currency: txnForm.currency,
+        currency: txnForm.currency.trim().toUpperCase(),
       };
-      if (txnForm.unitPriceEur) {
-        body.unitPriceEur = txnForm.unitPriceEur;
+      if (isCashTxn) {
+        const sum = Number.parseFloat(txnForm.quantity.replace(",", "."));
+        body.side = txnForm.side;
+        body.quantity = String(sum);
+        body.unitPrice = "1";
+      } else {
+        body.side = txnForm.side;
+        body.quantity = txnForm.quantity;
+        body.unitPrice = txnForm.unitPrice;
+        if (txnForm.unitPriceEur) {
+          body.unitPriceEur = txnForm.unitPriceEur;
+        }
       }
       await apiPost<Transaction>("/transactions", body);
       await load();
@@ -291,23 +329,7 @@ export function HomePage() {
             />
           </label>
           <label className="block text-sm">
-            Side
-            <select
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={txnForm.side}
-              onChange={(e) =>
-                setTxnForm({
-                  ...txnForm,
-                  side: e.target.value as "buy" | "sell",
-                })
-              }
-            >
-              <option value="buy">buy</option>
-              <option value="sell">sell</option>
-            </select>
-          </label>
-          <label className="block text-sm">
-            Instrument
+            {isCashTxn ? "Cash account" : "Instrument"}
             <select
               className="mt-1 block w-full border rounded px-2 py-1"
               disabled={txnInstrumentsLoading || txnInstruments.length === 0}
@@ -316,12 +338,22 @@ export function HomePage() {
                   ? txnForm.instrumentId
                   : ""
               }
-              onChange={(e) =>
-                setTxnForm({
-                  ...txnForm,
-                  instrumentId: Number.parseInt(e.target.value, 10),
-                })
-              }
+              onChange={(e) => {
+                const id = Number.parseInt(e.target.value, 10);
+                const inst = txnInstruments.find((i) => i.id === id);
+                const isCash = inst?.kind === "cash_account";
+                setTxnForm((f) => ({
+                  ...f,
+                  instrumentId: id,
+                  quantity: isCash ? "" : "1",
+                  unitPrice: isCash ? "1" : f.unitPrice,
+                  currency: isCash
+                    ? (inst?.cashCurrency?.trim().toUpperCase() ??
+                      DEFAULT_CASH_CURRENCY)
+                    : f.currency,
+                  side: "buy",
+                }));
+              }}
             >
               {txnInstrumentsLoading ? (
                 <option value="">Loading instruments…</option>
@@ -344,51 +376,125 @@ export function HomePage() {
             </select>
           </label>
           <label className="block text-sm">
-            Quantity
-            <input
+            {isCashTxn ? "Deposit / withdrawal" : "Side"}
+            <select
               className="mt-1 block w-full border rounded px-2 py-1"
-              value={txnForm.quantity}
-              onChange={(e) =>
-                setTxnForm({ ...txnForm, quantity: e.target.value })
+              value={
+                isCashTxn
+                  ? txnForm.side === "buy"
+                    ? "deposit"
+                    : "withdrawal"
+                  : txnForm.side
               }
-            />
+              onChange={(e) => {
+                const v = e.target.value;
+                if (isCashTxn) {
+                  setTxnForm({
+                    ...txnForm,
+                    side: v === "deposit" ? "buy" : "sell",
+                  });
+                } else {
+                  setTxnForm({
+                    ...txnForm,
+                    side: v as "buy" | "sell",
+                  });
+                }
+              }}
+            >
+              {isCashTxn ? (
+                <>
+                  <option value="deposit">deposit</option>
+                  <option value="withdrawal">withdrawal</option>
+                </>
+              ) : (
+                <>
+                  <option value="buy">buy</option>
+                  <option value="sell">sell</option>
+                </>
+              )}
+            </select>
           </label>
-          <label className="block text-sm">
-            Unit price
-            <input
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={txnForm.unitPrice}
-              onChange={(e) =>
-                setTxnForm({ ...txnForm, unitPrice: e.target.value })
-              }
-            />
-          </label>
-          <label className="block text-sm">
-            Currency
-            <input
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={txnForm.currency}
-              onChange={(e) =>
-                setTxnForm({ ...txnForm, currency: e.target.value })
-              }
-            />
-          </label>
-          <label className="block text-sm">
-            Unit price EUR (optional)
-            <input
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={txnForm.unitPriceEur}
-              onChange={(e) =>
-                setTxnForm({ ...txnForm, unitPriceEur: e.target.value })
-              }
-            />
-          </label>
+          {isCashTxn ? (
+            <>
+              <label className="block text-sm">
+                Sum
+                <input
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  inputMode="decimal"
+                  value={txnForm.quantity}
+                  onChange={(e) =>
+                    setTxnForm({ ...txnForm, quantity: e.target.value })
+                  }
+                />
+              </label>
+              <label className="block text-sm">
+                Currency
+                <select
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  value={txnForm.currency}
+                  onChange={(e) =>
+                    setTxnForm({ ...txnForm, currency: e.target.value })
+                  }
+                >
+                  {SUPPORTED_CASH_CURRENCY_CODES.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </>
+          ) : (
+            <>
+              <label className="block text-sm">
+                Quantity
+                <input
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  value={txnForm.quantity}
+                  onChange={(e) =>
+                    setTxnForm({ ...txnForm, quantity: e.target.value })
+                  }
+                />
+              </label>
+              <label className="block text-sm">
+                Unit price
+                <input
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  value={txnForm.unitPrice}
+                  onChange={(e) =>
+                    setTxnForm({ ...txnForm, unitPrice: e.target.value })
+                  }
+                />
+              </label>
+              <label className="block text-sm">
+                Currency
+                <input
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  value={txnForm.currency}
+                  onChange={(e) =>
+                    setTxnForm({ ...txnForm, currency: e.target.value })
+                  }
+                />
+              </label>
+              <label className="block text-sm">
+                Unit price EUR (optional)
+                <input
+                  className="mt-1 block w-full border rounded px-2 py-1"
+                  value={txnForm.unitPriceEur}
+                  onChange={(e) =>
+                    setTxnForm({ ...txnForm, unitPriceEur: e.target.value })
+                  }
+                />
+              </label>
+            </>
+          )}
           <Button
             type="submit"
             disabled={
               txnInstrumentsLoading ||
               txnInstruments.length === 0 ||
-              txnForm.instrumentId < 1
+              txnForm.instrumentId < 1 ||
+              (isCashTxn && !cashSumValid)
             }
           >
             Add transaction
@@ -545,7 +651,12 @@ export function HomePage() {
                       <td className="p-2">
                         {formatInstantForDisplay(t.tradeDate)}
                       </td>
-                      <td className="p-2">{transactionSideLabel(t.side)}</td>
+                      <td className="p-2">
+                        {transactionSideLabel(
+                          t.side,
+                          instrumentById.get(t.instrumentId)?.kind,
+                        )}
+                      </td>
                       <td className="p-2 text-left min-w-[12rem] font-medium text-slate-900">
                         {instrumentNameById.get(t.instrumentId) ??
                           `#${t.instrumentId}`}
@@ -558,14 +669,24 @@ export function HomePage() {
                         )}
                       </td>
                       <td className="p-2 text-right">
-                        {roundQuantityForDisplay(t.quantity)}
+                        {instrumentById.get(t.instrumentId)?.kind ===
+                        "cash_account"
+                          ? formatUnitPriceForDisplay(t.quantity)
+                          : roundQuantityForDisplay(t.quantity)}
                       </td>
                       <td className="p-2 text-right">
-                        {formatTransactionUnitPriceForDisplay(
-                          t.side,
-                          t.unitPrice,
-                        )}{" "}
-                        {t.currency}
+                        {instrumentById.get(t.instrumentId)?.kind ===
+                        "cash_account" ? (
+                          "—"
+                        ) : (
+                          <>
+                            {formatTransactionUnitPriceForDisplay(
+                              t.side,
+                              t.unitPrice,
+                            )}{" "}
+                            {t.currency}
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}
