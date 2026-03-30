@@ -12,11 +12,11 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * Placeholder for future auth; the migration seeds one implicit default user (id 1, name **`default`**).
+ * Placeholder for future auth; the seed user is inserted by migration with explicit **`name`** (no DB default).
  */
 export const users = pgTable("users", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-  name: text("name").notNull().default("default"),
+  name: text("name").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

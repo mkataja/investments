@@ -127,6 +127,13 @@
       "when": 1774883647959,
       "tag": "0017_high_molly_hayes",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1774883821997,
+      "tag": "0018_serious_mister_sinister",
+      "breakpoints": true
     }
   ]
 }

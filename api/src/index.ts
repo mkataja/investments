@@ -2,8 +2,8 @@ import { serve } from "@hono/node-server";
 import { zValidator } from "@hono/zod-validator";
 import {
   type BrokerType,
-  IMPLICIT_DEFAULT_USER_ID,
   SUPPORTED_CASH_CURRENCY_CODES,
+  USER_ID,
   brokers,
   distributions,
   instruments,
@@ -94,7 +94,7 @@ app.get("/settings", async (c) => {
   const [row] = await db
     .select()
     .from(portfolioSettings)
-    .where(eq(portfolioSettings.userId, IMPLICIT_DEFAULT_USER_ID))
+    .where(eq(portfolioSettings.userId, USER_ID))
     .limit(1);
   if (!row) {
     return c.json({ message: "Settings not found" }, 500);
@@ -109,7 +109,7 @@ app.patch("/settings", zValidator("json", settingsPatchIn), async (c) => {
   const [updated] = await db
     .update(portfolioSettings)
     .set({ emergencyFundEur: String(body.emergencyFundEur) })
-    .where(eq(portfolioSettings.userId, IMPLICIT_DEFAULT_USER_ID))
+    .where(eq(portfolioSettings.userId, USER_ID))
     .returning();
   if (!updated) {
     return c.json({ message: "Settings not found" }, 404);
@@ -144,9 +144,7 @@ app.post("/brokers", zValidator("json", brokerCreateIn), async (c) => {
   const [dup] = await db
     .select({ id: brokers.id })
     .from(brokers)
-    .where(
-      and(eq(brokers.userId, IMPLICIT_DEFAULT_USER_ID), eq(brokers.name, name)),
-    )
+    .where(and(eq(brokers.userId, USER_ID), eq(brokers.name, name)))
     .limit(1);
   if (dup) {
     return c.json({ message: "A broker with this name already exists" }, 409);
@@ -154,7 +152,7 @@ app.post("/brokers", zValidator("json", brokerCreateIn), async (c) => {
   const [row] = await db
     .insert(brokers)
     .values({
-      userId: IMPLICIT_DEFAULT_USER_ID,
+      userId: USER_ID,
       name,
       brokerType: body.brokerType,
     })
@@ -383,12 +381,7 @@ app.post("/import/degiro", async (c) => {
   const [degiroBroker] = await db
     .select()
     .from(brokers)
-    .where(
-      and(
-        eq(brokers.name, "Degiro"),
-        eq(brokers.userId, IMPLICIT_DEFAULT_USER_ID),
-      ),
-    )
+    .where(and(eq(brokers.name, "Degiro"), eq(brokers.userId, USER_ID)))
     .limit(1);
   if (!degiroBroker) {
     return c.json({ message: 'Broker named "Degiro" is not configured' }, 500);
@@ -563,12 +556,7 @@ app.post("/import/seligson", async (c) => {
   const [seligsonBroker] = await db
     .select()
     .from(brokers)
-    .where(
-      and(
-        eq(brokers.name, "Seligson"),
-        eq(brokers.userId, IMPLICIT_DEFAULT_USER_ID),
-      ),
-    )
+    .where(and(eq(brokers.name, "Seligson"), eq(brokers.userId, USER_ID)))
     .limit(1);
   if (!seligsonBroker) {
     return c.json(

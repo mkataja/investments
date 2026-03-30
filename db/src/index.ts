@@ -6,5 +6,5 @@ export * from "./geo/index.js";
 export * from "./instrumentKind.js";
 export * from "./instrumentSelectLabel.js";
 export * from "./schema.js";
-export * from "./userDefaults.js";
+export * from "./appUser.js";
 export * from "./yahooSymbol.js";
