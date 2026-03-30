@@ -27,7 +27,7 @@ pnpm workspace — see [`pnpm-workspace.yaml`](pnpm-workspace.yaml):
 | --- | --- |
 | [`db`](db) | Drizzle schema, SQL migrations, shared types, **`currencies.ts`**, **`geo/`** (ISO country resolution + default geo buckets for portfolio/instruments UI) |
 | [`api`](api) | Hono API, valuation, distribution fetch/normalize, cache refresh |
-| [`web`](web) | Vite + React + Tailwind; portfolio UI, **instruments list** at `/instruments`, **new instrument** at `/instruments/new`, dev data checks |
+| [`web`](web) | Vite + React + Tailwind; portfolio UI, **instruments list** at `/instruments`, **new instrument** at `/instruments/new`, **Degiro CSV import** at `/import`, dev data checks |
 
 Scripts and tool versions: **root [`package.json`](package.json)**. Local setup, ports, and env keys: **[`README.md`](README.md)** and **[`.env.example`](.env.example)** — **do not duplicate** those here; they change often.
 
@@ -43,7 +43,7 @@ Authoritative detail is **`db/src/schema.ts`** and migrations. Conceptually:
 - **`brokers`:** seeded broker codes (Seligson, Degiro, IBKR, Svea).
 - **`seligson_funds`:** Seligson products keyed by **`fid`** (unique); **`name`**, notes, active flag. Rows are created when adding a Seligson instrument ( **`POST /instruments`** with **`seligsonFid`** ) or reused if **`fid`** already exists.
 - **`instruments`:** **`kind`** (`etf` | `stock` | `seligson_fund` | `cash_account`), identifiers and cash/Seligson fields as in schema; optional **`mark_price_eur`** when Yahoo quotes are not used.
-- **`transactions`:** trades with **`currency`** and optional **`unit_price_eur`** for EUR-side reporting.
+- **`transactions`:** trades with **`currency`** and optional **`unit_price_eur`** for EUR-side reporting; optional **`external_source`** / **`external_id`** for idempotent broker imports (e.g. Degiro CSV row fingerprint).
 - **`distribution_cache`:** one row per instrument; **`payload`** is **`{ regions, sectors }`**-shaped normalized weights. **`regions`** keys are **ISO 3166-1 alpha-2** where the fetch path resolves them (Yahoo country names are normalized on ingest; Seligson uses FundViewer **view=20** “Maajakauma” country table, falling back to legacy macro keys **`europe`**, **`north_america`**, **`pacific`**, **`emerging`** if that table is missing). **`raw_payload`** stores upstream data for reprocessing without refetch: Yahoo **`quoteSummary`** JSON; Seligson **`{ html40, html20 }`** (sector view + country view) or legacy single HTML string; null for manual or legacy rows; **`source`** distinguishes Yahoo, Seligson scrape, manual, etc.
 
 **Positions** are derived from transactions (net quantity per instrument), not a separate persisted ledger unless you add one.
@@ -63,6 +63,7 @@ The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`
 
 - **HTTP routes, CORS, dev-only routes, validation:** **`api`** entrypoint / modules — single source of truth; **do not maintain a duplicate route list in this file.**
 - **`GET /instruments`** returns each instrument row plus **`netQuantity`** (sum of buys minus sells), optional joined **`distribution`** (`fetchedAt`, `source`, `payload` with regions/sectors), and optional **`seligsonFund`** (`id`, `fid`, `name`) for Seligson-linked rows.
+- **Degiro CSV:** **`POST /import/degiro`** with multipart field **`file`** (UTF-8 CSV). Parser lives in **`api/src/import/degiroTransactions.ts`** (`csv-parse`). Rows are upserted on **`(broker_id, external_source, external_id)`** with **`external_source = 'degiro_csv'`** and **`external_id`** = sha256 of the canonical row (Degiro Order ID is not unique per line). Only **EUR** trades; each ISIN must be exactly one **`etf`**, **`stock`**, or **`seligson_fund`**. Web: **`/import`**.
 - **`POST /instruments/:id/refresh-distribution`** refetches and upserts distribution cache for that instrument (502 on upstream error; 404 if missing; 200 **`{ ok: true }`** or **`{ skipped: true, reason }`** for cash or manual cache).
 - **`DELETE /instruments/:id`** removes the instrument after deleting its **`transactions`** and **`distribution_cache`** rows in one DB transaction (204). **`seligson_funds`** rows are not deleted.
 - **Portfolio weighting and EUR valuation assumptions:** **`api`** `lib` (and related)—read before changing FX or valuation.
@@ -82,7 +83,7 @@ Shared **primary** controls (`Button`, `ButtonLink`) and a minimal style referen
 ### Before commit or sign-off
 
 - **Lint:** always run **`pnpm lint`** (root **`biome check`**) and fix reported issues before **committing** or **treating work as complete**.
-- **Tests:** run **affected** tests—packages, apps, or areas your change touches—before committing or signing off. Prefer the narrowest command that covers your edits (e.g. a package’s **`test`** script via **`pnpm --filter`** when present), not an unnecessary full-repo run unless the change warrants it.
+- **Tests:** run **affected** tests—packages, apps, or areas your change touches—before committing or signing off. Prefer the narrowest command that covers your edits (e.g. a package’s **`test`** script via **`pnpm --filter`** when present), not an unnecessary full-repo run unless the change warrants it. Root **`pnpm test`** runs **`@investments/api`** Vitest (CSV import parser tests).
 
 ### Git commits
 

@@ -20,6 +20,20 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function apiPostFormData<T>(
+  path: string,
+  form: FormData,
+): Promise<T> {
+  const res = await fetch(`${base}${path}`, {
+    method: "POST",
+    body: form,
+  });
+  if (!res.ok) {
+    throw new Error(`${res.status} ${await res.text()}`);
+  }
+  return res.json() as Promise<T>;
+}
+
 export async function apiDelete(path: string): Promise<void> {
   const res = await fetch(`${base}${path}`, { method: "DELETE" });
   if (!res.ok) {
