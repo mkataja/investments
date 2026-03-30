@@ -171,7 +171,7 @@ export function EditInstrumentPage() {
   const cashBrokers = brokers.filter((b) => b.brokerType === "cash_account");
 
   return (
-    <div className="w-full min-w-0 space-y-8">
+    <div className="w-full min-w-0 space-y-6">
       <header className="space-y-2">
         <Link
           to="/instruments"

@@ -41,7 +41,7 @@ export function DevPage() {
   }
 
   return (
-    <div className="w-full min-w-0 space-y-8">
+    <div className="w-full min-w-0 space-y-6">
       <h1 className="text-2xl font-semibold text-slate-800">Data checks</h1>
       <p className="text-slate-600">
         Requires API in development mode and{" "}

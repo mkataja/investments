@@ -131,10 +131,8 @@ export function BrokersPage() {
 
       {pageError ? <ErrorAlert>{pageError}</ErrorAlert> : null}
 
-      <p className="text-sm text-slate-600 max-w-2xl">
-        Names must be unique. Types control which instruments you can trade at
-        each broker (exchange = Yahoo-backed equities, Seligson = mutual fund
-        integration, cash account = bank-style cash positions).
+      <p className="text-sm text-slate-600">
+        Names must be unique. Types control which instruments you can trade at each broker.
       </p>
 
       <Modal

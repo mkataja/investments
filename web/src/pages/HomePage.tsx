@@ -154,7 +154,7 @@ export function HomePage() {
   const [txnModalOpen, setTxnModalOpen] = useState(false);
 
   return (
-    <div className="w-full min-w-0 space-y-10">
+    <div className="w-full min-w-0 space-y-6">
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-semibold text-slate-900">Portfolio</h1>
