@@ -25,7 +25,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { apiGet, apiPost } from "../api";
+import { apiGet, apiPatch, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import {
@@ -91,6 +91,7 @@ type PortfolioEntity = {
   id: number;
   userId: number;
   name: string;
+  emergencyFundEur: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -247,8 +248,16 @@ export function HomePage() {
   const [initialLoad, setInitialLoad] = useState(true);
   const [newPortfolioOpen, setNewPortfolioOpen] = useState(false);
   const [newPortfolioName, setNewPortfolioName] = useState("");
+  const [newPortfolioEmergencyFund, setNewPortfolioEmergencyFund] =
+    useState("0");
   const [newPortfolioBusy, setNewPortfolioBusy] = useState(false);
+  const [editPortfolioOpen, setEditPortfolioOpen] = useState(false);
+  const [editPortfolioName, setEditPortfolioName] = useState("");
+  const [editPortfolioEmergencyFund, setEditPortfolioEmergencyFund] =
+    useState("0");
+  const [editPortfolioBusy, setEditPortfolioBusy] = useState(false);
   const newPortfolioNameInputRef = useRef<HTMLInputElement>(null);
+  const editPortfolioNameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!newPortfolioOpen) return;
@@ -257,6 +266,14 @@ export function HomePage() {
     });
     return () => cancelAnimationFrame(id);
   }, [newPortfolioOpen]);
+
+  useEffect(() => {
+    if (!editPortfolioOpen) return;
+    const id = requestAnimationFrame(() => {
+      editPortfolioNameInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [editPortfolioOpen]);
 
   const load = useCallback(async () => {
     setError(null);
@@ -361,10 +378,20 @@ export function HomePage() {
     if (name.length === 0) {
       return;
     }
+    const efParsed = Number.parseFloat(
+      newPortfolioEmergencyFund.trim().replace(",", "."),
+    );
+    if (!Number.isFinite(efParsed) || efParsed < 0) {
+      setError("Emergency fund must be a non-negative number.");
+      return;
+    }
     setNewPortfolioBusy(true);
     setError(null);
     try {
-      const row = await apiPost<PortfolioEntity>("/portfolios", { name });
+      const row = await apiPost<PortfolioEntity>("/portfolios", {
+        name,
+        emergencyFundEur: efParsed,
+      });
       setPortfolioEntities((prev) =>
         [...prev, row].sort((a, b) => a.id - b.id),
       );
@@ -372,11 +399,53 @@ export function HomePage() {
       writeStoredPortfolioId(row.id);
       setNewPortfolioOpen(false);
       setNewPortfolioName("");
+      setNewPortfolioEmergencyFund("0");
     } catch (err) {
       setError(String(err));
     } finally {
       setNewPortfolioBusy(false);
     }
+  }
+
+  async function submitEditPortfolio(e: FormEvent) {
+    e.preventDefault();
+    if (selectedPortfolioId == null) {
+      return;
+    }
+    const name = editPortfolioName.trim();
+    if (name.length === 0) {
+      return;
+    }
+    const efParsed = Number.parseFloat(
+      editPortfolioEmergencyFund.trim().replace(",", "."),
+    );
+    if (!Number.isFinite(efParsed) || efParsed < 0) {
+      setError("Emergency fund must be a non-negative number.");
+      return;
+    }
+    setEditPortfolioBusy(true);
+    setError(null);
+    try {
+      const row = await apiPatch<PortfolioEntity>(
+        `/portfolios/${selectedPortfolioId}`,
+        { name, emergencyFundEur: efParsed },
+      );
+      setPortfolioEntities((prev) =>
+        prev.map((p) => (p.id === row.id ? row : p)),
+      );
+      setEditPortfolioOpen(false);
+      await load();
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setEditPortfolioBusy(false);
+    }
+  }
+
+  function openNewPortfolioModal() {
+    setNewPortfolioName("");
+    setNewPortfolioEmergencyFund("0");
+    setNewPortfolioOpen(true);
   }
 
   const [holdingTooltip, setHoldingTooltip] = useState<null | {
@@ -405,38 +474,51 @@ export function HomePage() {
           <h1 className="text-3xl font-semibold text-slate-900">Portfolio</h1>
           <div className="flex flex-wrap items-center gap-2">
             {portfolioEntities.length > 0 ? (
-              <>
-                <label className="text-sm text-slate-700 flex items-center gap-2">
-                  <span className="whitespace-nowrap">View</span>
-                  <select
-                    className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[10rem]"
-                    value={selectedPortfolioId ?? ""}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      const id = v === "" ? null : Number.parseInt(v, 10);
-                      setSelectedPortfolioId(
-                        id != null && Number.isFinite(id) ? id : null,
-                      );
-                    }}
-                  >
-                    {portfolioEntities.map((pe) => (
-                      <option key={pe.id} value={pe.id}>
-                        {pe.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setNewPortfolioName("");
-                    setNewPortfolioOpen(true);
+              <label className="text-sm text-slate-700 flex items-center gap-2">
+                <span className="whitespace-nowrap">View</span>
+                <select
+                  className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[10rem]"
+                  value={selectedPortfolioId ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const id = v === "" ? null : Number.parseInt(v, 10);
+                    setSelectedPortfolioId(
+                      id != null && Number.isFinite(id) ? id : null,
+                    );
                   }}
                 >
-                  New portfolio
-                </Button>
-              </>
+                  {portfolioEntities.map((pe) => (
+                    <option key={pe.id} value={pe.id}>
+                      {pe.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
             ) : null}
+            <Button type="button" onClick={openNewPortfolioModal}>
+              New portfolio
+            </Button>
+            <Button
+              type="button"
+              disabled={selectedPortfolioId == null}
+              onClick={() => {
+                const pe = portfolioEntities.find(
+                  (p) => p.id === selectedPortfolioId,
+                );
+                if (pe == null) {
+                  return;
+                }
+                setEditPortfolioName(pe.name);
+                setEditPortfolioEmergencyFund(
+                  Number.isFinite(pe.emergencyFundEur)
+                    ? String(pe.emergencyFundEur)
+                    : "0",
+                );
+                setEditPortfolioOpen(true);
+              }}
+            >
+              Edit portfolio
+            </Button>
             <ButtonLink to="/import">Import transactions</ButtonLink>
             <Button
               type="button"
@@ -469,8 +551,55 @@ export function HomePage() {
               autoComplete="off"
             />
           </label>
+          <label className="block text-sm">
+            Emergency fund (EUR)
+            <input
+              className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              value={newPortfolioEmergencyFund}
+              onChange={(e) => setNewPortfolioEmergencyFund(e.target.value)}
+            />
+          </label>
           <Button type="submit" disabled={newPortfolioBusy}>
             Create
+          </Button>
+        </form>
+      </Modal>
+
+      <Modal
+        title="Edit portfolio"
+        open={editPortfolioOpen}
+        onClose={() => setEditPortfolioOpen(false)}
+      >
+        <form
+          onSubmit={(e) => void submitEditPortfolio(e)}
+          className="space-y-3"
+        >
+          <label className="block text-sm">
+            Name
+            <input
+              ref={editPortfolioNameInputRef}
+              className="mt-1 block w-full border border-slate-300 rounded px-2 py-1"
+              value={editPortfolioName}
+              onChange={(e) => setEditPortfolioName(e.target.value)}
+              autoComplete="off"
+            />
+          </label>
+          <label className="block text-sm">
+            Emergency fund (EUR)
+            <input
+              className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+              type="text"
+              inputMode="decimal"
+              autoComplete="off"
+              value={editPortfolioEmergencyFund}
+              onChange={(e) => setEditPortfolioEmergencyFund(e.target.value)}
+            />
+          </label>
+          <Button type="submit" disabled={editPortfolioBusy}>
+            Save
           </Button>
         </form>
       </Modal>

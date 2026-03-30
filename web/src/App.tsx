@@ -6,7 +6,6 @@ import { HomePage } from "./pages/HomePage";
 import { ImportPage } from "./pages/ImportPage";
 import { InstrumentsPage } from "./pages/InstrumentsPage";
 import { NewInstrumentPage } from "./pages/NewInstrumentPage";
-import { SettingsPage } from "./pages/SettingsPage";
 
 export function App() {
   return (
@@ -22,9 +21,6 @@ export function App() {
           <Link to="/brokers" className="text-emerald-800 hover:underline">
             Brokers
           </Link>
-          <Link to="/settings" className="text-emerald-800 hover:underline">
-            Settings
-          </Link>
           <Link to="/dev" className="text-emerald-800 hover:underline">
             Data checks
           </Link>
@@ -39,7 +35,6 @@ export function App() {
               element={<EditInstrumentPage />}
             />
             <Route path="/brokers" element={<BrokersPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
             <Route path="/import" element={<ImportPage />} />
             <Route path="/dev" element={<DevPage />} />
           </Routes>
