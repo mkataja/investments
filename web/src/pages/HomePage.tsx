@@ -213,7 +213,7 @@ function instrumentTickerCell(
 ): string {
   const inst = instrumentById.get(instrumentId);
   if (inst?.seligsonFund != null) return "-";
-  return instrumentTickerById.get(instrumentId) ?? "—";
+  return instrumentTickerById.get(instrumentId) ?? "-";
 }
 
 export function HomePage() {
