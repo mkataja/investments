@@ -12,11 +12,22 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 
-export const brokers = pgTable("brokers", {
-  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-  code: text("code").notNull().unique(),
-  name: text("name").notNull(),
-});
+export const brokers = pgTable(
+  "brokers",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
+    /** See `BROKER_TYPES` in `@investments/db` brokerTypes. */
+    brokerType: text("broker_type").notNull().default("exchange"),
+  },
+  (t) => [
+    check(
+      "brokers_broker_type_ck",
+      sql`${t.brokerType} IN ('exchange', 'seligson', 'cash_account')`,
+    ),
+  ],
+);
 
 export const seligsonFunds = pgTable(
   "seligson_funds",

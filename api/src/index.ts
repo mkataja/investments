@@ -1,16 +1,17 @@
 import { serve } from "@hono/node-server";
 import { zValidator } from "@hono/zod-validator";
 import {
+  type BrokerType,
   SUPPORTED_CASH_CURRENCY_CODES,
   brokers,
   distributionCache,
   instruments,
-  isInstrumentKindAllowedForBrokerCode,
+  isInstrumentKindAllowedForBrokerType,
   normalizeYahooSymbolForStorage,
   seligsonFunds,
   transactions,
 } from "@investments/db";
-import { asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
@@ -32,6 +33,11 @@ import {
   DEGIRO_CSV_EXTERNAL_SOURCE,
   parseDegiroTransactionsCsv,
 } from "./import/degiroTransactions.js";
+import {
+  assertBrokerCodeAvailableForUpdate,
+  normalizeBrokerCodeInput,
+  resolveBrokerCodeForCreate,
+} from "./lib/brokerMutations.js";
 import {
   refreshDistributionCacheForInstrumentId,
   refreshStaleDistributionCaches,
@@ -68,6 +74,126 @@ app.get("/health", (c) => c.json({ ok: true }));
 app.get("/brokers", async (c) => {
   const rows = await db.select().from(brokers).orderBy(asc(brokers.id));
   return c.json(rows);
+});
+
+const brokerCreateIn = z.object({
+  name: z.string().trim().min(1),
+  code: z.string().trim().optional(),
+  brokerType: z.enum(["exchange", "seligson", "cash_account"]),
+});
+
+const brokerPatchIn = z
+  .object({
+    name: z.string().trim().min(1).optional(),
+    code: z.string().trim().optional(),
+    brokerType: z.enum(["exchange", "seligson", "cash_account"]).optional(),
+  })
+  .refine((o) => o.name != null || o.code != null || o.brokerType != null, {
+    message: "At least one field is required",
+  });
+
+app.post("/brokers", zValidator("json", brokerCreateIn), async (c) => {
+  const body = c.req.valid("json");
+  const resolved = await resolveBrokerCodeForCreate(body.name, body.code);
+  if (!resolved.ok) {
+    return c.json(
+      { message: `Broker code ${resolved.code} is already in use` },
+      409,
+    );
+  }
+  const [row] = await db
+    .insert(brokers)
+    .values({
+      code: resolved.code,
+      name: body.name.trim(),
+      brokerType: body.brokerType,
+    })
+    .returning();
+  if (!row) {
+    return c.json({ message: "Failed to create broker" }, 500);
+  }
+  return c.json(row, 201);
+});
+
+app.patch("/brokers/:id", zValidator("json", brokerPatchIn), async (c) => {
+  const id = Number.parseInt(c.req.param("id"), 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid id" }, 400);
+  }
+  const body = c.req.valid("json");
+  const [existing] = await db.select().from(brokers).where(eq(brokers.id, id));
+  if (!existing) {
+    return c.json({ message: "Not found" }, 404);
+  }
+  let nextCode = existing.code;
+  if (body.code !== undefined) {
+    const trimmed = body.code.trim();
+    if (trimmed.length === 0) {
+      return c.json(
+        {
+          message:
+            "Code cannot be empty; omit the field to keep the current code",
+        },
+        400,
+      );
+    }
+    nextCode = normalizeBrokerCodeInput(trimmed);
+    if (nextCode.length === 0) {
+      return c.json({ message: "Invalid code" }, 400);
+    }
+    if (nextCode !== existing.code) {
+      const check = await assertBrokerCodeAvailableForUpdate(id, nextCode);
+      if (check !== true) {
+        return c.json(
+          { message: `Broker code ${check.code} is already in use` },
+          409,
+        );
+      }
+    }
+  }
+  const [row] = await db
+    .update(brokers)
+    .set({
+      name: body.name?.trim() ?? existing.name,
+      code: nextCode,
+      brokerType: body.brokerType ?? existing.brokerType,
+    })
+    .where(eq(brokers.id, id))
+    .returning();
+  if (!row) {
+    return c.json({ message: "Not found" }, 404);
+  }
+  return c.json(row);
+});
+
+app.delete("/brokers/:id", async (c) => {
+  const id = Number.parseInt(c.req.param("id"), 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid id" }, 400);
+  }
+  const [existing] = await db
+    .select({ id: brokers.id })
+    .from(brokers)
+    .where(eq(brokers.id, id));
+  if (!existing) {
+    return c.json({ message: "Not found" }, 404);
+  }
+  const [txnCountRow] = await db
+    .select({ n: count() })
+    .from(transactions)
+    .where(eq(transactions.brokerId, id));
+  const n = Number(txnCountRow?.n ?? 0);
+  if (n > 0) {
+    return c.json(
+      {
+        message:
+          "Cannot delete a broker that has transactions; reassign or remove them first",
+      },
+      409,
+    );
+  }
+  await db.delete(brokers).where(eq(brokers.id, id));
+  return c.body(null, 204);
 });
 
 const transactionIn = z.object({
@@ -360,20 +486,20 @@ async function findOrCreateSeligsonFundByFid(fid: number) {
 
 app.get("/instruments", async (c) => {
   const brokerIdRaw = c.req.query("brokerId")?.trim();
-  let brokerCodeForFilter: string | null = null;
+  let brokerTypeForFilter: string | null = null;
   if (brokerIdRaw != null && brokerIdRaw !== "") {
     const brokerId = Number.parseInt(brokerIdRaw, 10);
     if (!Number.isFinite(brokerId) || brokerId < 1) {
       return c.json({ message: "Invalid brokerId" }, 400);
     }
     const [b] = await db
-      .select({ code: brokers.code })
+      .select({ brokerType: brokers.brokerType })
       .from(brokers)
       .where(eq(brokers.id, brokerId));
     if (!b) {
       return c.json({ message: "Broker not found" }, 404);
     }
-    brokerCodeForFilter = b.code;
+    brokerTypeForFilter = b.brokerType;
   }
 
   const joined = await db
@@ -420,9 +546,12 @@ app.get("/instruments", async (c) => {
     seligsonFund: fund ? { id: fund.id, fid: fund.fid, name: fund.name } : null,
   }));
 
-  if (brokerCodeForFilter != null) {
+  if (brokerTypeForFilter != null) {
     payload = payload.filter((row) =>
-      isInstrumentKindAllowedForBrokerCode(brokerCodeForFilter, row.kind),
+      isInstrumentKindAllowedForBrokerType(
+        brokerTypeForFilter as BrokerType,
+        row.kind,
+      ),
     );
   }
 

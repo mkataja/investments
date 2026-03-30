@@ -15,7 +15,12 @@ import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 
-type Broker = { id: number; code: string; name: string };
+type Broker = {
+  id: number;
+  code: string;
+  name: string;
+  brokerType: string;
+};
 type Instrument = {
   id: number;
   kind: string;

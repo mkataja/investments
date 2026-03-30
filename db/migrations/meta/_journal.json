@@ -57,6 +57,13 @@
       "when": 1774865000000,
       "tag": "0007_yahoo_symbol_uppercase",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1774867091035,
+      "tag": "0008_loving_scalphunter",
+      "breakpoints": true
     }
   ]
 }

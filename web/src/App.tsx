@@ -1,4 +1,5 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
+import { BrokersPage } from "./pages/BrokersPage";
 import { DevPage } from "./pages/DevPage";
 import { HomePage } from "./pages/HomePage";
 import { ImportPage } from "./pages/ImportPage";
@@ -12,6 +13,9 @@ export function App() {
         <nav className="border-b border-slate-200 bg-white px-4 sm:px-6 py-3 flex gap-6 text-sm font-medium">
           <Link to="/" className="text-emerald-800 hover:underline">
             Portfolio
+          </Link>
+          <Link to="/brokers" className="text-emerald-800 hover:underline">
+            Brokers
           </Link>
           <Link to="/import" className="text-emerald-800 hover:underline">
             Import transactions
@@ -34,6 +38,7 @@ export function App() {
             <Route path="/" element={<HomePage />} />
             <Route path="/instruments" element={<InstrumentsPage />} />
             <Route path="/instruments/new" element={<NewInstrumentPage />} />
+            <Route path="/brokers" element={<BrokersPage />} />
             <Route path="/import" element={<ImportPage />} />
             <Route path="/dev" element={<DevPage />} />
           </Routes>
