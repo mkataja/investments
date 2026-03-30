@@ -379,7 +379,7 @@ export function HomePage() {
           </h2>
           <p className="text-slate-600 text-sm">
             Total estimated EUR:{" "}
-            <span className="font-mono">
+            <span className="tabular-nums">
               {portfolio.totalValueEur.toFixed(2)}
             </span>
             {portfolio.mixedCurrencyWarning && (
@@ -439,24 +439,33 @@ export function HomePage() {
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="overflow-x-auto border rounded-lg">
-            <table className="min-w-full text-sm">
-              <thead className="bg-slate-100">
+          <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
+            <table className="min-w-full">
+              <thead className="bg-slate-100 text-slate-700">
                 <tr>
-                  <th className="text-left p-2">Instrument</th>
-                  <th className="text-right p-2">Weight</th>
-                  <th className="text-right p-2">Value EUR</th>
-                  <th className="text-left p-2">Valuation</th>
+                  <th className="text-left p-2 font-medium">Ticker</th>
+                  <th className="text-left p-2 font-medium">Instrument</th>
+                  <th className="text-right p-2 font-medium">Weight</th>
+                  <th className="text-right p-2 font-medium">Value EUR</th>
+                  <th className="text-left p-2 font-medium">Valuation</th>
                 </tr>
               </thead>
               <tbody>
                 {portfolio.positions.map((p) => (
-                  <tr key={p.instrumentId} className="border-t">
-                    <td className="p-2">{p.displayName}</td>
-                    <td className="p-2 text-right font-mono">
+                  <tr
+                    key={p.instrumentId}
+                    className="border-t border-slate-100"
+                  >
+                    <td className="p-2 text-left tabular-nums text-slate-700">
+                      {instrumentTickerById.get(p.instrumentId) ?? "—"}
+                    </td>
+                    <td className="p-2 text-left min-w-[12rem] font-medium text-slate-900">
+                      {p.displayName}
+                    </td>
+                    <td className="p-2 text-right tabular-nums">
                       {formatPercentWidth4From01(p.weight)}
                     </td>
-                    <td className="p-2 text-right font-mono">
+                    <td className="p-2 text-right tabular-nums">
                       {p.valueEur.toFixed(2)}
                     </td>
                     <td className="p-2 text-slate-600">{p.valuationSource}</td>
@@ -476,21 +485,21 @@ export function HomePage() {
           <TransactionsTableSkeleton />
         ) : (
           <>
-            <div className="overflow-x-auto border rounded-lg text-sm">
+            <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
               <table className="min-w-full">
-                <thead className="bg-slate-100">
+                <thead className="bg-slate-100 text-slate-700">
                   <tr>
-                    <th className="text-left p-2">Date/time</th>
-                    <th className="text-left p-2">Side</th>
-                    <th className="text-left p-2">Ticker</th>
-                    <th className="text-left p-2">Instrument</th>
-                    <th className="text-right p-2">Qty</th>
-                    <th className="text-right p-2">Price</th>
+                    <th className="text-left p-2 font-medium">Date/time</th>
+                    <th className="text-left p-2 font-medium">Side</th>
+                    <th className="text-left p-2 font-medium">Ticker</th>
+                    <th className="text-left p-2 font-medium">Instrument</th>
+                    <th className="text-right p-2 font-medium">Qty</th>
+                    <th className="text-right p-2 font-medium">Price</th>
                   </tr>
                 </thead>
                 <tbody>
                   {transactions.map((t) => (
-                    <tr key={t.id} className="border-t">
+                    <tr key={t.id} className="border-t border-slate-100">
                       <td className="p-2">
                         {formatInstantForDisplay(t.tradeDate)}
                       </td>
@@ -498,7 +507,7 @@ export function HomePage() {
                       <td className="p-2 text-left tabular-nums text-slate-700">
                         {instrumentTickerById.get(t.instrumentId) ?? "—"}
                       </td>
-                      <td className="p-2 text-left min-w-[12rem]">
+                      <td className="p-2 text-left min-w-[12rem] font-medium text-slate-900">
                         {instrumentNameById.get(t.instrumentId) ??
                           `#${t.instrumentId}`}
                       </td>

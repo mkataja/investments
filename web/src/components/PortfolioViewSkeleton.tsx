@@ -19,14 +19,15 @@ export function PortfolioViewSkeleton() {
           <BlockSkeleton className="h-[calc(100%-2rem)] w-full" />
         </div>
       </div>
-      <div className="overflow-x-auto border rounded-lg border-slate-200">
-        <table className="min-w-full text-sm">
-          <thead className="bg-slate-100">
+      <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
+        <table className="min-w-full">
+          <thead className="bg-slate-100 text-slate-700">
             <tr>
-              <th className="text-left p-2 text-slate-700">Instrument</th>
-              <th className="text-right p-2 text-slate-700">Weight</th>
-              <th className="text-right p-2 text-slate-700">Value EUR</th>
-              <th className="text-left p-2 text-slate-700">Valuation</th>
+              <th className="text-left p-2 font-medium">Ticker</th>
+              <th className="text-left p-2 font-medium">Instrument</th>
+              <th className="text-right p-2 font-medium">Weight</th>
+              <th className="text-right p-2 font-medium">Value EUR</th>
+              <th className="text-left p-2 font-medium">Valuation</th>
             </tr>
           </thead>
           <tbody>
@@ -41,6 +42,9 @@ export function PortfolioViewSkeleton() {
             ).map((rowKey) => (
               <tr key={rowKey} className="border-t border-slate-100">
                 <td className="p-2">
+                  <BlockSkeleton className="h-4 w-14" />
+                </td>
+                <td className="p-2 min-w-[12rem]">
                   <BlockSkeleton className="h-4 w-40 max-w-full" />
                 </td>
                 <td className="p-2 text-right">
@@ -64,16 +68,16 @@ export function PortfolioViewSkeleton() {
 export function TransactionsTableSkeleton() {
   return (
     <div aria-busy="true" aria-label="Loading transactions">
-      <div className="overflow-x-auto border rounded-lg text-sm border-slate-200">
+      <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
         <table className="min-w-full">
-          <thead className="bg-slate-100">
+          <thead className="bg-slate-100 text-slate-700">
             <tr>
-              <th className="text-left p-2 text-slate-700">Date/time</th>
-              <th className="text-left p-2 text-slate-700">Side</th>
-              <th className="text-left p-2 text-slate-700">Ticker</th>
-              <th className="text-left p-2 text-slate-700">Instrument</th>
-              <th className="text-right p-2 text-slate-700">Qty</th>
-              <th className="text-right p-2 text-slate-700">Price</th>
+              <th className="text-left p-2 font-medium">Date/time</th>
+              <th className="text-left p-2 font-medium">Side</th>
+              <th className="text-left p-2 font-medium">Ticker</th>
+              <th className="text-left p-2 font-medium">Instrument</th>
+              <th className="text-right p-2 font-medium">Qty</th>
+              <th className="text-right p-2 font-medium">Price</th>
             </tr>
           </thead>
           <tbody>
