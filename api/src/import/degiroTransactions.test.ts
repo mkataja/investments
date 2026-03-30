@@ -49,6 +49,8 @@ describe("parseDegiroTransactionsCsv", () => {
     const row = result.rows[0];
     expect(row?.tradeDate).toBe("2026-03-25");
     expect(row?.isin).toBe("IE00B5BMR087");
+    expect(row?.referenceExchange).toBe("XET");
+    expect(row?.venue).toBe("XETA");
     expect(row?.side).toBe("sell");
     expect(row?.quantity).toBe("1");
     expect(row?.currency).toBe("EUR");

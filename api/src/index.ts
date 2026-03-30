@@ -24,6 +24,7 @@ import {
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
 } from "./distributions/yahoo.js";
+import { resolveDegiroInstrumentIds } from "./import/degiroResolveInstruments.js";
 import {
   DEGIRO_CSV_EXTERNAL_SOURCE,
   parseDegiroTransactionsCsv,
@@ -135,48 +136,27 @@ app.post("/import/degiro", async (c) => {
   const instRows = await db
     .select()
     .from(instruments)
-    .where(
-      and(
-        inArray(instruments.isin, uniqueIsins),
-        inArray(instruments.kind, ["etf", "stock", "seligson_fund"]),
-      ),
-    );
+    .where(inArray(instruments.kind, ["etf", "stock", "seligson_fund"]));
 
-  const idsByIsin = new Map<string, number[]>();
-  for (const row of instRows) {
-    if (!row.isin) {
-      continue;
-    }
-    const list = idsByIsin.get(row.isin) ?? [];
-    list.push(row.id);
-    idsByIsin.set(row.isin, list);
-  }
-
-  const missingIsins: string[] = [];
-  const ambiguousIsins: string[] = [];
-  for (const isin of uniqueIsins) {
-    const ids = idsByIsin.get(isin) ?? [];
-    if (ids.length === 0) {
-      missingIsins.push(isin);
-    } else if (ids.length > 1) {
-      ambiguousIsins.push(isin);
-    }
-  }
-  if (missingIsins.length > 0 || ambiguousIsins.length > 0) {
+  const resolved = await resolveDegiroInstrumentIds(uniqueIsins, instRows);
+  if (!resolved.ok) {
+    const status = resolved.message.includes("OpenFIGI request failed")
+      ? 502
+      : 400;
     return c.json(
       {
-        message:
-          "Resolve instruments before import (ISIN must match exactly one etf, stock, or seligson_fund).",
-        missingIsins,
-        ambiguousIsins,
+        message: resolved.message,
+        missingIsins: resolved.missingIsins,
+        ambiguousIsins: resolved.ambiguousIsins,
       },
-      400,
+      status,
     );
   }
 
+  const { instrumentIdByIsin } = resolved;
+
   const values = parsed.rows.map((r) => {
-    const ids = idsByIsin.get(r.isin);
-    const instrumentId = ids?.[0];
+    const instrumentId = instrumentIdByIsin.get(r.isin);
     if (instrumentId === undefined) {
       throw new Error(`Missing instrument for ISIN ${r.isin}`);
     }

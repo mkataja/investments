@@ -66,6 +66,8 @@ export const DEGIRO_CSV_EXTERNAL_SOURCE = "degiro_csv" as const;
 
 const COL_DATE = 0;
 const COL_ISIN = 3;
+const COL_REF_EXCHANGE = 4;
+const COL_VENUE = 5;
 const COL_QTY = 6;
 const COL_PRICE = 7;
 const COL_CURRENCY = 8;
@@ -73,6 +75,10 @@ const COL_CURRENCY = 8;
 export type DegiroParsedRow = {
   tradeDate: string;
   isin: string;
+  /** Degiro “Reference exchange” (e.g. XET, EAM, HSE). */
+  referenceExchange: string;
+  /** Degiro “Venue” MIC-style code (e.g. XETA, XAMS, XHEL). */
+  venue: string;
   side: "buy" | "sell";
   /** Absolute quantity as decimal string (matches DB numeric). */
   quantity: string;
@@ -210,6 +216,21 @@ export function parseDegiroTransactionsCsv(
       continue;
     }
 
+    const referenceExchange = normalizeDegiroCell(
+      normalized[COL_REF_EXCHANGE] ?? "",
+    ).toUpperCase();
+    const venue = normalizeDegiroCell(
+      normalized[COL_VENUE] ?? "",
+    ).toUpperCase();
+    if (referenceExchange.length === 0) {
+      errors.push(`Line ${line}: missing Reference exchange`);
+      continue;
+    }
+    if (venue.length === 0) {
+      errors.push(`Line ${line}: missing Venue`);
+      continue;
+    }
+
     const qtyStr = parseEuropeanDecimalString(normalized[COL_QTY] ?? "");
     if (qtyStr === null) {
       errors.push(`Line ${line}: invalid quantity "${normalized[COL_QTY]}"`);
@@ -249,6 +270,8 @@ export function parseDegiroTransactionsCsv(
     rows.push({
       tradeDate,
       isin,
+      referenceExchange,
+      venue,
       side,
       quantity,
       unitPrice: priceStr,
