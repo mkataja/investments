@@ -18,7 +18,10 @@ import {
   TransactionsTableSkeleton,
 } from "../components/PortfolioViewSkeleton";
 import { formatInstantForDisplay } from "../lib/dateTimeFormat";
-import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
+import {
+  formatPercentWidth4From01,
+  topCountriesChartData,
+} from "../lib/distributionDisplay";
 import {
   formatTransactionUnitPriceForDisplay,
   formatUnitPriceForDisplay,
@@ -61,6 +64,7 @@ function transactionSideLabel(side: string, instrumentKind?: string): string {
 }
 
 type Portfolio = {
+  countries: Record<string, number>;
   regions: Record<string, number>;
   sectors: Record<string, number>;
   totalValueEur: number;
@@ -238,6 +242,27 @@ export function HomePage() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+          <div className="h-64">
+            <h3 className="text-sm font-medium text-slate-700 mb-2">
+              Countries (top 15 + other)
+            </h3>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={topCountriesChartData(portfolio.countries, 15)}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis
+                  dataKey="name"
+                  angle={-35}
+                  textAnchor="end"
+                  height={80}
+                />
+                <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
+                <Tooltip
+                  formatter={(v: number) => formatPercentWidth4From01(v)}
+                />
+                <Bar dataKey="value" fill="#0369a1" name="Weight" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
           <h3 className="text-lg font-medium text-slate-800 mb-2">Holdings</h3>
           <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">

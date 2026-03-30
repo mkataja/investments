@@ -6,18 +6,99 @@ import {
   GEO_BUCKET_ORDER,
   type GeoBucketId,
   aggregateRegionsToGeoBuckets,
+  countryIsoToFlagEmoji,
   geoBucketDisplayIcon,
+  resolveRegionKeyToIso,
 } from "@investments/db";
 
 export type GeoBucket = GeoBucketId;
 
 export { aggregateRegionsToGeoBuckets, GEO_BUCKET_ORDER };
 
+/** Weights merged under this key could not be resolved to ISO (see `resolveRegionKeyToIso`). */
+export const UNMAPPED_COUNTRY_KEY = "__unmapped__";
+
 /** @deprecated Use aggregateRegionsToGeoBuckets */
 export function aggregateRegionsToBuckets(
   countries: Record<string, number>,
 ): Record<GeoBucket, number> {
   return aggregateRegionsToGeoBuckets(countries);
+}
+
+/**
+ * Merge country/label keys into ISO alpha-2 keys; unresolvable weight is summed under
+ * `UNMAPPED_COUNTRY_KEY`.
+ */
+export function normalizeCountryWeightsForDisplay(
+  countries: Record<string, number>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [rawKey, w] of Object.entries(countries)) {
+    if (typeof w !== "number" || !Number.isFinite(w) || w <= 0) {
+      continue;
+    }
+    const iso = resolveRegionKeyToIso(rawKey.trim());
+    const k = iso ?? UNMAPPED_COUNTRY_KEY;
+    out[k] = (out[k] ?? 0) + w;
+  }
+  return out;
+}
+
+export type CountrySegment = {
+  key: string;
+  label: string;
+  icon: string;
+  pctLabel: string;
+  weight: number;
+};
+
+const REST_ICON = "🌍";
+
+/** Top `topN` ISO countries by weight, then one "Other" row for the remainder (if any). */
+export function topCountriesSegmentsForDisplay(
+  countries: Record<string, number>,
+  topN: number,
+): CountrySegment[] {
+  const norm = normalizeCountryWeightsForDisplay(countries);
+  const entries = Object.entries(norm).sort((a, b) => b[1] - a[1]);
+  const top = entries.slice(0, topN);
+  const restW = entries.slice(topN).reduce((s, [, w]) => s + w, 0);
+  const segments: CountrySegment[] = top.map(([k, w]) => ({
+    key: k,
+    label: k === UNMAPPED_COUNTRY_KEY ? "Unmapped" : k,
+    icon: k === UNMAPPED_COUNTRY_KEY ? "⚠️" : countryIsoToFlagEmoji(k),
+    pctLabel: formatPercentWidth4From01(w),
+    weight: w,
+  }));
+  if (restW > 0.0005) {
+    segments.push({
+      key: "rest",
+      label: "Other",
+      icon: REST_ICON,
+      pctLabel: formatPercentWidth4From01(restW),
+      weight: restW,
+    });
+  }
+  return segments;
+}
+
+/** Bar chart rows: top `topN` countries by weight plus optional "Other" for the rest. */
+export function topCountriesChartData(
+  countries: Record<string, number>,
+  topN: number,
+): Array<{ name: string; value: number }> {
+  const norm = normalizeCountryWeightsForDisplay(countries);
+  const entries = Object.entries(norm).sort((a, b) => b[1] - a[1]);
+  const top = entries.slice(0, topN);
+  const restW = entries.slice(topN).reduce((s, [, w]) => s + w, 0);
+  const data = top.map(([iso, v]) => ({
+    name: iso === UNMAPPED_COUNTRY_KEY ? "Unmapped" : iso,
+    value: v,
+  }));
+  if (restW > 0.0005) {
+    data.push({ name: "Other", value: restW });
+  }
+  return data;
 }
 
 const NBSP = "\u00a0";
@@ -138,13 +219,16 @@ export function formatDistributionTooltip(
   sectors: Record<string, number>,
 ): string {
   const lines: string[] = [];
-  const g = aggregateRegionsToGeoBuckets(countries);
-  const geoSegs = geoSegmentsForDisplay(g);
-  const geoParts = geoSegs.map(
-    (s) => `${s.bucket} ${formatPercentWidth4From01(g[s.bucket])}`,
-  );
-  if (geoParts.length > 0) {
-    lines.push(`Geo: ${geoParts.join(", ")}`);
+  const norm = normalizeCountryWeightsForDisplay(countries);
+  const countryParts = Object.entries(norm)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12)
+    .map(([k, v]) => {
+      const label = k === UNMAPPED_COUNTRY_KEY ? "Unmapped" : k;
+      return `${label} ${formatPercentWidth4From01(v)}`;
+    });
+  if (countryParts.length > 0) {
+    lines.push(`Countries: ${countryParts.join(", ")}`);
   }
   const secParts = Object.entries(sectors)
     .filter(([, v]) => typeof v === "number" && v > 0.0005)

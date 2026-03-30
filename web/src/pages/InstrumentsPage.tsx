@@ -1,7 +1,5 @@
 import {
   type DistributionPayload,
-  geoBucketDisplayIcon,
-  geoBucketDisplayTitle,
   instrumentKindColumnLabel,
   instrumentTickerDisplay,
 } from "@investments/db";
@@ -13,9 +11,8 @@ import { ErrorAlert } from "../components/ErrorAlert";
 import { InstrumentsTableSkeleton } from "../components/listPageSkeletons";
 import { formatInstantForDisplay } from "../lib/dateTimeFormat";
 import {
-  aggregateRegionsToBuckets,
-  geoSegmentsForDisplay,
   sortedSectorsForDisplay,
+  topCountriesSegmentsForDisplay,
 } from "../lib/distributionDisplay";
 
 type SeligsonFundSummary = {
@@ -65,26 +62,24 @@ function DistributionSummary({
   /** Omit for synthetic rows (e.g. cash accounts) where there is no cache timestamp. */
   fetchedAt?: string;
 }) {
-  const geoSegs = geoSegmentsForDisplay(
-    aggregateRegionsToBuckets(payload.countries),
-  );
+  const countrySegs = topCountriesSegmentsForDisplay(payload.countries, 9);
   const sectorRows = sortedSectorsForDisplay(payload.sectors);
   return (
     <div className="space-y-1">
       <div className="text-xs text-slate-800">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 min-w-0">
-          {geoSegs.length > 0 ? (
-            geoSegs.map((s) => (
+          {countrySegs.length > 0 ? (
+            countrySegs.map((s) => (
               <span
-                key={s.bucket}
+                key={s.key}
                 className="inline-flex items-center gap-0.5 whitespace-nowrap shrink-0"
               >
                 <span
                   className="text-2xl leading-none select-none"
-                  title={geoBucketDisplayTitle(s.bucket)}
+                  title={s.label}
                   aria-hidden
                 >
-                  {geoBucketDisplayIcon(s.bucket)}
+                  {s.icon}
                 </span>
                 <span className="tabular-nums">{s.pctLabel}</span>
               </span>
