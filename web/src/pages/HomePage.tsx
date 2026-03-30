@@ -4,14 +4,12 @@ import {
 } from "@investments/db";
 import {
   type FormEvent,
-  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import {
   Bar,
   BarChart,
@@ -29,10 +27,14 @@ import { apiDelete, apiGet, apiPatch, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import {
-  CashAccountDistributionSummary,
-  DistributionSummary,
-} from "../components/InstrumentDistributionSummary";
+  HoldingDistributionTooltipLayer,
+  type HoldingDistributionTooltipState,
+} from "../components/HoldingDistributionTooltip";
 import { Modal } from "../components/Modal";
+import {
+  assetMixPieTooltipFormatter,
+  portfolioDistributionBarTooltipFormatter,
+} from "../components/PortfolioChartTooltips";
 import {
   PortfolioViewSkeleton,
   TransactionsTableSkeleton,
@@ -152,71 +154,6 @@ const DIST_CHART_COLORS = {
   countryPrimary: "#0369a1",
   countryCompare: "#38bdf8",
 } as const;
-
-const HOLDING_DIST_TOOLTIP_OFFSET = 12;
-
-function holdingDistributionTooltipBody(
-  inst: Instrument | undefined,
-  displayNameFallback: string,
-): ReactNode {
-  const name = inst?.displayName ?? displayNameFallback;
-  const equityTicker =
-    inst != null && (inst.kind === "etf" || inst.kind === "stock")
-      ? instrumentTickerDisplay(inst)
-      : null;
-  const showEquityTicker =
-    typeof equityTicker === "string" && equityTicker.trim().length > 0;
-
-  const heading = (
-    <div className="mb-2 border-b border-slate-200 pb-2 font-sans">
-      <p className="font-semibold text-slate-900 text-sm leading-snug">
-        {name}
-      </p>
-      {showEquityTicker ? (
-        <p className="text-xs text-slate-600 tabular-nums mt-0.5">
-          {equityTicker}
-        </p>
-      ) : null}
-    </div>
-  );
-
-  if (inst == null) {
-    return (
-      <>
-        {heading}
-        <span className="text-slate-400 text-xs font-sans">
-          No instrument data
-        </span>
-      </>
-    );
-  }
-  if (inst.kind === "cash_account") {
-    return (
-      <>
-        {heading}
-        <div className="font-mono">
-          <CashAccountDistributionSummary cashGeoKey={inst.cashGeoKey ?? ""} />
-        </div>
-      </>
-    );
-  }
-  if (inst.distribution) {
-    return (
-      <>
-        {heading}
-        <div className="font-mono">
-          <DistributionSummary payload={inst.distribution.payload} />
-        </div>
-      </>
-    );
-  }
-  return (
-    <>
-      {heading}
-      <span className="text-slate-400 text-xs font-sans">No cache yet</span>
-    </>
-  );
-}
 
 function instrumentTickerCell(
   instrumentId: number,
@@ -535,24 +472,8 @@ export function HomePage() {
     setNewPortfolioOpen(true);
   }
 
-  const [holdingTooltip, setHoldingTooltip] = useState<null | {
-    instrumentId: number;
-    displayName: string;
-    x: number;
-    y: number;
-  }>(null);
-  const holdingTooltipActiveId = holdingTooltip?.instrumentId ?? null;
-
-  useEffect(() => {
-    if (holdingTooltipActiveId == null) return;
-    const onMove = (e: MouseEvent) => {
-      setHoldingTooltip((t) =>
-        t != null ? { ...t, x: e.clientX, y: e.clientY } : null,
-      );
-    };
-    window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
-  }, [holdingTooltipActiveId]);
+  const [holdingTooltip, setHoldingTooltip] =
+    useState<HoldingDistributionTooltipState | null>(null);
 
   return (
     <div className="w-full min-w-0 space-y-6">
@@ -779,11 +700,9 @@ export function HomePage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(v: number) =>
-                        `${v.toFixed(2)} EUR (${(
-                          (v / assetMixPieTotalEur) * 100
-                        ).toFixed(1)}%)`
-                      }
+                      formatter={assetMixPieTooltipFormatter(
+                        assetMixPieTotalEur,
+                      )}
                     />
                     <Legend
                       verticalAlign="bottom"
@@ -811,7 +730,7 @@ export function HomePage() {
                   />
                   <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
                   <Tooltip
-                    formatter={(v: number) => formatPercentWidth4From01(v)}
+                    formatter={portfolioDistributionBarTooltipFormatter}
                   />
                   {showDistributionCompare ? (
                     <>
@@ -856,7 +775,7 @@ export function HomePage() {
                   />
                   <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
                   <Tooltip
-                    formatter={(v: number) => formatPercentWidth4From01(v)}
+                    formatter={portfolioDistributionBarTooltipFormatter}
                   />
                   {showDistributionCompare ? (
                     <>
@@ -901,9 +820,7 @@ export function HomePage() {
                   height={80}
                 />
                 <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
-                <Tooltip
-                  formatter={(v: number) => formatPercentWidth4From01(v)}
-                />
+                <Tooltip formatter={portfolioDistributionBarTooltipFormatter} />
                 {showDistributionCompare ? (
                   <>
                     <Bar
@@ -996,27 +913,11 @@ export function HomePage() {
               </tbody>
             </table>
           </div>
-          {holdingTooltip != null
-            ? createPortal(
-                <div
-                  role="tooltip"
-                  style={{
-                    position: "fixed",
-                    left: holdingTooltip.x + HOLDING_DIST_TOOLTIP_OFFSET,
-                    top: holdingTooltip.y + HOLDING_DIST_TOOLTIP_OFFSET,
-                    zIndex: 50,
-                    pointerEvents: "none",
-                  }}
-                  className="max-w-md max-h-[min(70vh,28rem)] overflow-y-auto rounded-lg border border-slate-200 bg-white px-3 py-2.5 shadow-lg text-left"
-                >
-                  {holdingDistributionTooltipBody(
-                    instrumentById.get(holdingTooltip.instrumentId),
-                    holdingTooltip.displayName,
-                  )}
-                </div>,
-                document.body,
-              )
-            : null}
+          <HoldingDistributionTooltipLayer
+            tooltip={holdingTooltip}
+            setTooltip={setHoldingTooltip}
+            resolveInstrument={(id) => instrumentById.get(id)}
+          />
         </section>
       ) : null}
 
