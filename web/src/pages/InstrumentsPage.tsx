@@ -12,6 +12,7 @@ import {
   geoSegmentsForDisplay,
   sortedSectorsForDisplay,
 } from "../lib/distributionDisplay";
+import { formatDistributionFetchedAt } from "../lib/formatDistributionFetchedAt";
 
 type DistributionPayload = {
   regions: Record<string, number>;
@@ -120,7 +121,7 @@ function DistributionSummary({
         {fetchedAt != null && fetchedAt !== "" ? (
           <>
             <span className="text-slate-400"> · </span>
-            {new Date(fetchedAt).toLocaleString()}
+            {formatDistributionFetchedAt(fetchedAt)}
           </>
         ) : null}
       </p>
