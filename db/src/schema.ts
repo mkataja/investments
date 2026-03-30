@@ -47,6 +47,27 @@ export const portfolioSettings = pgTable("portfolio_settings", {
     .defaultNow(),
 });
 
+/**
+ * One row per named portfolio bucket; transactions are scoped to a portfolio.
+ */
+export const portfolios = pgTable(
+  "portfolios",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("portfolios_user_name_uidx").on(t.userId, t.name)],
+);
+
 export const brokers = pgTable(
   "brokers",
   {
@@ -150,6 +171,9 @@ export const transactions = pgTable(
     userId: integer("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
+    portfolioId: integer("portfolio_id")
+      .notNull()
+      .references(() => portfolios.id, { onDelete: "restrict" }),
     brokerId: integer("broker_id")
       .notNull()
       .references(() => brokers.id),
@@ -298,6 +322,15 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   }),
   brokers: many(brokers),
   transactions: many(transactions),
+  portfolios: many(portfolios),
+}));
+
+export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
+  user: one(users, {
+    fields: [portfolios.userId],
+    references: [users.id],
+  }),
+  transactions: many(transactions),
 }));
 
 export const portfolioSettingsRelations = relations(
@@ -366,6 +399,10 @@ export const transactionsRelations = relations(transactions, ({ one }) => ({
   user: one(users, {
     fields: [transactions.userId],
     references: [users.id],
+  }),
+  portfolio: one(portfolios, {
+    fields: [transactions.portfolioId],
+    references: [portfolios.id],
   }),
   broker: one(brokers, {
     fields: [transactions.brokerId],
