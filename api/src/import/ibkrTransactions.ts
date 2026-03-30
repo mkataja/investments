@@ -217,6 +217,38 @@ function shouldSkipIbkrFlatRow(
   return false;
 }
 
+function shouldSkipIbkrFlatTradesRow(
+  buySellRaw: string,
+  symbolRaw: string,
+  exchangeRaw: string,
+  quantityStr: string | null,
+  priceStr: string | null,
+): boolean {
+  const bs = trimCell(buySellRaw).toUpperCase();
+  if (bs !== "BUY" && bs !== "SELL") {
+    return true;
+  }
+  if (isIbkrFxRow(symbolRaw, exchangeRaw)) {
+    return true;
+  }
+  const sym = trimCell(symbolRaw);
+  if (sym === "" || sym === "-") {
+    return true;
+  }
+  if (quantityStr === null || priceStr === null) {
+    return true;
+  }
+  const q = Number.parseFloat(quantityStr);
+  if (!Number.isFinite(q) || q === 0) {
+    return true;
+  }
+  const p = Number.parseFloat(priceStr);
+  if (!Number.isFinite(p) || p === 0) {
+    return true;
+  }
+  return false;
+}
+
 export type ParseIbkrCsvResult =
   | { ok: true; rows: IbkrParsedRow[] }
   | { ok: false; errors: string[] };
@@ -228,6 +260,19 @@ function isFlatIbkrExportHeader(firstRow: string[]): boolean {
     keys.has("DateTime") &&
     keys.has("TransactionType") &&
     keys.has("TradePrice")
+  );
+}
+
+/** Flat trades export: `Date/Time`, `Buy/Sell`, `Price`, `CommissionCurrency` (no `TransactionType` / `TradePrice`). */
+function isFlatIbkrTradesExportHeader(firstRow: string[]): boolean {
+  const keys = new Set(firstRow.map((c) => headerKey(String(c ?? ""))));
+  return (
+    keys.has("ClientAccountID") &&
+    keys.has("Date/Time") &&
+    keys.has("Buy/Sell") &&
+    keys.has("Price") &&
+    keys.has("Quantity") &&
+    !keys.has("TransactionType")
   );
 }
 
@@ -321,6 +366,157 @@ function parseIbkrFlatActivityCsv(records: string[][]): ParseIbkrCsvResult {
     }
 
     const side: "buy" | "sell" = qtyNum < 0 ? "sell" : "buy";
+    const quantityAbs = Math.abs(qtyNum);
+    const quantity = formatPlainDecimal(quantityAbs);
+    const unitPrice = formatPlainDecimal(Math.abs(priceNum));
+    const unitPriceEur = ibkrUnitPriceToEurStub(
+      Number.parseFloat(unitPrice),
+      currency,
+    );
+
+    const isin = normalizeIbkrIsin(isinRaw);
+
+    const externalId = buildIbkrFlatExternalId({
+      isin,
+      symbolRaw,
+      quantityRaw: qtyCell,
+      priceRaw: priceCell,
+      dateTimeRaw,
+    });
+
+    rows.push({
+      tradeDate,
+      symbolRaw,
+      isin,
+      side,
+      quantity,
+      unitPrice,
+      currency,
+      unitPriceEur,
+      externalId,
+    });
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  rows.sort((a, b) => {
+    const d = a.tradeDate.localeCompare(b.tradeDate);
+    if (d !== 0) {
+      return d;
+    }
+    return a.externalId.localeCompare(b.externalId);
+  });
+
+  return { ok: true, rows };
+}
+
+function parseIbkrFlatTradesCsv(records: string[][]): ParseIbkrCsvResult {
+  const errors: string[] = [];
+  const headerRow = records[0];
+  if (!headerRow || headerRow.length < 2) {
+    return { ok: false, errors: ["Flat IBKR trades CSV: missing header row"] };
+  }
+  const colIndex = new Map<string, number>();
+  for (let j = 0; j < headerRow.length; j++) {
+    const key = headerKey(String(headerRow[j] ?? ""));
+    if (key.length > 0) {
+      colIndex.set(key, j);
+    }
+  }
+  const need = [
+    "Date/Time",
+    "Symbol",
+    "ISIN",
+    "Exchange",
+    "Buy/Sell",
+    "Quantity",
+    "Price",
+  ];
+  const missing = need.filter((k) => !colIndex.has(k));
+  if (missing.length > 0) {
+    return {
+      ok: false,
+      errors: [
+        `Flat IBKR trades CSV header missing columns: ${missing.join(", ")}`,
+      ],
+    };
+  }
+  const currencyCol = colIndex.has("CommissionCurrency")
+    ? "CommissionCurrency"
+    : colIndex.has("CurrencyPrimary")
+      ? "CurrencyPrimary"
+      : null;
+  if (currencyCol === null) {
+    return {
+      ok: false,
+      errors: [
+        "Flat IBKR trades CSV header missing CommissionCurrency or CurrencyPrimary",
+      ],
+    };
+  }
+
+  const rows: IbkrParsedRow[] = [];
+
+  for (let i = 1; i < records.length; i++) {
+    const line = i + 1;
+    const row = records[i];
+    if (!row || row.length === 0) {
+      continue;
+    }
+
+    const dateTimeRaw = String(row[colIndex.get("Date/Time") ?? -1] ?? "");
+    const symbolRaw = String(row[colIndex.get("Symbol") ?? -1] ?? "");
+    const isinRaw = String(row[colIndex.get("ISIN") ?? -1] ?? "");
+    const exchangeRaw = String(row[colIndex.get("Exchange") ?? -1] ?? "");
+    const buySellRaw = String(row[colIndex.get("Buy/Sell") ?? -1] ?? "");
+    const qtyCell = String(row[colIndex.get("Quantity") ?? -1] ?? "");
+    const priceCell = String(row[colIndex.get("Price") ?? -1] ?? "");
+    const curCell = String(row[colIndex.get(currencyCol) ?? -1] ?? "");
+
+    const quantityStr =
+      parseIbkrDecimalString(qtyCell) ?? parseEuropeanDecimalString(qtyCell);
+    const priceStr =
+      parseIbkrDecimalString(priceCell) ??
+      parseEuropeanDecimalString(priceCell);
+
+    if (
+      shouldSkipIbkrFlatTradesRow(
+        buySellRaw,
+        symbolRaw,
+        exchangeRaw,
+        quantityStr,
+        priceStr,
+      ) ||
+      quantityStr === null ||
+      priceStr === null
+    ) {
+      continue;
+    }
+
+    const calendarIso = parseIbkrCalendarDateFromDateTime(dateTimeRaw);
+    if (!calendarIso) {
+      errors.push(`Line ${line}: invalid Date/Time "${dateTimeRaw}"`);
+      continue;
+    }
+    const tradeDate = `${calendarIso}T00:00:00.000Z`;
+
+    const currency = trimCell(curCell).toUpperCase();
+    if (currency.length === 0 || currency === "-") {
+      errors.push(`Line ${line}: missing ${currencyCol}`);
+      continue;
+    }
+
+    const qtyNum = Number.parseFloat(quantityStr);
+    const priceNum = Number.parseFloat(priceStr);
+    if (!Number.isFinite(qtyNum) || !Number.isFinite(priceNum)) {
+      errors.push(`Line ${line}: invalid quantity or price`);
+      continue;
+    }
+
+    const side: "buy" | "sell" =
+      trimCell(buySellRaw).toUpperCase() === "SELL" ? "sell" : "buy";
     const quantityAbs = Math.abs(qtyNum);
     const quantity = formatPlainDecimal(quantityAbs);
     const unitPrice = formatPlainDecimal(Math.abs(priceNum));
@@ -523,8 +719,9 @@ function parseIbkrLegacyTransactionHistoryCsv(
 
 /**
  * Interactive Brokers CSV: supports (1) flat Activity export with **`ClientAccountID`**
- * / **`DateTime`** / **`ExchTrade`** rows, or (2) legacy Statement-style **`Transaction History`** data rows.
- * Statement / Summary sections are ignored for (2). Forex (**`IDEALFX`**, `AAA.BBB` symbols) is skipped for (1).
+ * / **`DateTime`** / **`ExchTrade`** rows, (1b) flat trades with **`Date/Time`** / **`Buy/Sell`** / **`Price`**
+ * / **`CommissionCurrency`**, or (2) legacy Statement-style **`Transaction History`** data rows.
+ * Statement / Summary sections are ignored for (2). Forex (**`IDEALFX`**, `AAA.BBB` symbols) is skipped for (1)/(1b).
  */
 export function parseIbkrTransactionsCsv(csvText: string): ParseIbkrCsvResult {
   let records: string[][];
@@ -542,6 +739,9 @@ export function parseIbkrTransactionsCsv(csvText: string): ParseIbkrCsvResult {
   const first = records[0]?.map((c) => trimCell(String(c ?? ""))) ?? [];
   if (isFlatIbkrExportHeader(first)) {
     return parseIbkrFlatActivityCsv(records);
+  }
+  if (isFlatIbkrTradesExportHeader(first)) {
+    return parseIbkrFlatTradesCsv(records);
   }
   return parseIbkrLegacyTransactionHistoryCsv(records);
 }

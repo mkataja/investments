@@ -46,6 +46,11 @@ const SAMPLE_IBKR_FLAT_CSV = `"ClientAccountID","DateTime","Symbol","ISIN","Desc
 "U22473172","2025-10-13 14:45:08 EDT","EUR.USD","","EUR.USD","IDEALFX","ExchTrade","-425.02","1.15673","USD","0","EUR"
 `;
 
+/** Flat trades export: `Date/Time`, `Buy/Sell`, `Price` (not `DateTime` / `ExchTrade` / `TradePrice`). */
+const SAMPLE_IBKR_FLAT_TRADES_CSV = `"ClientAccountID","Date/Time","Symbol","ISIN","Description","Exchange","Buy/Sell","Quantity","Price","Commission","CommissionCurrency"
+"U22473172","2026-03-30 11:23:43 EDT","SPYI","IE00B3YLTY66","SP MS ALL CO WI MKT UC ET-AC","IBIS2","BUY","50","9.76","-1.291472","EUR"
+`;
+
 describe("parseIbkrTransactionsCsv", () => {
   it("imports only Transaction History equity rows", () => {
     const result = parseIbkrTransactionsCsv(SAMPLE_IBKR_CSV);
@@ -80,6 +85,27 @@ describe("parseIbkrTransactionsCsv", () => {
     expect(spyi?.quantity).toBe("50");
     const brk = result.rows.find((r) => r.symbolRaw === "BRK B");
     expect(brk?.isin).toBe("US0846707026");
+  });
+
+  it("parses flat trades CSV (Date/Time, Buy/Sell, Price, CommissionCurrency)", () => {
+    const result = parseIbkrTransactionsCsv(SAMPLE_IBKR_FLAT_TRADES_CSV);
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.rows).toHaveLength(1);
+    const spyi = result.rows[0];
+    expect(spyi).toBeDefined();
+    if (spyi === undefined) {
+      return;
+    }
+    expect(spyi.symbolRaw).toBe("SPYI");
+    expect(spyi.isin).toBe("IE00B3YLTY66");
+    expect(spyi.side).toBe("buy");
+    expect(spyi.quantity).toBe("50");
+    expect(spyi.unitPrice).toBe("9.76");
+    expect(spyi.currency).toBe("EUR");
+    expect(spyi.unitPriceEur).toBe("9.76");
   });
 
   it("rejects invalid dates in Transaction History data", () => {
