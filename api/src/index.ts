@@ -40,6 +40,7 @@ import {
   writeSeligsonDistributionCache,
 } from "./lib/cacheRefresh.js";
 import { insertEtfStockFromYahoo } from "./lib/createYahooInstrument.js";
+import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
 import { loadOpenPositions } from "./lib/positions.js";
 import { formatYahooUpstreamError } from "./lib/yahooUpstream.js";
@@ -188,7 +189,20 @@ app.delete("/brokers/:id", async (c) => {
 
 const transactionIn = z.object({
   brokerId: z.number().int().positive(),
-  tradeDate: z.string(),
+  tradeDate: z
+    .string()
+    .refine(
+      (s) => {
+        try {
+          normalizeTradeDateInputToDate(s);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: "Invalid tradeDate" },
+    )
+    .transform((s) => normalizeTradeDateInputToDate(s)),
   side: z.enum(["buy", "sell"]),
   instrumentId: z.number().int().positive(),
   quantity: z.string().or(z.number()),
@@ -375,7 +389,7 @@ app.post("/import/degiro", async (c) => {
     }
     return {
       brokerId: degiroBroker.id,
-      tradeDate: r.tradeDate,
+      tradeDate: new Date(r.tradeDate),
       side: r.side,
       instrumentId,
       quantity: r.quantity,

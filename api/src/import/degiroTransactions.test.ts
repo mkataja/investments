@@ -2,10 +2,12 @@ import { parse } from "csv-parse/sync";
 import { describe, expect, it } from "vitest";
 import {
   DEGIRO_TRANSACTIONS_HEADER,
+  degiroDateWallTimeToIsoUtc,
   extractDegiroOrderId,
   fingerprintDegiroRow,
   normalizeDegiroDataRow,
   parseDegiroTradeDateDdMmYyyy,
+  parseDegiroTradeTimeHhMm,
   parseDegiroTransactionsCsv,
   parseEuropeanDecimalString,
   shouldSkipDegiroNonTradeRow,
@@ -41,6 +43,21 @@ describe("parseDegiroTradeDateDdMmYyyy", () => {
   });
 });
 
+describe("parseDegiroTradeTimeHhMm", () => {
+  it("normalizes hour and minute", () => {
+    expect(parseDegiroTradeTimeHhMm("15:39")).toBe("15:39");
+    expect(parseDegiroTradeTimeHhMm("9:05")).toBe("09:05");
+  });
+});
+
+describe("degiroDateWallTimeToIsoUtc", () => {
+  it("combines calendar date and time as UTC wall clock", () => {
+    expect(degiroDateWallTimeToIsoUtc("2026-03-25", "15:39")).toBe(
+      "2026-03-25T15:39:00.000Z",
+    );
+  });
+});
+
 describe("parseDegiroTransactionsCsv", () => {
   it("accepts a valid Degiro Transactions export line", () => {
     const csv = `${headerLine()}${SAMPLE_ROW}\n`;
@@ -51,7 +68,7 @@ describe("parseDegiroTransactionsCsv", () => {
     }
     expect(result.rows).toHaveLength(1);
     const row = result.rows[0];
-    expect(row?.tradeDate).toBe("2026-03-25");
+    expect(row?.tradeDate).toBe("2026-03-25T15:39:00.000Z");
     expect(row?.isin).toBe("IE00B5BMR087");
     expect(row?.product).toContain("ISHARES CORE S&P 500");
     expect(row?.referenceExchange).toBe("XET");

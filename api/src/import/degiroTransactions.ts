@@ -65,6 +65,7 @@ export function normalizeDegiroDataRow(
 export const DEGIRO_CSV_EXTERNAL_SOURCE = "degiro_csv" as const;
 
 const COL_DATE = 0;
+const COL_TIME = 1;
 const COL_PRODUCT = 2;
 const COL_ISIN = 3;
 const COL_REF_EXCHANGE = 4;
@@ -74,6 +75,7 @@ const COL_PRICE = 7;
 const COL_CURRENCY = 8;
 
 export type DegiroParsedRow = {
+  /** ISO 8601 instant (UTC). Degiro date+time are stored as that wall clock in UTC (CSV has no timezone). */
   tradeDate: string;
   isin: string;
   /** Degiro “Product” column (fund / security name). */
@@ -217,6 +219,37 @@ export function parseDegiroTradeDateDdMmYyyy(raw: string): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/** Degiro "Time" column (HH:MM). Returns zero-padded "HH:MM" or null. */
+export function parseDegiroTradeTimeHhMm(raw: string): string | null {
+  const s = normalizeUnicodeMinus(raw).trim();
+  const m = /^(\d{1,2}):(\d{2})$/.exec(s);
+  if (!m) {
+    return null;
+  }
+  const hRaw = m[1];
+  const minRaw = m[2];
+  if (hRaw === undefined || minRaw === undefined) {
+    return null;
+  }
+  const hh = hRaw.padStart(2, "0");
+  return `${hh}:${minRaw}`;
+}
+
+/**
+ * Combine calendar YYYY-MM-DD and HH:MM into an ISO instant.
+ * Wall clock from the CSV is stored as the same numbers in UTC (CSV has no timezone).
+ */
+export function degiroDateWallTimeToIsoUtc(
+  isoDateYyyyMmDd: string,
+  hhMm: string,
+): string {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhMm);
+  if (!m) {
+    return `${isoDateYyyyMmDd}T00:00:00.000Z`;
+  }
+  return `${isoDateYyyyMmDd}T${m[1]}:${m[2]}:00.000Z`;
+}
+
 function headersMatch(actual: string[]): boolean {
   if (actual.length !== DEGIRO_TRANSACTIONS_HEADER.length) {
     return false;
@@ -254,7 +287,7 @@ function validateAndAggregateDegiroFills(
     }
     if (f.tradeDate !== first.tradeDate) {
       return {
-        error: `Lines ${first.line}–${f.line}: same Order ID has different trade dates`,
+        error: `Lines ${first.line}–${f.line}: same Order ID has different trade date/time`,
       };
     }
     if (f.product !== first.product) {
@@ -428,11 +461,17 @@ export function parseDegiroTransactionsCsv(
       errors.push(`Line ${line}: invalid price "${normalized[COL_PRICE]}"`);
       continue;
     }
-    const tradeDate = parseDegiroTradeDateDdMmYyyy(normalized[COL_DATE] ?? "");
-    if (!tradeDate) {
+    const calendarIso = parseDegiroTradeDateDdMmYyyy(
+      normalized[COL_DATE] ?? "",
+    );
+    if (!calendarIso) {
       errors.push(`Line ${line}: invalid date "${normalized[COL_DATE]}"`);
       continue;
     }
+    const timeHhMm = parseDegiroTradeTimeHhMm(normalized[COL_TIME] ?? "");
+    const tradeDate = timeHhMm
+      ? degiroDateWallTimeToIsoUtc(calendarIso, timeHhMm)
+      : `${calendarIso}T00:00:00.000Z`;
 
     fills.push({
       line,
