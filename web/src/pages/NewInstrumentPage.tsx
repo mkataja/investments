@@ -371,17 +371,17 @@ export function NewInstrumentPage() {
               </select>
             </label>
             <label className="block text-sm">
-              Geo key
+              Country
               <input
                 className="mt-1 block w-full border rounded px-2 py-1"
                 required
                 value={cashGeoKey}
                 onChange={(e) => setCashGeoKey(e.target.value)}
-                placeholder="e.g. FI or United States"
+                placeholder="ISO 2-letter code (e.g. FI)"
               />
             </label>
             <p className="text-xs text-slate-500">
-              Not used for distribution calculations.
+              Cash account country is not used for portfolio distribution calculations.
             </p>
           </div>
         ) : null}
