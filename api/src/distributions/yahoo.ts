@@ -18,6 +18,9 @@ export function normalizeYahooCountriesToIsoKeys(
     if (iso) {
       out[iso] = (out[iso] ?? 0) + w;
     } else {
+      console.warn(
+        `Could not map country/region label to ISO 3166-1 alpha-2: ${JSON.stringify(k)}`,
+      );
       out[k] = w;
     }
   }
