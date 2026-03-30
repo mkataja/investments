@@ -132,7 +132,8 @@ export function BrokersPage() {
       {pageError ? <ErrorAlert>{pageError}</ErrorAlert> : null}
 
       <p className="text-sm text-slate-600">
-        Names must be unique. Types control which instruments you can trade at each broker.
+        Names must be unique. Types control which instruments you can trade at
+        each broker.
       </p>
 
       <Modal
