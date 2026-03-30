@@ -112,6 +112,11 @@ export const instruments = pgTable(
     /** Nominal currency for cash_account quantity (see SUPPORTED_CASH_CURRENCY_CODES). */
     cashCurrency: text("cash_currency"),
     cashInterestType: text("cash_interest_type"),
+    /**
+     * Optional HTTPS URL to provider holdings file (iShares CSV or SSGA XLSX).
+     * Parser is chosen from the URL hostname — see API `holdingsUrl` validation.
+     */
+    holdingsDistributionUrl: text("holdings_distribution_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -195,6 +200,26 @@ export const yahooFinanceCache = pgTable("yahoo_finance_cache", {
     .references(() => instruments.id, { onDelete: "cascade" }),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
   raw: jsonb("raw").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/**
+ * Raw provider holdings snapshot (CSV text or base64 XLSX bytes) for debugging.
+ */
+export const providerHoldingsCache = pgTable("provider_holdings_cache", {
+  instrumentId: integer("instrument_id")
+    .primaryKey()
+    .references(() => instruments.id, { onDelete: "cascade" }),
+  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+  /** Same label as `distributions.source` for this fetch (`ishares_holdings_csv`, `ssga_holdings_xlsx`). */
+  source: text("source").notNull(),
+  /** CSV UTF-8 text, or base64-encoded XLSX bytes. */
+  raw: text("raw").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -327,6 +352,10 @@ export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
     fields: [instruments.id],
     references: [seligsonDistributionCache.instrumentId],
   }),
+  providerHoldingsCache: one(providerHoldingsCache, {
+    fields: [instruments.id],
+    references: [providerHoldingsCache.instrumentId],
+  }),
   price: one(prices, {
     fields: [instruments.id],
     references: [prices.instrumentId],
@@ -363,6 +392,16 @@ export const seligsonDistributionCacheRelations = relations(
   ({ one }) => ({
     instrument: one(instruments, {
       fields: [seligsonDistributionCache.instrumentId],
+      references: [instruments.id],
+    }),
+  }),
+);
+
+export const providerHoldingsCacheRelations = relations(
+  providerHoldingsCache,
+  ({ one }) => ({
+    instrument: one(instruments, {
+      fields: [providerHoldingsCache.instrumentId],
       references: [instruments.id],
     }),
   }),

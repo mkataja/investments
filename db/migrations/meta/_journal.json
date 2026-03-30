@@ -141,6 +141,13 @@
       "when": 1774884605012,
       "tag": "0019_blue_mentor",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1774888083378,
+      "tag": "0020_clumsy_alice",
+      "breakpoints": true
     }
   ]
 }
