@@ -134,6 +134,13 @@
       "when": 1774883821997,
       "tag": "0018_serious_mister_sinister",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1774884605012,
+      "tag": "0019_blue_mentor",
+      "breakpoints": true
     }
   ]
 }

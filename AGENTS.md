@@ -38,7 +38,11 @@ Scripts and tool versions: **root [`package.json`](package.json)**. Local setup,
 
 ## Domain model (mental map)
 
-Authoritative detail is **`db/src/schema.ts`** and migrations. Conceptually:
+Authoritative detail is **`db/src/schema.ts`** and migrations.
+
+**Timestamps:** Every table has **`created_at`** and **`updated_at`** (**`timestamptz`**, `NOT NULL`, default **`now()`** on insert). **`updated_at`** is set automatically on row updates by the database (**`public.set_updated_at`** trigger on **`BEFORE UPDATE`**). When you add a **new** table, define both columns in Drizzle the same way as existing tables and attach the trigger in the migration (reuse **`EXECUTE FUNCTION public.set_updated_at()`**).
+
+Conceptually:
 
 - **`users`:** **`name`** (text, required — no column default); placeholder for future auth. The migration seeds one row with explicit **`name`** ( **`default`**). The app uses **`USER_ID`** from **`@investments/db`** (`appUser.ts`) for all scoping; do not rely on DB defaults for user identity.
 - **`portfolio_settings`:** one row per **`users.id`** (**`user_id`** PK); **`emergency_fund_eur`**. Today the API reads/writes only the default user’s row (**`GET/PATCH /settings`**).
@@ -114,7 +118,7 @@ Shared **primary** controls (`Button`, `ButtonLink`) and a minimal style referen
 
 ### When changing behavior
 
-- **Schema:** edit Drizzle in `db`, **`pnpm db:generate`**, commit migrations, **`pnpm db:migrate`** locally.
+- **Schema:** edit Drizzle in `db`, **`pnpm db:generate`**, commit migrations, **`pnpm db:migrate`** locally. New tables must include **`created_at`** and **`updated_at`** with **`defaultNow()`** and a **`BEFORE UPDATE`** trigger to **`public.set_updated_at`** (see **`db/migrations`**).
 - **Seligson HTML:** parsers are **brittle**—extend with care and prefer tests or fallbacks.
 - **Yahoo:** tolerate missing data; avoid hard-failing the whole request for one empty module.
 

@@ -20,6 +20,9 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 /**
@@ -36,6 +39,12 @@ export const portfolioSettings = pgTable("portfolio_settings", {
   })
     .notNull()
     .default("0"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const brokers = pgTable(
@@ -48,6 +57,12 @@ export const brokers = pgTable(
     name: text("name").notNull(),
     /** See `BROKER_TYPES` in `@investments/db` brokerTypes. */
     brokerType: text("broker_type").notNull().default("exchange"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     uniqueIndex("brokers_user_name_uidx").on(t.userId, t.name),
@@ -100,6 +115,9 @@ export const instruments = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     check(
@@ -146,6 +164,9 @@ export const transactions = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     /**
@@ -174,6 +195,12 @@ export const yahooFinanceCache = pgTable("yahoo_finance_cache", {
     .references(() => instruments.id, { onDelete: "cascade" }),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
   raw: jsonb("raw").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const seligsonDistributionCache = pgTable(
@@ -185,6 +212,12 @@ export const seligsonDistributionCache = pgTable(
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
     countryHtml: text("country_html").notNull(),
     otherDistributionHtml: text("other_distribution_html").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
 );
 
@@ -195,6 +228,12 @@ export const distributions = pgTable("distributions", {
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
   source: text("source").notNull(),
   payload: jsonb("payload").$type<DistributionPayload>().notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const prices = pgTable("prices", {
@@ -205,6 +244,12 @@ export const prices = pgTable("prices", {
   currency: text("currency").notNull(),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
   source: text("source").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const seligsonFundValueCache = pgTable("seligson_fund_value_cache", {
@@ -213,6 +258,12 @@ export const seligsonFundValueCache = pgTable("seligson_fund_value_cache", {
     .references(() => seligsonFunds.id, { onDelete: "cascade" }),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
   raw: jsonb("raw").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const usersRelations = relations(users, ({ one, many }) => ({
