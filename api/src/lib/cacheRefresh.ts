@@ -27,7 +27,7 @@ import {
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
 } from "../distributions/yahoo.js";
-import { loadOpenPositions } from "./positions.js";
+import { loadOpenPositionsAggregateForUser } from "./positions.js";
 import { formatYahooUpstreamError } from "./yahooUpstream.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -370,7 +370,7 @@ export async function refreshDistributionCacheForInstrumentId(
 }
 
 export async function refreshStaleDistributionCaches(): Promise<void> {
-  const positions = await loadOpenPositions();
+  const positions = await loadOpenPositionsAggregateForUser();
   if (positions.length === 0) {
     return;
   }

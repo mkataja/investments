@@ -11,7 +11,7 @@ import type { DistributionPayload } from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { classifyNonCashInstrument } from "./nonCashAssetClass.js";
-import { loadOpenPositions } from "./positions.js";
+import { loadOpenPositionsForPortfolio } from "./positions.js";
 import { valuePortfolioRowsEur } from "./valuation.js";
 
 function mergeWeighted(
@@ -24,7 +24,7 @@ function mergeWeighted(
   }
 }
 
-export async function getPortfolioDistributions(): Promise<{
+export async function getPortfolioDistributions(portfolioId: number): Promise<{
   /** Value-weighted merge of per-instrument country weights (ISO or resolvable labels), before geo bucketing. */
   countries: Record<string, number>;
   regions: Record<string, number>;
@@ -80,7 +80,7 @@ export async function getPortfolioDistributions(): Promise<{
     cashBelowEmergencyTarget: emergencyFundTargetEur > 0,
   });
 
-  const pos = await loadOpenPositions();
+  const pos = await loadOpenPositionsForPortfolio(portfolioId);
   if (pos.length === 0) {
     return {
       countries: {},
