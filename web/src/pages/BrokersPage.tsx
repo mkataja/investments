@@ -131,13 +131,6 @@ export function BrokersPage() {
         </Button>
       </header>
 
-      <p className="text-sm text-slate-600 max-w-2xl">
-        Code is optional; if omitted, a code is derived from the name. Types
-        control which instruments you can trade at each broker (exchange =
-        Yahoo-backed equities, Seligson = mutual fund integration, cash account
-        = bank-style cash positions).
-      </p>
-
       {pageError ? (
         <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
           {pageError}
@@ -204,7 +197,6 @@ export function BrokersPage() {
       </Modal>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-medium text-slate-800">All brokers</h2>
         <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
           <table className="min-w-full text-sm">
             <thead>
