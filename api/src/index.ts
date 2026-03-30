@@ -144,14 +144,20 @@ app.post("/brokers", zValidator("json", brokerCreateIn), async (c) => {
   const [dup] = await db
     .select({ id: brokers.id })
     .from(brokers)
-    .where(eq(brokers.name, name))
+    .where(
+      and(eq(brokers.userId, IMPLICIT_DEFAULT_USER_ID), eq(brokers.name, name)),
+    )
     .limit(1);
   if (dup) {
     return c.json({ message: "A broker with this name already exists" }, 409);
   }
   const [row] = await db
     .insert(brokers)
-    .values({ name, brokerType: body.brokerType })
+    .values({
+      userId: IMPLICIT_DEFAULT_USER_ID,
+      name,
+      brokerType: body.brokerType,
+    })
     .returning();
   if (!row) {
     return c.json({ message: "Failed to create broker" }, 500);
@@ -174,7 +180,9 @@ app.patch("/brokers/:id", zValidator("json", brokerPatchIn), async (c) => {
     const [nameDup] = await db
       .select({ id: brokers.id })
       .from(brokers)
-      .where(eq(brokers.name, nextName))
+      .where(
+        and(eq(brokers.userId, existing.userId), eq(brokers.name, nextName)),
+      )
       .limit(1);
     if (nameDup && nameDup.id !== id) {
       return c.json({ message: "A broker with this name already exists" }, 409);
@@ -303,6 +311,7 @@ app.post("/transactions", zValidator("json", transactionIn), async (c) => {
   const [row] = await db
     .insert(transactions)
     .values({
+      userId: brk.userId,
       brokerId: body.brokerId,
       tradeDate: body.tradeDate,
       side: body.side,
@@ -374,7 +383,12 @@ app.post("/import/degiro", async (c) => {
   const [degiroBroker] = await db
     .select()
     .from(brokers)
-    .where(eq(brokers.name, "Degiro"))
+    .where(
+      and(
+        eq(brokers.name, "Degiro"),
+        eq(brokers.userId, IMPLICIT_DEFAULT_USER_ID),
+      ),
+    )
     .limit(1);
   if (!degiroBroker) {
     return c.json({ message: 'Broker named "Degiro" is not configured' }, 500);
@@ -467,6 +481,7 @@ app.post("/import/degiro", async (c) => {
       throw new Error(`Missing instrument for ISIN ${r.isin}`);
     }
     return {
+      userId: degiroBroker.userId,
       brokerId: degiroBroker.id,
       tradeDate: new Date(r.tradeDate),
       side: r.side,
@@ -490,6 +505,7 @@ app.post("/import/degiro", async (c) => {
         transactions.externalId,
       ],
       set: {
+        userId: sql`excluded.user_id`,
         tradeDate: sql`excluded.trade_date`,
         side: sql`excluded.side`,
         instrumentId: sql`excluded.instrument_id`,
@@ -547,7 +563,12 @@ app.post("/import/seligson", async (c) => {
   const [seligsonBroker] = await db
     .select()
     .from(brokers)
-    .where(eq(brokers.name, "Seligson"))
+    .where(
+      and(
+        eq(brokers.name, "Seligson"),
+        eq(brokers.userId, IMPLICIT_DEFAULT_USER_ID),
+      ),
+    )
     .limit(1);
   if (!seligsonBroker) {
     return c.json(
@@ -629,6 +650,7 @@ app.post("/import/seligson", async (c) => {
       throw new Error(`Missing instrument for fund "${r.fundName}"`);
     }
     return {
+      userId: seligsonBroker.userId,
       brokerId: seligsonBroker.id,
       tradeDate: new Date(r.tradeDate),
       side: r.side,
@@ -652,6 +674,7 @@ app.post("/import/seligson", async (c) => {
         transactions.externalId,
       ],
       set: {
+        userId: sql`excluded.user_id`,
         tradeDate: sql`excluded.trade_date`,
         side: sql`excluded.side`,
         instrumentId: sql`excluded.instrument_id`,

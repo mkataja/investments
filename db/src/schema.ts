@@ -12,10 +12,11 @@ import {
 } from "drizzle-orm/pg-core";
 
 /**
- * Placeholder for future auth; the migration seeds one implicit default user (id 1).
+ * Placeholder for future auth; the migration seeds one implicit default user (id 1, name **`default`**).
  */
 export const users = pgTable("users", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+  name: text("name").notNull().default("default"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -41,12 +42,15 @@ export const brokers = pgTable(
   "brokers",
   {
     id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
     /** See `BROKER_TYPES` in `@investments/db` brokerTypes. */
     brokerType: text("broker_type").notNull().default("exchange"),
   },
   (t) => [
-    uniqueIndex("brokers_name_uidx").on(t.name),
+    uniqueIndex("brokers_user_name_uidx").on(t.userId, t.name),
     check(
       "brokers_broker_type_ck",
       sql`${t.brokerType} IN ('exchange', 'seligson', 'cash_account')`,
@@ -120,6 +124,9 @@ export const transactions = pgTable(
   "transactions",
   {
     id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
     brokerId: integer("broker_id")
       .notNull()
       .references(() => brokers.id),
@@ -208,11 +215,13 @@ export const seligsonFundValueCache = pgTable("seligson_fund_value_cache", {
   raw: jsonb("raw").notNull(),
 });
 
-export const usersRelations = relations(users, ({ one }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
   portfolioSettings: one(portfolioSettings, {
     fields: [users.id],
     references: [portfolioSettings.userId],
   }),
+  brokers: many(brokers),
+  transactions: many(transactions),
 }));
 
 export const portfolioSettingsRelations = relations(
@@ -225,7 +234,11 @@ export const portfolioSettingsRelations = relations(
   }),
 );
 
-export const brokersRelations = relations(brokers, ({ many }) => ({
+export const brokersRelations = relations(brokers, ({ many, one }) => ({
+  user: one(users, {
+    fields: [brokers.userId],
+    references: [users.id],
+  }),
   transactions: many(transactions),
   instruments: many(instruments),
 }));
@@ -270,6 +283,10 @@ export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
 }));
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
+  user: one(users, {
+    fields: [transactions.userId],
+    references: [users.id],
+  }),
   broker: one(brokers, {
     fields: [transactions.brokerId],
     references: [brokers.id],
