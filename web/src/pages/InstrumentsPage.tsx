@@ -8,12 +8,12 @@ import { Link } from "react-router-dom";
 import { apiDelete, apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
+import {
+  CashAccountDistributionSummary,
+  DistributionSummary,
+} from "../components/InstrumentDistributionSummary";
 import { InstrumentsTableSkeleton } from "../components/listPageSkeletons";
 import { formatInstantForDisplay } from "../lib/dateTimeFormat";
-import {
-  sortedSectorsForDisplay,
-  topCountriesSegmentsForDisplay,
-} from "../lib/distributionDisplay";
 
 type SeligsonFundSummary = {
   id: number;
@@ -51,98 +51,6 @@ type InstrumentListItem = {
   } | null;
   seligsonFund: SeligsonFundSummary | null;
 };
-
-function DistributionSummary({
-  payload,
-  source,
-  fetchedAt,
-}: {
-  payload: DistributionPayload;
-  source: string;
-  /** Omit for synthetic rows (e.g. cash accounts) where there is no cache timestamp. */
-  fetchedAt?: string;
-}) {
-  const countrySegs = topCountriesSegmentsForDisplay(payload.countries, 9);
-  const sectorRows = sortedSectorsForDisplay(payload.sectors);
-  return (
-    <div className="space-y-1">
-      <div className="text-xs text-slate-800">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 min-w-0">
-          {countrySegs.length > 0 ? (
-            countrySegs.map((s) => (
-              <span
-                key={s.key}
-                className="inline-flex items-center gap-0.5 whitespace-nowrap shrink-0"
-              >
-                <span
-                  className="text-2xl leading-none select-none"
-                  title={s.label}
-                  aria-hidden
-                >
-                  {s.icon}
-                </span>
-                <span className="tabular-nums">{s.pctLabel}</span>
-              </span>
-            ))
-          ) : (
-            <span>—</span>
-          )}
-        </div>
-      </div>
-      <div className="text-xs text-slate-800">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 min-w-0">
-          {sectorRows.length > 0 ? (
-            sectorRows.map((s) => (
-              <span
-                key={s.name}
-                className="inline-flex items-center gap-0.5 shrink-0"
-              >
-                <span
-                  className="text-2xl leading-none select-none"
-                  title={s.name}
-                  aria-hidden
-                >
-                  {s.icon}
-                </span>
-                <span className="tabular-nums">{s.pctLabel}</span>
-              </span>
-            ))
-          ) : (
-            <span className="py-0.5">—</span>
-          )}
-        </div>
-      </div>
-      <p className="text-[11px] text-slate-500 leading-snug font-sans">
-        <span className="font-medium text-emerald-900">{source}</span>
-        {fetchedAt != null && fetchedAt !== "" ? (
-          <>
-            <span className="text-slate-400"> · </span>
-            {formatInstantForDisplay(fetchedAt)}
-          </>
-        ) : null}
-      </p>
-    </div>
-  );
-}
-
-function cashAccountSyntheticPayload(cashGeoKey: string): DistributionPayload {
-  const trimmed = cashGeoKey.trim();
-  return {
-    countries: trimmed.length > 0 ? { [trimmed.toUpperCase()]: 1 } : {},
-    sectors: { cash: 1 },
-  };
-}
-
-function CashAccountDistributionSummary({
-  cashGeoKey,
-}: { cashGeoKey: string }) {
-  return (
-    <DistributionSummary
-      payload={cashAccountSyntheticPayload(cashGeoKey)}
-      source="Cash account"
-    />
-  );
-}
 
 type RefreshResponse = { ok: true } | { skipped: true; reason: string };
 
@@ -365,6 +273,9 @@ export function InstrumentsPage() {
                 <th className="text-left p-2 font-medium">Ticker</th>
                 <th className="text-left p-2 font-medium">Name</th>
                 <th className="text-left p-2 font-medium">Distribution</th>
+                <th className="text-left p-2 font-medium whitespace-nowrap">
+                  Last updated
+                </th>
                 <th className="text-right p-2 font-medium w-40">Actions</th>
               </tr>
             </thead>
@@ -390,15 +301,26 @@ export function InstrumentsPage() {
                           cashGeoKey={i.cashGeoKey ?? ""}
                         />
                       ) : i.distribution ? (
-                        <DistributionSummary
-                          payload={i.distribution.payload}
-                          source={i.distribution.source}
-                          fetchedAt={i.distribution.fetchedAt}
-                        />
+                        <DistributionSummary payload={i.distribution.payload} />
                       ) : (
                         <span className="text-slate-400 font-sans">
                           No cache yet
                         </span>
+                      )}
+                    </td>
+                    <td className="p-2 align-top text-left min-w-[10rem] max-w-xs">
+                      {i.kind === "cash_account" ? (
+                        <span className="text-slate-400 font-sans">—</span>
+                      ) : i.distribution ? (
+                        i.distribution.fetchedAt !== "" ? (
+                          <span className="text-[11px] text-slate-600 tabular-nums font-sans">
+                            {formatInstantForDisplay(i.distribution.fetchedAt)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-sans">—</span>
+                        )
+                      ) : (
+                        <span className="text-slate-400 font-sans">—</span>
                       )}
                     </td>
                     <td className="p-2 text-right">

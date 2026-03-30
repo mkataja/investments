@@ -25,6 +25,9 @@ export function InstrumentsTableSkeleton() {
             <th className="text-left p-2 font-medium">Ticker</th>
             <th className="text-left p-2 font-medium">Name</th>
             <th className="text-left p-2 font-medium">Distribution</th>
+            <th className="text-left p-2 font-medium whitespace-nowrap">
+              Last updated
+            </th>
             <th className="text-right p-2 font-medium w-40">Actions</th>
           </tr>
         </thead>
@@ -44,8 +47,10 @@ export function InstrumentsTableSkeleton() {
                 <div className="space-y-2 py-0.5">
                   <BlockSkeleton className="h-3 w-full max-w-[12rem]" />
                   <BlockSkeleton className="h-3 w-full max-w-[10rem]" />
-                  <BlockSkeleton className="h-3 w-32" />
                 </div>
+              </td>
+              <td className="p-2 min-w-[10rem] max-w-xs">
+                <BlockSkeleton className="h-3 w-36" />
               </td>
               <td className="p-2 text-right">
                 <div className="flex flex-col items-end gap-2 sm:flex-row sm:justify-end sm:gap-3">
