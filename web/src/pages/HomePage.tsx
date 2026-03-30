@@ -1,10 +1,5 @@
-import {
-  DEFAULT_CASH_CURRENCY,
-  SUPPORTED_CASH_CURRENCY_CODES,
-  instrumentTickerDisplay,
-  transactionInstrumentSelectLabel,
-} from "@investments/db";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { instrumentTickerDisplay } from "@investments/db";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -15,24 +10,21 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { apiGet, apiPost } from "../api";
+import { apiGet } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
-import { Modal } from "../components/Modal";
 import {
   PortfolioViewSkeleton,
   TransactionsTableSkeleton,
 } from "../components/PortfolioViewSkeleton";
-import {
-  formatDateTimeLocalInputValue,
-  formatInstantForDisplay,
-} from "../lib/dateTimeFormat";
+import { formatInstantForDisplay } from "../lib/dateTimeFormat";
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 import {
   formatTransactionUnitPriceForDisplay,
   formatUnitPriceForDisplay,
   roundQuantityForDisplay,
 } from "../lib/numberFormat";
+import { NewTransactionModal } from "./home/NewTransactionModal";
 
 type Broker = {
   id: number;
@@ -160,121 +152,6 @@ export function HomePage() {
   }, [load]);
 
   const [txnModalOpen, setTxnModalOpen] = useState(false);
-  const [txnInstruments, setTxnInstruments] = useState<Instrument[]>([]);
-  const [txnInstrumentsLoading, setTxnInstrumentsLoading] = useState(false);
-  const brokerSelectRef = useRef<HTMLSelectElement>(null);
-
-  const [txnForm, setTxnForm] = useState({
-    brokerId: 1,
-    tradeDate: formatDateTimeLocalInputValue(new Date()),
-    side: "buy" as "buy" | "sell",
-    instrumentId: 0,
-    quantity: "1",
-    unitPrice: "0",
-    currency: "EUR",
-    unitPriceEur: "",
-  });
-
-  useEffect(() => {
-    if (!txnModalOpen) {
-      return;
-    }
-    let cancelled = false;
-    setTxnInstrumentsLoading(true);
-    setTxnInstruments([]);
-    void (async () => {
-      try {
-        const list = await apiGet<Instrument[]>(
-          `/instruments?brokerId=${txnForm.brokerId}`,
-        );
-        if (cancelled) {
-          return;
-        }
-        setTxnInstruments(list);
-        const first = list[0];
-        const firstIsCash = first?.kind === "cash_account";
-        setTxnForm((f) => ({
-          ...f,
-          instrumentId: first?.id ?? 0,
-          quantity: firstIsCash ? "" : "1",
-          unitPrice: firstIsCash ? "1" : "0",
-          currency: firstIsCash
-            ? (first?.cashCurrency?.trim().toUpperCase() ??
-              DEFAULT_CASH_CURRENCY)
-            : "EUR",
-          side: "buy",
-          unitPriceEur: "",
-        }));
-        setError(null);
-      } catch (e) {
-        if (!cancelled) {
-          setError(String(e));
-        }
-      } finally {
-        if (!cancelled) {
-          setTxnInstrumentsLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [txnModalOpen, txnForm.brokerId]);
-
-  const selectedTxnInstrument = useMemo(
-    () => txnInstruments.find((i) => i.id === txnForm.instrumentId),
-    [txnInstruments, txnForm.instrumentId],
-  );
-  const isCashTxn = selectedTxnInstrument?.kind === "cash_account";
-  const cashSumValid = useMemo(() => {
-    if (!isCashTxn) return true;
-    const s = Number.parseFloat(txnForm.quantity.replace(",", "."));
-    return Number.isFinite(s) && s > 0;
-  }, [isCashTxn, txnForm.quantity]);
-
-  useEffect(() => {
-    if (!txnModalOpen) {
-      return;
-    }
-    brokerSelectRef.current?.focus();
-  }, [txnModalOpen]);
-
-  async function submitTransaction(e: React.FormEvent) {
-    e.preventDefault();
-    if (txnForm.instrumentId < 1 || txnInstruments.length === 0) {
-      return;
-    }
-    if (isCashTxn && !cashSumValid) {
-      return;
-    }
-    setError(null);
-    try {
-      const body: Record<string, unknown> = {
-        brokerId: txnForm.brokerId,
-        tradeDate: new Date(txnForm.tradeDate).toISOString(),
-        instrumentId: txnForm.instrumentId,
-        currency: txnForm.currency.trim().toUpperCase(),
-      };
-      if (isCashTxn) {
-        const sum = Number.parseFloat(txnForm.quantity.replace(",", "."));
-        body.side = txnForm.side;
-        body.quantity = String(sum);
-        body.unitPrice = "1";
-      } else {
-        body.side = txnForm.side;
-        body.quantity = txnForm.quantity;
-        body.unitPrice = txnForm.unitPrice;
-        if (txnForm.unitPriceEur) {
-          body.unitPriceEur = txnForm.unitPriceEur;
-        }
-      }
-      await apiPost<Transaction>("/transactions", body);
-      await load();
-      setTxnModalOpen(false);
-    } catch (err) {
-      setError(String(err));
-    }
-  }
 
   return (
     <div className="w-full min-w-0 space-y-10">
@@ -291,216 +168,13 @@ export function HomePage() {
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </header>
 
-      <Modal
-        title="New transaction"
+      <NewTransactionModal
         open={txnModalOpen}
         onClose={() => setTxnModalOpen(false)}
-      >
-        <form onSubmit={(e) => void submitTransaction(e)} className="space-y-3">
-          <label className="block text-sm">
-            Broker
-            <select
-              ref={brokerSelectRef}
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={txnForm.brokerId}
-              onChange={(e) =>
-                setTxnForm({
-                  ...txnForm,
-                  brokerId: Number.parseInt(e.target.value, 10),
-                })
-              }
-            >
-              {brokers.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="block text-sm">
-            Date and time
-            <input
-              type="datetime-local"
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={txnForm.tradeDate}
-              onChange={(e) =>
-                setTxnForm({ ...txnForm, tradeDate: e.target.value })
-              }
-            />
-          </label>
-          <label className="block text-sm">
-            {isCashTxn ? "Cash account" : "Instrument"}
-            <select
-              className="mt-1 block w-full border rounded px-2 py-1"
-              disabled={txnInstrumentsLoading || txnInstruments.length === 0}
-              value={
-                txnInstruments.some((i) => i.id === txnForm.instrumentId)
-                  ? txnForm.instrumentId
-                  : ""
-              }
-              onChange={(e) => {
-                const id = Number.parseInt(e.target.value, 10);
-                const inst = txnInstruments.find((i) => i.id === id);
-                const isCash = inst?.kind === "cash_account";
-                setTxnForm((f) => ({
-                  ...f,
-                  instrumentId: id,
-                  quantity: isCash ? "" : "1",
-                  unitPrice: isCash ? "1" : f.unitPrice,
-                  currency: isCash
-                    ? (inst?.cashCurrency?.trim().toUpperCase() ??
-                      DEFAULT_CASH_CURRENCY)
-                    : f.currency,
-                  side: "buy",
-                }));
-              }}
-            >
-              {txnInstrumentsLoading ? (
-                <option value="">Loading instruments…</option>
-              ) : txnInstruments.length === 0 ? (
-                <option value="">No instruments for this broker</option>
-              ) : (
-                txnInstruments.map((i) => (
-                  <option key={i.id} value={i.id}>
-                    {transactionInstrumentSelectLabel({
-                      kind: i.kind,
-                      displayName: i.displayName,
-                      yahooSymbol: i.yahooSymbol,
-                      seligsonFund: i.seligsonFund
-                        ? { name: i.seligsonFund.name }
-                        : null,
-                    })}
-                  </option>
-                ))
-              )}
-            </select>
-          </label>
-          <label className="block text-sm">
-            {isCashTxn ? "Deposit / withdrawal" : "Side"}
-            <select
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={
-                isCashTxn
-                  ? txnForm.side === "buy"
-                    ? "deposit"
-                    : "withdrawal"
-                  : txnForm.side
-              }
-              onChange={(e) => {
-                const v = e.target.value;
-                if (isCashTxn) {
-                  setTxnForm({
-                    ...txnForm,
-                    side: v === "deposit" ? "buy" : "sell",
-                  });
-                } else {
-                  setTxnForm({
-                    ...txnForm,
-                    side: v as "buy" | "sell",
-                  });
-                }
-              }}
-            >
-              {isCashTxn ? (
-                <>
-                  <option value="deposit">deposit</option>
-                  <option value="withdrawal">withdrawal</option>
-                </>
-              ) : (
-                <>
-                  <option value="buy">buy</option>
-                  <option value="sell">sell</option>
-                </>
-              )}
-            </select>
-          </label>
-          {isCashTxn ? (
-            <>
-              <label className="block text-sm">
-                Sum
-                <input
-                  className="mt-1 block w-full border rounded px-2 py-1"
-                  inputMode="decimal"
-                  value={txnForm.quantity}
-                  onChange={(e) =>
-                    setTxnForm({ ...txnForm, quantity: e.target.value })
-                  }
-                />
-              </label>
-              <label className="block text-sm">
-                Currency
-                <select
-                  className="mt-1 block w-full border rounded px-2 py-1"
-                  value={txnForm.currency}
-                  onChange={(e) =>
-                    setTxnForm({ ...txnForm, currency: e.target.value })
-                  }
-                >
-                  {SUPPORTED_CASH_CURRENCY_CODES.map((code) => (
-                    <option key={code} value={code}>
-                      {code}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </>
-          ) : (
-            <>
-              <label className="block text-sm">
-                Quantity
-                <input
-                  className="mt-1 block w-full border rounded px-2 py-1"
-                  value={txnForm.quantity}
-                  onChange={(e) =>
-                    setTxnForm({ ...txnForm, quantity: e.target.value })
-                  }
-                />
-              </label>
-              <label className="block text-sm">
-                Unit price
-                <input
-                  className="mt-1 block w-full border rounded px-2 py-1"
-                  value={txnForm.unitPrice}
-                  onChange={(e) =>
-                    setTxnForm({ ...txnForm, unitPrice: e.target.value })
-                  }
-                />
-              </label>
-              <label className="block text-sm">
-                Currency
-                <input
-                  className="mt-1 block w-full border rounded px-2 py-1"
-                  value={txnForm.currency}
-                  onChange={(e) =>
-                    setTxnForm({ ...txnForm, currency: e.target.value })
-                  }
-                />
-              </label>
-              <label className="block text-sm">
-                Unit price EUR (optional)
-                <input
-                  className="mt-1 block w-full border rounded px-2 py-1"
-                  value={txnForm.unitPriceEur}
-                  onChange={(e) =>
-                    setTxnForm({ ...txnForm, unitPriceEur: e.target.value })
-                  }
-                />
-              </label>
-            </>
-          )}
-          <Button
-            type="submit"
-            disabled={
-              txnInstrumentsLoading ||
-              txnInstruments.length === 0 ||
-              txnForm.instrumentId < 1 ||
-              (isCashTxn && !cashSumValid)
-            }
-          >
-            Add transaction
-          </Button>
-        </form>
-      </Modal>
+        brokers={brokers}
+        onTransactionAdded={load}
+        onError={setError}
+      />
 
       {initialLoad ? (
         <PortfolioViewSkeleton />
