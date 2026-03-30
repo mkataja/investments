@@ -40,13 +40,47 @@ function isProposalOk(p: DegiroProposal): p is DegiroProposalOk {
   return "yahooSymbol" in p;
 }
 
+function tryParseImportErrorJson(msg: string): {
+  message?: string;
+  missingFundNames?: string[];
+  ambiguousFundNames?: string[];
+} | null {
+  const idx = msg.indexOf("{");
+  if (idx < 0) {
+    return null;
+  }
+  try {
+    const v = JSON.parse(msg.slice(idx)) as unknown;
+    if (v === null || typeof v !== "object") {
+      return null;
+    }
+    return v as {
+      message?: string;
+      missingFundNames?: string[];
+      ambiguousFundNames?: string[];
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function ImportPage() {
-  const [file, setFile] = useState<File | null>(null);
+  const [degiroFile, setDegiroFile] = useState<File | null>(null);
+  const [seligsonFile, setSeligsonFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DegiroOk | null>(null);
   const [pending, setPending] = useState<DegiroNeedsInstruments | null>(null);
   const [selectedIsin, setSelectedIsin] = useState<Record<string, boolean>>({});
+
+  const [seligsonError, setSeligsonError] = useState<string | null>(null);
+  const [seligsonResult, setSeligsonResult] = useState<DegiroOk | null>(null);
+  const [seligsonMissingFunds, setSeligsonMissingFunds] = useState<
+    string[] | null
+  >(null);
+  const [seligsonAmbiguousFunds, setSeligsonAmbiguousFunds] = useState<
+    string[] | null
+  >(null);
 
   useEffect(() => {
     if (pending === null) {
@@ -66,14 +100,14 @@ export function ImportPage() {
     setError(null);
     setResult(null);
     setPending(null);
-    if (!file) {
+    if (!degiroFile) {
       setError("Choose a CSV file first.");
       return;
     }
     setBusy(true);
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", degiroFile);
       const data = await apiPostFormData<
         DegiroOk | DegiroNeedsInstruments | { message?: string }
       >("/import/degiro", form);
@@ -113,7 +147,7 @@ export function ImportPage() {
     e.preventDefault();
     setError(null);
     setResult(null);
-    if (!file || pending === null) {
+    if (!degiroFile || pending === null) {
       setError("Missing file or proposals.");
       return;
     }
@@ -130,7 +164,7 @@ export function ImportPage() {
     setBusy(true);
     try {
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", degiroFile);
       form.append(
         "createInstruments",
         JSON.stringify(
@@ -177,6 +211,54 @@ export function ImportPage() {
     }
   }
 
+  async function onSubmitSeligson(e: FormEvent) {
+    e.preventDefault();
+    setSeligsonError(null);
+    setSeligsonResult(null);
+    setSeligsonMissingFunds(null);
+    setSeligsonAmbiguousFunds(null);
+    if (!seligsonFile) {
+      setSeligsonError("Choose a TSV file first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("file", seligsonFile);
+      const data = await apiPostFormData<DegiroOk>("/import/seligson", form);
+      if (
+        data &&
+        typeof data === "object" &&
+        "ok" in data &&
+        data.ok === true &&
+        "processed" in data &&
+        "changed" in data &&
+        "unchanged" in data
+      ) {
+        setSeligsonResult(data as DegiroOk);
+        return;
+      }
+      setSeligsonError("Unexpected response from server.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const parsed = tryParseImportErrorJson(msg);
+      if (parsed?.missingFundNames && parsed.missingFundNames.length > 0) {
+        setSeligsonMissingFunds(parsed.missingFundNames);
+        setSeligsonError(parsed.message ?? msg);
+      } else if (
+        parsed?.ambiguousFundNames &&
+        parsed.ambiguousFundNames.length > 0
+      ) {
+        setSeligsonAmbiguousFunds(parsed.ambiguousFundNames);
+        setSeligsonError(parsed.message ?? msg);
+      } else {
+        setSeligsonError(msg);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="max-w-2xl space-y-8">
       <div>
@@ -216,7 +298,7 @@ export function ImportPage() {
               className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border file:border-slate-300 file:bg-slate-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-100"
               onChange={(ev) => {
                 const f = ev.target.files?.[0];
-                setFile(f ?? null);
+                setDegiroFile(f ?? null);
                 setResult(null);
                 setPending(null);
                 setError(null);
@@ -308,6 +390,76 @@ export function ImportPage() {
               </Button>
             </form>
           </div>
+        ) : null}
+      </section>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-800">Seligson</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Portfolio export (TSV). Fund names must match existing Seligson custom
+          instruments.
+        </p>
+        <form
+          className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+          onSubmit={onSubmitSeligson}
+        >
+          <div className="min-w-0 flex-1">
+            <label htmlFor="seligson-tsv" className="sr-only">
+              Seligson TSV file
+            </label>
+            <input
+              id="seligson-tsv"
+              name="file"
+              type="file"
+              accept=".tsv,.txt,text/tab-separated-values"
+              className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border file:border-slate-300 file:bg-slate-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-100"
+              onChange={(ev) => {
+                const f = ev.target.files?.[0];
+                setSeligsonFile(f ?? null);
+                setSeligsonResult(null);
+                setSeligsonError(null);
+                setSeligsonMissingFunds(null);
+                setSeligsonAmbiguousFunds(null);
+              }}
+            />
+          </div>
+          <Button type="submit" disabled={busy}>
+            {busy ? "Working…" : "Import"}
+          </Button>
+        </form>
+        {seligsonError !== null ? (
+          <div className="mt-3 space-y-2">
+            <pre className="whitespace-pre-wrap break-words rounded border border-red-200 bg-red-50 p-3 text-xs text-red-900">
+              {seligsonError}
+            </pre>
+            {seligsonMissingFunds !== null &&
+            seligsonMissingFunds.length > 0 ? (
+              <ul className="list-inside list-disc text-sm text-red-900">
+                {seligsonMissingFunds.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+            ) : null}
+            {seligsonAmbiguousFunds !== null &&
+            seligsonAmbiguousFunds.length > 0 ? (
+              <ul className="list-inside list-disc text-sm text-red-900">
+                {seligsonAmbiguousFunds.map((name) => (
+                  <li key={name}>{name}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+        {seligsonResult !== null ? (
+          <p className="mt-3 text-sm text-emerald-800">
+            Processed {seligsonResult.processed} transaction
+            {seligsonResult.processed === 1 ? "" : "s"}:{" "}
+            {seligsonResult.changed} written to the database
+            {seligsonResult.unchanged > 0
+              ? `, ${seligsonResult.unchanged} already up to date`
+              : ""}
+            .
+          </p>
         ) : null}
       </section>
     </div>
