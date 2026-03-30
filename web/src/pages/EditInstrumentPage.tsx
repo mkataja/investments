@@ -22,6 +22,7 @@ type InstrumentDetail = {
   id: number;
   kind: string;
   displayName: string;
+  yahooSymbol: string | null;
   brokerId: number | null;
   cashGeoKey: string | null;
   cashCurrency: string | null;
@@ -214,7 +215,11 @@ export function EditInstrumentPage() {
           <h1 className="text-2xl font-semibold text-slate-900">
             ETF / stock settings
           </h1>
-          <p className="text-sm text-slate-600">{initial.displayName}</p>
+          <p className="text-sm text-slate-600">
+            <span className="font-mono text-slate-800">
+              {initial.yahooSymbol ?? "—"}
+            </span> - {initial.displayName}
+          </p>
           {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         </header>
 
