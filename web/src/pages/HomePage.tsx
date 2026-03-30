@@ -1,5 +1,5 @@
 import { transactionInstrumentSelectLabel } from "@investments/db";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -67,24 +67,35 @@ function toChartData(rec: Record<string, number>) {
 export function HomePage() {
   const [brokers, setBrokers] = useState<Broker[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [instruments, setInstruments] = useState<Instrument[]>([]);
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [b, t, p] = await Promise.all([
+      const [b, t, inst, p] = await Promise.all([
         apiGet<Broker[]>("/brokers"),
         apiGet<Transaction[]>("/transactions"),
+        apiGet<Instrument[]>("/instruments"),
         apiGet<Portfolio>("/portfolio/distributions"),
       ]);
       setBrokers(b);
       setTransactions(t);
+      setInstruments(inst);
       setPortfolio(p);
     } catch (e) {
       setError(String(e));
     }
   }, []);
+
+  const instrumentNameById = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const i of instruments) {
+      m.set(i.id, i.displayName);
+    }
+    return m;
+  }, [instruments]);
 
   useEffect(() => {
     void load();
@@ -441,7 +452,7 @@ export function HomePage() {
               <tr>
                 <th className="text-left p-2">Date</th>
                 <th className="text-left p-2">Side</th>
-                <th className="text-right p-2">Instrument</th>
+                <th className="text-left p-2">Instrument</th>
                 <th className="text-right p-2">Qty</th>
                 <th className="text-right p-2">Price</th>
               </tr>
@@ -451,7 +462,10 @@ export function HomePage() {
                 <tr key={t.id} className="border-t">
                   <td className="p-2">{t.tradeDate}</td>
                   <td className="p-2">{transactionSideLabel(t.side)}</td>
-                  <td className="p-2 text-right">{t.instrumentId}</td>
+                  <td className="p-2 text-left min-w-[12rem]">
+                    {instrumentNameById.get(t.instrumentId) ??
+                      `#${t.instrumentId}`}
+                  </td>
                   <td className="p-2 text-right">
                     {roundQuantityForDisplay(t.quantity)}
                   </td>
