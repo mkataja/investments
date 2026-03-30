@@ -19,12 +19,15 @@ export function PortfolioViewSkeleton() {
           <BlockSkeleton className="h-[calc(100%-2rem)] w-full" />
         </div>
       </div>
+      <h3 className="text-lg font-medium text-slate-800 mb-2">Holdings</h3>
       <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
         <table className="min-w-full">
           <thead className="bg-slate-100 text-slate-700">
             <tr>
               <th className="text-left p-2 font-medium">Ticker</th>
               <th className="text-left p-2 font-medium">Instrument</th>
+              <th className="text-right p-2 font-medium">Qty</th>
+              <th className="text-right p-2 font-medium">Unit EUR</th>
               <th className="text-right p-2 font-medium">Weight</th>
               <th className="text-right p-2 font-medium">Value EUR</th>
               <th className="text-left p-2 font-medium">Valuation</th>
@@ -46,6 +49,12 @@ export function PortfolioViewSkeleton() {
                 </td>
                 <td className="p-2 min-w-[12rem]">
                   <BlockSkeleton className="h-4 w-40 max-w-full" />
+                </td>
+                <td className="p-2 text-right">
+                  <BlockSkeleton className="ml-auto h-4 w-10" />
+                </td>
+                <td className="p-2 text-right">
+                  <BlockSkeleton className="ml-auto h-4 w-16" />
                 </td>
                 <td className="p-2 text-right">
                   <BlockSkeleton className="ml-auto h-4 w-14" />
