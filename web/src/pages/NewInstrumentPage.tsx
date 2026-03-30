@@ -4,6 +4,7 @@ import {
   DEFAULT_CASH_CURRENCY,
   SUPPORTED_CASH_CURRENCY_CODES,
   normalizeCashAccountIsoCountryCode,
+  validateHoldingsDistributionUrl,
 } from "@investments/db";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -89,6 +90,7 @@ export function NewInstrumentPage() {
   }, [kind, brokers, cashBrokerId]);
 
   const [yahooSymbol, setYahooSymbol] = useState("");
+  const [holdingsDistributionUrl, setHoldingsDistributionUrl] = useState("");
   const [yahooPreview, setYahooPreview] = useState<YahooLookupResponse | null>(
     null,
   );
@@ -159,9 +161,18 @@ export function NewInstrumentPage() {
           setError("Enter a Yahoo symbol.");
           return;
         }
+        const urlRaw = holdingsDistributionUrl.trim();
+        if (urlRaw.length > 0) {
+          const v = validateHoldingsDistributionUrl(urlRaw);
+          if (!v.ok) {
+            setError(v.message);
+            return;
+          }
+        }
         await apiPost<InstrumentRow>("/instruments", {
           kind,
           yahooSymbol: s,
+          ...(urlRaw.length > 0 ? { holdingsDistributionUrl: urlRaw } : {}),
         });
       } else if (kind === "custom") {
         const fid = Number.parseInt(seligsonFid, 10);
@@ -281,6 +292,15 @@ export function NewInstrumentPage() {
             >
               Preview from Yahoo
             </button>
+            <label className="block text-sm">
+              Provider holdings URL (optional)
+              <input
+                className="mt-1 block w-full border rounded px-2 py-1 font-mono text-sm"
+                value={holdingsDistributionUrl}
+                onChange={(e) => setHoldingsDistributionUrl(e.target.value)}
+                placeholder="https://www.ishares.com/… or https://www.ssga.com/…"
+              />
+            </label>
             {yahooPreview && (
               <div className="text-sm text-slate-700 space-y-1 border-t pt-3 mt-2">
                 <p>

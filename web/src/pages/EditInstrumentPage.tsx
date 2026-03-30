@@ -4,6 +4,7 @@ import {
   DEFAULT_CASH_CURRENCY,
   SUPPORTED_CASH_CURRENCY_CODES,
   normalizeCashAccountIsoCountryCode,
+  validateHoldingsDistributionUrl,
 } from "@investments/db";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -20,6 +21,7 @@ type InstrumentDetail = {
   brokerId: number | null;
   cashGeoKey: string | null;
   cashCurrency: string | null;
+  holdingsDistributionUrl: string | null;
 };
 
 type BrokerRow = {
@@ -45,6 +47,7 @@ export function EditInstrumentPage() {
     DEFAULT_CASH_CURRENCY,
   );
   const [cashGeoKey, setCashGeoKey] = useState("");
+  const [holdingsUrl, setHoldingsUrl] = useState("");
 
   useEffect(() => {
     setBrokersLoading(true);
@@ -72,6 +75,9 @@ export function EditInstrumentPage() {
             (row.cashCurrency as CashCurrencyCode) ?? DEFAULT_CASH_CURRENCY,
           );
           setCashGeoKey(row.cashGeoKey ?? "");
+        }
+        if (row.kind === "etf" || row.kind === "stock") {
+          setHoldingsUrl(row.holdingsDistributionUrl ?? "");
         }
       })
       .catch((e) => setError(String(e)))
@@ -122,6 +128,31 @@ export function EditInstrumentPage() {
     }
   }
 
+  async function submitEtfStock(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!initial || (initial.kind !== "etf" && initial.kind !== "stock")) {
+      return;
+    }
+    const v = validateHoldingsDistributionUrl(holdingsUrl.trim() || null);
+    if (!v.ok) {
+      setError(v.message);
+      return;
+    }
+    const prev = initial.holdingsDistributionUrl ?? null;
+    const next = v.normalized;
+    if (prev === next) {
+      navigate("/instruments");
+      return;
+    }
+    try {
+      await apiPatch(`/instruments/${id}`, { holdingsDistributionUrl: next });
+      navigate("/instruments");
+    } catch (err) {
+      setError(String(err));
+    }
+  }
+
   if (!Number.isFinite(id) || id < 1) {
     return (
       <div className="w-full min-w-0 space-y-4">
@@ -144,6 +175,83 @@ export function EditInstrumentPage() {
     );
   }
 
+  if (initial.kind === "custom") {
+    return (
+      <div className="w-full min-w-0 space-y-6">
+        <header className="space-y-2">
+          <Link
+            to="/instruments"
+            className="text-sm text-emerald-800 hover:underline"
+          >
+            ← Instruments
+          </Link>
+          <h1 className="text-2xl font-semibold text-slate-900">
+            Edit instrument
+          </h1>
+        </header>
+        <p className="text-slate-700 text-sm max-w-lg">
+          Seligson-linked instruments are not edited here.
+        </p>
+        <ButtonLink to="/instruments">Back to instruments</ButtonLink>
+      </div>
+    );
+  }
+
+  if (initial.kind === "etf" || initial.kind === "stock") {
+    return (
+      <div className="w-full min-w-0 space-y-6">
+        <header className="space-y-2">
+          <Link
+            to="/instruments"
+            className="text-sm text-emerald-800 hover:underline"
+          >
+            ← Instruments
+          </Link>
+          <h1 className="text-2xl font-semibold text-slate-900">
+            ETF / stock settings
+          </h1>
+          <p className="text-sm text-slate-600">{initial.displayName}</p>
+          {error ? <ErrorAlert>{error}</ErrorAlert> : null}
+        </header>
+
+        <form onSubmit={(e) => void submitEtfStock(e)} className="space-y-6">
+          <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
+            <label className="block text-sm">
+              Provider holdings URL (optional)
+              <input
+                className="mt-1 block w-full border rounded px-2 py-1 font-mono text-sm"
+                value={holdingsUrl}
+                onChange={(e) => {
+                  setHoldingsUrl(e.target.value);
+                  setError(null);
+                }}
+                placeholder="https://www.ishares.com/… or https://www.ssga.com/…"
+              />
+            </label>
+            <p className="text-xs text-slate-500">
+              When set, country/sector distributions are built from this file
+              (iShares CSV or SPDR XLSX). Clear the field to use Yahoo only.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="submit"
+              className="bg-emerald-700 text-white px-4 py-2 rounded"
+            >
+              Save
+            </button>
+            <Link
+              to="/instruments"
+              className="inline-flex items-center justify-center text-sm font-medium rounded-md border border-slate-200 bg-white px-3 py-1.5 text-slate-800 shadow-sm hover:bg-slate-50"
+            >
+              Cancel
+            </Link>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   if (initial.kind !== "cash_account") {
     return (
       <div className="w-full min-w-0 space-y-6">
@@ -159,9 +267,7 @@ export function EditInstrumentPage() {
           </h1>
         </header>
         <p className="text-slate-700 text-sm max-w-lg">
-          Only cash accounts can be edited here. ETF, stock, and Seligson fund
-          instruments are loaded from their data source and are not updated
-          through this form.
+          This instrument type cannot be edited here.
         </p>
         <ButtonLink to="/instruments">Back to instruments</ButtonLink>
       </div>
