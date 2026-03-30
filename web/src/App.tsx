@@ -13,11 +13,11 @@ export function App() {
           <Link to="/" className="text-emerald-800 hover:underline">
             Portfolio
           </Link>
+          <Link to="/import" className="text-emerald-800 hover:underline">
+            Import transactions
+          </Link>
           <Link to="/instruments" className="text-emerald-800 hover:underline">
             Instruments
-          </Link>
-          <Link to="/import" className="text-emerald-800 hover:underline">
-            Import
           </Link>
           <Link
             to="/instruments/new"

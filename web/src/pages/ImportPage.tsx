@@ -34,7 +34,9 @@ export function ImportPage() {
   return (
     <div className="max-w-2xl space-y-8">
       <div>
-        <h1 className="text-xl font-semibold text-slate-900">Import</h1>
+        <h1 className="text-xl font-semibold text-slate-900">
+          Import transactions
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
           Upload broker exports to add or refresh transactions idempotently.
         </p>
