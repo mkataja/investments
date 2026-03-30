@@ -45,6 +45,10 @@ import {
   parseDegiroTransactionsCsv,
 } from "./import/degiroTransactions.js";
 import {
+  SELIGSON_TSV_EXTERNAL_SOURCE,
+  parseSeligsonTransactionsTsv,
+} from "./import/seligsonTransactions.js";
+import {
   refreshDistributionCacheForInstrumentId,
   refreshStaleDistributionCaches,
   writeSeligsonDistributionCache,
@@ -407,6 +411,165 @@ app.post("/import/degiro", async (c) => {
       currency: r.currency,
       unitPriceEur: r.unitPriceEur,
       externalSource: DEGIRO_CSV_EXTERNAL_SOURCE,
+      externalId: r.externalId,
+    };
+  });
+
+  const written = await db
+    .insert(transactions)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [
+        transactions.brokerId,
+        transactions.externalSource,
+        transactions.externalId,
+      ],
+      set: {
+        tradeDate: sql`excluded.trade_date`,
+        side: sql`excluded.side`,
+        instrumentId: sql`excluded.instrument_id`,
+        quantity: sql`excluded.quantity`,
+        unitPrice: sql`excluded.unit_price`,
+        currency: sql`excluded.currency`,
+        unitPriceEur: sql`excluded.unit_price_eur`,
+      },
+      setWhere: sql`(
+        ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
+        OR ${transactions.side} IS DISTINCT FROM ${sql.raw("excluded.side")}
+        OR ${transactions.instrumentId} IS DISTINCT FROM ${sql.raw("excluded.instrument_id")}
+        OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
+        OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
+        OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
+        OR ${transactions.unitPriceEur} IS DISTINCT FROM ${sql.raw("excluded.unit_price_eur")}
+      )`,
+    })
+    .returning({ id: transactions.id });
+
+  const processed = values.length;
+  const changed = written.length;
+  const unchanged = processed - changed;
+
+  return c.json({ ok: true, processed, changed, unchanged });
+});
+
+app.post("/import/seligson", async (c) => {
+  let body: Record<string, unknown>;
+  try {
+    body = (await c.req.parseBody({ all: true })) as Record<string, unknown>;
+  } catch {
+    return c.json({ message: "Invalid multipart body" }, 400);
+  }
+  const file = body.file;
+  if (file == null) {
+    return c.json({ message: 'Expected multipart field "file"' }, 400);
+  }
+  if (typeof file === "string") {
+    return c.json({ message: "Expected file upload, not string" }, 400);
+  }
+  const tsvText = await (file as File).text();
+
+  const parsed = parseSeligsonTransactionsTsv(tsvText);
+  if (!parsed.ok) {
+    return c.json(
+      { message: "TSV validation failed", errors: parsed.errors },
+      400,
+    );
+  }
+  if (parsed.rows.length === 0) {
+    return c.json({ message: "No transaction rows to import" }, 400);
+  }
+
+  const [seligsonBroker] = await db
+    .select()
+    .from(brokers)
+    .where(eq(brokers.name, "Seligson"))
+    .limit(1);
+  if (!seligsonBroker) {
+    return c.json(
+      { message: 'Broker named "Seligson" is not configured' },
+      500,
+    );
+  }
+
+  const joined = await db
+    .select({
+      instrumentId: instruments.id,
+      fundName: seligsonFunds.name,
+    })
+    .from(instruments)
+    .innerJoin(seligsonFunds, eq(instruments.seligsonFundId, seligsonFunds.id))
+    .where(
+      and(
+        eq(instruments.kind, "custom"),
+        eq(instruments.brokerId, seligsonBroker.id),
+      ),
+    );
+
+  const idsByFundName = new Map<string, number[]>();
+  for (const row of joined) {
+    const list = idsByFundName.get(row.fundName) ?? [];
+    list.push(row.instrumentId);
+    idsByFundName.set(row.fundName, list);
+  }
+
+  const ambiguousFundNames: string[] = [];
+  const instrumentIdByFundName = new Map<string, number>();
+  for (const [name, ids] of idsByFundName) {
+    const unique = [...new Set(ids)];
+    if (unique.length > 1) {
+      ambiguousFundNames.push(name);
+    } else {
+      const id = unique[0];
+      if (id !== undefined) {
+        instrumentIdByFundName.set(name, id);
+      }
+    }
+  }
+
+  if (ambiguousFundNames.length > 0) {
+    ambiguousFundNames.sort((a, b) => a.localeCompare(b));
+    return c.json(
+      {
+        message:
+          "Multiple instruments share the same Seligson fund name in the database.",
+        ambiguousFundNames,
+      },
+      400,
+    );
+  }
+
+  const uniqueNames = [...new Set(parsed.rows.map((r) => r.fundName))];
+  const missingFundNames = uniqueNames.filter(
+    (n) => !instrumentIdByFundName.has(n),
+  );
+  missingFundNames.sort((a, b) => a.localeCompare(b));
+
+  if (missingFundNames.length > 0) {
+    return c.json(
+      {
+        message:
+          "No instrument matches the following fund names. Add Seligson custom instruments first.",
+        missingFundNames,
+      },
+      400,
+    );
+  }
+
+  const values = parsed.rows.map((r) => {
+    const instrumentId = instrumentIdByFundName.get(r.fundName);
+    if (instrumentId === undefined) {
+      throw new Error(`Missing instrument for fund "${r.fundName}"`);
+    }
+    return {
+      brokerId: seligsonBroker.id,
+      tradeDate: new Date(r.tradeDate),
+      side: r.side,
+      instrumentId,
+      quantity: r.quantity,
+      unitPrice: r.unitPrice,
+      currency: r.currency,
+      unitPriceEur: r.unitPriceEur,
+      externalSource: SELIGSON_TSV_EXTERNAL_SOURCE,
       externalId: r.externalId,
     };
   });
