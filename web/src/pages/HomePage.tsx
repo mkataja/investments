@@ -14,7 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { apiGet, apiPost } from "../api";
-import { Button } from "../components/Button";
+import { Button, ButtonLink } from "../components/Button";
 import { Modal } from "../components/Modal";
 import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
 import {
@@ -221,9 +221,12 @@ export function HomePage() {
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-semibold text-slate-900">Portfolio</h1>
-          <Button type="button" onClick={() => setTxnModalOpen(true)}>
-            Add transaction
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <ButtonLink to="/import">Import transactions</ButtonLink>
+            <Button type="button" onClick={() => setTxnModalOpen(true)}>
+              Add transaction
+            </Button>
+          </div>
         </div>
         {error && (
           <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded px-3 py-2">
