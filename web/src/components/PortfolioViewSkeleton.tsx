@@ -7,15 +7,22 @@ export function PortfolioViewSkeleton() {
       aria-busy="true"
       aria-label="Loading portfolio"
     >
-      <BlockSkeleton className="h-7 w-72 max-w-full" />
-      <BlockSkeleton className="h-4 w-56" />
+      <h2 className="text-xl font-medium text-slate-800">
+        Distributions (value-weighted)
+      </h2>
+      <p className="text-slate-600 text-sm">
+        Total estimated EUR:{" "}
+        <span className="tabular-nums inline-block align-middle min-w-[5rem]">
+          <BlockSkeleton className="h-4 w-20 inline-block" />
+        </span>
+      </p>
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="h-64 space-y-2">
-          <BlockSkeleton className="h-4 w-20" />
+        <div className="h-64">
+          <h3 className="text-sm font-medium text-slate-700 mb-2">Regions</h3>
           <BlockSkeleton className="h-[calc(100%-2rem)] w-full" />
         </div>
-        <div className="h-64 space-y-2">
-          <BlockSkeleton className="h-4 w-20" />
+        <div className="h-64">
+          <h3 className="text-sm font-medium text-slate-700 mb-2">Sectors</h3>
           <BlockSkeleton className="h-[calc(100%-2rem)] w-full" />
         </div>
       </div>
@@ -124,9 +131,12 @@ export function TransactionsTableSkeleton() {
           </tbody>
         </table>
       </div>
-      <div className="mt-2">
-        <BlockSkeleton className="h-4 w-40" />
-      </div>
+      <p className="mt-2 text-sm text-slate-600 tabular-nums">
+        <span className="inline-block align-middle w-10">
+          <BlockSkeleton className="h-4 w-8" />
+        </span>{" "}
+        transactions
+      </p>
     </div>
   );
 }
