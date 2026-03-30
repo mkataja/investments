@@ -298,15 +298,7 @@ export function InstrumentsPage() {
   return (
     <div className="w-full min-w-0 space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-semibold text-slate-900">Instruments</h1>
-          <p className="text-slate-600 text-sm mt-1">
-            Each row is one registered instrument. Distributions are cached
-            geographic and sector weights from Yahoo or Seligson for that
-            symbol—nothing here is aggregated from your transactions or
-            positions.
-          </p>
-        </div>
+        <h1 className="text-3xl font-semibold text-slate-900">Instruments</h1>
         <div className="flex flex-wrap items-center gap-3">
           <Button
             disabled={
