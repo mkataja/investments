@@ -305,9 +305,11 @@ export function ImportPage() {
               }}
             />
           </div>
-          <Button type="submit" disabled={busy}>
-            {busy ? "Working…" : "Import"}
-          </Button>
+          {degiroFile !== null ? (
+            <Button type="submit" disabled={busy}>
+              {busy ? "Working…" : "Import"}
+            </Button>
+          ) : null}
         </form>
         {error !== null ? (
           <pre className="mt-3 whitespace-pre-wrap break-words rounded border border-red-200 bg-red-50 p-3 text-xs text-red-900">
@@ -423,9 +425,11 @@ export function ImportPage() {
               }}
             />
           </div>
-          <Button type="submit" disabled={busy}>
-            {busy ? "Working…" : "Import"}
-          </Button>
+          {seligsonFile !== null ? (
+            <Button type="submit" disabled={busy}>
+              {busy ? "Working…" : "Import"}
+            </Button>
+          ) : null}
         </form>
         {seligsonError !== null ? (
           <div className="mt-3 space-y-2">
