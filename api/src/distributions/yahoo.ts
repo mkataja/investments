@@ -8,7 +8,8 @@ import { yahooFinance } from "../lib/yahooClient.js";
 import { withYahooRetries } from "../lib/yahooUpstream.js";
 import { mergeYahooWeightRows } from "./types.js";
 
-function normalizeYahooCountriesToIsoKeys(
+/** Exported for provider holdings parsers (iShares, SSGA) — same rules as Yahoo fund country keys. */
+export function normalizeYahooCountriesToIsoKeys(
   regions: Record<string, number>,
 ): Record<string, number> {
   const out: Record<string, number> = {};

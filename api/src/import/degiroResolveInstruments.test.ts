@@ -28,7 +28,9 @@ describe("resolveDegiroInstrumentIds", () => {
         cashGeoKey: null,
         cashCurrency: null,
         cashInterestType: null,
+        holdingsDistributionUrl: null,
         createdAt: new Date(),
+        updatedAt: new Date(),
       },
     ];
     const r = await resolveDegiroInstrumentIds(["IE00B5BMR087"], inst);
@@ -57,7 +59,9 @@ describe("resolveDegiroInstrumentIds", () => {
         cashGeoKey: null,
         cashCurrency: null,
         cashInterestType: null,
+        holdingsDistributionUrl: null,
         createdAt: new Date(),
+        updatedAt: new Date(),
       },
     ];
     const r = await resolveDegiroInstrumentIds(["IE00B5BMR087"], inst);

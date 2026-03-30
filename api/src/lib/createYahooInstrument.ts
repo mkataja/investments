@@ -1,4 +1,8 @@
-import { instruments, normalizeYahooSymbolForStorage } from "@investments/db";
+import {
+  instruments,
+  normalizeYahooSymbolForStorage,
+  validateHoldingsDistributionUrl,
+} from "@investments/db";
 import { eq } from "drizzle-orm";
 import { db } from "../db.js";
 import {
@@ -6,17 +10,24 @@ import {
   displayNameFromYahooLookup,
   fetchYahooQuoteSummaryRaw,
 } from "../distributions/yahoo.js";
-import { writeYahooDistributionCache } from "./cacheRefresh.js";
+import {
+  upsertYahooPriceFromQuoteSummaryRaw,
+  writeProviderHoldingsDistributionCache,
+  writeYahooDistributionCache,
+} from "./cacheRefresh.js";
 import type { InstrumentRow } from "./valuation.js";
 
 /**
- * Insert an etf/stock row and distribution cache from Yahoo `quoteSummary`.
+ * Insert an etf/stock row and distribution cache from Yahoo `quoteSummary` and/or provider holdings URL.
  * Used by `POST /instruments` and Degiro import when creating instruments from proposals.
  */
 export async function insertEtfStockFromYahoo(
   kind: "etf" | "stock",
   yahooSymbol: string,
-  options?: { isinOverride?: string | null },
+  options?: {
+    isinOverride?: string | null;
+    holdingsDistributionUrl?: string | null;
+  },
 ): Promise<InstrumentRow> {
   const symbol = normalizeYahooSymbolForStorage(yahooSymbol);
   const raw = await fetchYahooQuoteSummaryRaw(symbol);
@@ -26,6 +37,19 @@ export async function insertEtfStockFromYahoo(
     options?.isinOverride != null && options.isinOverride.trim().length > 0
       ? options.isinOverride.trim()
       : (lookup.isin ?? undefined);
+
+  let holdingsUrl: string | null = null;
+  if (
+    options?.holdingsDistributionUrl != null &&
+    options.holdingsDistributionUrl.trim().length > 0
+  ) {
+    const v = validateHoldingsDistributionUrl(options.holdingsDistributionUrl);
+    if (!v.ok || !v.normalized) {
+      throw new Error(v.ok ? "Invalid holdings URL" : v.message);
+    }
+    holdingsUrl = v.normalized;
+  }
+
   const [row] = await db
     .insert(instruments)
     .values({
@@ -33,13 +57,19 @@ export async function insertEtfStockFromYahoo(
       displayName,
       yahooSymbol: symbol,
       isin: isin ?? undefined,
+      holdingsDistributionUrl: holdingsUrl,
     })
     .returning();
   if (!row) {
     throw new Error("Failed to insert instrument");
   }
   try {
-    await writeYahooDistributionCache(row.id, raw, symbol);
+    if (holdingsUrl) {
+      await writeProviderHoldingsDistributionCache(row.id, holdingsUrl);
+      await upsertYahooPriceFromQuoteSummaryRaw(row.id, raw);
+    } else {
+      await writeYahooDistributionCache(row.id, raw, symbol);
+    }
   } catch (e) {
     await db.delete(instruments).where(eq(instruments.id, row.id));
     throw e;

@@ -2,12 +2,17 @@ import {
   distributions,
   instruments,
   prices,
+  providerHoldingsCache,
   seligsonDistributionCache,
   seligsonFunds,
+  validateHoldingsDistributionUrl,
   yahooFinanceCache,
 } from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
+import { fetchProviderHoldingsBytes } from "../distributions/fetchProviderHoldings.js";
+import { parseIsharesHoldingsCsv } from "../distributions/parseIsharesHoldingsCsv.js";
+import { parseSsgaHoldingsXlsx } from "../distributions/parseSsgaHoldingsXlsx.js";
 import { roundWeights } from "../distributions/roundWeights.js";
 import {
   fetchSeligsonHtml,
@@ -107,6 +112,107 @@ export async function writeYahooDistributionCache(
           },
         });
     }
+  });
+}
+
+export async function upsertYahooPriceFromQuoteSummaryRaw(
+  instrumentId: number,
+  raw: YahooQuoteSummaryRaw,
+  fetchedAt: Date = new Date(),
+): Promise<void> {
+  const priceExtract = extractYahooPriceFromQuoteSummaryRaw(raw);
+  if (!priceExtract) {
+    return;
+  }
+  await db
+    .insert(prices)
+    .values({
+      instrumentId,
+      quotedPrice: String(priceExtract.price),
+      currency: priceExtract.currency,
+      fetchedAt,
+      source: "yahoo_quote_summary",
+    })
+    .onConflictDoUpdate({
+      target: prices.instrumentId,
+      set: {
+        quotedPrice: String(priceExtract.price),
+        currency: priceExtract.currency,
+        fetchedAt,
+        source: "yahoo_quote_summary",
+      },
+    });
+}
+
+export async function writeProviderHoldingsDistributionCache(
+  instrumentId: number,
+  url: string,
+  fetchedAt: Date = new Date(),
+): Promise<void> {
+  const v = validateHoldingsDistributionUrl(url);
+  if (!v.ok || !v.normalized || !v.provider) {
+    throw new Error(v.ok ? "Holdings URL is missing or invalid" : v.message);
+  }
+  const bytes = await fetchProviderHoldingsBytes(v.normalized);
+  let payload: {
+    countries: Record<string, number>;
+    sectors: Record<string, number>;
+  };
+  let source: string;
+  let raw: string;
+
+  if (v.provider === "ishares_csv") {
+    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    payload = parseIsharesHoldingsCsv(text);
+    source = "ishares_holdings_csv";
+    raw = text;
+  } else {
+    payload = parseSsgaHoldingsXlsx(bytes);
+    source = "ssga_holdings_xlsx";
+    raw = Buffer.from(bytes).toString("base64");
+  }
+
+  const rounded = {
+    countries: roundWeights(payload.countries),
+    sectors: roundWeights(payload.sectors),
+  };
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(providerHoldingsCache)
+      .values({
+        instrumentId,
+        fetchedAt,
+        source,
+        raw,
+      })
+      .onConflictDoUpdate({
+        target: providerHoldingsCache.instrumentId,
+        set: {
+          fetchedAt,
+          source,
+          raw,
+        },
+      });
+    await tx
+      .delete(yahooFinanceCache)
+      .where(eq(yahooFinanceCache.instrumentId, instrumentId));
+    await tx
+      .insert(distributions)
+      .values({
+        instrumentId,
+        fetchedAt,
+        source,
+        payload: rounded,
+      })
+      .onConflictDoUpdate({
+        target: distributions.instrumentId,
+        set: {
+          fetchedAt,
+          source,
+          payload: rounded,
+        },
+      });
   });
 }
 
@@ -211,10 +317,36 @@ export async function refreshDistributionCacheForInstrumentId(
       return { ok: true };
     }
 
-    if ((inst.kind === "etf" || inst.kind === "stock") && inst.yahooSymbol) {
-      const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
-      await writeYahooDistributionCache(inst.id, raw, inst.yahooSymbol, now);
-      return { ok: true };
+    if (inst.kind === "etf" || inst.kind === "stock") {
+      const holdingsUrl = inst.holdingsDistributionUrl?.trim();
+      if (holdingsUrl) {
+        const validated = validateHoldingsDistributionUrl(holdingsUrl);
+        if (!validated.ok || !validated.normalized) {
+          return {
+            error: validated.ok ? "Invalid holdings URL" : validated.message,
+            status: 502,
+          };
+        }
+        await writeProviderHoldingsDistributionCache(
+          inst.id,
+          validated.normalized,
+          now,
+        );
+        if (inst.yahooSymbol) {
+          const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
+          await upsertYahooPriceFromQuoteSummaryRaw(inst.id, raw, now);
+        }
+        return { ok: true };
+      }
+      if (inst.yahooSymbol) {
+        const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
+        await writeYahooDistributionCache(inst.id, raw, inst.yahooSymbol, now);
+        return { ok: true };
+      }
+      return {
+        error: "Instrument has no external distribution source",
+        status: 502,
+      };
     }
 
     return {
@@ -276,13 +408,41 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
         continue;
       }
 
-      if ((inst.kind === "etf" || inst.kind === "stock") && inst.yahooSymbol) {
-        yahooRefreshIndex++;
-        if (yahooRefreshIndex > 1 && gapMs > 0) {
-          await sleep(gapMs);
+      if (inst.kind === "etf" || inst.kind === "stock") {
+        const holdingsUrl = inst.holdingsDistributionUrl?.trim();
+        if (holdingsUrl) {
+          const validated = validateHoldingsDistributionUrl(holdingsUrl);
+          if (!validated.ok || !validated.normalized) {
+            continue;
+          }
+          await writeProviderHoldingsDistributionCache(
+            inst.id,
+            validated.normalized,
+            now,
+          );
+          if (inst.yahooSymbol) {
+            yahooRefreshIndex++;
+            if (yahooRefreshIndex > 1 && gapMs > 0) {
+              await sleep(gapMs);
+            }
+            const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
+            await upsertYahooPriceFromQuoteSummaryRaw(inst.id, raw, now);
+          }
+          continue;
         }
-        const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
-        await writeYahooDistributionCache(inst.id, raw, inst.yahooSymbol, now);
+        if (inst.yahooSymbol) {
+          yahooRefreshIndex++;
+          if (yahooRefreshIndex > 1 && gapMs > 0) {
+            await sleep(gapMs);
+          }
+          const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
+          await writeYahooDistributionCache(
+            inst.id,
+            raw,
+            inst.yahooSymbol,
+            now,
+          );
+        }
       }
     } catch (e) {
       console.error(`distribution refresh failed for instrument ${inst.id}`, e);
