@@ -234,7 +234,7 @@ const instrumentIn = z.discriminatedUnion("kind", [
     kind: z.literal("cash_account"),
     displayName: z.string().min(1),
     currency: cashCurrencySchema,
-    cashGeoKey: z.string().optional(),
+    cashGeoKey: z.string().trim().min(1),
   }),
 ]);
 
@@ -404,7 +404,7 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
         kind: "cash_account",
         displayName: body.displayName,
         cashCurrency: body.currency,
-        cashGeoKey: body.cashGeoKey ?? undefined,
+        cashGeoKey: body.cashGeoKey,
       })
       .returning();
     return c.json(row, 201);

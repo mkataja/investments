@@ -1,6 +1,7 @@
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
+  check,
   date,
   integer,
   jsonb,
@@ -35,25 +36,35 @@ export const seligsonFunds = pgTable(
   (t) => [uniqueIndex("seligson_funds_fid_uidx").on(t.fid)],
 );
 
-export const instruments = pgTable("instruments", {
-  id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-  kind: text("kind").notNull(),
-  displayName: text("display_name").notNull(),
-  yahooSymbol: text("yahoo_symbol"),
-  isin: text("isin"),
-  seligsonFundId: integer("seligson_fund_id").references(
-    () => seligsonFunds.id,
-  ),
-  cashGeoKey: text("cash_geo_key"),
-  /** Nominal currency for cash_account quantity (see SUPPORTED_CASH_CURRENCY_CODES). */
-  cashCurrency: text("cash_currency"),
-  cashInterestType: text("cash_interest_type"),
-  /** Manual mark for valuation (e.g. Seligson fund NAV) when Yahoo quote is unavailable */
-  markPriceEur: numeric("mark_price_eur", { precision: 24, scale: 8 }),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const instruments = pgTable(
+  "instruments",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    kind: text("kind").notNull(),
+    displayName: text("display_name").notNull(),
+    yahooSymbol: text("yahoo_symbol"),
+    isin: text("isin"),
+    seligsonFundId: integer("seligson_fund_id").references(
+      () => seligsonFunds.id,
+    ),
+    /** Required when `kind` is `cash_account` (see table CHECK). */
+    cashGeoKey: text("cash_geo_key"),
+    /** Nominal currency for cash_account quantity (see SUPPORTED_CASH_CURRENCY_CODES). */
+    cashCurrency: text("cash_currency"),
+    cashInterestType: text("cash_interest_type"),
+    /** Manual mark for valuation (e.g. Seligson fund NAV) when Yahoo quote is unavailable */
+    markPriceEur: numeric("mark_price_eur", { precision: 24, scale: 8 }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "instruments_cash_geo_required_ck",
+      sql`(${t.kind} <> 'cash_account') OR (${t.cashGeoKey} IS NOT NULL AND length(trim(${t.cashGeoKey})) > 0)`,
+    ),
+  ],
+);
 
 export const transactions = pgTable(
   "transactions",

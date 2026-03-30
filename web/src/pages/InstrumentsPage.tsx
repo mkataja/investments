@@ -122,23 +122,17 @@ function DistributionSummary({
   );
 }
 
-function cashAccountSyntheticPayload(
-  cashGeoKey: string | null,
-): DistributionPayload {
-  const trimmed = cashGeoKey?.trim();
-  const regions =
-    trimmed && trimmed.length > 0
-      ? { [trimmed]: 1 }
-      : ({} as Record<string, number>);
+function cashAccountSyntheticPayload(cashGeoKey: string): DistributionPayload {
+  const trimmed = cashGeoKey.trim();
   return {
-    regions,
+    regions: trimmed.length > 0 ? { [trimmed]: 1 } : {},
     sectors: { Cash: 1 },
   };
 }
 
 function CashAccountDistributionSummary({
   cashGeoKey,
-}: { cashGeoKey: string | null }) {
+}: { cashGeoKey: string }) {
   return (
     <DistributionSummary
       payload={cashAccountSyntheticPayload(cashGeoKey)}
@@ -384,7 +378,7 @@ export function InstrumentsPage() {
                   <td className="p-2 min-w-[14rem] max-w-xl align-top font-mono">
                     {i.kind === "cash_account" ? (
                       <CashAccountDistributionSummary
-                        cashGeoKey={i.cashGeoKey}
+                        cashGeoKey={i.cashGeoKey ?? ""}
                       />
                     ) : i.distribution ? (
                       <DistributionSummary

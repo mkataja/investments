@@ -109,11 +109,16 @@ export function NewInstrumentPage() {
           setError("Enter a display name.");
           return;
         }
+        const geo = cashGeoKey.trim();
+        if (!geo) {
+          setError("Enter a geo key (e.g. country code).");
+          return;
+        }
         await apiPost<InstrumentRow>("/instruments", {
           kind: "cash_account",
           displayName: name,
           currency: cashCurrency,
-          cashGeoKey: cashGeoKey.trim() || undefined,
+          cashGeoKey: geo,
         });
       } else {
         setError("Choose an instrument type.");
@@ -267,15 +272,18 @@ export function NewInstrumentPage() {
               </select>
             </label>
             <label className="block text-sm">
-              Geo key{" "}
-              <span className="text-slate-400 font-normal">(optional)</span>
+              Geo key
               <input
                 className="mt-1 block w-full border rounded px-2 py-1"
+                required
                 value={cashGeoKey}
                 onChange={(e) => setCashGeoKey(e.target.value)}
-                placeholder="Not used in distribution charts"
+                placeholder="e.g. FI or United States"
               />
             </label>
+            <p className="text-xs text-slate-500">
+              Not used for distribution calculations.
+            </p>
           </div>
         ) : null}
 
