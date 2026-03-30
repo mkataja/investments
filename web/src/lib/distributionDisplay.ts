@@ -24,6 +24,17 @@ export const PORTFOLIO_UNKNOWN_COUNTRY_KEY = "__portfolio_unknown__";
 
 const CHART_UNKNOWN_LABEL = "Unknown";
 
+const sectorTitleCmp = (a: string, b: string) =>
+  a.localeCompare(b, undefined, { sensitivity: "base" });
+
+function sectorTitleForId(id: string): string {
+  if (id === PORTFOLIO_UNKNOWN_COUNTRY_KEY) {
+    return CHART_UNKNOWN_LABEL;
+  }
+  const t = DISTRIBUTION_SECTOR_TITLES[id as DistributionSectorId];
+  return t ?? id;
+}
+
 /** @deprecated Use aggregateRegionsToGeoBuckets */
 export function aggregateRegionsToBuckets(
   countries: Record<string, number>,
@@ -110,11 +121,143 @@ function sortBarChartRowsUnknownLast(
   rows: Array<{ key: string; name: string; value: number }>,
   isUnknown: (r: { key: string }) => boolean,
 ): Array<{ name: string; value: number }> {
+  return sortBarChartRowsUnknownLastWithKeys(rows, isUnknown).map(
+    ({ name, value }) => ({ name, value }),
+  );
+}
+
+function sortBarChartRowsUnknownLastWithKeys(
+  rows: Array<{ key: string; name: string; value: number }>,
+  isUnknown: (r: { key: string }) => boolean,
+): Array<{ key: string; name: string; value: number }> {
   const unk = rows.filter(isUnknown);
   const kn = rows.filter((r) => !isUnknown(r));
   kn.sort((a, b) => b.value - a.value);
   unk.sort((a, b) => b.value - a.value);
-  return [...kn, ...unk].map(({ name, value }) => ({ name, value }));
+  return [...kn, ...unk];
+}
+
+function regionBarRowsWithKeys(
+  regions: Record<string, number>,
+): Array<{ key: string; name: string; value: number }> {
+  const rows = Object.entries(regions)
+    .filter(([, v]) => v > 0.0005)
+    .map(([id, value]) => ({
+      key: id,
+      name:
+        id === "unknown"
+          ? CHART_UNKNOWN_LABEL
+          : geoBucketDisplayTitle(id as GeoBucketId),
+      value,
+    }));
+  return sortBarChartRowsUnknownLastWithKeys(rows, (r) => r.key === "unknown");
+}
+
+function sectorBarRowsWithKeys(
+  sectors: Record<string, number>,
+): Array<{ key: string; name: string; value: number }> {
+  const rows = Object.entries(sectors)
+    .filter(([, v]) => v > 0.0005)
+    .map(([id, value]) => ({
+      key: id,
+      name: sectorTitleForId(id),
+      value,
+    }));
+  return sortBarChartRowsUnknownLastWithKeys(
+    rows,
+    (r) => r.key === PORTFOLIO_UNKNOWN_COUNTRY_KEY,
+  );
+}
+
+function countryBarRowsWithKeys(
+  countries: Record<string, number>,
+): Array<{ key: string; name: string; value: number }> {
+  const norm = normalizeCountryWeightsForDisplay(countries);
+  const rows = Object.entries(norm)
+    .filter(([, v]) => v > 0.0005)
+    .map(([k, v]) => ({
+      key: k,
+      name: k === UNMAPPED_COUNTRY_KEY ? CHART_UNKNOWN_LABEL : k,
+      value: v,
+    }));
+  return sortBarChartRowsUnknownLastWithKeys(
+    rows,
+    (r) => r.key === UNMAPPED_COUNTRY_KEY,
+  );
+}
+
+/**
+ * Side-by-side bars: row order follows **primary** sort (same as single-chart helpers), then
+ * any categories only present in **compare** (same sort rules within that tail).
+ */
+export function portfolioRegionBarRowsDual(
+  primary: Record<string, number>,
+  compare: Record<string, number>,
+): Array<{ name: string; primary: number; compare: number }> {
+  const pRows = regionBarRowsWithKeys(primary);
+  const primaryKeys = new Set(pRows.map((r) => r.key));
+  const compareOnly = regionBarRowsWithKeys(compare).filter(
+    (r) => !primaryKeys.has(r.key),
+  );
+  return [
+    ...pRows.map((r) => ({
+      name: r.name,
+      primary: r.value,
+      compare: compare[r.key] ?? 0,
+    })),
+    ...compareOnly.map((r) => ({
+      name: r.name,
+      primary: 0,
+      compare: r.value,
+    })),
+  ];
+}
+
+export function portfolioSectorBarRowsDual(
+  primary: Record<string, number>,
+  compare: Record<string, number>,
+): Array<{ name: string; primary: number; compare: number }> {
+  const pRows = sectorBarRowsWithKeys(primary);
+  const primaryKeys = new Set(pRows.map((r) => r.key));
+  const compareOnly = sectorBarRowsWithKeys(compare).filter(
+    (r) => !primaryKeys.has(r.key),
+  );
+  return [
+    ...pRows.map((r) => ({
+      name: r.name,
+      primary: r.value,
+      compare: compare[r.key] ?? 0,
+    })),
+    ...compareOnly.map((r) => ({
+      name: r.name,
+      primary: 0,
+      compare: r.value,
+    })),
+  ];
+}
+
+export function allCountriesChartDataDual(
+  primary: Record<string, number>,
+  compare: Record<string, number>,
+): Array<{ name: string; primary: number; compare: number }> {
+  const compareNorm = normalizeCountryWeightsForDisplay(compare);
+  const pRows = countryBarRowsWithKeys(primary);
+  const primaryKeys = new Set(pRows.map((r) => r.key));
+  const compareOnly = countryBarRowsWithKeys(compare).filter(
+    (r) => !primaryKeys.has(r.key),
+  );
+  return [
+    ...pRows.map((r) => ({
+      name: r.name,
+      primary: r.value,
+      compare: compareNorm[r.key] ?? 0,
+    })),
+    ...compareOnly.map((r) => ({
+      name: r.name,
+      primary: 0,
+      compare: r.value,
+    })),
+  ];
 }
 
 /** Regions bar chart: sorted by weight; geo bucket **unknown** last. */
@@ -165,17 +308,6 @@ export type SectorRow = {
   icon: string;
   pctLabel: string;
 };
-
-const sectorTitleCmp = (a: string, b: string) =>
-  a.localeCompare(b, undefined, { sensitivity: "base" });
-
-function sectorTitleForId(id: string): string {
-  if (id === PORTFOLIO_UNKNOWN_COUNTRY_KEY) {
-    return CHART_UNKNOWN_LABEL;
-  }
-  const t = DISTRIBUTION_SECTOR_TITLES[id as DistributionSectorId];
-  return t ?? id;
-}
 
 /** Sectors sorted by weight descending, then by display title for ties. */
 export function sortedSectorsForDisplay(
