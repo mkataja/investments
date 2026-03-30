@@ -1,0 +1,1 @@
+ALTER TABLE "transactions" ALTER COLUMN "trade_date" SET DATA TYPE timestamp with time zone USING ("trade_date" AT TIME ZONE 'UTC');

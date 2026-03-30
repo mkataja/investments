@@ -2,7 +2,6 @@ import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   check,
-  date,
   integer,
   jsonb,
   numeric,
@@ -100,7 +99,7 @@ export const transactions = pgTable(
     brokerId: integer("broker_id")
       .notNull()
       .references(() => brokers.id),
-    tradeDate: date("trade_date").notNull(),
+    tradeDate: timestamp("trade_date", { withTimezone: true }).notNull(),
     side: text("side").notNull(),
     instrumentId: integer("instrument_id")
       .notNull()
