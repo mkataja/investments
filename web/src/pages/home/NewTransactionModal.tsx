@@ -33,6 +33,15 @@ type Transaction = {
   currency: string;
 };
 
+function transactionModalInstrumentLabel(i: Instrument): string {
+  return transactionInstrumentSelectLabel({
+    kind: i.kind,
+    displayName: i.displayName,
+    yahooSymbol: i.yahooSymbol,
+    seligsonFund: i.seligsonFund ? { name: i.seligsonFund.name } : null,
+  });
+}
+
 export type NewTransactionModalProps = {
   open: boolean;
   onClose: () => void;
@@ -78,8 +87,15 @@ export function NewTransactionModal({
         if (cancelled) {
           return;
         }
-        setTxnInstruments(list);
-        const first = list[0];
+        const sorted = [...list].sort((a, b) =>
+          transactionModalInstrumentLabel(a).localeCompare(
+            transactionModalInstrumentLabel(b),
+            undefined,
+            { sensitivity: "base" },
+          ),
+        );
+        setTxnInstruments(sorted);
+        const first = sorted[0];
         const firstIsCash = first?.kind === "cash_account";
         setTxnForm((f) => ({
           ...f,
@@ -232,14 +248,7 @@ export function NewTransactionModal({
             ) : (
               txnInstruments.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {transactionInstrumentSelectLabel({
-                    kind: i.kind,
-                    displayName: i.displayName,
-                    yahooSymbol: i.yahooSymbol,
-                    seligsonFund: i.seligsonFund
-                      ? { name: i.seligsonFund.name }
-                      : null,
-                  })}
+                  {transactionModalInstrumentLabel(i)}
                 </option>
               ))
             )}
