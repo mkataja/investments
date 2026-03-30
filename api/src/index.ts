@@ -12,7 +12,7 @@ import {
   seligsonFunds,
   transactions,
 } from "@investments/db";
-import { asc, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
@@ -441,7 +441,7 @@ const instrumentIn = z.discriminatedUnion("kind", [
   z.object({
     kind: z.literal("cash_account"),
     brokerId: z.number().int().positive(),
-    displayName: z.string().min(1),
+    displayName: z.string().trim().min(1),
     currency: cashCurrencySchema,
     cashGeoKey: z
       .string()
@@ -659,17 +659,52 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
         400,
       );
     }
-    const [row] = await db
-      .insert(instruments)
-      .values({
-        kind: "cash_account",
-        displayName: body.displayName,
-        cashCurrency: body.currency,
-        cashGeoKey: body.cashGeoKey,
-        brokerId: body.brokerId,
-      })
-      .returning();
-    return c.json(row, 201);
+    const displayName = body.displayName;
+    const [nameDup] = await db
+      .select({ id: instruments.id })
+      .from(instruments)
+      .where(
+        and(
+          eq(instruments.kind, "cash_account"),
+          sql`lower(trim(${instruments.displayName})) = ${displayName.toLowerCase()}`,
+        ),
+      )
+      .limit(1);
+    if (nameDup) {
+      return c.json(
+        { message: "A cash account with this name already exists" },
+        409,
+      );
+    }
+    try {
+      const [row] = await db
+        .insert(instruments)
+        .values({
+          kind: "cash_account",
+          displayName,
+          cashCurrency: body.currency,
+          cashGeoKey: body.cashGeoKey,
+          brokerId: body.brokerId,
+        })
+        .returning();
+      if (!row) {
+        return c.json({ message: "Failed to insert instrument" }, 500);
+      }
+      return c.json(row, 201);
+    } catch (e) {
+      if (
+        typeof e === "object" &&
+        e !== null &&
+        "code" in e &&
+        (e as { code?: string }).code === "23505"
+      ) {
+        return c.json(
+          { message: "A cash account with this name already exists" },
+          409,
+        );
+      }
+      throw e;
+    }
   }
 
   return c.json({ message: "Unsupported instrument kind" }, 400);

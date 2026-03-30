@@ -78,6 +78,13 @@
       "when": 1774868037711,
       "tag": "0010_rich_xavin",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1774868920831,
+      "tag": "0011_slow_lester",
+      "breakpoints": true
     }
   ]
 }

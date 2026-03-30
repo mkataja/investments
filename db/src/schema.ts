@@ -87,6 +87,9 @@ export const instruments = pgTable(
         (${t.kind} IN ('custom', 'cash_account') AND ${t.brokerId} IS NOT NULL)
       )`,
     ),
+    uniqueIndex("instruments_cash_account_display_name_uidx")
+      .on(sql`lower(trim(${t.displayName}))`)
+      .where(sql`${t.kind} = 'cash_account'`),
   ],
 );
 

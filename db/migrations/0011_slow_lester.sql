@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "instruments_cash_account_display_name_uidx" ON "instruments" USING btree (lower(trim("display_name"))) WHERE "instruments"."kind" = 'cash_account';
