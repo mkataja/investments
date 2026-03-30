@@ -46,6 +46,7 @@ import {
 } from "./import/degiroTransactions.js";
 import {
   SELIGSON_TSV_EXTERNAL_SOURCE,
+  normalizeSeligsonFundNameForMatch,
   parseSeligsonTransactionsTsv,
 } from "./import/seligsonTransactions.js";
 import {
@@ -507,9 +508,10 @@ app.post("/import/seligson", async (c) => {
 
   const idsByFundName = new Map<string, number[]>();
   for (const row of joined) {
-    const list = idsByFundName.get(row.fundName) ?? [];
+    const key = normalizeSeligsonFundNameForMatch(row.fundName);
+    const list = idsByFundName.get(key) ?? [];
     list.push(row.instrumentId);
-    idsByFundName.set(row.fundName, list);
+    idsByFundName.set(key, list);
   }
 
   const ambiguousFundNames: string[] = [];
@@ -540,7 +542,7 @@ app.post("/import/seligson", async (c) => {
 
   const uniqueNames = [...new Set(parsed.rows.map((r) => r.fundName))];
   const missingFundNames = uniqueNames.filter(
-    (n) => !instrumentIdByFundName.has(n),
+    (n) => !instrumentIdByFundName.has(normalizeSeligsonFundNameForMatch(n)),
   );
   missingFundNames.sort((a, b) => a.localeCompare(b));
 
@@ -556,7 +558,9 @@ app.post("/import/seligson", async (c) => {
   }
 
   const values = parsed.rows.map((r) => {
-    const instrumentId = instrumentIdByFundName.get(r.fundName);
+    const instrumentId = instrumentIdByFundName.get(
+      normalizeSeligsonFundNameForMatch(r.fundName),
+    );
     if (instrumentId === undefined) {
       throw new Error(`Missing instrument for fund "${r.fundName}"`);
     }

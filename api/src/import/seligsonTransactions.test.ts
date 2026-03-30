@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   SELIGSON_TSV_HEADER,
   buildSeligsonExternalId,
+  normalizeSeligsonFundNameForMatch,
   parseSeligsonTradeDateDMY,
   parseSeligsonTransactionsTsv,
 } from "./seligsonTransactions.js";
@@ -18,6 +19,22 @@ describe("parseSeligsonTradeDateDMY", () => {
   it("returns null for invalid input", () => {
     expect(parseSeligsonTradeDateDMY("2026-01-13")).toBeNull();
     expect(parseSeligsonTradeDateDMY("")).toBeNull();
+  });
+});
+
+describe("normalizeSeligsonFundNameForMatch", () => {
+  it("strips trailing Acc/Dst (A)/(B) for DB matching", () => {
+    expect(normalizeSeligsonFundNameForMatch("Seligson & Co Aasia (A)")).toBe(
+      "Seligson & Co Aasia",
+    );
+    expect(normalizeSeligsonFundNameForMatch("Fund (B)")).toBe("Fund");
+    expect(normalizeSeligsonFundNameForMatch("Fund (a)")).toBe("Fund");
+  });
+
+  it("leaves names without that suffix unchanged", () => {
+    expect(normalizeSeligsonFundNameForMatch("Seligson & Co Aasia")).toBe(
+      "Seligson & Co Aasia",
+    );
   });
 });
 

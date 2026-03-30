@@ -23,6 +23,13 @@ function normalizeCell(s: string): string {
   return normalizeUnicodeMinus(s.trim());
 }
 
+/** Seligson exports append (A) or (B) for Acc/Dst; strip for matching `seligson_funds.name`. */
+export function normalizeSeligsonFundNameForMatch(name: string): string {
+  return normalizeCell(name)
+    .replace(/\s*\([AB]\)\s*$/i, "")
+    .trim();
+}
+
 function trimTrailingEmptyCells(cells: readonly string[]): string[] {
   const row = cells.map((c) => String(c));
   while (row.length > 0 && normalizeCell(row[row.length - 1] ?? "") === "") {
