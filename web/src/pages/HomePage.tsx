@@ -118,7 +118,7 @@ export function HomePage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-10">
+    <div className="w-full min-w-0 space-y-10">
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1 className="text-3xl font-semibold text-slate-900">Portfolio</h1>
@@ -144,7 +144,7 @@ export function HomePage() {
         )}
       </header>
 
-      <section className="max-w-xl">
+      <section>
         <form
           onSubmit={(e) => void submitTransaction(e)}
           className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white shadow-sm"

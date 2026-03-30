@@ -8,7 +8,7 @@ export function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-slate-50 text-slate-900">
-        <nav className="border-b border-slate-200 bg-white px-6 py-3 flex gap-6 text-sm font-medium">
+        <nav className="border-b border-slate-200 bg-white px-4 sm:px-6 py-3 flex gap-6 text-sm font-medium">
           <Link to="/" className="text-emerald-800 hover:underline">
             Portfolio
           </Link>
@@ -25,12 +25,14 @@ export function App() {
             Data checks
           </Link>
         </nav>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/instruments" element={<InstrumentsPage />} />
-          <Route path="/instruments/new" element={<NewInstrumentPage />} />
-          <Route path="/dev" element={<DevPage />} />
-        </Routes>
+        <main className="w-full min-w-0 px-4 sm:px-6 py-6">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/instruments" element={<InstrumentsPage />} />
+            <Route path="/instruments/new" element={<NewInstrumentPage />} />
+            <Route path="/dev" element={<DevPage />} />
+          </Routes>
+        </main>
       </div>
     </BrowserRouter>
   );

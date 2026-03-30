@@ -126,7 +126,7 @@ export function NewInstrumentPage() {
   }
 
   return (
-    <div className="max-w-xl mx-auto p-6 space-y-8">
+    <div className="w-full min-w-0 space-y-8">
       <header className="space-y-2">
         <Link to="/" className="text-sm text-emerald-800 hover:underline">
           ← Portfolio
