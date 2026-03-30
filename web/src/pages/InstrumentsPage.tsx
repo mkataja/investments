@@ -295,7 +295,7 @@ export function InstrumentsPage() {
                       {instrumentKindColumnLabel(i)}
                     </td>
                     <td className="p-2 text-slate-700">{ticker ?? "-"}</td>
-                    <td className="p-2 text-slate-700 font-mono text-xs tabular-nums whitespace-nowrap">
+                    <td className="p-2 text-slate-700 tabular-nums whitespace-nowrap">
                       {i.isin ?? "-"}
                     </td>
                     <td className="p-2 font-medium text-slate-900">
