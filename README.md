@@ -48,7 +48,7 @@ Use short, descriptive one-line titles (no `feat:` / `chore:` prefixes).
 - **Seligson funds** live in `seligson_funds` (fid + name); new rows are created when you add a custom instrument from `/instruments/new` (FID + Seligson-type broker).
 - **Instruments** of kind `custom` reference a `seligson_fund` row when using the Seligson integration; `broker_id` identifies the broker. Distributions are scraped from Seligson FundViewer (`view=40`).
 - **ETFs/stocks** use `yahooSymbol`; distributions come from Yahoo `quoteSummary` (sectors / regions when available).
-- **Cash** (`cash_account`): balance is in `cash_currency` (EUR/USD); `cash_geo_key` is required (ISO-like region label) for display and is not used for region/sector chart weights.
+- **Cash** (`cash_account`): balance is in `cash_currency` (EUR/USD); **country code** (ISO 3166-1 alpha-2, stored as `cash_geo_key`) is required for display and is not used for region/sector chart weights.
 - **Distribution cache** refreshes at least daily for instruments with open positions (API startup; `manual` cache rows are not overwritten).
 - **Dev-only routes** `GET /dev/yahoo?symbol=` and `GET /dev/seligson?fid=` are enabled when `NODE_ENV=development` or `DEV_TOOLS=true`.
 - **Public routes** `GET /instruments/lookup-yahoo?symbol=` previews Yahoo metadata for the new-instrument UI.

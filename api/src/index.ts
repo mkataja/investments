@@ -475,7 +475,7 @@ const instrumentIn = z.discriminatedUnion("kind", [
       .transform((s) => normalizeCashAccountIsoCountryCode(s))
       .refine((s): s is string => s !== null, {
         message:
-          "cashGeoKey must be a valid ISO 3166-1 alpha-2 country code (e.g. FI, US)",
+          "Country code must be a valid ISO 3166-1 alpha-2 value (e.g. FI, US)",
       }),
   }),
 ]);
@@ -499,7 +499,7 @@ const instrumentPatchIn = z
       .transform((s) => normalizeCashAccountIsoCountryCode(s))
       .refine((s): s is string => s !== null, {
         message:
-          "cashGeoKey must be a valid ISO 3166-1 alpha-2 country code (e.g. FI, US)",
+          "Country code must be a valid ISO 3166-1 alpha-2 value (e.g. FI, US)",
       })
       .optional(),
     cashInterestType: z.union([z.string().trim().min(1), z.null()]).optional(),

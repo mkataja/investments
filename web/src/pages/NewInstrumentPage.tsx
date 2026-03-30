@@ -404,7 +404,7 @@ export function NewInstrumentPage() {
               </select>
             </label>
             <label className="block text-sm">
-              Country
+              Country code
               <input
                 className="mt-1 block w-full border rounded px-2 py-1"
                 required
