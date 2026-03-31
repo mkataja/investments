@@ -108,8 +108,15 @@ export function NewTransactionModal({
   onTransactionAdded,
   onError,
 }: NewTransactionModalProps) {
+  const brokersSortedByName = useMemo(
+    () =>
+      [...brokers].sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+      ),
+    [brokers],
+  );
   const [txnForm, setTxnForm] = useState(() =>
-    buildTxnForm(editTransaction, brokers),
+    buildTxnForm(editTransaction, brokersSortedByName),
   );
   const [txnInstruments, setTxnInstruments] = useState<Instrument[]>([]);
   const [txnInstrumentsLoading, setTxnInstrumentsLoading] = useState(false);
@@ -273,7 +280,7 @@ export function NewTransactionModal({
               })
             }
           >
-            {brokers.map((b) => (
+            {brokersSortedByName.map((b) => (
               <option key={b.id} value={b.id}>
                 {b.name}
               </option>
