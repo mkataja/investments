@@ -328,6 +328,59 @@ export function allCountriesChartDataDual(
   ];
 }
 
+const COUNTRY_BAR_CHART_OTHER_ROW_LABEL = "Other";
+
+/** Same order as {@link allCountriesChartData}; caps row count and merges the tail into one "Other" bar. */
+export function topCountriesChartData(
+  countries: Record<string, number>,
+  topN: number,
+): Array<{ name: string; value: number; bucketKey: string }> {
+  const full = allCountriesChartData(countries);
+  if (topN < 1 || full.length <= topN) {
+    return full;
+  }
+  const head = full.slice(0, topN);
+  const rest = full.slice(topN).reduce((s, r) => s + r.value, 0);
+  return [
+    ...head,
+    {
+      name: COUNTRY_BAR_CHART_OTHER_ROW_LABEL,
+      value: rest,
+      bucketKey: "rest",
+    },
+  ];
+}
+
+/** Same order as {@link allCountriesChartDataDual}; caps row count and merges the tail into one "Other" bar. */
+export function topCountriesChartDataDual(
+  primary: Record<string, number>,
+  compare: Record<string, number>,
+  topN: number,
+): Array<{
+  name: string;
+  primary: number;
+  compare: number;
+  bucketKey: string;
+}> {
+  const full = allCountriesChartDataDual(primary, compare);
+  if (topN < 1 || full.length <= topN) {
+    return full;
+  }
+  const head = full.slice(0, topN);
+  const tail = full.slice(topN);
+  const primaryRest = tail.reduce((s, r) => s + r.primary, 0);
+  const compareRest = tail.reduce((s, r) => s + r.compare, 0);
+  return [
+    ...head,
+    {
+      name: COUNTRY_BAR_CHART_OTHER_ROW_LABEL,
+      primary: primaryRest,
+      compare: compareRest,
+      bucketKey: "rest",
+    },
+  ];
+}
+
 /** Regions bar chart: sorted by weight; geo bucket **unknown** last. */
 export function portfolioRegionBarRows(
   regions: Record<string, number>,

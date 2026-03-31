@@ -1,5 +1,5 @@
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -24,13 +24,13 @@ import {
   secondLargestMainPortfolioBarValue,
 } from "../../lib/distributionBarChartAxis";
 import {
-  allCountriesChartData,
-  allCountriesChartDataDual,
   equitySectorsForDisplay,
   portfolioRegionBarRows,
   portfolioRegionBarRowsDual,
   portfolioSectorBarRows,
   portfolioSectorBarRowsDual,
+  topCountriesChartData,
+  topCountriesChartDataDual,
 } from "../../lib/distributionDisplay";
 import { formatToPercentage } from "../../lib/numberFormat";
 import {
@@ -100,6 +100,11 @@ function barChartMargin() {
     bottom: 48,
   } as const;
 }
+
+/** Target horizontal space per country bar (matches resize-driven row cap). */
+const COUNTRY_BAR_CHART_PX_PER_ENTRY = 36;
+/** Before the first `ResizeObserver` callback, approximate bar count for SSR/first paint. */
+const COUNTRY_BAR_CHART_WIDTH_FALLBACK_PX = 800;
 
 type PortfolioChartsProps = {
   portfolio: PortfolioDistributions;
@@ -188,18 +193,46 @@ export function PortfolioCharts({
     showDistributionCompare,
   ]);
 
+  const countryChartContainerRef = useRef<HTMLDivElement>(null);
+  const [countryChartWidthPx, setCountryChartWidthPx] = useState(0);
+
+  useLayoutEffect(() => {
+    const el = countryChartContainerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (typeof w === "number" && Number.isFinite(w)) {
+        setCountryChartWidthPx(w);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const countryChartEntryCount = useMemo(() => {
+    const w =
+      countryChartWidthPx > 0
+        ? countryChartWidthPx
+        : COUNTRY_BAR_CHART_WIDTH_FALLBACK_PX;
+    return Math.max(1, Math.floor(w / COUNTRY_BAR_CHART_PX_PER_ENTRY));
+  }, [countryChartWidthPx]);
+
   const countryBarChartData = useMemo(() => {
     const th = portfolio.bucketTopHoldings?.countries ?? {};
     const thCmp = comparePortfolio?.bucketTopHoldings?.countries ?? {};
     if (!showDistributionCompare) {
-      return allCountriesChartData(portfolio.countries).map((r) => ({
+      return topCountriesChartData(
+        portfolio.countries,
+        countryChartEntryCount,
+      ).map((r) => ({
         ...r,
         topHoldings: th[r.bucketKey] ?? [],
       }));
     }
-    return allCountriesChartDataDual(
+    return topCountriesChartDataDual(
       portfolio.countries,
       comparePortfolio?.countries ?? {},
+      countryChartEntryCount,
     ).map((r) => ({
       ...r,
       topHoldingsPrimary: th[r.bucketKey] ?? [],
@@ -211,6 +244,7 @@ export function PortfolioCharts({
     comparePortfolio?.countries,
     comparePortfolio?.bucketTopHoldings?.countries,
     showDistributionCompare,
+    countryChartEntryCount,
   ]);
 
   const regionYAxis = useMemo(
@@ -553,6 +587,7 @@ export function PortfolioCharts({
         <div className="min-w-0 subsection-stack">
           <h3 className="shrink-0">Countries</h3>
           <div
+            ref={countryChartContainerRef}
             className={`relative w-full h-[540px] ${countryChartYZoomed ? "cursor-zoom-out" : "cursor-zoom-in"}`}
           >
             {countryChartYZoomed ? (
