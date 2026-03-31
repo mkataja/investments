@@ -107,7 +107,10 @@ function barChartMargin() {
 }
 
 /** Target horizontal space per country bar (matches resize-driven row cap). */
-const COUNTRY_BAR_CHART_PX_PER_ENTRY = 36;
+const COUNTRY_BAR_CHART_PX_PER_ENTRY = 42;
+/** Comparison mode: primary/compare bars tight; more space between country buckets (Recharts defaults: 4, 10%). */
+const COUNTRY_COMPARE_BAR_GAP = 3;
+const COUNTRY_COMPARE_BAR_CATEGORY_GAP = "12%";
 /** Before the first `ResizeObserver` callback, approximate bar count for SSR/first paint. */
 const COUNTRY_BAR_CHART_WIDTH_FALLBACK_PX = 800;
 
@@ -608,6 +611,12 @@ export function PortfolioCharts({
                 data={countryBarChartData}
                 margin={barChartMargin()}
                 onClick={() => setCountryChartYZoomed((z) => !z)}
+                {...(showDistributionCompare
+                  ? {
+                      barGap: COUNTRY_COMPARE_BAR_GAP,
+                      barCategoryGap: COUNTRY_COMPARE_BAR_CATEGORY_GAP,
+                    }
+                  : {})}
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
