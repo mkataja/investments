@@ -165,12 +165,12 @@ export function PortfolioCharts({
       },
       { name: "Bonds", value: aa.bondsEur, fill: ASSET_MIX_COLORS.bonds },
       {
-        name: "Cash (funds)",
+        name: "Cash (in funds)",
         value: aa.cashInFundsEur,
         fill: ASSET_MIX_COLORS.cashInFunds,
       },
       {
-        name: "Cash (accounts; excess)",
+        name: "Cash (in accounts - excluding emergency fund)",
         value: aa.cashExcessEur,
         fill: ASSET_MIX_COLORS.cashExcess,
       },
@@ -208,16 +208,15 @@ export function PortfolioCharts({
         )}
       </p>
       {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
-        <div className="max-w-md min-w-0">
+        <div className="max-w-xl min-w-0">
           <h3 className="text-sm font-medium text-slate-700 mb-1">Asset mix</h3>
-          <div className="aspect-[5/2] h-36">
+          <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={assetMixPieData}
                   dataKey="value"
                   nameKey="name"
-                  outerRadius="100%"
                   allowReorder="yes"
                   minAngle={5}
                 >
