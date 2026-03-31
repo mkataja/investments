@@ -171,6 +171,8 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     weight: number;
     valueEur: number;
     valuationSource: string;
+    /** For UI grouping; aligns with `assetAllocation` bond vs equity split + cash accounts. */
+    assetClass: "equity" | "bond" | "cash_account";
   }>;
   /** Top holdings per distribution bucket (region / sector / country key). */
   bucketTopHoldings: {
@@ -430,6 +432,16 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       Math.abs(qty) > 1e-12 && Number.isFinite(valueEur)
         ? valueEur / qty
         : null;
+    const assetClass: "equity" | "bond" | "cash_account" =
+      row.inst.kind === "cash_account"
+        ? "cash_account"
+        : classifyNonCashInstrument(
+            row.inst,
+            yahooRawById.get(row.inst.id) ?? null,
+            row.inst.seligsonFundId != null
+              ? (seligsonNameById.get(row.inst.seligsonFundId) ?? null)
+              : null,
+          );
     return {
       instrumentId: row.inst.id,
       displayName: row.inst.displayName,
@@ -438,6 +450,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       weight: totalValueEur > 0 ? valueEur / totalValueEur : 0,
       valueEur,
       valuationSource: row.source,
+      assetClass,
     };
   });
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
 import {
   HoldingDistributionTooltipLayer,
   type HoldingDistributionTooltipState,
@@ -17,21 +17,36 @@ type HoldingsTableProps = {
   instrumentTickerById: Map<number, string | null>;
 };
 
-export function HoldingsTable({
-  portfolio,
+type PortfolioPosition = PortfolioDistributions["positions"][number];
+
+function sortByValueDesc(rows: PortfolioPosition[]): PortfolioPosition[] {
+  return [...rows].sort((a, b) => b.valueEur - a.valueEur);
+}
+
+function HoldingsSubtable({
+  title,
+  rows,
   instrumentById,
   instrumentTickerById,
-}: HoldingsTableProps) {
-  const [holdingTooltip, setHoldingTooltip] =
-    useState<HoldingDistributionTooltipState | null>(null);
+  setHoldingTooltip,
+}: {
+  title: string;
+  rows: PortfolioPosition[];
+  instrumentById: Map<number, HomeInstrument>;
+  instrumentTickerById: Map<number, string | null>;
+  setHoldingTooltip: Dispatch<
+    SetStateAction<HoldingDistributionTooltipState | null>
+  >;
+}) {
+  if (rows.length === 0) {
+    return null;
+  }
 
-  const holdingsSortedByWeight = useMemo(() => {
-    return [...portfolio.positions].sort((a, b) => b.weight - a.weight);
-  }, [portfolio.positions]);
+  const sectionValueEur = rows.reduce((s, p) => s + p.valueEur, 0);
 
   return (
-    <>
-      <h2 className="text-xl font-medium text-slate-800 mb-2">Holdings</h2>
+    <div className="mb-4 last:mb-0">
+      <h3 className="text-base font-medium text-slate-700 mb-2">{title}</h3>
       <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
         <table className="min-w-full">
           <thead className="bg-slate-100 text-slate-700">
@@ -45,12 +60,14 @@ export function HoldingsTable({
             </tr>
           </thead>
           <tbody>
-            {holdingsSortedByWeight.map((p) => {
+            {rows.map((p) => {
               const ticker = instrumentTickerCell(
                 p.instrumentId,
                 instrumentById,
                 instrumentTickerById,
               );
+              const weightWithinSection =
+                sectionValueEur > 0 ? p.valueEur / sectionValueEur : 0;
               return (
                 <tr
                   key={p.instrumentId}
@@ -87,7 +104,7 @@ export function HoldingsTable({
                     {p.valueEur.toFixed(2)}
                   </td>
                   <td className="p-2 text-right tabular-nums">
-                    {formatPercentWidth4From01(p.weight)}
+                    {formatPercentWidth4From01(weightWithinSection)}
                   </td>
                 </tr>
               );
@@ -95,6 +112,62 @@ export function HoldingsTable({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+export function HoldingsTable({
+  portfolio,
+  instrumentById,
+  instrumentTickerById,
+}: HoldingsTableProps) {
+  const [holdingTooltip, setHoldingTooltip] =
+    useState<HoldingDistributionTooltipState | null>(null);
+
+  const { equities, bonds, cashAccounts } = useMemo(() => {
+    const eq: PortfolioPosition[] = [];
+    const bd: PortfolioPosition[] = [];
+    const cash: PortfolioPosition[] = [];
+    for (const p of portfolio.positions) {
+      if (p.assetClass === "cash_account") {
+        cash.push(p);
+      } else if (p.assetClass === "bond") {
+        bd.push(p);
+      } else {
+        eq.push(p);
+      }
+    }
+    return {
+      equities: sortByValueDesc(eq),
+      bonds: sortByValueDesc(bd),
+      cashAccounts: sortByValueDesc(cash),
+    };
+  }, [portfolio.positions]);
+
+  return (
+    <>
+      <h2 className="text-xl font-medium text-slate-800">Holdings</h2>
+      <HoldingsSubtable
+        title="Cash accounts"
+        rows={cashAccounts}
+        instrumentById={instrumentById}
+        instrumentTickerById={instrumentTickerById}
+        setHoldingTooltip={setHoldingTooltip}
+      />
+      <HoldingsSubtable
+        title="Equities"
+        rows={equities}
+        instrumentById={instrumentById}
+        instrumentTickerById={instrumentTickerById}
+        setHoldingTooltip={setHoldingTooltip}
+      />
+      <HoldingsSubtable
+        title="Bonds"
+        rows={bonds}
+        instrumentById={instrumentById}
+        instrumentTickerById={instrumentTickerById}
+        setHoldingTooltip={setHoldingTooltip}
+      />
       <HoldingDistributionTooltipLayer
         tooltip={holdingTooltip}
         setTooltip={setHoldingTooltip}

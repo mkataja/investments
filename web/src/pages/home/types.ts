@@ -74,6 +74,7 @@ export type PortfolioDistributions = {
     weight: number;
     valueEur: number;
     valuationSource: string;
+    assetClass: "equity" | "bond" | "cash_account";
   }>;
   bucketTopHoldings: {
     regions: Record<string, BucketTopHolding[]>;
