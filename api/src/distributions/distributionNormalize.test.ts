@@ -1,5 +1,6 @@
 import { aggregateRegionsToGeoBuckets } from "@investments/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { sectorRefreshStorage } from "../lib/sectorRefreshContext.js";
 import {
   mapSectorLabelToCanonicalIdWithWarn,
   normalizeRegionWeightsToIsoKeys,
@@ -41,5 +42,24 @@ describe("mapSectorLabelToCanonicalIdWithWarn", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     expect(mapSectorLabelToCanonicalIdWithWarn("Unassigned")).toBe("other");
     expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("does not warn for Other", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(mapSectorLabelToCanonicalIdWithWarn("Other")).toBe("other");
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("includes instrument context when sector refresh AsyncLocalStorage is set", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    sectorRefreshStorage.run(
+      { instrumentId: 42, displayName: "Test ETF" },
+      () => {
+        mapSectorLabelToCanonicalIdWithWarn("Weird Sector XYZ");
+      },
+    );
+    expect(warn).toHaveBeenCalledWith(
+      `[refresh-distribution] Instrument id=42 (Test ETF) could not map sector label to known sector: ${JSON.stringify("Weird Sector XYZ")}`,
+    );
   });
 });

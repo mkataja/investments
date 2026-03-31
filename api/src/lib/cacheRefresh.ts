@@ -56,6 +56,7 @@ import {
 } from "../distributions/yahoo.js";
 import { mergeCompositeDistributionPayload } from "./compositeDistribution.js";
 import { loadOpenPositionsAggregateForUser } from "./positions.js";
+import { sectorRefreshStorage } from "./sectorRefreshContext.js";
 import { formatYahooUpstreamError } from "./yahooUpstream.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -679,87 +680,94 @@ export async function refreshDistributionCacheForInstrumentId(
   const now = new Date();
 
   try {
-    if (await instrumentHasCompositeConstituents(instrumentId)) {
-      await writeCompositeDistributionCache(instrumentId, now);
-      await warnIfRefreshedDistributionHasUnknownCountry(
-        instrumentId,
-        inst.displayName,
-      );
-      return { ok: true };
-    }
+    return await sectorRefreshStorage.run(
+      { instrumentId, displayName: inst.displayName },
+      async () => {
+        if (await instrumentHasCompositeConstituents(instrumentId)) {
+          await writeCompositeDistributionCache(instrumentId, now);
+          await warnIfRefreshedDistributionHasUnknownCountry(
+            instrumentId,
+            inst.displayName,
+          );
+          return { ok: true };
+        }
 
-    if (inst.kind === "custom" && inst.seligsonFundId) {
-      const [sf] = await db
-        .select()
-        .from(seligsonFunds)
-        .where(eq(seligsonFunds.id, inst.seligsonFundId));
-      if (!sf) {
-        return { error: "Seligson fund row missing", status: 502 };
-      }
-      await writeSeligsonDistributionCache(inst.id, sf.fid, now);
-      await warnIfRefreshedDistributionHasUnknownCountry(
-        instrumentId,
-        inst.displayName,
-      );
-      return { ok: true };
-    }
+        if (inst.kind === "custom" && inst.seligsonFundId) {
+          const [sf] = await db
+            .select()
+            .from(seligsonFunds)
+            .where(eq(seligsonFunds.id, inst.seligsonFundId));
+          if (!sf) {
+            return { error: "Seligson fund row missing", status: 502 };
+          }
+          await writeSeligsonDistributionCache(inst.id, sf.fid, now);
+          await warnIfRefreshedDistributionHasUnknownCountry(
+            instrumentId,
+            inst.displayName,
+          );
+          return { ok: true };
+        }
 
-    if (inst.kind === "etf" || inst.kind === "stock") {
-      const holdingsUrl = inst.holdingsDistributionUrl?.trim();
-      if (holdingsUrl) {
-        const validated = validateHoldingsDistributionUrl(holdingsUrl);
-        if (!validated.ok || !validated.normalized) {
+        if (inst.kind === "etf" || inst.kind === "stock") {
+          const holdingsUrl = inst.holdingsDistributionUrl?.trim();
+          if (holdingsUrl) {
+            const validated = validateHoldingsDistributionUrl(holdingsUrl);
+            if (!validated.ok || !validated.normalized) {
+              return {
+                error: validated.ok
+                  ? "Invalid holdings URL"
+                  : validated.message,
+                status: 502,
+              };
+            }
+            await writeProviderHoldingsDistributionCache(
+              inst.id,
+              validated.normalized,
+              now,
+              { providerBreakdownDataUrl: inst.providerBreakdownDataUrl },
+            );
+            if (inst.yahooSymbol) {
+              const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
+              await upsertYahooPriceFromQuoteSummaryRaw(
+                inst.id,
+                raw,
+                now,
+                inst.isin,
+              );
+            }
+            await warnIfRefreshedDistributionHasUnknownCountry(
+              instrumentId,
+              inst.displayName,
+            );
+            return { ok: true };
+          }
+          if (inst.yahooSymbol) {
+            const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
+            await writeYahooDistributionCache(
+              inst.id,
+              raw,
+              inst.yahooSymbol,
+              now,
+              inst.isin,
+            );
+            await warnIfRefreshedDistributionHasUnknownCountry(
+              instrumentId,
+              inst.displayName,
+            );
+            return { ok: true };
+          }
           return {
-            error: validated.ok ? "Invalid holdings URL" : validated.message,
+            error: "Instrument has no external distribution source",
             status: 502,
           };
         }
-        await writeProviderHoldingsDistributionCache(
-          inst.id,
-          validated.normalized,
-          now,
-          { providerBreakdownDataUrl: inst.providerBreakdownDataUrl },
-        );
-        if (inst.yahooSymbol) {
-          const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
-          await upsertYahooPriceFromQuoteSummaryRaw(
-            inst.id,
-            raw,
-            now,
-            inst.isin,
-          );
-        }
-        await warnIfRefreshedDistributionHasUnknownCountry(
-          instrumentId,
-          inst.displayName,
-        );
-        return { ok: true };
-      }
-      if (inst.yahooSymbol) {
-        const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
-        await writeYahooDistributionCache(
-          inst.id,
-          raw,
-          inst.yahooSymbol,
-          now,
-          inst.isin,
-        );
-        await warnIfRefreshedDistributionHasUnknownCountry(
-          instrumentId,
-          inst.displayName,
-        );
-        return { ok: true };
-      }
-      return {
-        error: "Instrument has no external distribution source",
-        status: 502,
-      };
-    }
 
-    return {
-      error: "Instrument has no external distribution source",
-      status: 502,
-    };
+        return {
+          error: "Instrument has no external distribution source",
+          status: 502,
+        };
+      },
+    );
   } catch (e) {
     const { message, status } = formatYahooUpstreamError(e);
     return { error: message, status };

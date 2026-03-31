@@ -1,5 +1,6 @@
 import type { DistributionSectorId } from "@investments/db";
 import { normLabel, resolveRegionKeyToIso } from "@investments/db";
+import { sectorRefreshStorage } from "../lib/sectorRefreshContext.js";
 import { mapSectorLabelToCanonicalId } from "./sectorMapping.js";
 
 /**
@@ -64,8 +65,15 @@ export function mapSectorLabelToCanonicalIdWithWarn(
   if (EXPLICIT_OTHER_SECTOR_LABELS.has(lower)) {
     return id;
   }
-  console.warn(
-    `Could not map sector label to canonical sector: ${JSON.stringify(raw)}`,
-  );
+  const ctx = sectorRefreshStorage.getStore();
+  if (ctx) {
+    console.warn(
+      `[refresh-distribution] Instrument id=${ctx.instrumentId} (${ctx.displayName}) could not map sector label to known sector: ${JSON.stringify(raw)}`,
+    );
+  } else {
+    console.warn(
+      `Could not map sector label to canonical sector: ${JSON.stringify(raw)}`,
+    );
+  }
   return id;
 }
