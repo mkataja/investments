@@ -5,6 +5,8 @@ import {
   extractIsinFromText,
 } from "./seligson.js";
 import {
+  buildYahooSearchQueriesForSeligson,
+  expandCoTheStyleSearchQueries,
   namesMatchSeligsonYahoo,
   normalizeIsin12,
 } from "./seligsonHoldingsResolve.js";
@@ -56,6 +58,108 @@ describe("normalizeIsin12", () => {
   it("returns null for invalid input", () => {
     expect(normalizeIsin12(null)).toBe(null);
     expect(normalizeIsin12("short")).toBe(null);
+  });
+});
+
+describe("expandCoTheStyleSearchQueries", () => {
+  it("rewrites cos inc/the and co/the for Yahoo search", () => {
+    expect(expandCoTheStyleSearchQueries("williams cos inc/the")).toEqual([
+      "williams companies",
+    ]);
+    expect(expandCoTheStyleSearchQueries("southern co/the")).toEqual([
+      "southern company",
+    ]);
+    expect(expandCoTheStyleSearchQueries("ge vernova llc")).toEqual([
+      "ge vernova",
+    ]);
+  });
+
+  it("drops companies after hyphenated cos inc/the (Sherwin-Williams)", () => {
+    expect(
+      expandCoTheStyleSearchQueries("sherwin-williams cos inc/the"),
+    ).toEqual([
+      "sherwin-williams",
+      "sherwin williams",
+      "sherwin-williams companies",
+      "sherwin williams companies",
+    ]);
+  });
+
+  it("prepends Carrefour and Canadian mining names before long literals", () => {
+    expect(
+      expandCoTheStyleSearchQueries("cie generale des etablissement"),
+    ).toEqual(["carrefour"]);
+    expect(expandCoTheStyleSearchQueries("barrick gold corp")).toEqual([
+      "ABX.TO",
+      "Barrick Mining",
+    ]);
+    expect(expandCoTheStyleSearchQueries("agnico eagle mines ltd")).toEqual([
+      "AEM",
+      "agnico eagle",
+    ]);
+  });
+});
+
+describe("buildYahooSearchQueriesForSeligson", () => {
+  it("prepends FI queries that match Yahoo listing names (Metso Outotec, Aktia Pankki)", () => {
+    expect(
+      buildYahooSearchQueriesForSeligson("metso outotec oyj", "FI"),
+    ).toEqual(["metso oyj", "metso outotec oyj", "metso outotec"]);
+    expect(buildYahooSearchQueriesForSeligson("aktia oyj", "FI")).toEqual([
+      "aktia pankki",
+      "aktia oyj",
+      "aktia",
+    ]);
+  });
+
+  it("prepends co/the-style expansions before raw Seligson strings (US names)", () => {
+    expect(
+      buildYahooSearchQueriesForSeligson("williams cos inc/the", "US"),
+    ).toEqual(["williams companies", "williams cos inc/the"]);
+  });
+
+  it("prepends CA.PA for truncated Carrefour legal name when country is France", () => {
+    expect(
+      buildYahooSearchQueriesForSeligson(
+        "cie generale des etablissement",
+        "FR",
+      ),
+    ).toEqual(["CA.PA", "carrefour", "cie generale des etablissement"]);
+  });
+
+  it("prepends NSIS-B.CO for Novonesis when country is Denmark", () => {
+    expect(buildYahooSearchQueriesForSeligson("novonesis", "DK")).toEqual([
+      "NSIS-B.CO",
+      "novonesis group",
+      "novonesis",
+    ]);
+  });
+
+  it("prepends JP and HK Yahoo search queries (kk strip, HKEX / exchange wording)", () => {
+    expect(buildYahooSearchQueriesForSeligson("nippon yusen kk", "JP")).toEqual(
+      ["nippon yusen", "nippon yusen kk"],
+    );
+    expect(
+      buildYahooSearchQueriesForSeligson(
+        "hong kong exchanges & clearing",
+        "HK",
+      ),
+    ).toEqual([
+      "hong kong exchange and clearing",
+      "HKEX",
+      "hong kong exchanges & clearing",
+    ]);
+  });
+
+  it("falls back to primary and Oyj-stripped query only when not FI", () => {
+    expect(buildYahooSearchQueriesForSeligson("aktia oyj", "SE")).toEqual([
+      "aktia oyj",
+      "aktia",
+    ]);
+    expect(buildYahooSearchQueriesForSeligson("aktia oyj", null)).toEqual([
+      "aktia oyj",
+      "aktia",
+    ]);
   });
 });
 
@@ -114,6 +218,21 @@ describe("namesMatchSeligsonYahoo", () => {
         "LVMH Moët Hennessy - Louis Vuitton, Société Européenne",
       ),
     ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo(
+        "lvmh moet hennessy louis vuitton se",
+        "LVMH Moët Hennessy Louis Vuitton SE",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches Munich Re ASCII (ue) and truncated hyphen before Yahoo umlauts", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "muenchener rueckversicherungs-",
+        "Münchener Rückversicherungs-Gesellschaft AG",
+      ),
+    ).toBe(true);
   });
 
   it("matches Seligson cos to Yahoo Companies and common US suffixes", () => {
@@ -133,6 +252,63 @@ describe("namesMatchSeligsonYahoo", () => {
       namesMatchSeligsonYahoo(
         "goldman sachs group inc/the",
         "The Goldman Sachs Group, Inc.",
+      ),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo(
+        "williams cos inc/the",
+        "The Williams Companies, Inc.",
+      ),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo("tjx cos inc/the", "TJX Companies, Inc."),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo("southern co/the", "The Southern Company"),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo(
+        "sherwin-williams cos inc/the",
+        "The Sherwin-Williams Company",
+      ),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo(
+        "marriott international inc/md",
+        "Marriott International, Inc.",
+      ),
+    ).toBe(true);
+    expect(namesMatchSeligsonYahoo("kroger co/the", "The Kroger Co.")).toBe(
+      true,
+    );
+    expect(
+      namesMatchSeligsonYahoo("home depot inc/the", "The Home Depot, Inc."),
+    ).toBe(true);
+    expect(namesMatchSeligsonYahoo("boeing co/the", "The Boeing Company")).toBe(
+      true,
+    );
+    expect(
+      namesMatchSeligsonYahoo(
+        "charles schwab corp/the",
+        "The Charles Schwab Corporation",
+      ),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo("barrick gold corp", "Barrick Gold Corporation"),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo(
+        "barrick gold corp",
+        "Barrick Mining Corporation",
+      ),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo("bank of nova scotia/the", "Bank of Nova Scotia"),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo(
+        "agnico eagle mines ltd",
+        "Agnico Eagle Mines Limited",
       ),
     ).toBe(true);
   });
@@ -193,6 +369,15 @@ describe("namesMatchSeligsonYahoo", () => {
       namesMatchSeligsonYahoo("metso outotec oyj", "Metso Outotec Oyj"),
     ).toBe(true);
     expect(namesMatchSeligsonYahoo("eq oyj", "EQ Oyj")).toBe(true);
+    expect(namesMatchSeligsonYahoo("aktia oyj", "Aktia Bank Oyj")).toBe(true);
+    expect(namesMatchSeligsonYahoo("aktia oyj", "Aktia Pankki Oyj")).toBe(true);
+    expect(namesMatchSeligsonYahoo("aktia oyj", "Aktia Bank Pc")).toBe(true);
+    expect(namesMatchSeligsonYahoo("metso outotec oyj", "Metso Oyj")).toBe(
+      true,
+    );
+    expect(
+      namesMatchSeligsonYahoo("metso outotec oyj", "Metso Corporation"),
+    ).toBe(true);
   });
 
   it("strips /Canada and /Delaware and Danish a/s", () => {
@@ -215,5 +400,90 @@ describe("namesMatchSeligsonYahoo", () => {
         "Viña Concha y Toro S.A.",
       ),
     ).toBe(true);
+  });
+
+  it("normalizes German boerse vs Yahoo ö (Deutsche Börse)", () => {
+    expect(
+      namesMatchSeligsonYahoo("deutsche boerse ag", "Deutsche Börse AG"),
+    ).toBe(true);
+  });
+
+  it("maps French Cie to compagnie (Saint-Gobain)", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "cie de saint-gobain",
+        "Compagnie de Saint-Gobain",
+      ),
+    ).toBe(true);
+  });
+
+  it("maps truncated Carrefour legal name to Carrefour SA", () => {
+    expect(
+      namesMatchSeligsonYahoo("cie generale des etablissement", "Carrefour SA"),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo(
+        "cie generale des etablissement",
+        "Compagnie générale des établissements Carrefour",
+      ),
+    ).toBe(true);
+  });
+
+  it("maps Hong Kong Exchanges to Exchange for HKEX-style names", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "hong kong exchanges & clearing",
+        "Hong Kong Exchange and Clearing Limited",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches Yahoo ticker-only display names HKEX and NYK to Seligson legal strings", () => {
+    expect(
+      namesMatchSeligsonYahoo("hong kong exchanges & clearing", "HKEX"),
+    ).toBe(true);
+    expect(namesMatchSeligsonYahoo("nippon yusen kk", "NYK")).toBe(true);
+    expect(namesMatchSeligsonYahoo("nippon yusen kk", "NYK Line")).toBe(true);
+  });
+
+  it("maps Corp to Corporation and matches US co/the names", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "progressive corp/the",
+        "The Progressive Corporation",
+      ),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo("kraft heinz co/the", "The Kraft Heinz Company"),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo("coca-cola co/the", "The Coca-Cola Company"),
+    ).toBe(true);
+  });
+
+  it("matches Power Corporation of Canada (corp vs corporation)", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "power corp of canada",
+        "Power Corporation of Canada",
+      ),
+    ).toBe(true);
+  });
+
+  it("folds Turkish dotless i for Sabancı-style names", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "haci omer sabanci holding as",
+        "Hacı Ömer Sabancı Holding A.Ş.",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches short single-word names against longer Yahoo titles", () => {
+    expect(namesMatchSeligsonYahoo("novonesis", "Novonesis A/S")).toBe(true);
+    expect(namesMatchSeligsonYahoo("novonesis", "Novozymes A/S")).toBe(true);
+    expect(namesMatchSeligsonYahoo("serkland", "Serkland Capital AB")).toBe(
+      true,
+    );
   });
 });

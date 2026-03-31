@@ -74,13 +74,220 @@ function stripTrailingIncompleteOf(s: string): string {
   return s.replace(/\s+of\s*$/i, "").trim();
 }
 
+/** Seligson sometimes truncates mid-word with a trailing hyphen (e.g. "Rückversicherungs-"). */
+function stripTrailingIncompleteHyphen(s: string): string {
+  return s.replace(/-\s*$/g, "").trim();
+}
+
+/** Yahoo Finance search often ranks better without the `Oyj` tail (e.g. "aktia" vs "aktia oyj"). */
+function stripFinnishOyjSearchSuffix(s: string): string {
+  return s.replace(/\s+oyj\s*$/i, "").trim();
+}
+
+/** Yahoo `search` often returns nothing for `… kk` (kabushiki kaisha); try without the tail (e.g. `nippon yusen`). */
+function stripJapaneseKkSearchSuffix(s: string): string {
+  return s.replace(/\s+kk\s*$/i, "").trim();
+}
+
+/**
+ * Seligson often uses `... cos inc/the`, `... co/the`, `bank ... /the`, `inc/md`, etc. Yahoo `search`
+ * frequently returns **no** or **wrong** hits for those literals; emit cleaned phrases that match
+ * issuer names (US/CA/… — not only FI).
+ */
+export function expandCoTheStyleSearchQueries(trimmed: string): string[] {
+  const original = trimmed.trim();
+  if (original.length === 0) {
+    return [];
+  }
+
+  const x = original
+    .replace(/\s+cos\s+inc\/the\b/gi, " companies")
+    .replace(/\s+co\/the\b/gi, " company")
+    .replace(/\s+corp\/the\b/gi, " corporation")
+    .replace(/\binc\/md\b/gi, "inc")
+    .replace(/\binc\/the\b/gi, "inc")
+    .replace(/\s*\/the\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const prepend: string[] = [];
+  const ordered: string[] = [];
+  const seen = new Set<string>();
+  const add = (s: string, front = false) => {
+    const t = s.trim().replace(/\s+/g, " ");
+    if (t.length === 0 || seen.has(t) || t === original) {
+      return;
+    }
+    seen.add(t);
+    if (front) {
+      prepend.push(t);
+    } else {
+      ordered.push(t);
+    }
+  };
+
+  /**
+   * High-priority search phrases — Yahoo often ranks junk ahead of the literal Seligson string
+   * (e.g. Carrefour’s legal prefix returns Michelin tickers; Barrick’s long name returns nothing).
+   */
+  if (/\bcie\s+generale\s+des\s+etablissement/i.test(original)) {
+    add("carrefour", true);
+  }
+  if (/\bbarrick\b/i.test(original) && /\bgold\b/i.test(original)) {
+    add("ABX.TO", true);
+    add("Barrick Mining", true);
+  }
+  if (/\bagnico\b/i.test(original) && /\beagle\b/i.test(original)) {
+    add("AEM", true);
+    add("agnico eagle", true);
+  }
+
+  if (/\s+llc$/i.test(x)) {
+    add(x.replace(/\s+llc$/i, "").trim());
+  }
+
+  if (/\bcompanies$/i.test(x)) {
+    const core = x.replace(/\s+companies$/i, "").trim();
+    if (/-/.test(core)) {
+      add(core);
+      add(core.replace(/-/g, " "));
+    }
+  }
+
+  add(x);
+  add(x.replace(/-/g, " "));
+
+  if (/\bvina\s+concha/i.test(x) && /\by\s+toro/i.test(x)) {
+    add(
+      x
+        .replace(/^\s*vina\s+/i, "")
+        .replace(/\s+sa$/i, "")
+        .trim(),
+    );
+  }
+
+  if (/\bpanalpina\b/i.test(original) && /\bdsv\b/i.test(original)) {
+    add("dsv");
+  }
+
+  if (/^novonesis$/i.test(original)) {
+    add("novonesis group");
+  }
+
+  if (/^serkland$/i.test(original)) {
+    add("serkland capital");
+  }
+
+  if (/\bashtead\b/i.test(original)) {
+    add("ashtead");
+  }
+
+  if (/\blvmh\b/i.test(original) && /\bmoet\b/i.test(original)) {
+    add("lvmh");
+  }
+
+  if (/\bsabanci\b/i.test(original)) {
+    add("sabanci holding");
+  }
+
+  return [...prepend, ...ordered];
+}
+
+/**
+ * Yahoo `search` often returns **no** equity hits for full Seligson strings (e.g. `"metso outotec oyj"`
+ * → empty; `"aktia oyj"` → empty). For **FI** rows, prepend queries that match how Yahoo lists names
+ * today (e.g. **Metso Oyj** after Outotec demerger; **Aktia Pankki Oyj** vs English "Bank").
+ */
+export function buildYahooSearchQueriesForSeligson(
+  primary: string,
+  countryIso: string | null,
+): string[] {
+  const trimmed = primary.trim();
+  if (trimmed.length === 0) {
+    return [];
+  }
+  const secondary = stripFinnishOyjSearchSuffix(trimmed);
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  const push = (q: string) => {
+    const t = q.trim();
+    if (t.length === 0 || seen.has(t)) {
+      return;
+    }
+    seen.add(t);
+    ordered.push(t);
+  };
+
+  if (countryIso === "FI") {
+    if (/\boutotec\b/i.test(trimmed)) {
+      const collapsed = trimmed
+        .replace(/\boutotec\b/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (collapsed.length > 0) {
+        push(collapsed);
+      }
+    }
+    if (secondary.length > 0 && !/\s/.test(secondary)) {
+      push(`${secondary} pankki`);
+    }
+  }
+
+  if (countryIso === "JP") {
+    const withoutKk = stripJapaneseKkSearchSuffix(trimmed);
+    if (withoutKk.length > 0 && withoutKk !== trimmed) {
+      push(withoutKk);
+    }
+  }
+
+  if (countryIso === "HK") {
+    if (
+      /\bhong kong exchanges\b/i.test(trimmed) &&
+      /\bclearing\b/i.test(trimmed)
+    ) {
+      push("hong kong exchange and clearing");
+      push("HKEX");
+    }
+  }
+
+  /** Copenhagen listing; Yahoo search often puts OTC (NVZMF) before the primary symbol. */
+  if (countryIso === "DK" && /^novonesis$/i.test(trimmed)) {
+    push("NSIS-B.CO");
+  }
+
+  /** Paris listing; `carrefour` search is enough but `CA.PA` avoids any bad secondary hits. */
+  if (
+    countryIso === "FR" &&
+    /\bcie\s+generale\s+des\s+etablissements?\b/i.test(trimmed)
+  ) {
+    push("CA.PA");
+  }
+
+  for (const q of expandCoTheStyleSearchQueries(trimmed)) {
+    push(q);
+  }
+
+  push(trimmed);
+  if (secondary !== trimmed) {
+    push(secondary);
+  }
+
+  return ordered;
+}
+
 function normalizeComparableName(s: string): string {
-  const pre = stripTrailingIncompleteOf(stripSeligsonRegionSuffix(s))
+  const pre = stripTrailingIncompleteHyphen(
+    stripTrailingIncompleteOf(stripSeligsonRegionSuffix(s)),
+  )
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/\p{M}/gu, "");
+    .replace(/\p{M}/gu, "")
+    /** Turkish İ/ı vs ASCII i (Yahoo uses Unicode; Seligson is often ASCII). */
+    .replace(/\u0131/g, "i")
+    .replace(/\u0130/g, "i");
   const withAnd = pre
-    .replace(/\ba\s*\/\s*s\b/gi, " as")
+    /** Nordic A/S — must not become `as` or it is stripped as Turkish A.Ş. */
+    .replace(/\ba\s*\/\s*s\b/gi, " nordicas")
     .replace(/\s*&\s*/g, " and ")
     .replace(/\s+y\s+/gi, " and ");
   return withAnd
@@ -94,11 +301,44 @@ function normalizeComparableName(s: string): string {
  * Collapse those runs so they match Seligson "spa" / "sa".
  */
 function collapseSplitLegalAbbrevs(normalized: string): string {
-  return normalized
-    .replace(/\bk\s+k\b/g, "kk")
-    .replace(/\bl\s+oreal\b/g, "loreal")
-    .replace(/\bs\s+p\s+a\b/g, "spa")
-    .replace(/\bs\s+a\b/g, "sa");
+  return (
+    normalized
+      .replace(/\bk\s+k\b/g, "kk")
+      .replace(/\bl\s+oreal\b/g, "loreal")
+      .replace(/\bs\s+p\s+a\b/g, "spa")
+      .replace(/\bs\s+a\b/g, "sa")
+      /** Seligson ASCII "oe" vs Yahoo ö (NFKD strips to single o). */
+      .replace(/\bboerse\b/g, "borse")
+      /** Truncated Carrefour legal name (Seligson) vs "Carrefour SA" on Yahoo. */
+      .replace(/\bcie\s+generale\s+des\s+etablissements?\b/g, "carrefour")
+      /** French "Cie" = Compagnie on Yahoo. */
+      .replace(/\bcie\b/g, "compagnie")
+      .replace(/\bcompagnie\s+generale\s+des\s+etablissements?\b/g, "carrefour")
+      /** HKEX: Seligson often plural "Exchanges"; Yahoo often singular "Exchange". */
+      .replace(/\bhong kong exchanges\b/g, "hong kong exchange")
+      /**
+       * Yahoo often exposes only the listing ticker as display name (shortName/longName).
+       * Align with full Seligson / legal strings for matching.
+       */
+      .replace(/\bhkex\b/g, "hong kong exchange and clearing")
+      .replace(/\bnyk\b/g, "nippon yusen")
+      /** Post-merger name; Yahoo `longName` often still says Novozymes. */
+      .replace(/\bnovozymes\b/g, "novonesis")
+      /** Toronto listing often uses “Mining”; Seligson still says “Gold”. */
+      .replace(/\bbarrick mining\b/g, "barrick gold")
+      /**
+       * German Seligson ASCII (ue) vs Yahoo umlauts stripped by NFKD (ü→u): Münchener, Rück…
+       */
+      .replace(/\bmuenchener\b/g, "munchener")
+      .replace(/\bmuenchen\b/g, "munchen")
+      .replace(/\brueck/g, "ruck")
+      /** Seligson "Corp" vs Yahoo "Corporation" (word token, not inside "corporation"). */
+      .replace(/\bcorp\b/g, "corporation")
+      /** Seligson "Cos" = Companies (e.g. Williams Cos) vs Yahoo "Companies". */
+      .replace(/\bcos\s+inc\b/g, "companies inc")
+      /** Seligson "Co" = Company before co/the (Southern Co, Boeing Co, Kroger Co). */
+      .replace(/\bco\s+the\b/g, "company the")
+  );
 }
 
 function stripLeadingThe(normalized: string): string {
@@ -146,6 +386,7 @@ const LEGAL_FORM_SUFFIX_TOKENS = new Set([
   "nv",
   "oy",
   "oyj",
+  "pc",
   "plc",
   "reit",
   "sa",
@@ -504,12 +745,35 @@ async function resolveViaYahooForRow(
   const isinNormalized = normalizeIsin12(row.isin);
   const expectedIsin = isinNormalized ?? undefined;
   if (row.companyName.trim().length > 0) {
-    const q = stripTrailingIncompleteOf(
-      stripSeligsonRegionSuffix(row.companyName.trim()),
+    const q = stripTrailingIncompleteHyphen(
+      stripTrailingIncompleteOf(
+        stripSeligsonRegionSuffix(row.companyName.trim()),
+      ),
     );
-    const searchSyms = await yahooSearchSymbolsForCompanyName(
-      q.length > 0 ? q : row.companyName.trim(),
+    const primary = q.length > 0 ? q : row.companyName.trim();
+    const countryIsoForSearch = resolveRegionKeyToIso(row.countryFi) ?? null;
+    const searchQueries = buildYahooSearchQueriesForSeligson(
+      primary,
+      countryIsoForSearch,
     );
+    const searchSyms: string[] = [];
+    const seenSym = new Set<string>();
+    for (let i = 0; i < searchQueries.length; i++) {
+      if (i > 0) {
+        await sleep(yahooRefreshGapMs());
+      }
+      const query = searchQueries[i] ?? "";
+      if (query.length === 0) {
+        continue;
+      }
+      const batch = await yahooSearchSymbolsForCompanyName(query);
+      for (const sym of batch) {
+        if (!seenSym.has(sym)) {
+          seenSym.add(sym);
+          searchSyms.push(sym);
+        }
+      }
+    }
     if (searchSyms.length > 0) {
       const r = await quoteSummaryFirstResolvableSector(
         searchSyms,
