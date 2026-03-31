@@ -155,6 +155,18 @@ const DIST_CHART_COLORS = {
   countryCompare: "#38bdf8",
 } as const;
 
+const chartAxisTickStyle = { fontSize: "0.9rem" };
+const chartLegendStyle = { fontSize: "0.8rem" };
+
+function barChartMargin(showTopLegend: boolean) {
+  return {
+    top: showTopLegend ? 28 : 6,
+    right: 6,
+    left: 36,
+    bottom: 48,
+  } as const;
+}
+
 function instrumentTickerCell(
   instrumentId: number,
   instrumentById: Map<number, Instrument>,
@@ -679,21 +691,18 @@ export function HomePage() {
             )}
           </p>
           {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
-            <div className="max-w-md">
+            <div className="max-w-md min-w-0">
               <h3 className="text-sm font-medium text-slate-700 mb-1">
                 Asset mix
               </h3>
-              <div className="h-44 w-full">
+              <div className="aspect-[5/2] h-36">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={assetMixPieData}
                       dataKey="value"
                       nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={68}
-                      paddingAngle={1}
+                      outerRadius="100%"
                     >
                       {assetMixPieData.map((d) => (
                         <Cell key={d.name} fill={d.fill} stroke="#fff" />
@@ -705,9 +714,9 @@ export function HomePage() {
                       )}
                     />
                     <Legend
-                      verticalAlign="bottom"
-                      height={52}
-                      wrapperStyle={{ fontSize: "12px" }}
+                      layout="vertical"
+                      align="right"
+                      verticalAlign="middle"
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -715,135 +724,168 @@ export function HomePage() {
             </div>
           ) : null}
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="h-[32rem]">
-              <h3 className="text-sm font-medium text-slate-700 mb-2">
+            <div className="min-w-0 flex flex-col">
+              <h3 className="text-sm font-medium text-slate-700 mb-2 shrink-0">
                 Regions
               </h3>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={regionBarChartData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
-                    dataKey="name"
-                    angle={-35}
-                    textAnchor="end"
-                    height={80}
-                  />
-                  <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
-                  <DistributionBarChartTooltip />
-                  {showDistributionCompare ? (
-                    <>
-                      <Bar
-                        dataKey="primary"
-                        fill={DIST_CHART_COLORS.regionPrimary}
-                        name={selectedPortfolioLabel}
-                      />
-                      <Bar
-                        dataKey="compare"
-                        fill={DIST_CHART_COLORS.regionCompare}
-                        name={comparePortfolioLabel}
-                      />
-                      <Legend
-                        verticalAlign="top"
-                        height={28}
-                        wrapperStyle={{ fontSize: "12px" }}
-                      />
-                    </>
-                  ) : (
-                    <Bar
-                      dataKey="value"
-                      fill={DIST_CHART_COLORS.regionPrimary}
-                      name="Weight"
+              <div className="w-full h-[600px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={regionBarChartData}
+                    margin={barChartMargin(showDistributionCompare)}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-35}
+                      textAnchor="end"
+                      height={72}
+                      tick={chartAxisTickStyle}
+                      tickMargin={4}
                     />
-                  )}
-                </BarChart>
-              </ResponsiveContainer>
+                    <YAxis
+                      tickFormatter={(v) => formatPercentWidth4From01(v)}
+                      tick={chartAxisTickStyle}
+                      width={44}
+                    />
+                    <DistributionBarChartTooltip />
+                    {showDistributionCompare ? (
+                      <>
+                        <Bar
+                          dataKey="primary"
+                          fill={DIST_CHART_COLORS.regionPrimary}
+                          name={selectedPortfolioLabel}
+                        />
+                        <Bar
+                          dataKey="compare"
+                          fill={DIST_CHART_COLORS.regionCompare}
+                          name={comparePortfolioLabel}
+                        />
+                        <Legend
+                          verticalAlign="top"
+                          height={28}
+                          wrapperStyle={chartLegendStyle}
+                        />
+                      </>
+                    ) : (
+                      <Bar
+                        dataKey="value"
+                        fill={DIST_CHART_COLORS.regionPrimary}
+                        name="Weight"
+                      />
+                    )}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <div className="h-[32rem]">
-              <h3 className="text-sm font-medium text-slate-700 mb-2">
+            <div className="min-w-0 flex flex-col">
+              <h3 className="text-sm font-medium text-slate-700 mb-2 shrink-0">
                 Sectors
               </h3>
+              <div className="w-full h-[600px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={sectorBarChartData}
+                    margin={barChartMargin(showDistributionCompare)}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-35}
+                      textAnchor="end"
+                      height={72}
+                      tick={chartAxisTickStyle}
+                      tickMargin={4}
+                    />
+                    <YAxis
+                      tickFormatter={(v) => formatPercentWidth4From01(v)}
+                      tick={chartAxisTickStyle}
+                      width={44}
+                    />
+                    <DistributionBarChartTooltip />
+                    {showDistributionCompare ? (
+                      <>
+                        <Bar
+                          dataKey="primary"
+                          fill={DIST_CHART_COLORS.sectorPrimary}
+                          name={selectedPortfolioLabel}
+                        />
+                        <Bar
+                          dataKey="compare"
+                          fill={DIST_CHART_COLORS.sectorCompare}
+                          name={comparePortfolioLabel}
+                        />
+                        <Legend
+                          verticalAlign="top"
+                          height={28}
+                          wrapperStyle={chartLegendStyle}
+                        />
+                      </>
+                    ) : (
+                      <Bar
+                        dataKey="value"
+                        fill={DIST_CHART_COLORS.sectorPrimary}
+                        name="Weight"
+                      />
+                    )}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+          <div className="min-w-0 flex flex-col">
+            <h3 className="text-sm font-medium text-slate-700 mb-2 shrink-0">
+              Countries
+            </h3>
+            <div className="w-full aspect-[2.2/1] min-h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sectorBarChartData}>
+                <BarChart
+                  data={countryBarChartData}
+                  margin={barChartMargin(showDistributionCompare)}
+                >
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="name"
                     angle={-35}
                     textAnchor="end"
-                    height={80}
+                    height={72}
+                    tick={chartAxisTickStyle}
+                    tickMargin={4}
                   />
-                  <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
+                  <YAxis
+                    tickFormatter={(v) => formatPercentWidth4From01(v)}
+                    tick={chartAxisTickStyle}
+                    width={44}
+                  />
                   <DistributionBarChartTooltip />
                   {showDistributionCompare ? (
                     <>
                       <Bar
                         dataKey="primary"
-                        fill={DIST_CHART_COLORS.sectorPrimary}
+                        fill={DIST_CHART_COLORS.countryPrimary}
                         name={selectedPortfolioLabel}
                       />
                       <Bar
                         dataKey="compare"
-                        fill={DIST_CHART_COLORS.sectorCompare}
+                        fill={DIST_CHART_COLORS.countryCompare}
                         name={comparePortfolioLabel}
                       />
                       <Legend
                         verticalAlign="top"
                         height={28}
-                        wrapperStyle={{ fontSize: "12px" }}
+                        wrapperStyle={chartLegendStyle}
                       />
                     </>
                   ) : (
                     <Bar
                       dataKey="value"
-                      fill={DIST_CHART_COLORS.sectorPrimary}
+                      fill={DIST_CHART_COLORS.countryPrimary}
                       name="Weight"
                     />
                   )}
                 </BarChart>
               </ResponsiveContainer>
             </div>
-          </div>
-          <div className="h-[48rem]">
-            <h3 className="text-sm font-medium text-slate-700 mb-2">
-              Countries
-            </h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={countryBarChartData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="name"
-                  angle={-35}
-                  textAnchor="end"
-                  height={80}
-                />
-                <YAxis tickFormatter={(v) => formatPercentWidth4From01(v)} />
-                <DistributionBarChartTooltip />
-                {showDistributionCompare ? (
-                  <>
-                    <Bar
-                      dataKey="primary"
-                      fill={DIST_CHART_COLORS.countryPrimary}
-                      name={selectedPortfolioLabel}
-                    />
-                    <Bar
-                      dataKey="compare"
-                      fill={DIST_CHART_COLORS.countryCompare}
-                      name={comparePortfolioLabel}
-                    />
-                    <Legend
-                      verticalAlign="top"
-                      height={28}
-                      wrapperStyle={{ fontSize: "12px" }}
-                    />
-                  </>
-                ) : (
-                  <Bar
-                    dataKey="value"
-                    fill={DIST_CHART_COLORS.countryPrimary}
-                    name="Weight"
-                  />
-                )}
-              </BarChart>
-            </ResponsiveContainer>
           </div>
           <h2 className="text-xl font-medium text-slate-800 mb-2">Holdings</h2>
           <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
