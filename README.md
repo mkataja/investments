@@ -46,7 +46,7 @@ Use short, descriptive one-line titles (no `feat:` / `chore:` prefixes).
 
 - **Brokers:** **`name`** is unique. Create them at `/brokers` (types: exchange, Seligson, cash account). Degiro CSV import uses the broker whose **name** is **Degiro**; Seligson TSV import uses the broker named **Seligson**.
 - **Seligson funds** live in `seligson_funds` (fid + name); new rows are created when you add a custom instrument from `/instruments/new` (FID + Seligson-type broker).
-- **Instruments** of kind `custom` reference a `seligson_fund` row when using the Seligson integration; `broker_id` identifies the broker. Distributions are scraped from Seligson FundViewer (`view=40`).
+- **Instruments** of kind `custom` reference a `seligson_fund` row when using the Seligson integration; `broker_id` identifies the broker. Distributions are scraped from Seligson FundViewer holdings listing (`view=10`).
 - **ETFs/stocks** use `yahooSymbol`; distributions come from Yahoo `quoteSummary` (sectors / regions when available).
 - **Cash** (`cash_account`): balance is in `cash_currency` (EUR/USD); **country code** (ISO 3166-1 alpha-2, stored as `cash_geo_key`) is required for display and is not used for region/sector chart weights.
 - **Distribution cache** refreshes at least daily for instruments with open positions (API startup; `manual` cache rows are not overwritten).
