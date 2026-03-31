@@ -85,4 +85,34 @@ describe("namesMatchSeligsonYahoo", () => {
   it("matches after stripping both sides to the same core name", () => {
     expect(namesMatchSeligsonYahoo("Volvo AB", "Volvo Aktiebolag")).toBe(true);
   });
+
+  it("matches when Yahoo S.A. / S.p.A. became s a / s p a after punctuation normalize", () => {
+    expect(namesMatchSeligsonYahoo("danone sa", "Danone S.A.")).toBe(true);
+    expect(namesMatchSeligsonYahoo("l'oreal sa", "L'Oréal S.A.")).toBe(true);
+    expect(namesMatchSeligsonYahoo("prada spa", "Prada S.p.A.")).toBe(true);
+  });
+
+  it("matches US co/the and The … Company with Yahoo", () => {
+    expect(
+      namesMatchSeligsonYahoo("coca-cola co/the", "The Coca-Cola Company"),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo(
+        "procter & gamble co/the",
+        "The Procter & Gamble Company",
+      ),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo("walt disney co/the", "The Walt Disney Company"),
+    ).toBe(true);
+  });
+
+  it("matches LVMH when Seligson uses SE and Yahoo spells Société Européenne", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "lvmh moet hennessy louis vuitton se",
+        "LVMH Moët Hennessy - Louis Vuitton, Société Européenne",
+      ),
+    ).toBe(true);
+  });
 });

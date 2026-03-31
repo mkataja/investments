@@ -69,6 +69,20 @@ function normalizeComparableName(s: string): string {
 }
 
 /**
+ * After punctuation is turned into spaces, Yahoo "S.p.A." / "S.A." becomes `s p a` / `s a`.
+ * Collapse those runs so they match Seligson "spa" / "sa".
+ */
+function collapseSplitLegalAbbrevs(normalized: string): string {
+  return normalized
+    .replace(/\bs\s+p\s+a\b/g, "spa")
+    .replace(/\bs\s+a\b/g, "sa");
+}
+
+function stripLeadingThe(normalized: string): string {
+  return normalized.replace(/^the\s+/, "");
+}
+
+/**
  * Common trailing legal forms on listed names (Yahoo vs Seligson). Best-effort set—extend here
  * rather than special-casing one country in name normalization.
  */
@@ -79,8 +93,11 @@ const LEGAL_FORM_SUFFIX_TOKENS = new Set([
   "aktiengesellschaft",
   "asa",
   "bv",
+  "co",
+  "company",
   "corp",
   "corporation",
+  "europeenne",
   "gmbh",
   "inc",
   "incorporated",
@@ -98,8 +115,10 @@ const LEGAL_FORM_SUFFIX_TOKENS = new Set([
   "sarl",
   "sas",
   "se",
+  "societe",
   "spa",
   "srl",
+  "the",
 ]);
 
 function stripTrailingLegalFormTokens(normalized: string): string {
@@ -113,12 +132,18 @@ function stripTrailingLegalFormTokens(normalized: string): string {
   return words.join(" ");
 }
 
+function comparableNameForMatch(raw: string): string {
+  return stripTrailingLegalFormTokens(
+    stripLeadingThe(collapseSplitLegalAbbrevs(normalizeComparableName(raw))),
+  );
+}
+
 export function namesMatchSeligsonYahoo(
   seligson: string,
   yahooDisplay: string,
 ): boolean {
-  const a = stripTrailingLegalFormTokens(normalizeComparableName(seligson));
-  const b = stripTrailingLegalFormTokens(normalizeComparableName(yahooDisplay));
+  const a = comparableNameForMatch(seligson);
+  const b = comparableNameForMatch(yahooDisplay);
   if (a.length < 3 || b.length < 3) {
     return false;
   }
