@@ -197,6 +197,13 @@
       "when": 1774968892395,
       "tag": "0027_known_madame_hydra",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1774971080870,
+      "tag": "0028_smart_northstar",
+      "breakpoints": true
     }
   ]
 }

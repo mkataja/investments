@@ -153,6 +153,9 @@ export const instruments = pgTable(
     uniqueIndex("instruments_cash_account_display_name_uidx")
       .on(sql`lower(trim(${t.displayName}))`)
       .where(sql`${t.kind} = 'cash_account'`),
+    index("instruments_seligson_fund_id_idx").on(t.seligsonFundId),
+    index("instruments_broker_id_idx").on(t.brokerId),
+    index("instruments_isin_idx").on(t.isin),
   ],
 );
 
@@ -200,6 +203,12 @@ export const transactions = pgTable(
       t.externalSource,
       t.externalId,
     ),
+    index("transactions_user_id_idx").on(t.userId),
+    index("transactions_portfolio_id_trade_date_idx").on(
+      t.portfolioId,
+      t.tradeDate,
+    ),
+    index("transactions_instrument_id_idx").on(t.instrumentId),
   ],
 );
 
