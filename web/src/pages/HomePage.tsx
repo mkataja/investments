@@ -10,7 +10,6 @@ import { apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Modal } from "../components/Modal";
-import { PortfolioViewSkeleton } from "../components/PortfolioViewSkeleton";
 import {
   readStoredComparePortfolioId,
   readStoredPortfolioId,
@@ -58,7 +57,6 @@ export function HomePage() {
     () => readStoredComparePortfolioId(),
   );
   const [error, setError] = useState<string | null>(null);
-  const [initialLoad, setInitialLoad] = useState(true);
   const [newPortfolioOpen, setNewPortfolioOpen] = useState(false);
   const [newPortfolioName, setNewPortfolioName] = useState("");
   const [newPortfolioEmergencyFund, setNewPortfolioEmergencyFund] =
@@ -135,8 +133,6 @@ export function HomePage() {
       setComparePortfolio(pCmp);
     } catch (e) {
       setError(String(e));
-    } finally {
-      setInitialLoad(false);
     }
   }, [selectedPortfolioId, comparePortfolioId]);
 
@@ -386,9 +382,7 @@ export function HomePage() {
         onError={setError}
       />
 
-      {initialLoad ? (
-        <PortfolioViewSkeleton />
-      ) : portfolio ? (
+      {portfolio ? (
         <>
           <PortfolioCharts
             portfolio={portfolio}
@@ -406,7 +400,6 @@ export function HomePage() {
       ) : null}
 
       <TransactionsTable
-        initialLoad={initialLoad}
         transactions={transactions}
         instrumentById={instrumentById}
         instrumentNameById={instrumentNameById}
