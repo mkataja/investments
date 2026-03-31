@@ -18,9 +18,9 @@
  *    Example: `<DistributionBarChartTooltip content={MyTooltipBody} />` and render
  *    your own markup from `props.payload`.
  *
- * 3. **Only the numbers**: `formatter` on each series (we default to % via
- *    `portfolioDistributionBarTooltipFormatter`). `labelFormatter` shapes the
- *    X/category line when present.
+ * 3. **Only the numbers**: `formatter` on each series (default: `formatToPercentage`).
+ *    `labelFormatter` shapes the X/category line when present. The default
+ *    Recharts name/value separator is `" : "`; we use `": "` so there is no space before the colon.
  *
  * Asset mix pie uses the plain `<Tooltip formatter={…} />` in `HomePage` — same
  * layout levers; no `DistributionBarChartTooltip` wrapper there.
@@ -76,6 +76,7 @@ export function DistributionBarChartTooltip(
   return (
     <Tooltip
       {...rest}
+      separator=": "
       formatter={formatter}
       contentStyle={{
         ...DISTRIBUTION_BAR_CHART_TOOLTIP_LAYOUT.contentStyle,

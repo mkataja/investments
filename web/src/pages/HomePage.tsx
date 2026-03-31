@@ -31,10 +31,7 @@ import {
   type HoldingDistributionTooltipState,
 } from "../components/HoldingDistributionTooltip";
 import { Modal } from "../components/Modal";
-import {
-  DistributionBarChartTooltip,
-  assetMixPieTooltipFormatter,
-} from "../components/PortfolioChartTooltips";
+import { DistributionBarChartTooltip } from "../components/PortfolioChartTooltips";
 import {
   PortfolioViewSkeleton,
   TransactionsTableSkeleton,
@@ -710,6 +707,7 @@ export function HomePage() {
                       ))}
                     </Pie>
                     <Tooltip
+                      separator=": "
                       formatter={(v: number) =>
                         `${v.toFixed(0)} EUR (${formatToPercentage(v / assetMixPieTotalEur)})`
                       }
