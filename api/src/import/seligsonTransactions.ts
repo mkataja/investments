@@ -19,6 +19,21 @@ export const SELIGSON_TSV_HEADER: readonly string[] = [
   "Summa €",
 ] as const;
 
+/** Swedish UI — extra confirmation column after Summa €. */
+export const SELIGSON_TSV_HEADER_SV: readonly string[] = [
+  "Portfölj",
+  "Valuteringsdag",
+  "Typ",
+  "Fond",
+  "Andelsvärde €",
+  "Antal andelar",
+  "Provision €",
+  "Summa €",
+  "Bekräftelse av händelse",
+] as const;
+
+const SELIGSON_DATA_COLUMN_COUNT = SELIGSON_TSV_HEADER.length;
+
 function normalizeCell(s: string): string {
   return normalizeUnicodeMinus(s.trim());
 }
@@ -38,7 +53,7 @@ function trimTrailingEmptyCells(cells: readonly string[]): string[] {
   return row;
 }
 
-function headersMatch(actual: readonly string[]): boolean {
+function headersMatchFi(actual: readonly string[]): boolean {
   if (actual.length !== SELIGSON_TSV_HEADER.length) {
     return false;
   }
@@ -48,6 +63,22 @@ function headersMatch(actual: readonly string[]): boolean {
     }
   }
   return true;
+}
+
+function headersMatchSv(actual: readonly string[]): boolean {
+  if (actual.length !== SELIGSON_TSV_HEADER_SV.length) {
+    return false;
+  }
+  for (let i = 0; i < SELIGSON_TSV_HEADER_SV.length; i++) {
+    if (normalizeCell(actual[i] ?? "") !== SELIGSON_TSV_HEADER_SV[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function headersMatch(actual: readonly string[]): boolean {
+  return headersMatchFi(actual) || headersMatchSv(actual);
 }
 
 /** `d.m.yyyy` (day/month variable width) → ISO `yyyy-mm-dd`. */
@@ -103,9 +134,13 @@ function resolveTyyppi(
     kind = "Merkintä";
   } else if (t === "Lunastus" || t.startsWith("Lunastus")) {
     kind = "Lunastus";
+  } else if (t === "Teckning" || t.startsWith("Teckning")) {
+    kind = "Merkintä";
+  } else if (t === "Inlösning" || t.startsWith("Inlösning")) {
+    kind = "Lunastus";
   } else {
     return {
-      error: `Line ${line}: expected Tyyppi Merkintä or Lunastus, got "${tyyppiRaw.trim()}"`,
+      error: `Line ${line}: unknown transaction type (expected e.g. Merkintä/Lunastus or Teckning/Inlösning), got "${tyyppiRaw.trim()}"`,
     };
   }
 
@@ -169,6 +204,9 @@ function isSeligsonSummaryFooterLine(line: string): boolean {
   if (/yhteensä/i.test(t)) {
     return true;
   }
+  if (/totalt\s+belopp/i.test(t)) {
+    return true;
+  }
   return false;
 }
 
@@ -195,9 +233,12 @@ function tryParseSeligsonDataCells(
   cells: readonly string[],
   lineNum: number,
 ): SeligsonParsedRow | { error: string } {
-  if (cells.length !== SELIGSON_TSV_HEADER.length) {
+  if (
+    cells.length !== SELIGSON_DATA_COLUMN_COUNT &&
+    cells.length !== SELIGSON_TSV_HEADER_SV.length
+  ) {
     return {
-      error: `Line ${lineNum}: expected ${SELIGSON_TSV_HEADER.length} columns, got ${cells.length}`,
+      error: `Line ${lineNum}: expected ${SELIGSON_DATA_COLUMN_COUNT} or ${SELIGSON_TSV_HEADER_SV.length} columns, got ${cells.length}`,
     };
   }
 
@@ -272,8 +313,11 @@ function findNextTransactionLineIndex(
   return -1;
 }
 
-function looksLikeSingleLineEightColumnRow(cells: readonly string[]): boolean {
-  if (cells.length !== SELIGSON_TSV_HEADER.length) {
+function looksLikeSingleLineDataRow(cells: readonly string[]): boolean {
+  if (
+    cells.length !== SELIGSON_DATA_COLUMN_COUNT &&
+    cells.length !== SELIGSON_TSV_HEADER_SV.length
+  ) {
     return false;
   }
   if (!/^\d+$/.test(cells[0] ?? "")) {
@@ -300,7 +344,7 @@ function parseOneMessySeligsonTransaction(
     };
   }
 
-  if (looksLikeSingleLineEightColumnRow(cells)) {
+  if (looksLikeSingleLineDataRow(cells)) {
     const row = tryParseSeligsonDataCells(cells, startIdx + 1);
     if ("error" in row) {
       return { error: row.error };
@@ -411,8 +455,7 @@ export function parseSeligsonTransactionsTsv(
       };
     }
     const firstDataCells = trimTrailingEmptyCells(splitTsvRow(lines[1] ?? ""));
-    useLegacyEightColumnRows =
-      looksLikeSingleLineEightColumnRow(firstDataCells);
+    useLegacyEightColumnRows = looksLikeSingleLineDataRow(firstDataCells);
   }
 
   const rows: SeligsonParsedRow[] = [];

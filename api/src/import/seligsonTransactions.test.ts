@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   SELIGSON_TSV_HEADER,
+  SELIGSON_TSV_HEADER_SV,
   buildSeligsonExternalId,
   normalizeSeligsonFundNameForMatch,
   parseSeligsonTradeDateDMY,
@@ -8,6 +9,7 @@ import {
 } from "./seligsonTransactions.js";
 
 const HEADER_LINE = SELIGSON_TSV_HEADER.join("\t");
+const HEADER_LINE_SV = SELIGSON_TSV_HEADER_SV.join("\t");
 
 describe("parseSeligsonTradeDateDMY", () => {
   it("parses variable-width d.m.yyyy", () => {
@@ -127,5 +129,47 @@ describe("parseSeligsonTransactionsTsv", () => {
       return;
     }
     expect(out.rows.map((r) => r.side)).toEqual(["buy", "sell"]);
+  });
+
+  it("parses Swedish header (9 columns), Teckning/Inlösning, messy rows, and Totalt belopp footer", () => {
+    const tsv = `${HEADER_LINE_SV}
+24605	13.1.2026	Teckning	
+
+Seligson & Co Familjebolag (A)
+	53,0900	9,4179	0,00	500,00	
+24605	8.10.2025	Teckning	
+
+Seligson & Co Pharos (A)
+	32,5760	15,3487	0,00	500,00	
+24605	29.4.2025	Inlösning	
+
+Seligson & Co Finland Indexfond (A)
+	11,6920	42,5434	0,50	-496,92	
+Totalt belopp						0,50	503,08	`;
+
+    const out = parseSeligsonTransactionsTsv(tsv);
+    expect(out.ok).toBe(true);
+    if (!out.ok) {
+      return;
+    }
+    expect(out.rows).toHaveLength(3);
+    expect(out.rows.filter((r) => r.side === "buy")).toHaveLength(2);
+    expect(out.rows.filter((r) => r.side === "sell")).toHaveLength(1);
+    expect(out.rows.find((r) => r.side === "sell")?.fundName).toBe(
+      "Seligson & Co Finland Indexfond (A)",
+    );
+  });
+
+  it("parses Swedish nine-column single-line rows in legacy mode", () => {
+    const tsv = `${HEADER_LINE_SV}
+24605	29.4.2025	Inlösning	Seligson & Co Finland Indexfond (A)	11,6920	42,5434	0,50	-496,92	`;
+
+    const out = parseSeligsonTransactionsTsv(tsv);
+    expect(out.ok).toBe(true);
+    if (!out.ok) {
+      return;
+    }
+    expect(out.rows).toHaveLength(1);
+    expect(out.rows[0]?.side).toBe("sell");
   });
 });
