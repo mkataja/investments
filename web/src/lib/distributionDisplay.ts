@@ -466,7 +466,7 @@ export function sectorIcon(sectorId: string): string {
     case "communication_services":
       return "📡";
     case "other":
-      return "⚠️";
+      return "📊";
     case "long_government_bonds":
       return "🏛️";
     case "long_corporate_bonds":
