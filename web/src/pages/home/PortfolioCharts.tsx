@@ -209,7 +209,9 @@ export function PortfolioCharts({
       </p>
       {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
         <div className="max-w-xl min-w-0">
-          <h3 className="text-sm font-medium text-slate-700 mb-1">Asset mix</h3>
+          <h3 className="text-base font-medium text-slate-700 mb-2">
+            Asset mix
+          </h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -242,7 +244,7 @@ export function PortfolioCharts({
       ) : null}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="min-w-0 flex flex-col">
-          <h3 className="text-sm font-medium text-slate-700 mb-2 shrink-0">
+          <h3 className="text-base font-medium text-slate-700 mb-2 shrink-0">
             Regions
           </h3>
           <div className="w-full h-[540px]">
@@ -294,7 +296,7 @@ export function PortfolioCharts({
           </div>
         </div>
         <div className="min-w-0 flex flex-col">
-          <h3 className="text-sm font-medium text-slate-700 mb-2 shrink-0">
+          <h3 className="text-base font-medium text-slate-700 mb-2 shrink-0">
             Sectors
           </h3>
           <div className="w-full h-[540px]">
@@ -347,7 +349,7 @@ export function PortfolioCharts({
         </div>
       </div>
       <div className="min-w-0 flex flex-col">
-        <h3 className="text-sm font-medium text-slate-700 mb-2 shrink-0">
+        <h3 className="text-base font-medium text-slate-700 mb-2 shrink-0">
           Countries
         </h3>
         <div className="w-full h-[540px]">
