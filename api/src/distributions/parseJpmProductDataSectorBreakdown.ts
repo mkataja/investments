@@ -107,3 +107,38 @@ export function parseJpmProductDataSectorBreakdown(
 
   return sectorAgg as Record<DistributionSectorId, number>;
 }
+
+/**
+ * Raw `name` fields from `emeaSectorBreakdown.data` (excludes Total / Grand total rows).
+ * Used for reporting; sector weights are not applied.
+ */
+export function extractJpmProductDataRawSectorNames(json: unknown): string[] {
+  if (json == null || typeof json !== "object") {
+    return [];
+  }
+  const root = json as Record<string, unknown>;
+  const emb = resolveEmeaSectorBreakdown(root);
+  if (emb == null) {
+    return [];
+  }
+  const data = emb.data;
+  if (!Array.isArray(data)) {
+    return [];
+  }
+  const names: string[] = [];
+  for (const row of data) {
+    if (row == null || typeof row !== "object") {
+      continue;
+    }
+    const r = row as Record<string, unknown>;
+    const name = String(r.name ?? "").trim();
+    if (!name) {
+      continue;
+    }
+    if (isJpmSectorBreakdownAggregateRow(name)) {
+      continue;
+    }
+    names.push(name);
+  }
+  return names;
+}

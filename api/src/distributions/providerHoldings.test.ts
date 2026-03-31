@@ -9,7 +9,10 @@ import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import { parseIsharesHoldingsCsv } from "./parseIsharesHoldingsCsv.js";
 import { parseJpmHoldingsXlsx } from "./parseJpmHoldingsXlsx.js";
-import { parseJpmProductDataSectorBreakdown } from "./parseJpmProductDataSectorBreakdown.js";
+import {
+  extractJpmProductDataRawSectorNames,
+  parseJpmProductDataSectorBreakdown,
+} from "./parseJpmProductDataSectorBreakdown.js";
 import { parseSsgaHoldingsXlsx } from "./parseSsgaHoldingsXlsx.js";
 import { parseXtrackersHoldingsXlsx } from "./parseXtrackersHoldingsXlsx.js";
 
@@ -169,6 +172,19 @@ describe("parseJpmProductDataSectorBreakdown", () => {
     });
     expect(sectors.healthcare).toBeCloseTo(0.119, 5);
     expect(sectors.financials).toBeCloseTo(0.098, 5);
+  });
+
+  it("extractJpmProductDataRawSectorNames returns name fields excluding Total", () => {
+    const names = extractJpmProductDataRawSectorNames({
+      emeaSectorBreakdown: {
+        data: [
+          { name: "Technology" },
+          { name: "Total" },
+          { name: "Financials" },
+        ],
+      },
+    });
+    expect(names).toEqual(["Technology", "Financials"]);
   });
 });
 
