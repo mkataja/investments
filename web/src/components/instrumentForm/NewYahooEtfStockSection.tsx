@@ -45,7 +45,11 @@ export function NewYahooEtfStockSection({
         Preview from Yahoo
       </button>
       {yahooPreview && (
-        <div className="text-sm text-slate-700 space-y-1 border-b pb-3 mt-2">
+        <div className="text-sm text-slate-700">
+          <p>
+            <span className="text-slate-500">Symbol: </span>
+            {yahooPreview.lookup.symbol}
+          </p>
           <p>
             <span className="text-slate-500">Name: </span>
             {yahooPreview.displayName}
@@ -66,6 +70,7 @@ export function NewYahooEtfStockSection({
           )}
         </div>
       )}
+      <hr />
       <HoldingsBreakdownUrlFields
         holdingsDistributionUrl={holdingsDistributionUrl}
         setHoldingsDistributionUrl={setHoldingsDistributionUrl}
