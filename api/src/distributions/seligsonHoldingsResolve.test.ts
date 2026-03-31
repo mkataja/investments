@@ -72,4 +72,17 @@ describe("namesMatchSeligsonYahoo", () => {
   it("rejects short strings", () => {
     expect(namesMatchSeligsonYahoo("AB", "AB")).toBe(false);
   });
+
+  it("matches when only trailing legal form differs (AG vs Aktiengesellschaft)", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "bayerische motoren werke ag",
+        "Bayerische Motoren Werke Aktiengesellschaft",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches after stripping both sides to the same core name", () => {
+    expect(namesMatchSeligsonYahoo("Volvo AB", "Volvo Aktiebolag")).toBe(true);
+  });
 });

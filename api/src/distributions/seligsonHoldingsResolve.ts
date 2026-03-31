@@ -68,12 +68,57 @@ function normalizeComparableName(s: string): string {
     .replace(/\s+/g, " ");
 }
 
+/**
+ * Common trailing legal forms on listed names (Yahoo vs Seligson). Best-effort set—extend here
+ * rather than special-casing one country in name normalization.
+ */
+const LEGAL_FORM_SUFFIX_TOKENS = new Set([
+  "ab",
+  "ag",
+  "aktiebolag",
+  "aktiengesellschaft",
+  "asa",
+  "bv",
+  "corp",
+  "corporation",
+  "gmbh",
+  "inc",
+  "incorporated",
+  "kg",
+  "kgaa",
+  "limited",
+  "llp",
+  "lp",
+  "ltd",
+  "nv",
+  "oy",
+  "oyj",
+  "plc",
+  "sa",
+  "sarl",
+  "sas",
+  "se",
+  "spa",
+  "srl",
+]);
+
+function stripTrailingLegalFormTokens(normalized: string): string {
+  const words = normalized.split(" ").filter((w) => w.length > 0);
+  while (
+    words.length > 0 &&
+    LEGAL_FORM_SUFFIX_TOKENS.has(words[words.length - 1] ?? "")
+  ) {
+    words.pop();
+  }
+  return words.join(" ");
+}
+
 export function namesMatchSeligsonYahoo(
   seligson: string,
   yahooDisplay: string,
 ): boolean {
-  const a = normalizeComparableName(seligson);
-  const b = normalizeComparableName(yahooDisplay);
+  const a = stripTrailingLegalFormTokens(normalizeComparableName(seligson));
+  const b = stripTrailingLegalFormTokens(normalizeComparableName(yahooDisplay));
   if (a.length < 3 || b.length < 3) {
     return false;
   }
