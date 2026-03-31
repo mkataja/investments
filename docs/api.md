@@ -2,6 +2,8 @@
 
 **HTTP routes, CORS, validation:** **`api`** entrypoint / modules — single source of truth; do not maintain a duplicate route list outside code.
 
+This file focuses on **imports**, **instruments**, **transaction create/update/delete**, and **portfolio distributions**. **Portfolios**, **brokers**, **transaction listing**, **positions**, and **health** are summarized under [Other routes](#other-routes); edge cases and status codes remain in **`api/src/index.ts`**.
+
 - **`GET /instruments`** returns each instrument row (including **`isin`**, **`holdings_distribution_url`** / **`provider_breakdown_data_url`** when set) plus **`netQuantity`** (sum of buys minus sells), optional joined **`distribution`** (`fetchedAt`, `source`, **`payload`** with **`countries` / `sectors`**, optional **`yahooFinance`** / **`seligsonDistribution`** raw snapshots), optional **`providerHoldings`** ( **`source`**, **`fetchedAt`**, **`raw`** — CSV text or base64 XLSX bytes), optional **`broker`** summary (`id`, `name`, `brokerType`) when **`broker_id`** is set, and optional **`seligsonFund`** (`id`, `fid`, `name`) for **`custom`** Seligson-linked rows. Optional query **`brokerId`**: returns only instruments allowed for that broker’s **`broker_type`** (same rules as **`isInstrumentKindAllowedForBrokerType`**), and **`custom`** / **`cash_account`** rows must also match **`instruments.broker_id`** to that broker; **`400`** / **`404`** for invalid or missing broker id. Optional **`portfolioId`**: **`netQuantity`** is limited to transactions in that portfolio; otherwise **`netQuantity`** sums across all of the user’s portfolios.
 - **`POST /transactions`** body includes **`portfolio_id`** (JSON **`portfolioId`**) owned by **`USER_ID`**; validates **`broker_id`** + **`instrument_id`**: the instrument kind must be allowed for the broker type, and **`custom`** / **`cash_account`** instruments must belong to the same broker (**`instrument.broker_id`**). **`PATCH /transactions/:id`** updates a row for **`USER_ID`** with the same JSON shape as **`POST`** (empty optional **`unitPriceEur`** clears the column). **`DELETE /transactions/:id`** removes a row for **`USER_ID`** (**`204`**).
 - **`GET /instruments/:id`** returns the same shape as one list element; **`404`** if missing.
@@ -16,6 +18,11 @@
 
 ## Other routes
 
+- **`GET /health`** — **`{ ok: true }`**.
+- **`GET /portfolios`**, **`POST /portfolios`**, **`PATCH /portfolios/:id`** — portfolios for **`USER_ID`**; **`PATCH`** updates name and/or **`emergencyFundEur`**; duplicate name **`409`** on create/patch when another portfolio already uses the name.
+- **`GET /brokers`**, **`POST /brokers`**, **`PATCH /brokers/:id`**, **`DELETE /brokers/:id`** — broker CRUD; **`DELETE`** **`409`** if the broker still has transactions or instruments.
+- **`GET /transactions?portfolioId=`** — **`portfolioId`** query **required**; returns transactions for that portfolio; **`400`**/**`404`** if missing, invalid, or not owned by **`USER_ID`**.
+- **`GET /positions?portfolioId=`** — **`portfolioId`** **required**; returns open positions for the portfolio with a joined **`instrument`** row per line; **`400`**/**`404`** if missing, invalid, or not found.
 - **`GET /instruments/lookup-yahoo?symbol=`** — public Yahoo metadata preview for the new-instrument UI.
 - **`POST /instruments/:id/refresh-distribution`** refetches and upserts distribution cache for that instrument (502 on upstream error; 404 if missing; 200 **`{ ok: true, instrument }`** — same shape as **`GET /instruments/:id`** — or **`{ skipped: true, reason }`** for cash or manual cache).
 - **`DELETE /instruments/:id`** removes the instrument after deleting its **`transactions`** in one DB transaction; **`distributions`**, **`prices`**, **`yahoo_finance_cache`**, **`seligson_distribution_cache`**, **`provider_holdings_cache`**, and related raw cache rows **CASCADE** from **`instruments`** (204). **`seligson_funds`** rows are not deleted.

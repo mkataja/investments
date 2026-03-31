@@ -8,7 +8,7 @@ pnpm workspace — see [`pnpm-workspace.yaml`](../pnpm-workspace.yaml):
 | --- | --- |
 | [`db`](../db) | Drizzle schema, SQL migrations, shared types, **`currencies.ts`**, **`yahooSymbol.ts`** (canonical Yahoo ticker normalization), **`holdingsUrl.ts`** (provider holdings URL validation), **`geo/`** (ISO country resolution + default geo buckets for portfolio/instruments UI), **`brokerInstrumentRules`**, **`instrumentSelectLabel`** (transaction UI labels), **`appUser`** (`USER_ID` — hard-coded until auth; no DB default for user identity) |
 | [`api`](../api) | Hono API, valuation, distribution fetch/normalize, cache refresh |
-| [`web`](../web) | Vite + React + Tailwind; portfolio UI at `/`, **brokers** at `/brokers`, **instruments list** at `/instruments`, **new instrument** at `/instruments/new`, **Degiro CSV + IBKR CSV + Seligson TSV import** at `/import` — **`HomePage`** subcomponents (distributions charts, holdings table, transactions table, add/edit transaction modal, edit portfolio modal) live under **`web/src/pages/home/`** |
+| [`web`](../web) | Vite + React + Tailwind; portfolio UI at `/`, **brokers** at `/brokers`, **instruments list** at `/instruments`, **new instrument** at `/instruments/new`, **edit instrument** at `/instruments/:id/edit`, **Degiro CSV + IBKR CSV + Seligson TSV import** at `/import` — **`HomePage`** subcomponents (distributions charts, holdings table, transactions table, add/edit transaction modal, edit portfolio modal) live under **`web/src/pages/home/`** |
 
 Scripts and tool versions: **root [`package.json`](../package.json)**. Local setup, ports, and env keys: **[`README.md`](../README.md)** and **[`.env.example`](../.env.example)**.
 

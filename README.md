@@ -34,7 +34,7 @@ Details: [`docs/architecture.md`](docs/architecture.md#repo-layout).
 pnpm dev
 ```
 
-- Web: [http://localhost:5173](http://localhost:5173) — portfolio UI and `/instruments/new` to add instruments.
+- Web: [http://localhost:5173](http://localhost:5173) — portfolio UI; `/instruments/new` and `/instruments/:id/edit` for instruments.
 - API: [http://localhost:3001](http://localhost:3001) — `GET /health` health check.
 
 Set `VITE_API_URL` in `web` if the API is not on port 3001.
