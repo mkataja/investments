@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { HttpError, apiGet, apiPostFormData } from "../api";
 import { Button } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
+import { FileBrowseButton } from "../components/FileBrowseButton";
 import {
   readStoredPortfolioId,
   writeStoredPortfolioId,
@@ -486,15 +487,11 @@ export function ImportPage() {
           onSubmit={onSubmitDegiro}
         >
           <div className="min-w-0 flex-1">
-            <label htmlFor="degiro-csv" className="sr-only">
-              Degiro CSV file
-            </label>
-            <input
+            <FileBrowseButton
               id="degiro-csv"
-              name="file"
-              type="file"
+              ariaLabel="Degiro CSV file"
               accept=".csv,text/csv"
-              className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border file:border-slate-300 file:bg-slate-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-100"
+              file={degiroFile}
               onChange={(ev) => {
                 const f = ev.target.files?.[0];
                 setDegiroFile(f ?? null);
@@ -637,15 +634,11 @@ export function ImportPage() {
           onSubmit={onSubmitIbkr}
         >
           <div className="min-w-0 flex-1">
-            <label htmlFor="ibkr-csv" className="sr-only">
-              IBKR CSV file
-            </label>
-            <input
+            <FileBrowseButton
               id="ibkr-csv"
-              name="file"
-              type="file"
+              ariaLabel="IBKR CSV file"
               accept=".csv,text/csv"
-              className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border file:border-slate-300 file:bg-slate-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-100"
+              file={ibkrFile}
               onChange={(ev) => {
                 const f = ev.target.files?.[0];
                 setIbkrFile(f ?? null);
@@ -750,25 +743,22 @@ export function ImportPage() {
             <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
               <Button
                 type="button"
+                className="w-28"
                 onClick={() => {
                   setSeligsonPasteOpen((o) => !o);
                 }}
               >
-                {seligsonPasteOpen ? "Hide paste" : "Paste here..."}
+                {seligsonPasteOpen ? "Cancel" : "Paste here..."}
               </Button>
               <span className="shrink-0 text-sm font-medium text-slate-400 sm:px-0.5">
                 or
               </span>
               <div className="min-w-0 flex-1">
-                <label htmlFor="seligson-tsv" className="sr-only">
-                  Seligson export file
-                </label>
-                <input
-                  ref={seligsonFileInputRef}
+                <FileBrowseButton
                   id="seligson-tsv"
-                  name="file"
-                  type="file"
-                  className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border file:border-slate-300 file:bg-slate-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-100"
+                  ariaLabel="Seligson export file"
+                  inputRef={seligsonFileInputRef}
+                  file={seligsonFile}
                   onChange={(ev) => {
                     const f = ev.target.files?.[0];
                     setSeligsonFile(f ?? null);
