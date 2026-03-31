@@ -5,10 +5,12 @@ import {
   instrumentCompositeConstituents,
   instruments,
   isCompositePseudoKey,
+  normLabel,
   normalizeIsinForStorage,
   parseVanguardUkProfessionalHoldingsPortId,
   prices,
   providerHoldingsCache,
+  resolveRegionKeyToIso,
   seligsonDistributionCache,
   seligsonFunds,
   validateHoldingsDistributionUrl,
@@ -35,6 +37,7 @@ import {
   SELIGSON_BOND_ALLOCATION_VIEW,
   SELIGSON_BOND_COUNTRY_VIEW,
   SELIGSON_HOLDINGS_VIEW,
+  SELIGSON_RESOLUTION_UNKNOWN_COUNTRY_ISO,
   fetchSeligsonHtml,
   isSeligsonBondAllocationPage,
   parseSeligsonBondFundDistributions,
@@ -63,6 +66,61 @@ function yahooRefreshGapMs(): number {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+const UNKNOWN_COUNTRY_WEIGHT_EPS = 1e-9;
+
+/** Same unmapped vs ISO rules as `aggregateRegionsToGeoBuckets`; ZZ tracked separately (maps to EM, not unknown bucket). */
+function collectUnknownCountryIssueParts(
+  countries: Record<string, number> | undefined,
+): string[] {
+  if (!countries) {
+    return [];
+  }
+  const zz = SELIGSON_RESOLUTION_UNKNOWN_COUNTRY_ISO;
+  const parts: string[] = [];
+  for (const [rawKey, w] of Object.entries(countries)) {
+    if (
+      typeof w !== "number" ||
+      !Number.isFinite(w) ||
+      w <= UNKNOWN_COUNTRY_WEIGHT_EPS
+    ) {
+      continue;
+    }
+    const key = rawKey.trim();
+    if (normLabel(key) === "european union") {
+      continue;
+    }
+    const iso = resolveRegionKeyToIso(key);
+    const pct = `${(w * 100).toFixed(2)}%`;
+    if (iso === zz) {
+      parts.push(`${JSON.stringify(rawKey)} ${pct} (${zz} unmapped country)`);
+      continue;
+    }
+    if (iso) {
+      continue;
+    }
+    parts.push(`${JSON.stringify(rawKey)} ${pct} (no ISO mapping)`);
+  }
+  return parts;
+}
+
+async function warnIfRefreshedDistributionHasUnknownCountry(
+  instrumentId: number,
+  displayName: string,
+): Promise<void> {
+  const [row] = await db
+    .select({ payload: distributions.payload })
+    .from(distributions)
+    .where(eq(distributions.instrumentId, instrumentId));
+  const countries = row?.payload?.countries;
+  const detailParts = collectUnknownCountryIssueParts(countries);
+  if (detailParts.length === 0) {
+    return;
+  }
+  console.warn(
+    `[refresh-distribution] Instrument id=${instrumentId} (${displayName}) has unknown or unmapped country weight: ${detailParts.join("; ")}`,
+  );
 }
 
 async function maybeBackfillInstrumentIsinFromYahooRaw(
@@ -624,6 +682,10 @@ export async function refreshDistributionCacheForInstrumentId(
   try {
     if (await instrumentHasCompositeConstituents(instrumentId)) {
       await writeCompositeDistributionCache(instrumentId, now);
+      await warnIfRefreshedDistributionHasUnknownCountry(
+        instrumentId,
+        inst.displayName,
+      );
       return { ok: true };
     }
 
@@ -636,6 +698,10 @@ export async function refreshDistributionCacheForInstrumentId(
         return { error: "Seligson fund row missing", status: 502 };
       }
       await writeSeligsonDistributionCache(inst.id, sf.fid, now);
+      await warnIfRefreshedDistributionHasUnknownCountry(
+        instrumentId,
+        inst.displayName,
+      );
       return { ok: true };
     }
 
@@ -664,6 +730,10 @@ export async function refreshDistributionCacheForInstrumentId(
             inst.isin,
           );
         }
+        await warnIfRefreshedDistributionHasUnknownCountry(
+          instrumentId,
+          inst.displayName,
+        );
         return { ok: true };
       }
       if (inst.yahooSymbol) {
@@ -674,6 +744,10 @@ export async function refreshDistributionCacheForInstrumentId(
           inst.yahooSymbol,
           now,
           inst.isin,
+        );
+        await warnIfRefreshedDistributionHasUnknownCountry(
+          instrumentId,
+          inst.displayName,
         );
         return { ok: true };
       }
