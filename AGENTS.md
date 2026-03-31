@@ -120,10 +120,10 @@ Shared **primary** controls (`Button`, `ButtonLink`) and a minimal style referen
 
 ### Git commits
 
-- **Normal, readable one-line titles** describing the change.
-- **No** Conventional Commit **prefixes** (`feat:`, `chore:`, `fix:`, `docs:`).
-- **No** long bodies by default; extra lines only when truly useful (e.g. breaking changes).
-- Prefer **small, well-scoped commits** when practical.
+- **Normal, readable one-line titles**
+- **No** commit prefixes (`feat:`, `chore:`, etc.).
+- **No** long bodies by default; only when truly useful
+- Prefer **small, well-scoped commits** when practical - one "thing" per commit
 
 ### When changing behavior
 
