@@ -1,11 +1,13 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import { BrokersPage } from "./pages/BrokersPage";
 import { DevPage } from "./pages/DevPage";
-import { EditInstrumentPage } from "./pages/EditInstrumentPage";
 import { HomePage } from "./pages/HomePage";
 import { ImportPage } from "./pages/ImportPage";
+import {
+  EditInstrumentPage,
+  NewInstrumentPage,
+} from "./pages/InstrumentFormPage";
 import { InstrumentsPage } from "./pages/InstrumentsPage";
-import { NewInstrumentPage } from "./pages/NewInstrumentPage";
 
 export function App() {
   return (
