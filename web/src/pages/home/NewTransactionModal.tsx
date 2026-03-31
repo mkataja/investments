@@ -257,6 +257,7 @@ export function NewTransactionModal({
       title={isEdit ? "Edit transaction" : "New transaction"}
       open={open}
       onClose={onClose}
+      confirmBeforeClose
     >
       <form onSubmit={(e) => void submitTransaction(e)} className="form-stack">
         <label className="block text-sm">

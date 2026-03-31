@@ -1,7 +1,14 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import {
+  type FormEvent,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { apiPatch } from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
+import { parseDecimalInputLoose } from "../../lib/decimalInput";
 import type { PortfolioEntity } from "./types";
 
 export const PORTFOLIO_EMERGENCY_FUND_NOTE =
@@ -22,13 +29,19 @@ export function EditPortfolioModal({
   onSaved,
   onError,
 }: EditPortfolioModalProps) {
-  const [name, setName] = useState("");
-  const [emergencyFund, setEmergencyFund] = useState("0");
+  const [name, setName] = useState(() => portfolio?.name ?? "");
+  const [emergencyFund, setEmergencyFund] = useState(() =>
+    portfolio != null && Number.isFinite(portfolio.emergencyFundEur)
+      ? String(portfolio.emergencyFundEur)
+      : "0",
+  );
   const [busy, setBusy] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!open || portfolio == null) return;
+  useLayoutEffect(() => {
+    if (!open || portfolio == null) {
+      return;
+    }
     setName(portfolio.name);
     setEmergencyFund(
       Number.isFinite(portfolio.emergencyFundEur)
@@ -75,8 +88,21 @@ export function EditPortfolioModal({
     }
   }
 
+  const portfolioDirty =
+    portfolio != null &&
+    (name.trim() !== portfolio.name.trim() ||
+      parseDecimalInputLoose(emergencyFund) !==
+        (Number.isFinite(portfolio.emergencyFundEur)
+          ? portfolio.emergencyFundEur
+          : 0));
+
   return (
-    <Modal title="Edit portfolio" open={open} onClose={onClose}>
+    <Modal
+      title="Edit portfolio"
+      open={open}
+      onClose={onClose}
+      confirmBeforeClose={portfolioDirty}
+    >
       <form onSubmit={(e) => void onSubmit(e)} className="form-stack">
         <label className="block text-sm">
           Name

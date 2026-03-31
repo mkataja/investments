@@ -27,6 +27,10 @@ export function BrokersPage() {
 
   const [name, setName] = useState("");
   const [brokerType, setBrokerType] = useState<BrokerType>("exchange");
+  const [formBaseline, setFormBaseline] = useState<{
+    name: string;
+    brokerType: BrokerType;
+  }>({ name: "", brokerType: "exchange" });
 
   const nameInputRef = useRef<HTMLInputElement>(null);
 
@@ -54,6 +58,7 @@ export function BrokersPage() {
 
   function openAddModal() {
     setEditingId(null);
+    setFormBaseline({ name: "", brokerType: "exchange" });
     setName("");
     setBrokerType("exchange");
     setFormError(null);
@@ -62,6 +67,7 @@ export function BrokersPage() {
 
   function startEdit(row: BrokerRow) {
     setEditingId(row.id);
+    setFormBaseline({ name: row.name, brokerType: row.brokerType });
     setName(row.name);
     setBrokerType(row.brokerType);
     setFormError(null);
@@ -120,6 +126,10 @@ export function BrokersPage() {
     }
   }
 
+  const brokerFormDirty =
+    name.trim() !== formBaseline.name.trim() ||
+    brokerType !== formBaseline.brokerType;
+
   return (
     <div className="w-full min-w-0 page-stack">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -140,6 +150,7 @@ export function BrokersPage() {
         title={editingId == null ? "Add broker" : "Edit broker"}
         open={modalOpen}
         onClose={closeModal}
+        confirmBeforeClose={brokerFormDirty}
       >
         <form onSubmit={(e) => void submitModal(e)} className="form-stack">
           {formError ? <ErrorAlert>{formError}</ErrorAlert> : null}

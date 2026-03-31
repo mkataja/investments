@@ -109,7 +109,7 @@ When changing **`web`** forms and flows, include small UX improvements when they
 
 Do **not** generate extra UI copy texts **unless the user explicitly asks**. Only add the minimum amount of copy necessary for the feature to be usable.
 
-Shared **primary** controls (`Button`, `ButtonLink`) and a minimal style reference: **[`web/design-system.md`](web/design-system.md)**. **Heading typography:** semantic sizes **`heading-1`…`heading-4`** in **`web/tailwind.config.js`**; default element styles for **`h1`–`h6`** in **`web/src/index.css`** (`@layer base`). Headings avoid **typography** `className` (use globals); **layout** utilities on **`h*`** (e.g. **`shrink-0`**) are fine; scoped colors can use **parent** **`[&_h*]:…`** when needed.
+Shared **primary** controls (`Button`, `ButtonLink`) and a minimal style reference: **[`web/design-system.md`](web/design-system.md)**. **`Modal`** (**`web/src/components/Modal.tsx`**): optional **`confirmBeforeClose`** — when true, Escape, backdrop click, and the header Close control run **`window.confirm`** before **`onClose`**; flows that close after a successful submit call **`onClose`** directly (not via **`Modal`**’s dismiss handlers). **Heading typography:** semantic sizes **`heading-1`…`heading-4`** in **`web/tailwind.config.js`**; default element styles for **`h1`–`h6`** in **`web/src/index.css`** (`@layer base`). Headings avoid **typography** `className` (use globals); **layout** utilities on **`h*`** (e.g. **`shrink-0`**) are fine; scoped colors can use **parent** **`[&_h*]:…`** when needed.
 
 ### Before commit or sign-off
 

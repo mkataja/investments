@@ -1,15 +1,36 @@
-import { type ReactNode, useEffect, useId } from "react";
+import { type ReactNode, useCallback, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
+
+const CLOSE_CONFIRM_MESSAGE = "Discard changes and close?";
 
 type ModalProps = {
   title: string;
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  /**
+   * When true, Escape, backdrop click, and the Close control ask for confirmation
+   * before calling `onClose`. Successful submit flows should call `onClose` from
+   * outside this component; those calls are not affected.
+   */
+  confirmBeforeClose?: boolean;
 };
 
-export function Modal({ title, open, onClose, children }: ModalProps) {
+export function Modal({
+  title,
+  open,
+  onClose,
+  children,
+  confirmBeforeClose = false,
+}: ModalProps) {
   const titleId = useId();
+
+  const requestClose = useCallback(() => {
+    if (confirmBeforeClose && !window.confirm(CLOSE_CONFIRM_MESSAGE)) {
+      return;
+    }
+    onClose();
+  }, [confirmBeforeClose, onClose]);
 
   useEffect(() => {
     if (!open) {
@@ -17,12 +38,12 @@ export function Modal({ title, open, onClose, children }: ModalProps) {
     }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        requestClose();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, requestClose]);
 
   useEffect(() => {
     if (!open) {
@@ -45,7 +66,7 @@ export function Modal({ title, open, onClose, children }: ModalProps) {
         type="button"
         className="absolute inset-0 bg-black/40"
         aria-label="Close dialog"
-        onClick={onClose}
+        onClick={requestClose}
       />
       <dialog
         open
@@ -58,7 +79,11 @@ export function Modal({ title, open, onClose, children }: ModalProps) {
             <h2 id={titleId} className="modal-title">
               {title}
             </h2>
-            <button type="button" className="modal-close" onClick={onClose}>
+            <button
+              type="button"
+              className="modal-close"
+              onClick={requestClose}
+            >
               Close
             </button>
           </div>

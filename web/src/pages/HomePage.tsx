@@ -10,6 +10,7 @@ import { apiGet, apiPost } from "../api";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Modal } from "../components/Modal";
+import { parseDecimalInputLoose } from "../lib/decimalInput";
 import {
   readStoredComparePortfolioId,
   readStoredPortfolioId,
@@ -234,6 +235,10 @@ export function HomePage() {
     setNewPortfolioOpen(true);
   }
 
+  const newPortfolioDirty =
+    newPortfolioName.trim() !== "" ||
+    parseDecimalInputLoose(newPortfolioEmergencyFund) !== 0;
+
   return (
     <div className="w-full min-w-0 page-stack">
       <header className="page-header-stack">
@@ -275,6 +280,7 @@ export function HomePage() {
         title="New portfolio"
         open={newPortfolioOpen}
         onClose={() => setNewPortfolioOpen(false)}
+        confirmBeforeClose={newPortfolioDirty}
       >
         <form
           onSubmit={(e) => void submitNewPortfolio(e)}
@@ -313,6 +319,7 @@ export function HomePage() {
       </Modal>
 
       <EditPortfolioModal
+        key={editPortfolioOpen ? `p-${selectedPortfolioId ?? "x"}` : "closed"}
         open={editPortfolioOpen}
         onClose={() => setEditPortfolioOpen(false)}
         portfolio={selectedPortfolioEntity}
