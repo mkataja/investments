@@ -11,6 +11,10 @@ export const XTRACKERS_HOLDINGS_EXAMPLE_URL =
 export const JPM_HOLDINGS_EXAMPLE_URL =
   "https://am.jpmorgan.com/FundsMarketingHandler/excel?type=dailyETFHoldings&cusip=IE00BJRCLL96&country=gb&role=per&fundType=N_ETF&locale=en-GB&isUnderlyingHolding=false&isProxyHolding=false";
 
+/** Example product-data URL for `provider_breakdown_data_url` (J.P. Morgan; use with JPM daily ETF holdings XLSX URL). */
+export const JPM_PRODUCT_DATA_BREAKDOWN_EXAMPLE_URL =
+  "https://am.jpmorgan.com/FundsMarketingHandler/product-data?cusip=IE00BJRCLL96&country=gb&role=per&fundType=N_ETF&locale=en-GB";
+
 /** SEC EDGAR 13F information table XML (filename varies per filing). */
 export const SEC_13F_HOLDINGS_EXAMPLE_URL =
   "https://www.sec.gov/Archives/edgar/data/1067983/000119312526054580/50240.xml";

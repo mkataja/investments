@@ -1,3 +1,4 @@
+import { ProviderBreakdownDataUrlHint } from "../ProviderBreakdownDataUrlHint";
 import { ProviderHoldingsUrlHint } from "../ProviderHoldingsUrlHint";
 
 export function HoldingsBreakdownUrlFields({
@@ -36,9 +37,9 @@ export function HoldingsBreakdownUrlFields({
             setProviderBreakdownDataUrl(e.target.value);
             onClearError?.();
           }}
-          placeholder="https://am.jpmorgan.com/FundsMarketingHandler/product-data?cusip=…"
         />
       </label>
+      <ProviderBreakdownDataUrlHint />
     </>
   );
 }
