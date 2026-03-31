@@ -31,6 +31,8 @@ Authoritative detail is **`db/src/schema.ts`** and migrations.
 
 **Timestamps:** Every table has **`created_at`** and **`updated_at`** (**`timestamptz`**, `NOT NULL`, default **`now()`** on insert). **`updated_at`** is set automatically on row updates by the database (**`public.set_updated_at`** trigger on **`BEFORE UPDATE`**). When you add a **new** table, define both columns in Drizzle the same way as existing tables and attach the trigger in the migration (reuse **`EXECUTE FUNCTION public.set_updated_at()`**).
 
+**Indexes:** Add an index on every **foreign key** column. Add indexes for columns that queries will commonly **filter, join, or order by**, when they are **not** already covered by an existing index (e.g. primary key or unique constraint). See **[`AGENTS.md`](../AGENTS.md)** (schema / behavior).
+
 Conceptually:
 
 - **`users`:** **`name`** (text, required — no column default on new inserts); placeholder for future auth. Migrations leave one seeded row whose **`name`** is **`default`**. The app uses **`USER_ID`** from **`@investments/db`** (`appUser.ts`) for all scoping; do not rely on DB defaults for user identity.

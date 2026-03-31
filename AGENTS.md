@@ -55,7 +55,7 @@ Shared **primary** controls and patterns: **[`web/design-system.md`](web/design-
 
 ### When changing behavior
 
-- **Schema:** Drizzle in `db`, **`pnpm db:generate`**, commit migrations, **`pnpm db:migrate`** locally. New tables: **`created_at`** / **`updated_at`** with **`defaultNow()`** and **`BEFORE UPDATE`** trigger to **`public.set_updated_at`** (see **`db/migrations`**).
+- **Schema:** Drizzle in `db`, **`pnpm db:generate`**, commit migrations, **`pnpm db:migrate`** locally. New tables: **`created_at`** / **`updated_at`** with **`defaultNow()`** and **`BEFORE UPDATE`** trigger to **`public.set_updated_at`** (see **`db/migrations`**). **Indexes:** always add an index on every **foreign key** column. Also add indexes for columns that queries will commonly **filter, join, or order by**, when they are **not** already covered by an existing index (e.g. primary key or unique constraint).
 - **Seligson HTML:** parsers are **brittle**—extend with care; prefer tests or fallbacks.
 - **Yahoo:** tolerate missing data; avoid hard-failing the whole request for one empty module.
 
