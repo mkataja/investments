@@ -397,7 +397,7 @@ export function sectorIcon(sectorId: string): string {
     case "communication_services":
       return "📡";
     case "other":
-      return "📊";
+      return "⚠️";
     default:
       return "📊";
   }
