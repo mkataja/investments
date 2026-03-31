@@ -241,7 +241,7 @@ export function HomePage() {
 
   return (
     <div className="w-full min-w-0 page-stack">
-      <header className="page-header-stack">
+      <header className="page-header-stack sticky top-0 z-10 border-b border-slate-200 bg-slate-50 pb-3 pt-1">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 min-w-0">
             <h1 className="shrink-0">Portfolio</h1>
