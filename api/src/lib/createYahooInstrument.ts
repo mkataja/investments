@@ -70,9 +70,20 @@ export async function insertEtfStockFromYahoo(
   try {
     if (holdingsUrl) {
       await writeProviderHoldingsDistributionCache(row.id, holdingsUrl);
-      await upsertYahooPriceFromQuoteSummaryRaw(row.id, raw);
+      await upsertYahooPriceFromQuoteSummaryRaw(
+        row.id,
+        raw,
+        new Date(),
+        row.isin,
+      );
     } else {
-      await writeYahooDistributionCache(row.id, raw, symbol);
+      await writeYahooDistributionCache(
+        row.id,
+        raw,
+        symbol,
+        new Date(),
+        row.isin,
+      );
     }
   } catch (e) {
     await db.delete(instruments).where(eq(instruments.id, row.id));

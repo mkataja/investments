@@ -14,7 +14,7 @@ export class HttpError extends Error {
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  const res = await fetch(`${base}${path}`);
+  const res = await fetch(`${base}${path}`, { cache: "no-store" });
   if (!res.ok) {
     throw new Error(`${res.status} ${await res.text()}`);
   }
@@ -25,6 +25,7 @@ export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
+    cache: "no-store",
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!res.ok) {
@@ -37,6 +38,7 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    cache: "no-store",
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!res.ok) {
@@ -52,6 +54,7 @@ export async function apiPostFormData<T>(
   const res = await fetch(`${base}${path}`, {
     method: "POST",
     body: form,
+    cache: "no-store",
   });
   if (!res.ok) {
     const text = await res.text();
@@ -67,7 +70,10 @@ export async function apiPostFormData<T>(
 }
 
 export async function apiDelete(path: string): Promise<void> {
-  const res = await fetch(`${base}${path}`, { method: "DELETE" });
+  const res = await fetch(`${base}${path}`, {
+    method: "DELETE",
+    cache: "no-store",
+  });
   if (!res.ok) {
     throw new Error(`${res.status} ${await res.text()}`);
   }

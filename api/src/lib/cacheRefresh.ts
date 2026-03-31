@@ -1,6 +1,7 @@
 import {
   distributions,
   instruments,
+  normalizeIsinForStorage,
   prices,
   providerHoldingsCache,
   seligsonDistributionCache,
@@ -24,6 +25,7 @@ import {
 import { upsertSeligsonFundValuesFromPage } from "../distributions/seligsonFundValues.js";
 import type { YahooQuoteSummaryRaw } from "../distributions/yahoo.js";
 import {
+  extractIsinFromQuoteSummaryRaw,
   extractYahooPriceFromQuoteSummaryRaw,
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
@@ -42,6 +44,24 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+async function maybeBackfillInstrumentIsinFromYahooRaw(
+  instrumentId: number,
+  raw: YahooQuoteSummaryRaw,
+  existingIsin: string | null | undefined,
+): Promise<void> {
+  if (normalizeIsinForStorage(existingIsin ?? null)) {
+    return;
+  }
+  const fromYahoo = extractIsinFromQuoteSummaryRaw(raw);
+  if (!fromYahoo) {
+    return;
+  }
+  await db
+    .update(instruments)
+    .set({ isin: fromYahoo })
+    .where(eq(instruments.id, instrumentId));
+}
+
 /** JSON-safe clone for `jsonb` (drops non-JSON values from Yahoo responses). */
 function jsonCloneForStorage<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -52,6 +72,7 @@ export async function writeYahooDistributionCache(
   raw: YahooQuoteSummaryRaw,
   symbol: string,
   fetchedAt: Date = new Date(),
+  existingInstrumentIsin?: string | null,
 ): Promise<void> {
   const { payload: rawPayload } = normalizeYahooDistribution(raw, symbol);
   const payload = {
@@ -116,35 +137,46 @@ export async function writeYahooDistributionCache(
         });
     }
   });
+
+  await maybeBackfillInstrumentIsinFromYahooRaw(
+    instrumentId,
+    raw,
+    existingInstrumentIsin,
+  );
 }
 
 export async function upsertYahooPriceFromQuoteSummaryRaw(
   instrumentId: number,
   raw: YahooQuoteSummaryRaw,
   fetchedAt: Date = new Date(),
+  existingInstrumentIsin?: string | null,
 ): Promise<void> {
   const priceExtract = extractYahooPriceFromQuoteSummaryRaw(raw);
-  if (!priceExtract) {
-    return;
-  }
-  await db
-    .insert(prices)
-    .values({
-      instrumentId,
-      quotedPrice: String(priceExtract.price),
-      currency: priceExtract.currency,
-      fetchedAt,
-      source: "yahoo_quote_summary",
-    })
-    .onConflictDoUpdate({
-      target: prices.instrumentId,
-      set: {
+  if (priceExtract) {
+    await db
+      .insert(prices)
+      .values({
+        instrumentId,
         quotedPrice: String(priceExtract.price),
         currency: priceExtract.currency,
         fetchedAt,
         source: "yahoo_quote_summary",
-      },
-    });
+      })
+      .onConflictDoUpdate({
+        target: prices.instrumentId,
+        set: {
+          quotedPrice: String(priceExtract.price),
+          currency: priceExtract.currency,
+          fetchedAt,
+          source: "yahoo_quote_summary",
+        },
+      });
+  }
+  await maybeBackfillInstrumentIsinFromYahooRaw(
+    instrumentId,
+    raw,
+    existingInstrumentIsin,
+  );
 }
 
 export async function writeProviderHoldingsDistributionCache(
@@ -350,13 +382,24 @@ export async function refreshDistributionCacheForInstrumentId(
         );
         if (inst.yahooSymbol) {
           const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
-          await upsertYahooPriceFromQuoteSummaryRaw(inst.id, raw, now);
+          await upsertYahooPriceFromQuoteSummaryRaw(
+            inst.id,
+            raw,
+            now,
+            inst.isin,
+          );
         }
         return { ok: true };
       }
       if (inst.yahooSymbol) {
         const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
-        await writeYahooDistributionCache(inst.id, raw, inst.yahooSymbol, now);
+        await writeYahooDistributionCache(
+          inst.id,
+          raw,
+          inst.yahooSymbol,
+          now,
+          inst.isin,
+        );
         return { ok: true };
       }
       return {
@@ -442,7 +485,12 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
               await sleep(gapMs);
             }
             const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
-            await upsertYahooPriceFromQuoteSummaryRaw(inst.id, raw, now);
+            await upsertYahooPriceFromQuoteSummaryRaw(
+              inst.id,
+              raw,
+              now,
+              inst.isin,
+            );
           }
           continue;
         }
@@ -457,6 +505,7 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
             raw,
             inst.yahooSymbol,
             now,
+            inst.isin,
           );
         }
       }

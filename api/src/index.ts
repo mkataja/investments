@@ -1752,7 +1752,11 @@ app.post("/instruments/:id/refresh-distribution", async (c) => {
   if ("error" in result) {
     return c.json({ message: result.error }, result.status);
   }
-  return c.json({ ok: true }, 200);
+  const payload = await loadInstrumentPayloadById(id);
+  if (!payload) {
+    return c.json({ message: "Not found" }, 404);
+  }
+  return c.json({ ok: true, instrument: payload }, 200);
 });
 
 app.delete("/instruments/:id", async (c) => {

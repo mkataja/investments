@@ -52,7 +52,9 @@ type InstrumentListItem = {
   seligsonFund: SeligsonFundSummary | null;
 };
 
-type RefreshResponse = { ok: true } | { skipped: true; reason: string };
+type RefreshResponse =
+  | { ok: true; instrument: InstrumentListItem }
+  | { skipped: true; reason: string };
 
 function RowRefreshSpinner({ className }: { className?: string }) {
   return (
@@ -129,7 +131,13 @@ export function InstrumentsPage() {
         }
         return;
       }
-      await load();
+      if ("instrument" in res && res.instrument) {
+        setRows((prev) =>
+          prev.map((r) => (r.id === i.id ? { ...r, ...res.instrument } : r)),
+        );
+      } else {
+        await load();
+      }
     } catch (e) {
       setError(String(e));
     } finally {
