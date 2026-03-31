@@ -1,5 +1,7 @@
+import type { DistributionPayload } from "@investments/db";
 import {
   distributions,
+  instrumentCompositeConstituents,
   instruments,
   normalizeIsinForStorage,
   parseVanguardUkProfessionalHoldingsPortId,
@@ -11,7 +13,7 @@ import {
   validateProviderBreakdownDataUrl,
   yahooFinanceCache,
 } from "@investments/db";
-import { eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { buildDistributionFromSec13FInfoTableXml } from "../distributions/buildSec13fDistribution.js";
 import { fetchJpmProductDataJson } from "../distributions/fetchJpmProductData.js";
@@ -46,6 +48,7 @@ import {
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
 } from "../distributions/yahoo.js";
+import { mergeCompositeDistributionPayload } from "./compositeDistribution.js";
 import { loadOpenPositionsAggregateForUser } from "./positions.js";
 import { formatYahooUpstreamError } from "./yahooUpstream.js";
 
@@ -360,6 +363,98 @@ async function updateSeligsonFundNameFromViewerHtml(
   }
 }
 
+export async function instrumentHasCompositeConstituents(
+  instrumentId: number,
+): Promise<boolean> {
+  const [r] = await db
+    .select({ id: instrumentCompositeConstituents.id })
+    .from(instrumentCompositeConstituents)
+    .where(eq(instrumentCompositeConstituents.parentInstrumentId, instrumentId))
+    .limit(1);
+  return r != null;
+}
+
+/**
+ * Writes `distributions` from weighted constituent payloads (and pseudo unknown slices).
+ * Clears Seligson FundViewer HTML cache for this instrument so stale scrape data is not shown.
+ */
+export async function writeCompositeDistributionCache(
+  instrumentId: number,
+  fetchedAt: Date = new Date(),
+): Promise<void> {
+  const rows = await db
+    .select()
+    .from(instrumentCompositeConstituents)
+    .where(eq(instrumentCompositeConstituents.parentInstrumentId, instrumentId))
+    .orderBy(asc(instrumentCompositeConstituents.sortOrder));
+
+  if (rows.length === 0) {
+    throw new Error("No composite constituents for instrument");
+  }
+
+  const items: Array<{ weight: number; payload: DistributionPayload | null }> =
+    [];
+  for (const row of rows) {
+    const w = Number.parseFloat(String(row.weight));
+    if (!Number.isFinite(w) || w <= 0) {
+      continue;
+    }
+    if (row.pseudoKey) {
+      items.push({ weight: w, payload: null });
+      continue;
+    }
+    if (row.targetInstrumentId != null) {
+      const [dist] = await db
+        .select()
+        .from(distributions)
+        .where(eq(distributions.instrumentId, row.targetInstrumentId));
+      const payload = (dist?.payload as DistributionPayload | undefined) ?? {
+        countries: {},
+        sectors: {},
+      };
+      items.push({ weight: w, payload });
+    }
+  }
+
+  if (items.length === 0) {
+    throw new Error("No valid composite constituent rows");
+  }
+
+  const sumW = items.reduce((s, it) => s + it.weight, 0);
+  if (sumW > 1e-9) {
+    for (const it of items) {
+      it.weight /= sumW;
+    }
+  }
+
+  const payload = mergeCompositeDistributionPayload(items);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(seligsonDistributionCache)
+      .where(eq(seligsonDistributionCache.instrumentId, instrumentId));
+    await tx
+      .delete(yahooFinanceCache)
+      .where(eq(yahooFinanceCache.instrumentId, instrumentId));
+    await tx
+      .insert(distributions)
+      .values({
+        instrumentId,
+        fetchedAt,
+        source: "composite",
+        payload,
+      })
+      .onConflictDoUpdate({
+        target: distributions.instrumentId,
+        set: {
+          fetchedAt,
+          source: "composite",
+          payload,
+        },
+      });
+  });
+}
+
 export async function writeSeligsonDistributionCache(
   instrumentId: number,
   fid: number,
@@ -519,6 +614,11 @@ export async function refreshDistributionCacheForInstrumentId(
   const now = new Date();
 
   try {
+    if (await instrumentHasCompositeConstituents(instrumentId)) {
+      await writeCompositeDistributionCache(instrumentId, now);
+      return { ok: true };
+    }
+
     if (inst.kind === "custom" && inst.seligsonFundId) {
       const [sf] = await db
         .select()
@@ -622,6 +722,11 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
     }
 
     try {
+      if (await instrumentHasCompositeConstituents(inst.id)) {
+        await writeCompositeDistributionCache(inst.id, now);
+        continue;
+      }
+
       if (inst.kind === "custom" && inst.seligsonFundId) {
         const [sf] = await db
           .select()

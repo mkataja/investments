@@ -6,6 +6,10 @@ API fetches Seligson HTML to resolve `name` on new `seligson_funds` rows (`fetch
 
 `FundValues_FI.html` uses shorter link text than FundViewer in some rows; `fundValuesRowMatchesDbName` includes aliases (e.g. table `Global Brands` ↔ DB name containing “Top 25 Brands”) in `FUND_VALUES_TABLE_LABEL_ALIASES` in `api/src/distributions/seligsonFundValues.ts`.
 
+## Composite allocation (public table)
+
+Some funds (e.g. Varainhoitorahasto Pharos) publish a **static HTML table** on seligson.fi (“Osuus rahastosta”) instead of FundViewer line-by-line holdings. The API can build `distributions` from **weighted child instruments** stored in `instrument_composite_constituents` (`distributions.source = composite`): merge logic mirrors portfolio weighting (unknown distribution for synthetic pseudo keys). Detection: at least one row exists for `parent_instrument_id` — there is **no** `is_composite` column on `instruments`. Preview: `POST /instruments/composite-preview` with `source: seligson_pharos_table` and the page URL; create: `POST /instruments` with `constituents` and **`displayName`** (fund label; stored on a synthetic `seligson_funds` row with negative `fid`) **or** `seligsonFid` if you prefer FundViewer-backed `seligson_funds`. NAV: `FundValues_FI.html` matches by fund **name** (same as non-composite). Parser: `api/src/distributions/seligsonPharosAllocationTable.ts`.
+
 ## Holdings distribution (HTML scrape)
 
 **Bond funds:** When view=40 Allokaatio includes Korkosijoitukset and the “Korkosijoitusten jakauma” table has Pitkät korot (yrityslainat)/(valtionlainat)/Lyhyet korot, the API uses view=40 (allocation + bond-type split) and view=20 (long-bond maajakauma) instead of line-by-line holdings. Sector keys: `long_government_bonds`, `long_corporate_bonds`, `short_bonds`, plus `cash`. Raw HTML in `seligson_distribution_cache.allocation_html` and `country_html`; `holdings_html` null. Portfolio country merge scales by long govt + long corp weights (not short bonds or cash).

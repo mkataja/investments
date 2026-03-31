@@ -159,6 +159,65 @@ export const instruments = pgTable(
   ],
 );
 
+/**
+ * Weighted constituents for instruments whose distribution is merged from other instruments
+ * (or pseudo keys). Detection: rows exist for `parent_instrument_id` — no separate flag on `instruments`.
+ */
+export const instrumentCompositeConstituents = pgTable(
+  "instrument_composite_constituents",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    parentInstrumentId: integer("parent_instrument_id")
+      .notNull()
+      .references(() => instruments.id, { onDelete: "cascade" }),
+    sortOrder: integer("sort_order").notNull(),
+    rawLabel: text("raw_label"),
+    weight: numeric("weight", { precision: 24, scale: 8 }).notNull(),
+    targetInstrumentId: integer("target_instrument_id").references(
+      () => instruments.id,
+      { onDelete: "restrict" },
+    ),
+    pseudoKey: text("pseudo_key"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    check(
+      "instrument_composite_constituents_parent_target_ck",
+      sql`(
+        (${t.targetInstrumentId} IS NOT NULL)::integer
+        + (${t.pseudoKey} IS NOT NULL)::integer
+      ) = 1`,
+    ),
+    check(
+      "instrument_composite_constituents_pseudo_key_ck",
+      sql`${t.pseudoKey} IS NULL OR ${t.pseudoKey} IN (
+        'other_equities',
+        'other_long_government_bonds',
+        'other_long_corporate_bonds',
+        'other_short_government_bonds',
+        'other_short_corporate_bonds',
+        'ultrashort_bonds',
+        'cash'
+      )`,
+    ),
+    uniqueIndex("instrument_composite_constituents_parent_sort_uidx").on(
+      t.parentInstrumentId,
+      t.sortOrder,
+    ),
+    index("instrument_composite_constituents_parent_instrument_id_idx").on(
+      t.parentInstrumentId,
+    ),
+    index("instrument_composite_constituents_target_instrument_id_idx").on(
+      t.targetInstrumentId,
+    ),
+  ],
+);
+
 export const transactions = pgTable(
   "transactions",
   {
@@ -412,6 +471,9 @@ export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
     fields: [instruments.brokerId],
     references: [brokers.id],
   }),
+  compositeConstituentsAsParent: many(instrumentCompositeConstituents, {
+    relationName: "compositeConstituentsParent",
+  }),
   transactions: many(transactions),
   distribution: one(distributions, {
     fields: [instruments.id],
@@ -434,6 +496,21 @@ export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
     references: [prices.instrumentId],
   }),
 }));
+
+export const instrumentCompositeConstituentsRelations = relations(
+  instrumentCompositeConstituents,
+  ({ one }) => ({
+    parentInstrument: one(instruments, {
+      relationName: "compositeConstituentsParent",
+      fields: [instrumentCompositeConstituents.parentInstrumentId],
+      references: [instruments.id],
+    }),
+    targetInstrument: one(instruments, {
+      fields: [instrumentCompositeConstituents.targetInstrumentId],
+      references: [instruments.id],
+    }),
+  }),
+);
 
 export const transactionsRelations = relations(transactions, ({ one }) => ({
   user: one(users, {

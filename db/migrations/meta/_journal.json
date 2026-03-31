@@ -204,6 +204,20 @@
       "when": 1774971080870,
       "tag": "0028_smart_northstar",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1774972000000,
+      "tag": "0029_instrument_composite_constituents",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1774972500000,
+      "tag": "0030_composite_pseudo_keys_expand",
+      "breakpoints": true
     }
   ]
 }

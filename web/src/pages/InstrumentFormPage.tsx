@@ -1,11 +1,12 @@
 import {
   type CashCurrencyCode,
   DEFAULT_CASH_CURRENCY,
+  isCompositePseudoKey,
   normalizeCashAccountIsoCountryCode,
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
 } from "@investments/db";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPatch, apiPost } from "../api";
 import { ButtonLink } from "../components/Button";
@@ -15,6 +16,7 @@ import { EditInstrumentMode } from "../components/instrumentForm/EditInstrumentM
 import { InstrumentKindPicker } from "../components/instrumentForm/InstrumentKindPicker";
 import { NewCustomSeligsonSection } from "../components/instrumentForm/NewCustomSeligsonSection";
 import { NewYahooEtfStockSection } from "../components/instrumentForm/NewYahooEtfStockSection";
+import type { CompositePreviewRow } from "../components/instrumentForm/SeligsonCompositeModal";
 import { INSTRUMENT_FORM_CANCEL_LINK_CLASS } from "../components/instrumentForm/cancelLinkClass";
 import type {
   BrokerRow,
@@ -42,6 +44,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
 
   const yahooSymbolInputRef = useRef<HTMLInputElement>(null);
   const seligsonFidInputRef = useRef<HTMLInputElement>(null);
+  const compositeTableUrlInputRef = useRef<HTMLInputElement>(null);
   const cashDisplayNameInputRef = useRef<HTMLInputElement>(null);
 
   const [customBrokerId, setCustomBrokerId] = useState<number | "">("");
@@ -58,6 +61,30 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   );
 
   const [seligsonFid, setSeligsonFid] = useState("");
+
+  const [useCompositeAllocation, setUseCompositeAllocation] = useState(false);
+  const [compositeTableUrl, setCompositeTableUrl] = useState("");
+  const [compositeFundDisplayName, setCompositeFundDisplayName] = useState("");
+  const [compositePreview, setCompositePreview] = useState<{
+    asOfDate: string | null;
+    fundName: string | null;
+    rows: CompositePreviewRow[];
+    notes: string[];
+  } | null>(null);
+  const [compositeSelectionByRow, setCompositeSelectionByRow] = useState<
+    Record<number, string>
+  >({});
+  const [instrumentOptionsForComposite, setInstrumentOptionsForComposite] =
+    useState<
+      Array<{
+        id: number;
+        kind: string;
+        displayName: string;
+        yahooSymbol: string | null;
+        seligsonFund: { id: number; fid: number; name: string } | null;
+      }>
+    >([]);
+  const [compositionLoading, setCompositionLoading] = useState(false);
 
   const [cashDisplayName, setCashDisplayName] = useState("");
   const [cashCurrency, setCashCurrency] = useState<CashCurrencyCode>(
@@ -106,11 +133,15 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
     if (kind === "etf" || kind === "stock") {
       yahooSymbolInputRef.current?.focus();
     } else if (kind === "custom") {
-      seligsonFidInputRef.current?.focus();
+      if (useCompositeAllocation) {
+        compositeTableUrlInputRef.current?.focus();
+      } else {
+        seligsonFidInputRef.current?.focus();
+      }
     } else if (kind === "cash_account") {
       cashDisplayNameInputRef.current?.focus();
     }
-  }, [mode, kind]);
+  }, [mode, kind, useCompositeAllocation]);
 
   useEffect(() => {
     if (mode !== "new") {
@@ -168,6 +199,21 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
     }
   }, [mode, kind, brokers, cashBrokerId]);
 
+  const clearCompositeAllocationState = useCallback(() => {
+    setCompositePreview(null);
+    setCompositeSelectionByRow({});
+    setCompositeFundDisplayName("");
+  }, []);
+
+  useEffect(() => {
+    if (mode !== "new") {
+      return;
+    }
+    if (!useCompositeAllocation) {
+      clearCompositeAllocationState();
+    }
+  }, [mode, useCompositeAllocation, clearCompositeAllocationState]);
+
   async function previewYahoo() {
     setError(null);
     setYahooPreviewError(null);
@@ -184,6 +230,127 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
       setYahooPreview(data);
     } catch (e) {
       setYahooPreviewError(mapYahooInstrumentFormError(e));
+    }
+  }
+
+  async function loadCompositeComposition() {
+    setError(null);
+    const u = compositeTableUrl.trim();
+    if (!u) {
+      setError("Enter the allocation table URL.");
+      return;
+    }
+    setCompositionLoading(true);
+    try {
+      const [preview, instList] = await Promise.all([
+        apiPost<{
+          asOfDate: string | null;
+          fundName: string | null;
+          rows: CompositePreviewRow[];
+          notes: string[];
+        }>("/instruments/composite-preview", {
+          source: "seligson_pharos_table",
+          url: u,
+        }),
+        apiGet<
+          Array<{
+            id: number;
+            kind: string;
+            displayName: string;
+            yahooSymbol: string | null;
+            seligsonFund: { id: number; fid: number; name: string } | null;
+          }>
+        >("/instruments"),
+      ]);
+      setCompositePreview(preview);
+      setCompositeFundDisplayName(preview.fundName?.trim() ?? "");
+      setInstrumentOptionsForComposite(
+        instList.filter((i) => i.kind !== "cash_account"),
+      );
+      const sel: Record<number, string> = {};
+      preview.rows.forEach((r, i) => {
+        if (r.suggestedPseudoKey) {
+          sel[i] = `pseudo:${r.suggestedPseudoKey}`;
+        } else if (r.suggestedInstrumentId != null) {
+          sel[i] = String(r.suggestedInstrumentId);
+        } else {
+          sel[i] = "";
+        }
+      });
+      setCompositeSelectionByRow(sel);
+    } catch (e) {
+      setError(mapYahooInstrumentFormError(e));
+    } finally {
+      setCompositionLoading(false);
+    }
+  }
+
+  async function confirmCompositeCreate() {
+    const rows = compositePreview?.rows;
+    if (!rows || rows.length === 0) {
+      return;
+    }
+    for (let i = 0; i < rows.length; i++) {
+      const v = compositeSelectionByRow[i];
+      if (v == null || v === "") {
+        setError("Select a match for every row.");
+        return;
+      }
+    }
+    setError(null);
+    const displayName = compositeFundDisplayName.trim();
+    if (!displayName) {
+      setError("Enter a fund name.");
+      return;
+    }
+    if (customBrokerId === "" || typeof customBrokerId !== "number") {
+      setError(
+        "Select a Seligson-type broker (add one under Brokers if needed).",
+      );
+      return;
+    }
+    const constituents: Array<{
+      rawLabel: string;
+      weightOfFund: number;
+      targetInstrumentId?: number;
+      pseudoKey?: string;
+    }> = [];
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r) {
+        continue;
+      }
+      const v = compositeSelectionByRow[i] ?? "";
+      const w = r.pctOfFund;
+      if (v.startsWith("pseudo:")) {
+        const pseudo = v.slice(7);
+        if (!isCompositePseudoKey(pseudo)) {
+          setError("Invalid pseudo selection.");
+          return;
+        }
+        constituents.push({
+          rawLabel: r.rawLabel,
+          weightOfFund: w,
+          pseudoKey: pseudo,
+        });
+      } else {
+        constituents.push({
+          rawLabel: r.rawLabel,
+          weightOfFund: w,
+          targetInstrumentId: Number.parseInt(v, 10),
+        });
+      }
+    }
+    try {
+      await apiPost<InstrumentRow>("/instruments", {
+        kind: "custom",
+        brokerId: customBrokerId,
+        displayName,
+        constituents,
+      });
+      navigate("/instruments");
+    } catch (e) {
+      setError(mapYahooInstrumentFormError(e));
     }
   }
 
@@ -232,6 +399,12 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
             : {}),
         });
       } else if (kind === "custom") {
+        if (useCompositeAllocation) {
+          setError(
+            "Use Load composition to confirm constituents and create the instrument.",
+          );
+          return;
+        }
         const fid = Number.parseInt(seligsonFid, 10);
         if (!Number.isFinite(fid) || fid <= 0) {
           setError("Enter a valid Seligson FID (positive integer).");
@@ -480,6 +653,35 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
             seligsonFid={seligsonFid}
             setSeligsonFid={setSeligsonFid}
             seligsonFidInputRef={seligsonFidInputRef}
+            useCompositeAllocation={useCompositeAllocation}
+            setUseCompositeAllocation={setUseCompositeAllocation}
+            compositeTableUrl={compositeTableUrl}
+            setCompositeTableUrl={setCompositeTableUrl}
+            compositeTableUrlInputRef={compositeTableUrlInputRef}
+            onLoadComposition={() => void loadCompositeComposition()}
+            compositionLoading={compositionLoading}
+            compositePreview={compositePreview}
+            compositeFundDisplayName={compositeFundDisplayName}
+            setCompositeFundDisplayName={setCompositeFundDisplayName}
+            compositeSelectionByRow={compositeSelectionByRow}
+            onCompositeSelectionChange={(rowIndex, value) => {
+              setCompositeSelectionByRow((prev) => ({
+                ...prev,
+                [rowIndex]: value,
+              }));
+            }}
+            instrumentOptionsForComposite={instrumentOptionsForComposite}
+            onConfirmCompositeAllocation={() => void confirmCompositeCreate()}
+            confirmCompositeDisabled={
+              compositePreview == null ||
+              compositePreview.rows.length === 0 ||
+              compositeFundDisplayName.trim() === "" ||
+              compositePreview.rows.some((_, i) => {
+                const v = compositeSelectionByRow[i];
+                return v == null || v === "";
+              })
+            }
+            onClearCompositeAllocation={clearCompositeAllocationState}
           />
         ) : null}
 
@@ -504,7 +706,9 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
             type="submit"
             disabled={
               !kind ||
-              (brokersLoading && (kind === "custom" || kind === "cash_account"))
+              (brokersLoading &&
+                (kind === "custom" || kind === "cash_account")) ||
+              (kind === "custom" && useCompositeAllocation)
             }
             className="bg-emerald-700 disabled:bg-slate-300 text-white px-4 py-2 rounded"
           >

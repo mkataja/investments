@@ -6,6 +6,7 @@ export * from "./distribution/sectorIds.js";
 export * from "./currencies.js";
 export * from "./geo/index.js";
 export * from "./instrumentKind.js";
+export * from "./instrumentComposite.js";
 export * from "./instrumentSelectLabel.js";
 export * from "./schema.js";
 export * from "./appUser.js";

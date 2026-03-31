@@ -22,7 +22,8 @@ export const SELIGSON_BOND_ALLOCATION_VIEW = 40;
 /** FundViewer view=20 — long-bond country maajakauma. */
 export const SELIGSON_BOND_COUNTRY_VIEW = 20;
 
-function parseFiPercent(text: string): number | null {
+/** Finnish `%` cell (e.g. `17,6 %`) → 0–1 fraction. */
+export function parseFiPercent(text: string): number | null {
   const t = text.trim().replace(/\s/g, "").replace(",", ".");
   if (!t || t === "&nbsp;") {
     return null;
