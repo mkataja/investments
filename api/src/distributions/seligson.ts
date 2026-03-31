@@ -1,4 +1,7 @@
-import type { DistributionPayload } from "@investments/db";
+import type {
+  DistributionPayload,
+  DistributionSectorId,
+} from "@investments/db";
 import { resolveRegionKeyToIso } from "@investments/db";
 import * as cheerio from "cheerio";
 import { SELIGSON_FINNISH_SECTOR_LABEL_MAP } from "./sectorMapping.js";
@@ -123,10 +126,11 @@ export function parseSeligsonDistributions(
         return;
       }
       const first = $40(tds[0]).text().trim();
-      const sectorId = SELIGSON_FINNISH_SECTOR_LABEL_MAP[first];
-      if (!sectorId) {
+      if (first === "" || first === "Yhteensä") {
         return;
       }
+      const sectorId: DistributionSectorId =
+        SELIGSON_FINNISH_SECTOR_LABEL_MAP[first] ?? "other";
       const lastCell = parseFiPercent($40(tds[tds.length - 1]).text());
       if (lastCell !== null && lastCell > 0) {
         sectors[sectorId] = (sectors[sectorId] ?? 0) + lastCell;
