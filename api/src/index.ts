@@ -1017,7 +1017,7 @@ app.post("/import/seligson", async (c) => {
       return c.json(
         {
           message:
-            "No instrument matches the following fund names. Add Seligson custom instruments first.",
+            "No instrument matches the following fund names. Add Seligson instruments first.",
           missingFundNames,
         },
         400,
@@ -1547,7 +1547,7 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
     }
     if (br.brokerType !== "seligson") {
       return c.json(
-        { message: "Custom instruments require a Seligson-type broker" },
+        { message: "Seligson instruments require a Seligson-type broker" },
         400,
       );
     }

@@ -13,7 +13,7 @@ export type InstrumentKind = (typeof INSTRUMENT_KINDS)[number];
 export const INSTRUMENT_KIND_DISPLAY: Record<InstrumentKind, string> = {
   etf: "ETF",
   stock: "Stock",
-  custom: "Custom",
+  custom: "Seligson",
   cash_account: "Cash",
 };
 
@@ -49,7 +49,7 @@ export function instrumentKindColumnLabel(
   }
 }
 
-/** Row shape for list/detail ticker: Yahoo symbol; Seligson custom has no public ticker (null); "-" for cash. */
+/** Row shape for list/detail ticker: Yahoo symbol; Seligson (`custom`) has no public ticker (null); "-" for cash. */
 export function instrumentTickerDisplay(row: {
   kind: string;
   yahooSymbol: string | null;

@@ -435,7 +435,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
               : kind === "stock"
                 ? "Stock"
                 : kind === "custom"
-                  ? "Custom (Seligson)"
+                  ? "Seligson"
                   : "Cash account"}
           </p>
         ) : null}

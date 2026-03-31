@@ -3,7 +3,7 @@ import type { InstrumentKind } from "./types";
 const OPTIONS: readonly { value: InstrumentKind; label: string }[] = [
   { value: "etf", label: "ETF" },
   { value: "stock", label: "Stock" },
-  { value: "custom", label: "Custom (Seligson)" },
+  { value: "custom", label: "Seligson" },
   { value: "cash_account", label: "Cash account" },
 ];
 

@@ -703,7 +703,7 @@ export function ImportPage() {
       <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2>Seligson</h2>
         <p className="text-sm text-slate-600">
-          Portfolio export (TSV). Fund names must match existing Seligson custom
+          Portfolio export (TSV). Fund names must match existing Seligson
           instruments.
         </p>
         <form
