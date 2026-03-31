@@ -3,7 +3,35 @@ export type HoldingsProviderKind =
   | "ssga_xlsx"
   | "xtrackers_xlsx"
   | "jpm_xlsx"
-  | "sec_13f_xml";
+  | "sec_13f_xml"
+  | "vanguard_uk_gpx";
+
+/** UK Professional fund page path: `/professional/product/{etf|fund|mf}/{assetClass}/{portId}/{slug}`. */
+const VANGUARD_UK_PROFESSIONAL_PRODUCT_PATH =
+  /^\/professional\/product\/(?:etf|fund|mf)\/[^/]+\/(\d+)\/[^/]+\/?$/;
+
+/**
+ * Returns Vanguard UK **port id** (e.g. `9678`) when `url` is a supported
+ * `www.vanguard.co.uk` professional product URL; otherwise `null`.
+ */
+export function parseVanguardUkProfessionalHoldingsPortId(
+  urlStr: string,
+): string | null {
+  let u: URL;
+  try {
+    u = new URL(urlStr.trim());
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:") {
+    return null;
+  }
+  if (u.hostname.toLowerCase() !== "www.vanguard.co.uk") {
+    return null;
+  }
+  const m = u.pathname.match(VANGUARD_UK_PROFESSIONAL_PRODUCT_PATH);
+  return m?.[1] ?? null;
+}
 
 function hostnameMatches(host: string, rootDomain: string): boolean {
   const h = host.toLowerCase();
@@ -45,6 +73,11 @@ export function resolveHoldingsProviderKind(
       return "sec_13f_xml";
     }
   }
+  if (host.toLowerCase() === "www.vanguard.co.uk") {
+    return parseVanguardUkProfessionalHoldingsPortId(u.href)
+      ? "vanguard_uk_gpx"
+      : null;
+  }
   return null;
 }
 
@@ -83,7 +116,7 @@ export function validateHoldingsDistributionUrl(
     return {
       ok: false,
       message:
-        "Unsupported holdings URL host. Use iShares (ishares.com), SPDR / SSGA (ssga.com), Xtrackers / DWS (dws.com), J.P. Morgan (am.jpmorgan.com), or an SEC EDGAR 13F information table XML (sec.gov …/Archives/edgar/data/…/*.xml).",
+        "Unsupported holdings URL host. Use iShares (ishares.com), SPDR / SSGA (ssga.com), Xtrackers / DWS (dws.com), J.P. Morgan (am.jpmorgan.com), SEC EDGAR 13F information table XML (sec.gov …/Archives/edgar/data/…/*.xml), or a Vanguard UK Professional fund page (https://www.vanguard.co.uk/professional/product/…).",
     };
   }
   return { ok: true, normalized: u.toString(), provider };

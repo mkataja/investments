@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  parseVanguardUkProfessionalHoldingsPortId,
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
 } from "@investments/db";
@@ -14,6 +15,7 @@ import {
   parseJpmProductDataSectorBreakdown,
 } from "./parseJpmProductDataSectorBreakdown.js";
 import { parseSsgaHoldingsXlsx } from "./parseSsgaHoldingsXlsx.js";
+import { parseVanguardUkGpxHoldingsJson } from "./parseVanguardUkGpxHoldings.js";
 import { parseXtrackersHoldingsXlsx } from "./parseXtrackersHoldingsXlsx.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -68,6 +70,81 @@ describe("validateHoldingsDistributionUrl", () => {
   it("rejects unsupported host", () => {
     const r = validateHoldingsDistributionUrl("https://example.com/h.csv");
     expect(r.ok).toBe(false);
+  });
+  it("accepts Vanguard UK Professional product HTTPS URL", () => {
+    const r = validateHoldingsDistributionUrl(
+      "https://www.vanguard.co.uk/professional/product/etf/equity/9678/ftse-emerging-markets-ucits-etf-usd-accumulating",
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.provider).toBe("vanguard_uk_gpx");
+    }
+  });
+  it("rejects Vanguard host without professional product path", () => {
+    const r = validateHoldingsDistributionUrl(
+      "https://www.vanguard.co.uk/professional/",
+    );
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("parseVanguardUkProfessionalHoldingsPortId", () => {
+  it("extracts port id from product URL", () => {
+    expect(
+      parseVanguardUkProfessionalHoldingsPortId(
+        "https://www.vanguard.co.uk/professional/product/etf/equity/9678/ftse-emerging-markets-ucits-etf-usd-accumulating",
+      ),
+    ).toBe("9678");
+  });
+  it("returns null for non-UK Vanguard host", () => {
+    expect(
+      parseVanguardUkProfessionalHoldingsPortId(
+        "https://www.ie.vanguard/products/etf/equity/9678/foo",
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("parseVanguardUkGpxHoldingsJson", () => {
+  it("aggregates Bloomberg ISO country and GICS sector weights", () => {
+    const { countries, sectors } = parseVanguardUkGpxHoldingsJson([
+      {
+        marketValuePercentage: 60,
+        bloombergIsoCountry: "US",
+        gicsSectorDescription: "Technology",
+        securityType: "EQ.STOCK",
+      },
+      {
+        marketValuePercentage: 40,
+        bloombergIsoCountry: "GB",
+        gicsSectorDescription: "Financials",
+        securityType: "EQ.STOCK",
+      },
+    ]);
+    expect(countries.US).toBeCloseTo(0.6, 5);
+    expect(countries.GB).toBeCloseTo(0.4, 5);
+    expect(sectors.technology).toBeCloseTo(0.6, 5);
+    expect(sectors.financials).toBeCloseTo(0.4, 5);
+  });
+
+  it("attributes cash to sectors.cash and skips countries", () => {
+    const { countries, sectors } = parseVanguardUkGpxHoldingsJson([
+      {
+        marketValuePercentage: 2,
+        marketValueBaseCurrency: "USD",
+        bloombergIsoCountry: "US",
+        securityType: "MM.TBILL",
+        issuerName: "Cash",
+      },
+      {
+        marketValuePercentage: 98,
+        bloombergIsoCountry: "US",
+        gicsSectorDescription: "Technology",
+        securityType: "EQ.STOCK",
+      },
+    ]);
+    expect(countries.US).toBeCloseTo(0.98, 5);
+    expect(sectors.cash).toBeCloseTo(0.02, 5);
   });
 });
 

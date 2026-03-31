@@ -3,6 +3,7 @@ import {
   JPM_HOLDINGS_EXAMPLE_URL,
   SEC_13F_HOLDINGS_EXAMPLE_URL,
   SPDR_HOLDINGS_EXAMPLE_URL,
+  VANGUARD_UK_HOLDINGS_EXAMPLE_URL,
   XTRACKERS_HOLDINGS_EXAMPLE_URL,
 } from "../lib/holdingsExampleUrls";
 
@@ -38,12 +39,18 @@ export function ProviderHoldingsUrlHint({
           </span>
           {SEC_13F_HOLDINGS_EXAMPLE_URL}
         </p>
+        <p className="font-mono break-all">
+          <span className="text-slate-500">
+            Vanguard UK (professional product page):{" "}
+          </span>
+          {VANGUARD_UK_HOLDINGS_EXAMPLE_URL}
+        </p>
       </div>
       {showClearToYahooNote ? (
         <p className="text-xs text-slate-500">
           When set, country/sector distributions are built from this file
-          (iShares CSV, SPDR XLSX, Xtrackers XLSX, J.P. Morgan XLSX, or SEC 13F
-          XML). Clear the field to use Yahoo only.
+          (iShares CSV, SPDR XLSX, Xtrackers XLSX, J.P. Morgan XLSX, SEC 13F
+          XML, or Vanguard UK GPX). Clear the field to use Yahoo only.
         </p>
       ) : null}
     </>

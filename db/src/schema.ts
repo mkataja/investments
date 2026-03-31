@@ -121,8 +121,8 @@ export const instruments = pgTable(
     cashCurrency: text("cash_currency"),
     cashInterestType: text("cash_interest_type"),
     /**
-     * Optional HTTPS URL to provider holdings file (iShares CSV, SSGA XLSX, or DWS Xtrackers XLSX).
-     * Parser is chosen from the URL hostname — see API `holdingsUrl` validation.
+     * Optional HTTPS URL to provider holdings (iShares CSV, SSGA XLSX, DWS Xtrackers XLSX, JPM XLSX, SEC 13F XML, or Vanguard UK Professional product page).
+     * Parser is chosen from the URL hostname/path — see `validateHoldingsDistributionUrl` in `@investments/db`.
      */
     holdingsDistributionUrl: text("holdings_distribution_url"),
     /**
@@ -232,9 +232,9 @@ export const providerHoldingsCache = pgTable("provider_holdings_cache", {
     .primaryKey()
     .references(() => instruments.id, { onDelete: "cascade" }),
   fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
-  /** Same label as `distributions.source` for this fetch (`ishares_holdings_csv`, `ssga_holdings_xlsx`, `xtrackers_holdings_xlsx`, `jpm_holdings_xlsx`, `sec_13f_infotable_xml`). */
+  /** Same label as `distributions.source` for this fetch (`ishares_holdings_csv`, `ssga_holdings_xlsx`, `xtrackers_holdings_xlsx`, `jpm_holdings_xlsx`, `sec_13f_infotable_xml`, `vanguard_uk_gpx`). */
   source: text("source").notNull(),
-  /** CSV UTF-8 text, or base64-encoded XLSX bytes. */
+  /** CSV UTF-8 text, base64-encoded XLSX bytes, or JSON snapshot (`vanguard_uk_gpx`). */
   raw: text("raw").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

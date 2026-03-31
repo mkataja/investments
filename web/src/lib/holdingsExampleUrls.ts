@@ -1,4 +1,9 @@
 /** Example HTTPS URLs accepted by `validateHoldingsDistributionUrl` (see `api` providerHoldings tests). */
+
+/** Vanguard UK Professional fund page (GPX GraphQL holdings; port id in path). */
+export const VANGUARD_UK_HOLDINGS_EXAMPLE_URL =
+  "https://www.vanguard.co.uk/professional/product/etf/equity/9678/ftse-emerging-markets-ucits-etf-usd-accumulating";
+
 export const ISHARES_HOLDINGS_EXAMPLE_URL =
   "https://www.ishares.com/uk/individual/en/products/253743/ishares-sp-500-b-ucits-etf-acc-fund/1506575576011.ajax?fileType=csv&fileName=CSPX_holdings&dataType=fund";
 
