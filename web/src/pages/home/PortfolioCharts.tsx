@@ -130,17 +130,21 @@ export function PortfolioCharts({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-xl font-medium text-slate-800">
-        Distributions (value-weighted)
-      </h2>
-      <p className="text-slate-600 text-sm">
-        Total estimated:{" "}
-        <span className="tabular-nums">
-          {portfolio.totalValueEur.toFixed(0)}
+      <h2 className="text-xl font-medium text-slate-800">Distributions</h2>
+      <p className="text-slate-600">
+        Total estimated portfolio value:{" "}
+        <span className="font-semibold">
+          <span className="tabular-nums">
+            {(
+              portfolio.totalValueEur -
+              portfolio.assetAllocation.emergencyFundSliceEur
+            ).toFixed(0)}
+          </span>{" "}
+          EUR
         </span>{" "}
-        EUR (incl.{" "}
+        (plus{" "}
         <span className="tabular-nums">
-          {portfolio.assetAllocation.emergencyFundSliceEur.toFixed(2)}
+          {portfolio.assetAllocation.emergencyFundSliceEur.toFixed(0)}
         </span>{" "}
         EUR emergency fund)
         {portfolio.mixedCurrencyWarning && (
