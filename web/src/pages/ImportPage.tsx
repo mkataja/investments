@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { HttpError, apiGet, apiPostFormData } from "../api";
 import { Button } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
@@ -81,6 +81,10 @@ function tryParseImportErrorJson(msg: string): {
 export function ImportPage() {
   const [degiroFile, setDegiroFile] = useState<File | null>(null);
   const [seligsonFile, setSeligsonFile] = useState<File | null>(null);
+  const [seligsonPasteText, setSeligsonPasteText] = useState("");
+  const [seligsonPasteOpen, setSeligsonPasteOpen] = useState(false);
+  const seligsonFileInputRef = useRef<HTMLInputElement>(null);
+  const seligsonPasteTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DegiroOk | null>(null);
@@ -144,6 +148,12 @@ export function ImportPage() {
     }
     setSelectedIsin(next);
   }, [pending]);
+
+  useEffect(() => {
+    if (seligsonPasteOpen) {
+      seligsonPasteTextareaRef.current?.focus();
+    }
+  }, [seligsonPasteOpen]);
 
   async function onSubmitDegiro(e: FormEvent) {
     e.preventDefault();
@@ -341,14 +351,21 @@ export function ImportPage() {
     setSeligsonResult(null);
     setSeligsonMissingFunds(null);
     setSeligsonAmbiguousFunds(null);
-    if (!seligsonFile) {
-      setSeligsonError("Choose a TSV file first.");
+    const fileForUpload =
+      seligsonFile ??
+      (seligsonPasteText.trim().length > 0
+        ? new File([seligsonPasteText], "seligson-paste.tsv", {
+            type: "text/tab-separated-values",
+          })
+        : null);
+    if (fileForUpload === null) {
+      setSeligsonError("Choose a file or paste export text first.");
       return;
     }
     setBusy(true);
     try {
       const form = new FormData();
-      form.append("file", seligsonFile);
+      form.append("file", fileForUpload);
       if (importPortfolioId != null) {
         form.append("portfolioId", String(importPortfolioId));
       }
@@ -366,6 +383,8 @@ export function ImportPage() {
         "unchanged" in data
       ) {
         setSeligsonResult(data as DegiroOk);
+        setSeligsonPasteText("");
+        setSeligsonPasteOpen(false);
         return;
       }
       setSeligsonError("Unexpected response from server.");
@@ -713,46 +732,96 @@ export function ImportPage() {
             >
               <em>Oma Salkku</em> → <em>Tapahtumat</em>
             </a>
-            , copy the full table from the header row through the summary row,
-            paste into a text editor, and save as a{" "}
-            <span className="font-medium">.tsv</span> file for import here. No
-            extra formatting is required, paste the content as-is. If needed,
-            change the default page size from 25 to all items so nothing is
-            missing.
+            , copy the full table from the header row through the summary row.
+            If needed, change the page size from 25 to all items so nothing is
+            missing. Paste it into the field below via{" "}
+            <span className="font-medium">Paste here...</span>, or alternatively
+            save the same content as a{" "}
+            <span className="font-medium">text file</span> and upload it. No
+            extra formatting is required — paste as-is.
           </p>
           <p>The PDF report is not supported.</p>
           <p>
             The funds need to be added to the instruments list before importing.
           </p>
         </div>
-        <form
-          className="flex flex-col gap-3 sm:flex-row sm:items-end"
-          onSubmit={onSubmitSeligson}
-        >
-          <div className="min-w-0 flex-1">
-            <label htmlFor="seligson-tsv" className="sr-only">
-              Seligson TSV file
-            </label>
-            <input
-              id="seligson-tsv"
-              name="file"
-              type="file"
-              accept=".tsv,.txt,text/tab-separated-values"
-              className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border file:border-slate-300 file:bg-slate-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-100"
-              onChange={(ev) => {
-                const f = ev.target.files?.[0];
-                setSeligsonFile(f ?? null);
-                setSeligsonResult(null);
-                setSeligsonError(null);
-                setSeligsonMissingFunds(null);
-                setSeligsonAmbiguousFunds(null);
-              }}
-            />
-          </div>
-          {seligsonFile !== null ? (
-            <Button type="submit" disabled={busy}>
+        <form className="flex flex-col gap-3" onSubmit={onSubmitSeligson}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
+              <Button
+                type="button"
+                onClick={() => {
+                  setSeligsonPasteOpen((o) => !o);
+                }}
+              >
+                {seligsonPasteOpen ? "Hide paste" : "Paste here..."}
+              </Button>
+              <span className="shrink-0 text-sm font-medium text-slate-400 sm:px-0.5">
+                or
+              </span>
+              <div className="min-w-0 flex-1">
+                <label htmlFor="seligson-tsv" className="sr-only">
+                  Seligson export file
+                </label>
+                <input
+                  ref={seligsonFileInputRef}
+                  id="seligson-tsv"
+                  name="file"
+                  type="file"
+                  className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border file:border-slate-300 file:bg-slate-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-800 hover:file:bg-slate-100"
+                  onChange={(ev) => {
+                    const f = ev.target.files?.[0];
+                    setSeligsonFile(f ?? null);
+                    if (f != null) {
+                      setSeligsonPasteText("");
+                      setSeligsonPasteOpen(false);
+                    }
+                    setSeligsonResult(null);
+                    setSeligsonError(null);
+                    setSeligsonMissingFunds(null);
+                    setSeligsonAmbiguousFunds(null);
+                  }}
+                />
+              </div>
+            </div>
+            <Button
+              type="submit"
+              disabled={
+                busy ||
+                (seligsonFile === null && seligsonPasteText.trim().length === 0)
+              }
+            >
               {busy ? "Working…" : "Import"}
             </Button>
+          </div>
+          {seligsonPasteOpen ? (
+            <div>
+              <label htmlFor="seligson-paste" className="sr-only">
+                Paste Seligson export
+              </label>
+              <textarea
+                ref={seligsonPasteTextareaRef}
+                id="seligson-paste"
+                value={seligsonPasteText}
+                onChange={(ev) => {
+                  const v = ev.target.value;
+                  setSeligsonPasteText(v);
+                  if (v.length > 0) {
+                    setSeligsonFile(null);
+                    if (seligsonFileInputRef.current) {
+                      seligsonFileInputRef.current.value = "";
+                    }
+                  }
+                  setSeligsonResult(null);
+                  setSeligsonError(null);
+                  setSeligsonMissingFunds(null);
+                  setSeligsonAmbiguousFunds(null);
+                }}
+                rows={5}
+                className="my-2 max-h-32 w-full resize-y rounded border border-slate-300 px-2 py-1.5 font-mono text-xs text-slate-800"
+                spellCheck={false}
+              />
+            </div>
           ) : null}
         </form>
         {seligsonError !== null ? (
