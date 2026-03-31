@@ -115,4 +115,105 @@ describe("namesMatchSeligsonYahoo", () => {
       ),
     ).toBe(true);
   });
+
+  it("matches Seligson cos to Yahoo Companies and common US suffixes", () => {
+    expect(
+      namesMatchSeligsonYahoo("lowe's cos inc", "Lowe's Companies, Inc."),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo(
+        "marsh & mclennan cos inc",
+        "Marsh & McLennan Companies, Inc.",
+      ),
+    ).toBe(true);
+    expect(namesMatchSeligsonYahoo("ge vernova llc", "GE Vernova Inc.")).toBe(
+      true,
+    );
+    expect(
+      namesMatchSeligsonYahoo(
+        "goldman sachs group inc/the",
+        "The Goldman Sachs Group, Inc.",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches & with and (e.g. Hong Kong Exchanges)", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "hong kong exchanges & clearing",
+        "Hong Kong Exchanges and Clearing Limited",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches short first-token tickers to spelled-out Yahoo names (e.g. ANZ)", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "anz group holdings ltd",
+        "Australia and New Zealand Banking Group Limited",
+      ),
+    ).toBe(true);
+  });
+
+  it("strips /Japan suffix before matching", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "oriental land co ltd/japan",
+        "Oriental Land Co., Ltd.",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches Japanese KK and kabushiki kaisha tails", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "nippon yusen kk",
+        "Nippon Yusen Kabushiki Kaisha",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches short REIT names to long Yahoo trust names via significant words", () => {
+    expect(
+      namesMatchSeligsonYahoo("link reit", "Link Real Estate Investment Trust"),
+    ).toBe(true);
+  });
+
+  it("matches seven and i style names", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "seven and i holdings co ltd",
+        "Seven & i Holdings Co., Ltd.",
+      ),
+    ).toBe(true);
+  });
+
+  it("matches Finnish Oyj and two-letter tickers (e.g. EQ)", () => {
+    expect(
+      namesMatchSeligsonYahoo("metso outotec oyj", "Metso Outotec Oyj"),
+    ).toBe(true);
+    expect(namesMatchSeligsonYahoo("eq oyj", "EQ Oyj")).toBe(true);
+  });
+
+  it("strips /Canada and /Delaware and Danish a/s", () => {
+    expect(namesMatchSeligsonYahoo("atco ltd/canada", "ATCO Ltd.")).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo(
+        "cisco systems inc/delaware",
+        "Cisco Systems, Inc.",
+      ),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo("dsv panalpina a/s", "DSV Panalpina A/S"),
+    ).toBe(true);
+  });
+
+  it("normalizes Spanish y to and (Vina Concha y Toro)", () => {
+    expect(
+      namesMatchSeligsonYahoo(
+        "vina concha y toro sa",
+        "Viña Concha y Toro S.A.",
+      ),
+    ).toBe(true);
+  });
 });

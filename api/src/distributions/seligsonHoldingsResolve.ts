@@ -58,11 +58,32 @@ export function normalizeIsin12(
   return /^[A-Z0-9]{12}$/.test(n) ? n : null;
 }
 
-function normalizeComparableName(s: string): string {
+/**
+ * Seligson sometimes appends `/Japan`, `/Canada`, or `/Delaware` to the company cell.
+ */
+function stripSeligsonRegionSuffix(s: string): string {
   return s
+    .replace(/\s*\/\s*japan\s*$/i, "")
+    .replace(/\s*\/\s*canada\s*$/i, "")
+    .replace(/\s*\/\s*delaware\s*$/i, "")
+    .trim();
+}
+
+/** Truncated English cell (e.g. "… group co of" missing "China"). */
+function stripTrailingIncompleteOf(s: string): string {
+  return s.replace(/\s+of\s*$/i, "").trim();
+}
+
+function normalizeComparableName(s: string): string {
+  const pre = stripTrailingIncompleteOf(stripSeligsonRegionSuffix(s))
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/\p{M}/gu, "")
+    .replace(/\p{M}/gu, "");
+  const withAnd = pre
+    .replace(/\ba\s*\/\s*s\b/gi, " as")
+    .replace(/\s*&\s*/g, " and ")
+    .replace(/\s+y\s+/gi, " and ");
+  return withAnd
     .replace(/[^a-z0-9]+/gi, " ")
     .trim()
     .replace(/\s+/g, " ");
@@ -74,6 +95,8 @@ function normalizeComparableName(s: string): string {
  */
 function collapseSplitLegalAbbrevs(normalized: string): string {
   return normalized
+    .replace(/\bk\s+k\b/g, "kk")
+    .replace(/\bl\s+oreal\b/g, "loreal")
     .replace(/\bs\s+p\s+a\b/g, "spa")
     .replace(/\bs\s+a\b/g, "sa");
 }
@@ -91,34 +114,52 @@ const LEGAL_FORM_SUFFIX_TOKENS = new Set([
   "ag",
   "aktiebolag",
   "aktiengesellschaft",
+  "as",
   "asa",
   "bv",
   "co",
+  "companies",
   "company",
   "corp",
   "corporation",
+  "cos",
+  "cv",
+  "delaware",
   "europeenne",
   "gmbh",
+  "group",
+  "holding",
+  "holdings",
   "inc",
   "incorporated",
   "kg",
   "kgaa",
+  "kabushiki",
+  "kaisha",
+  "kk",
   "limited",
+  "llc",
   "llp",
   "lp",
   "ltd",
+  "md",
   "nv",
   "oy",
   "oyj",
   "plc",
+  "reit",
   "sa",
   "sarl",
+  "sab",
   "sas",
   "se",
+  "de",
+  "sgps",
   "societe",
   "spa",
   "srl",
   "the",
+  "trust",
 ]);
 
 function stripTrailingLegalFormTokens(normalized: string): string {
@@ -138,22 +179,181 @@ function comparableNameForMatch(raw: string): string {
   );
 }
 
+/** Stopwords when building Yahoo name initials (abbreviation vs full legal name). */
+const NAME_INITIALS_STOPWORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "as",
+  "at",
+  "by",
+  "for",
+  "in",
+  "of",
+  "on",
+  "or",
+  "the",
+  "to",
+]);
+
+/**
+ * First letters of significant words (e.g. Australia + New + Zealand + Banking → "anzb…").
+ * Used to match Seligson's short first token ("anz") to Yahoo's spelled-out name.
+ */
+function yahooNameInitialsString(yahooComparable: string): string {
+  const words = yahooComparable.split(" ").filter((w) => w.length > 0);
+  const parts: string[] = [];
+  for (const w of words) {
+    if (w.length < 2 || NAME_INITIALS_STOPWORDS.has(w)) {
+      continue;
+    }
+    parts.push(w[0] ?? "");
+  }
+  return parts.join("");
+}
+
+/**
+ * Seligson short leading token (e.g. ANZ) appears as consecutive letters in Yahoo initials.
+ */
+function namesMatchSeligsonYahooInitials(
+  seligsonComparable: string,
+  yahooComparable: string,
+): boolean {
+  const first = seligsonComparable.split(" ")[0] ?? "";
+  if (first.length < 2 || first.length > 5 || !/^[a-z]+$/i.test(first)) {
+    return false;
+  }
+  const ini = yahooNameInitialsString(yahooComparable);
+  if (ini.length < 3) {
+    return false;
+  }
+  return ini.includes(first.toLowerCase());
+}
+
+/** Words (len ≥ 2, not stopwords) from the shorter comparable must all appear on the longer side (e.g. Link REIT vs long trust name). */
+function significantWordsForMatch(comp: string): string[] {
+  return comp
+    .split(" ")
+    .filter((w) => w.length >= 2 && !NAME_INITIALS_STOPWORDS.has(w));
+}
+
+function namesMatchSeligsonYahooSignificantWords(
+  seligsonComparable: string,
+  yahooComparable: string,
+): boolean {
+  const shorter =
+    seligsonComparable.length <= yahooComparable.length
+      ? seligsonComparable
+      : yahooComparable;
+  const longer =
+    seligsonComparable.length <= yahooComparable.length
+      ? yahooComparable
+      : seligsonComparable;
+  const words = significantWordsForMatch(shorter);
+  if (words.length === 0) {
+    return false;
+  }
+  const longerWords = new Set(longer.split(" ").filter((w) => w.length > 0));
+  return words.every((w) => longerWords.has(w));
+}
+
+/** Reject ambiguous two-letter pairs (e.g. stock tickers) while allowing real symbols like "eq". */
+const TWO_LETTER_REJECT_EXACT = new Set([
+  "ab",
+  "ag",
+  "am",
+  "an",
+  "as",
+  "at",
+  "be",
+  "by",
+  "do",
+  "go",
+  "if",
+  "in",
+  "is",
+  "it",
+  "no",
+  "of",
+  "on",
+  "or",
+  "so",
+  "to",
+  "us",
+  "we",
+]);
+
+function namesMatchTwoLetterExact(a: string, b: string): boolean {
+  if (a.length !== 2 || b.length !== 2 || a !== b) {
+    return false;
+  }
+  return !TWO_LETTER_REJECT_EXACT.has(a);
+}
+
+/** Two-letter head ticker (e.g. EQ) appears as its own word on the Yahoo side (e.g. "EQ Plc"). */
+function namesMatchTwoLetterWithLongToken(
+  short: string,
+  long: string,
+): boolean {
+  if (long.length <= short.length) {
+    return false;
+  }
+  if (!/^[a-z]{2}$/.test(short)) {
+    return false;
+  }
+  const longWords = new Set(long.split(" ").filter((w) => w.length > 0));
+  return longWords.has(short);
+}
+
 export function namesMatchSeligsonYahoo(
   seligson: string,
   yahooDisplay: string,
 ): boolean {
   const a = comparableNameForMatch(seligson);
   const b = comparableNameForMatch(yahooDisplay);
+  if (a.length < 2 || b.length < 2) {
+    return false;
+  }
+  if (namesMatchTwoLetterExact(a, b)) {
+    return true;
+  }
+  if (a.length < 3 && b.length < 3) {
+    return false;
+  }
+  if (a.length === 2 && b.length > 2) {
+    return namesMatchTwoLetterWithLongToken(a, b);
+  }
+  if (b.length === 2 && a.length > 2) {
+    return namesMatchTwoLetterWithLongToken(b, a);
+  }
   if (a.length < 3 || b.length < 3) {
     return false;
   }
-  return a === b || a.includes(b) || b.includes(a);
+  if (a === b || a.includes(b) || b.includes(a)) {
+    return true;
+  }
+  if (namesMatchSeligsonYahooInitials(a, b)) {
+    return true;
+  }
+  return namesMatchSeligsonYahooSignificantWords(a, b);
 }
 
 function sectorLabelFromYahooRaw(raw: YahooQuoteSummaryRaw): string | null {
-  const asset = raw.assetProfile as { sector?: unknown } | undefined;
+  const asset = raw.assetProfile as
+    | {
+        sector?: unknown;
+        industry?: unknown;
+      }
+    | undefined;
   const s = asset?.sector;
-  return typeof s === "string" && s.trim().length > 0 ? s.trim() : null;
+  if (typeof s === "string" && s.trim().length > 0) {
+    return s.trim();
+  }
+  const ind = asset?.industry;
+  if (typeof ind === "string" && ind.trim().length > 0) {
+    return ind.trim();
+  }
+  return null;
 }
 
 function verifyYahooMatchesRow(
@@ -162,30 +362,19 @@ function verifyYahooMatchesRow(
   row: SeligsonHoldingsRow,
   expectedIsin: string | null | undefined,
 ): boolean {
+  const fromQuote = extractIsinFromQuoteSummaryRaw(raw);
+  if (expectedIsin && fromQuote === expectedIsin) {
+    return true;
+  }
   const lookup = buildYahooInstrumentLookup(raw, symbol);
   const yn = displayNameFromYahooLookup(lookup, symbol);
   if (!namesMatchSeligsonYahoo(row.companyName, yn)) {
     return false;
   }
-  if (expectedIsin) {
-    const fromQuote = extractIsinFromQuoteSummaryRaw(raw);
-    if (fromQuote && fromQuote !== expectedIsin) {
-      return false;
-    }
+  if (expectedIsin && fromQuote && fromQuote !== expectedIsin) {
+    return false;
   }
-  const selIso = resolveRegionKeyToIso(row.countryFi);
-  if (!selIso) {
-    return true;
-  }
-  const yahooCountry = lookup.country?.trim();
-  if (!yahooCountry) {
-    return true;
-  }
-  const yahooIso = resolveRegionKeyToIso(yahooCountry);
-  if (!yahooIso) {
-    return true;
-  }
-  return yahooIso === selIso;
+  return true;
 }
 
 type ResolvedSector = {
@@ -256,20 +445,24 @@ async function yahooSearchSymbolsForCompanyName(
 }
 
 /**
- * First candidate order wins (search / OpenFIGI order). Requiring exactly one
- * verified match rejected valid names when several listings (e.g. ADS.DE + ADDYY)
- * all matched name + country.
+ * First candidate that verifies **and** yields a mappable sector/industry wins.
+ * Many APAC listings expose an empty `sector` on one symbol but not another; the first
+ * symbol that passed name/ISIN checks could still fail sector resolution—keep trying.
  */
-async function quoteSummarySingleVerifiedCandidate(
+async function quoteSummaryFirstResolvableSector(
   candidates: string[],
   row: SeligsonHoldingsRow,
   expectedIsin: string | null | undefined,
-): Promise<{ raw: YahooQuoteSummaryRaw; symbol: string } | null> {
+): Promise<ResolvedSector | null> {
   for (const sym of candidates) {
     try {
       const raw = await fetchYahooQuoteSummaryRaw(sym);
-      if (verifyYahooMatchesRow(raw, sym, row, expectedIsin)) {
-        return { raw, symbol: sym };
+      if (!verifyYahooMatchesRow(raw, sym, row, expectedIsin)) {
+        continue;
+      }
+      const resolved = resolvedSectorFromVerifiedQuote({ raw, symbol: sym });
+      if (resolved) {
+        return resolved;
       }
     } catch {
       // try next candidate
@@ -311,18 +504,20 @@ async function resolveViaYahooForRow(
   const isinNormalized = normalizeIsin12(row.isin);
   const expectedIsin = isinNormalized ?? undefined;
   if (row.companyName.trim().length > 0) {
-    const searchSyms = await yahooSearchSymbolsForCompanyName(row.companyName);
+    const q = stripTrailingIncompleteOf(
+      stripSeligsonRegionSuffix(row.companyName.trim()),
+    );
+    const searchSyms = await yahooSearchSymbolsForCompanyName(
+      q.length > 0 ? q : row.companyName.trim(),
+    );
     if (searchSyms.length > 0) {
-      const got = await quoteSummarySingleVerifiedCandidate(
+      const r = await quoteSummaryFirstResolvableSector(
         searchSyms,
         row,
         expectedIsin,
       );
-      if (got) {
-        const r = resolvedSectorFromVerifiedQuote(got);
-        if (r) {
-          return r;
-        }
+      if (r) {
+        return r;
       }
     }
   }
@@ -337,15 +532,7 @@ async function resolveViaYahooForRow(
     figiRows,
   );
   const candidates = [...candSet].sort((a, b) => a.localeCompare(b));
-  const got = await quoteSummarySingleVerifiedCandidate(
-    candidates,
-    row,
-    expectedIsin,
-  );
-  if (!got) {
-    return null;
-  }
-  return resolvedSectorFromVerifiedQuote(got);
+  return quoteSummaryFirstResolvableSector(candidates, row, expectedIsin);
 }
 
 async function upsertResolutionCache(
