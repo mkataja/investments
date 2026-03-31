@@ -56,16 +56,21 @@ export type PortfolioDistributions = {
   sectors: Record<string, number>;
   totalValueEur: number;
   mixedCurrencyWarning: boolean;
-  assetAllocation: {
+  /** Sum of (position EUR − embedded fund cash) for non–cash-account holdings. */
+  nonCashPrincipalEur: number;
+  cashInFundsEur: number;
+  cashExcessEur: number;
+  emergencyFundSliceEur: number;
+  emergencyFundTargetEur: number;
+  cashTotalEur: number;
+  cashBelowEmergencyTarget: boolean;
+  assetMix: {
     equitiesEur: number;
-    bondsEur: number;
+    bondsTotalEur: number;
     cashInFundsEur: number;
     cashExcessEur: number;
-    emergencyFundSliceEur: number;
-    emergencyFundTargetEur: number;
-    cashTotalEur: number;
-    cashBelowEmergencyTarget: boolean;
   };
+  bondMix: Array<{ sectorId: string; weight: number }>;
   positions: Array<{
     instrumentId: number;
     displayName: string;

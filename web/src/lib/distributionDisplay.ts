@@ -37,18 +37,6 @@ export function isBondDistributionSectorId(id: string): boolean {
   return (BOND_DISTRIBUTION_SECTOR_IDS as readonly string[]).includes(id);
 }
 
-/** Sum of merged portfolio weights for bond distribution keys (0–1). */
-export function sumBondSectorWeights(sectors: Record<string, number>): number {
-  let s = 0;
-  for (const id of BOND_DISTRIBUTION_SECTOR_IDS) {
-    const v = sectors[id];
-    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
-      s += v;
-    }
-  }
-  return s;
-}
-
 /**
  * Strips bond sector keys and renormalizes remaining weights to sum to 1.
  * Empty object if nothing remains.
@@ -62,35 +50,6 @@ export function equitySectorsForDisplay(
       continue;
     }
     if (isBondDistributionSectorId(k)) {
-      continue;
-    }
-    out[k] = v;
-  }
-  const sum = Object.values(out).reduce((a, b) => a + b, 0);
-  if (sum < 1e-12) {
-    return {};
-  }
-  for (const k of Object.keys(out)) {
-    const v = out[k];
-    if (v !== undefined) {
-      out[k] = v / sum;
-    }
-  }
-  return out;
-}
-
-/**
- * Bond-only sector weights, renormalized to sum to 1 among bonds. Empty if no bond sleeve.
- */
-export function bondMixForDisplay(
-  sectors: Record<string, number>,
-): Record<string, number> {
-  const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(sectors)) {
-    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) {
-      continue;
-    }
-    if (!isBondDistributionSectorId(k)) {
       continue;
     }
     out[k] = v;

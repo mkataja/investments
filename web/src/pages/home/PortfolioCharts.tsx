@@ -24,8 +24,6 @@ import {
 import {
   allCountriesChartData,
   allCountriesChartDataDual,
-  bondMixForDisplay,
-  bondPrincipalShareFromMergedSectors,
   equitySectorsForDisplay,
   portfolioRegionBarRows,
   portfolioRegionBarRowsDual,
@@ -260,54 +258,48 @@ export function PortfolioCharts({
   );
 
   const assetMixPieData = useMemo(() => {
-    const aa = portfolio.assetAllocation;
-    const principalEur = aa.equitiesEur + aa.bondsEur;
-    const bondW = bondPrincipalShareFromMergedSectors(portfolio.sectors);
-    const bondsEur = principalEur * bondW;
-    const equitiesEur = principalEur * (1 - bondW);
+    const m = portfolio.assetMix;
     return [
       {
         name: "Equities",
-        value: equitiesEur,
+        value: m.equitiesEur,
         fill: ASSET_MIX_COLORS.equities,
       },
       {
         name: "Bonds (total)",
-        value: bondsEur,
+        value: m.bondsTotalEur,
         fill: ASSET_MIX_COLORS.bonds,
       },
       {
         name: "Cash (in funds)",
-        value: aa.cashInFundsEur,
+        value: m.cashInFundsEur,
         fill: ASSET_MIX_COLORS.cashInFunds,
       },
       {
         name: "Cash (in accounts - excluding emergency fund)",
-        value: aa.cashExcessEur,
+        value: m.cashExcessEur,
         fill: ASSET_MIX_COLORS.cashExcess,
       },
     ].filter((d) => d.value > 1e-9);
-  }, [portfolio.assetAllocation, portfolio.sectors]);
+  }, [portfolio.assetMix]);
 
   const assetMixPieTotalEur = useMemo(
     () => assetMixPieData.reduce((s, d) => s + d.value, 0),
     [assetMixPieData],
   );
 
-  const bondMixPieData = useMemo(() => {
-    const mix = bondMixForDisplay(portfolio.sectors);
-    return Object.entries(mix)
-      .filter(([, v]) => v > 1e-9)
-      .sort((a, b) => b[1] - a[1])
-      .map(([id, value]) => ({
+  const bondMixPieData = useMemo(
+    () =>
+      portfolio.bondMix.map((s) => ({
         name:
           DISTRIBUTION_SECTOR_TITLES[
-            id as keyof typeof DISTRIBUTION_SECTOR_TITLES
-          ] ?? id,
-        value,
-        fill: BOND_MIX_PIE_COLORS[id] ?? ASSET_MIX_COLORS.bonds,
-      }));
-  }, [portfolio.sectors]);
+            s.sectorId as keyof typeof DISTRIBUTION_SECTOR_TITLES
+          ] ?? s.sectorId,
+        value: s.weight,
+        fill: BOND_MIX_PIE_COLORS[s.sectorId] ?? ASSET_MIX_COLORS.bonds,
+      })),
+    [portfolio.bondMix],
+  );
 
   return (
     <section className="page-section w-full min-w-0">
@@ -318,15 +310,14 @@ export function PortfolioCharts({
           <span className="font-semibold">
             <span className="tabular-nums">
               {(
-                portfolio.totalValueEur -
-                portfolio.assetAllocation.emergencyFundSliceEur
+                portfolio.totalValueEur - portfolio.emergencyFundSliceEur
               ).toFixed(0)}
             </span>{" "}
             EUR
           </span>{" "}
           (plus{" "}
           <span className="tabular-nums">
-            {portfolio.assetAllocation.emergencyFundSliceEur.toFixed(0)}
+            {portfolio.emergencyFundSliceEur.toFixed(0)}
           </span>{" "}
           EUR emergency fund)
           {portfolio.mixedCurrencyWarning && (

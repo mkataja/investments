@@ -12,6 +12,7 @@ import { db } from "../db.js";
 import { distributionGeoScaleForCountryMerge } from "./distributionGeoScale.js";
 import { classifyNonCashInstrument } from "./nonCashAssetClass.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
+import { computeAssetMixEur, computeBondMix } from "./portfolioAssetMix.js";
 import { loadOpenPositionsForPortfolio } from "./positions.js";
 import { valuePortfolioRowsEur } from "./valuation.js";
 
@@ -150,19 +151,26 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   sectors: Record<string, number>;
   totalValueEur: number;
   mixedCurrencyWarning: boolean;
-  assetAllocation: {
+  /** Sum of (position EUR − embedded fund cash) for non–`cash_account` holdings. */
+  nonCashPrincipalEur: number;
+  /** Embedded cash from ETF/fund sector weights (`sectors.cash` × position value). */
+  cashInFundsEur: number;
+  /** `max(0, cashTotalEur - emergencyFundTargetEur)`. */
+  cashExcessEur: number;
+  /** `min(cashTotalEur, emergencyFundTargetEur)` — EF slice of cash. */
+  emergencyFundSliceEur: number;
+  emergencyFundTargetEur: number;
+  cashTotalEur: number;
+  cashBelowEmergencyTarget: boolean;
+  /** EUR slices for the asset mix pie (merged `sectors` bond share × `nonCashPrincipalEur` + cash). */
+  assetMix: {
     equitiesEur: number;
-    bondsEur: number;
-    /** Embedded cash from ETF/fund sector weights (`sectors.cash` × position value). */
+    bondsTotalEur: number;
     cashInFundsEur: number;
-    /** `max(0, cashTotalEur - emergencyFundTargetEur)`. */
     cashExcessEur: number;
-    /** `min(cashTotalEur, emergencyFundTargetEur)` — EF slice of cash. */
-    emergencyFundSliceEur: number;
-    emergencyFundTargetEur: number;
-    cashTotalEur: number;
-    cashBelowEmergencyTarget: boolean;
   };
+  /** Bond sleeve split (weights within bonds only), for the bond mix pie. */
+  bondMix: Array<{ sectorId: string; weight: number }>;
   positions: Array<{
     instrumentId: number;
     displayName: string;
@@ -172,7 +180,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     weight: number;
     valueEur: number;
     valuationSource: string;
-    /** For UI grouping; aligns with `assetAllocation` bond vs equity split + cash accounts. */
+    /** UI grouping (Yahoo/Seligson heuristics); not used for merged distribution charts. */
     assetClass: "equity" | "bond" | "cash_account";
   }>;
   /** Top holdings per distribution bucket (region / sector / country key). */
@@ -188,25 +196,26 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     ? emergencyFundTargetEurRaw
     : 0;
 
-  const emptyAssetAllocation = (): {
-    equitiesEur: number;
-    bondsEur: number;
-    cashInFundsEur: number;
-    cashExcessEur: number;
-    emergencyFundSliceEur: number;
-    emergencyFundTargetEur: number;
-    cashTotalEur: number;
-    cashBelowEmergencyTarget: boolean;
-  } => ({
-    equitiesEur: 0,
-    bondsEur: 0,
-    cashInFundsEur: 0,
-    cashExcessEur: 0,
-    emergencyFundSliceEur: 0,
-    emergencyFundTargetEur,
-    cashTotalEur: 0,
-    cashBelowEmergencyTarget: emergencyFundTargetEur > 0,
-  });
+  const emptyDistributions = () => {
+    const cashInFundsEur = 0;
+    const cashExcessEur = 0;
+    return {
+      nonCashPrincipalEur: 0,
+      cashInFundsEur,
+      cashExcessEur,
+      emergencyFundSliceEur: 0,
+      emergencyFundTargetEur,
+      cashTotalEur: 0,
+      cashBelowEmergencyTarget: emergencyFundTargetEur > 0,
+      assetMix: computeAssetMixEur({
+        nonCashPrincipalEur: 0,
+        mergedSectors: {},
+        cashInFundsEur,
+        cashExcessEur,
+      }),
+      bondMix: [],
+    };
+  };
 
   const pos = await loadOpenPositionsForPortfolio(portfolioId);
   if (pos.length === 0) {
@@ -216,7 +225,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       sectors: {},
       totalValueEur: 0,
       mixedCurrencyWarning: false,
-      assetAllocation: emptyAssetAllocation(),
+      ...emptyDistributions(),
       positions: [],
       bucketTopHoldings: { regions: {}, sectors: {}, countries: {} },
     };
@@ -306,8 +315,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   const sectorContrib: ContribMap = new Map();
   const countryContrib: ContribMap = new Map();
 
-  let equitiesEur = 0;
-  let bondsEur = 0;
+  let nonCashPrincipalEur = 0;
   let cashTotalEur = 0;
   let cashInFundsEur = 0;
 
@@ -335,19 +343,8 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     const embeddedCashEur = row.valueEur * cashFrac;
     cashInFundsEur += embeddedCashEur;
 
-    const cls = classifyNonCashInstrument(
-      inst,
-      yahooRawById.get(inst.id) ?? null,
-      inst.seligsonFundId != null
-        ? (seligsonNameById.get(inst.seligsonFundId) ?? null)
-        : null,
-    );
     const principalEur = Math.max(0, row.valueEur - embeddedCashEur);
-    if (cls === "bond") {
-      bondsEur += principalEur;
-    } else {
-      equitiesEur += principalEur;
-    }
+    nonCashPrincipalEur += principalEur;
 
     const geoScale = distributionGeoScaleForCountryMerge(payload, cashFrac);
     if (payload?.countries && Object.keys(payload.countries).length > 0) {
@@ -473,16 +470,20 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     sectors,
     totalValueEur,
     mixedCurrencyWarning,
-    assetAllocation: {
-      equitiesEur,
-      bondsEur,
+    nonCashPrincipalEur,
+    cashInFundsEur,
+    cashExcessEur,
+    emergencyFundSliceEur,
+    emergencyFundTargetEur,
+    cashTotalEur,
+    cashBelowEmergencyTarget,
+    assetMix: computeAssetMixEur({
+      nonCashPrincipalEur,
+      mergedSectors: sectors,
       cashInFundsEur,
       cashExcessEur,
-      emergencyFundSliceEur,
-      emergencyFundTargetEur,
-      cashTotalEur,
-      cashBelowEmergencyTarget,
-    },
+    }),
+    bondMix: computeBondMix(sectors),
     positions,
     bucketTopHoldings: {
       regions: contribMapToTopRecord(regionContrib, idToName),
