@@ -201,7 +201,7 @@ export const instrumentCompositeConstituents = pgTable(
         'other_long_corporate_bonds',
         'other_short_government_bonds',
         'other_short_corporate_bonds',
-        'ultrashort_bonds',
+        'other_ultrashort_bonds',
         'cash'
       )`,
     ),

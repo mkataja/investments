@@ -18,4 +18,5 @@ export const DISTRIBUTION_SECTOR_TITLES: Record<DistributionSectorId, string> =
     long_government_bonds: "Long government bonds",
     long_corporate_bonds: "Long corporate bonds",
     short_bonds: "Short / money market bonds",
+    ultrashort_bonds: "Ultrashort bonds",
   };

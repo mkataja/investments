@@ -8,13 +8,15 @@ const PSEUDO_LABEL: Record<CompositePseudoKey, string> = {
   other_equities: "Other equities (unknown distribution)",
   other_long_government_bonds:
     "Other long government bonds (unknown country distribution)",
-  other_long_corporate_bonds: "Other long corporate bonds (unknown country distribution)",
+  other_long_corporate_bonds:
+    "Other long corporate bonds (unknown country distribution)",
   other_short_government_bonds:
     "Other short government bonds (unknown country distribution)",
   other_short_corporate_bonds:
     "Other short corporate bonds (unknown country distribution)",
-  ultrashort_bonds: "Ultrashort bonds (unknown distribution)",
-  cash: "Cash (unknown distribution)",
+  other_ultrashort_bonds:
+    "Other ultrashort bonds (unknown country distribution)",
+  cash: "Cash",
 };
 
 export type CompositePreviewRow = {

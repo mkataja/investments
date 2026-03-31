@@ -20,6 +20,7 @@ export const DISTRIBUTION_SECTOR_IDS = [
   "long_government_bonds",
   "long_corporate_bonds",
   "short_bonds",
+  "ultrashort_bonds",
 ] as const;
 
 export type DistributionSectorId = (typeof DISTRIBUTION_SECTOR_IDS)[number];

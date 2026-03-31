@@ -18,8 +18,9 @@ function mergeWeighted(
 /**
  * Merge constituent distributions the same way as `getPortfolioDistributions` merges positions
  * for **countries** (unknown geo mass, bond geo scale). **Sectors** are a value-weighted merge of
- * each child’s full `sectors` map (including `cash` when present); pseudo slices have no sectors
- * and contribute unknown sector mass.
+ * each child’s full `sectors` map (including `cash` when present). Pseudo constituents use
+ * synthetic sector weights from `compositePseudoKeyToSyntheticPayload`; unknown sector mass only
+ * applies when a child payload has empty `sectors`.
  */
 export function mergeCompositeDistributionPayload(
   items: Array<{ weight: number; payload: DistributionPayload | null }>,

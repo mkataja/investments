@@ -425,6 +425,8 @@ export function sectorIcon(sectorId: string): string {
       return "🏢";
     case "short_bonds":
       return "▶️";
+    case "ultrashort_bonds":
+      return "⏩";
     default:
       return "❓";
   }

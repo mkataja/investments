@@ -1,8 +1,10 @@
 import type { DistributionPayload } from "@investments/db";
 import {
+  compositePseudoKeyToSyntheticPayload,
   distributions,
   instrumentCompositeConstituents,
   instruments,
+  isCompositePseudoKey,
   normalizeIsinForStorage,
   parseVanguardUkProfessionalHoldingsPortId,
   prices,
@@ -400,7 +402,13 @@ export async function writeCompositeDistributionCache(
       continue;
     }
     if (row.pseudoKey) {
-      items.push({ weight: w, payload: null });
+      if (!isCompositePseudoKey(row.pseudoKey)) {
+        throw new Error(`Invalid composite pseudo_key: ${row.pseudoKey}`);
+      }
+      items.push({
+        weight: w,
+        payload: compositePseudoKeyToSyntheticPayload(row.pseudoKey),
+      });
       continue;
     }
     if (row.targetInstrumentId != null) {
