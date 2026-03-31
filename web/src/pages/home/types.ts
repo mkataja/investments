@@ -52,6 +52,7 @@ export type PortfolioDistributions = {
   assetAllocation: {
     equitiesEur: number;
     bondsEur: number;
+    cashInFundsEur: number;
     cashExcessEur: number;
     emergencyFundSliceEur: number;
     emergencyFundTargetEur: number;

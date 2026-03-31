@@ -27,6 +27,7 @@ import type { PortfolioDistributions } from "./types";
 const ASSET_MIX_COLORS = {
   equities: "#0f766e",
   bonds: "#6d28d9",
+  cashInFunds: "#14b8a6",
   cashExcess: "#0369a1",
 } as const;
 
@@ -110,7 +111,12 @@ export function PortfolioCharts({
       },
       { name: "Bonds", value: aa.bondsEur, fill: ASSET_MIX_COLORS.bonds },
       {
-        name: "Cash (excess)",
+        name: "Cash (funds)",
+        value: aa.cashInFundsEur,
+        fill: ASSET_MIX_COLORS.cashInFunds,
+      },
+      {
+        name: "Cash (accounts; excess)",
         value: aa.cashExcessEur,
         fill: ASSET_MIX_COLORS.cashExcess,
       },
@@ -154,6 +160,8 @@ export function PortfolioCharts({
                   dataKey="value"
                   nameKey="name"
                   outerRadius="100%"
+                  allowReorder="yes"
+                  minAngle={5}
                 >
                   {assetMixPieData.map((d) => (
                     <Cell key={d.name} fill={d.fill} stroke="#fff" />

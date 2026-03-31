@@ -23,6 +23,33 @@ function mergeWeighted(
   }
 }
 
+/** Sector weights without `cash` (embedded fund cash is shown in asset mix instead). */
+function stripCashFromSectorWeights(
+  sectors: Record<string, number> | undefined,
+): Record<string, number> {
+  if (!sectors) {
+    return {};
+  }
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(sectors)) {
+    if (k === "cash") {
+      continue;
+    }
+    if (typeof v === "number" && Number.isFinite(v)) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+function sumSectorWeights(sectors: Record<string, number>): number {
+  let s = 0;
+  for (const v of Object.values(sectors)) {
+    s += v;
+  }
+  return s;
+}
+
 export async function getPortfolioDistributions(portfolioId: number): Promise<{
   /** Value-weighted merge of per-instrument country weights (ISO or resolvable labels), before geo bucketing. */
   countries: Record<string, number>;
@@ -33,6 +60,8 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   assetAllocation: {
     equitiesEur: number;
     bondsEur: number;
+    /** Embedded cash from ETF/fund sector weights (`sectors.cash` × position value). */
+    cashInFundsEur: number;
     /** `max(0, cashTotalEur - emergencyFundTargetEur)`. */
     cashExcessEur: number;
     /** `min(cashTotalEur, emergencyFundTargetEur)` — EF slice of cash. */
@@ -61,6 +90,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   const emptyAssetAllocation = (): {
     equitiesEur: number;
     bondsEur: number;
+    cashInFundsEur: number;
     cashExcessEur: number;
     emergencyFundSliceEur: number;
     emergencyFundTargetEur: number;
@@ -69,6 +99,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   } => ({
     equitiesEur: 0,
     bondsEur: 0,
+    cashInFundsEur: 0,
     cashExcessEur: 0,
     emergencyFundSliceEur: 0,
     emergencyFundTargetEur,
@@ -159,33 +190,6 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
           .where(inArray(seligsonFunds.id, seligsonIds));
   const seligsonNameById = new Map(sfRows.map((s) => [s.id, s.name] as const));
 
-  let equitiesEur = 0;
-  let bondsEur = 0;
-  let cashTotalEur = 0;
-  for (const row of valued) {
-    if (row.inst.kind === "cash_account") {
-      cashTotalEur += row.valueEur;
-      continue;
-    }
-    const cls = classifyNonCashInstrument(
-      row.inst,
-      yahooRawById.get(row.inst.id) ?? null,
-      row.inst.seligsonFundId != null
-        ? (seligsonNameById.get(row.inst.seligsonFundId) ?? null)
-        : null,
-    );
-    if (cls === "bond") {
-      bondsEur += row.valueEur;
-    } else {
-      equitiesEur += row.valueEur;
-    }
-  }
-
-  const cashExcessEur = Math.max(0, cashTotalEur - emergencyFundTargetEur);
-  const emergencyFundSliceEur = Math.min(cashTotalEur, emergencyFundTargetEur);
-  const cashBelowEmergencyTarget =
-    emergencyFundTargetEur > 0 && cashTotalEur < emergencyFundTargetEur;
-
   const nonCashValueEur = valued.reduce(
     (s, x) => s + (x.inst.kind === "cash_account" ? 0 : x.valueEur),
     0,
@@ -196,10 +200,16 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   let missingCountryW = 0;
   let missingSectorW = 0;
 
+  let equitiesEur = 0;
+  let bondsEur = 0;
+  let cashTotalEur = 0;
+  let cashInFundsEur = 0;
+
   for (const row of valued) {
     const { inst } = row;
 
     if (inst.kind === "cash_account") {
+      cashTotalEur += row.valueEur;
       continue;
     }
 
@@ -216,21 +226,57 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
         ? payload.sectors.cash
         : 0;
     const cashFrac = Math.min(1, Math.max(0, cashFracRaw));
+    const embeddedCashEur = row.valueEur * cashFrac;
+    cashInFundsEur += embeddedCashEur;
+
+    const cls = classifyNonCashInstrument(
+      inst,
+      yahooRawById.get(inst.id) ?? null,
+      inst.seligsonFundId != null
+        ? (seligsonNameById.get(inst.seligsonFundId) ?? null)
+        : null,
+    );
+    const principalEur = Math.max(0, row.valueEur - embeddedCashEur);
+    if (cls === "bond") {
+      bondsEur += principalEur;
+    } else {
+      equitiesEur += principalEur;
+    }
+
     const geoScale = 1 - cashFrac;
     if (payload?.countries && Object.keys(payload.countries).length > 0) {
       mergeWeighted(countryWeights, payload.countries, w * geoScale);
     } else {
       missingCountryW += w * geoScale;
     }
+
+    const nonCashSectors = stripCashFromSectorWeights(payload?.sectors);
+    const nonCashSectorSum = sumSectorWeights(nonCashSectors);
     if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
-      mergeWeighted(sectors, payload.sectors, w);
+      if (nonCashSectorSum > 1e-9) {
+        mergeWeighted(sectors, nonCashSectors, w);
+      }
     } else {
       missingSectorW += w;
     }
   }
 
+  const cashExcessEur = Math.max(0, cashTotalEur - emergencyFundTargetEur);
+  const emergencyFundSliceEur = Math.min(cashTotalEur, emergencyFundTargetEur);
+  const cashBelowEmergencyTarget =
+    emergencyFundTargetEur > 0 && cashTotalEur < emergencyFundTargetEur;
+
   if (missingCountryW > 0) {
     countryWeights.__portfolio_unknown__ = missingCountryW;
+  }
+
+  const sectorMassRaw =
+    Object.values(sectors).reduce((a, b) => a + b, 0) + missingSectorW;
+  if (sectorMassRaw > 1e-12) {
+    for (const k of Object.keys(sectors)) {
+      sectors[k] /= sectorMassRaw;
+    }
+    missingSectorW /= sectorMassRaw;
   }
   if (missingSectorW > 0) {
     sectors.__portfolio_unknown__ = missingSectorW;
@@ -271,6 +317,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     assetAllocation: {
       equitiesEur,
       bondsEur,
+      cashInFundsEur,
       cashExcessEur,
       emergencyFundSliceEur,
       emergencyFundTargetEur,
