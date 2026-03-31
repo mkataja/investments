@@ -282,7 +282,9 @@ export function InstrumentsPage() {
                   ISIN
                 </th>
                 <th className="text-left p-2 font-medium">Name</th>
-                <th className="text-left p-2 font-medium">Distribution</th>
+                <th className="text-left p-2 font-medium w-[460px]">
+                  Distribution
+                </th>
                 <th className="text-left p-2 font-medium whitespace-nowrap">
                   Last updated
                 </th>

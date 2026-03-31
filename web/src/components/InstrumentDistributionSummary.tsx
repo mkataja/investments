@@ -9,7 +9,7 @@ export function DistributionSummary({
 }: {
   payload: DistributionPayload;
 }) {
-  const countrySegs = topCountriesSegmentsForDisplay(payload.countries, 9);
+  const countrySegs = topCountriesSegmentsForDisplay(payload.countries, 11);
   const sectorRows = sortedSectorsForDisplay(payload.sectors);
   return (
     <div className="space-y-1">
@@ -36,7 +36,7 @@ export function DistributionSummary({
           )}
         </div>
       </div>
-      <div className="text-xs text-slate-800">
+      <div className="text-xs text-slate-800 pt-1.5">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-0.5 min-w-0">
           {sectorRows.length > 0 ? (
             sectorRows.map((s) => (

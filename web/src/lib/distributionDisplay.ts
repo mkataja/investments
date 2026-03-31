@@ -299,7 +299,7 @@ const NBSP = "\u00a0";
 
 /** Whole percent in a fixed 4-column field: value left-aligned, padded on the right (NBSP). */
 export function formatPercentWidth4From01(weight01: number): string {
-  return formatToPercentage(weight01).padEnd(4, NBSP);
+  return formatToPercentage(weight01).padEnd(5, NBSP);
 }
 
 export type SectorRow = {
