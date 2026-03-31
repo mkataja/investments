@@ -82,14 +82,25 @@ describe("parseSeligsonTransactionsTsv", () => {
     expect(sell?.quantity).toBe("42.5434");
   });
 
-  it("rejects wrong header", () => {
+  it("ignores a junk first line and parses a valid eight-column row", () => {
     const tsv = "Salkku\tWrong\t...\n24605\t13.1.2026\t\tX\t1\t1\t0\t1";
+    const out = parseSeligsonTransactionsTsv(tsv);
+    expect(out.ok).toBe(true);
+    if (!out.ok) {
+      return;
+    }
+    expect(out.rows).toHaveLength(1);
+    expect(out.rows[0]?.fundName).toBe("X");
+  });
+
+  it("returns an error when no line looks like a transaction", () => {
+    const tsv = "Notes\nRandom text\nNo account column here";
     const out = parseSeligsonTransactionsTsv(tsv);
     expect(out.ok).toBe(false);
     if (out.ok) {
       return;
     }
-    expect(out.errors[0]).toMatch(/header/i);
+    expect(out.errors[0]).toMatch(/Could not find a Seligson transaction row/i);
   });
 
   it("strips BOM and ignores blank lines", () => {
