@@ -316,7 +316,7 @@ export function PortfolioCharts({
                   data={regionBarChartData}
                   margin={barChartMargin(showDistributionCompare)}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="name"
                     angle={-35}
@@ -366,7 +366,7 @@ export function PortfolioCharts({
                   data={sectorBarChartData}
                   margin={barChartMargin(showDistributionCompare)}
                 >
-                  <CartesianGrid strokeDasharray="3 3" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis
                     dataKey="name"
                     angle={-35}
@@ -417,7 +417,7 @@ export function PortfolioCharts({
                 data={countryBarChartData}
                 margin={barChartMargin(showDistributionCompare)}
               >
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
                 <XAxis
                   dataKey="name"
                   height={1}
