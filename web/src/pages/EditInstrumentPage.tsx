@@ -5,6 +5,7 @@ import {
   SUPPORTED_CASH_CURRENCY_CODES,
   normalizeCashAccountIsoCountryCode,
   validateHoldingsDistributionUrl,
+  validateProviderBreakdownDataUrl,
 } from "@investments/db";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -24,6 +25,7 @@ type InstrumentDetail = {
   cashGeoKey: string | null;
   cashCurrency: string | null;
   holdingsDistributionUrl: string | null;
+  providerBreakdownDataUrl: string | null;
 };
 
 type BrokerRow = {
@@ -50,6 +52,7 @@ export function EditInstrumentPage() {
   );
   const [cashGeoKey, setCashGeoKey] = useState("");
   const [holdingsUrl, setHoldingsUrl] = useState("");
+  const [breakdownUrl, setBreakdownUrl] = useState("");
 
   useEffect(() => {
     setBrokersLoading(true);
@@ -80,6 +83,7 @@ export function EditInstrumentPage() {
         }
         if (row.kind === "etf" || row.kind === "stock") {
           setHoldingsUrl(row.holdingsDistributionUrl ?? "");
+          setBreakdownUrl(row.providerBreakdownDataUrl ?? "");
         }
       })
       .catch((e) => setError(String(e)))
@@ -136,19 +140,42 @@ export function EditInstrumentPage() {
     if (!initial || (initial.kind !== "etf" && initial.kind !== "stock")) {
       return;
     }
-    const v = validateHoldingsDistributionUrl(holdingsUrl.trim() || null);
-    if (!v.ok) {
-      setError(v.message);
+    const holdingsV = validateHoldingsDistributionUrl(
+      holdingsUrl.trim() || null,
+    );
+    const breakdownV = validateProviderBreakdownDataUrl(
+      breakdownUrl.trim() || null,
+    );
+    if (!holdingsV.ok) {
+      setError(holdingsV.message);
       return;
     }
-    const prev = initial.holdingsDistributionUrl ?? null;
-    const next = v.normalized;
-    if (prev === next) {
+    if (!breakdownV.ok) {
+      setError(breakdownV.message);
+      return;
+    }
+    if (
+      breakdownV.normalized &&
+      (!holdingsV.normalized || holdingsV.provider !== "jpm_xlsx")
+    ) {
+      setError(
+        "Provider breakdown data URL is only supported with a J.P. Morgan daily ETF holdings XLSX URL in Provider holdings URL.",
+      );
+      return;
+    }
+    const prevH = initial.holdingsDistributionUrl ?? null;
+    const nextH = holdingsV.normalized;
+    const prevB = initial.providerBreakdownDataUrl ?? null;
+    const nextB = breakdownV.normalized;
+    if (prevH === nextH && prevB === nextB) {
       navigate("/instruments");
       return;
     }
     try {
-      await apiPatch(`/instruments/${id}`, { holdingsDistributionUrl: next });
+      await apiPatch(`/instruments/${id}`, {
+        holdingsDistributionUrl: nextH,
+        providerBreakdownDataUrl: nextB,
+      });
       navigate("/instruments");
     } catch (err) {
       setError(String(err));
@@ -235,6 +262,18 @@ export function EditInstrumentPage() {
               />
             </label>
             <ProviderHoldingsUrlHint showClearToYahooNote />
+            <label className="block text-sm">
+              Provider breakdown data URL (optional)
+              <input
+                className="mt-1 block w-full border rounded px-2 py-1 font-mono text-sm"
+                value={breakdownUrl}
+                onChange={(e) => {
+                  setBreakdownUrl(e.target.value);
+                  setError(null);
+                }}
+                placeholder="https://am.jpmorgan.com/FundsMarketingHandler/product-data?cusip=…"
+              />
+            </label>
           </div>
           <div className="flex flex-wrap gap-3">
             <button

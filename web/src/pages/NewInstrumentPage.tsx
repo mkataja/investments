@@ -5,6 +5,7 @@ import {
   SUPPORTED_CASH_CURRENCY_CODES,
   normalizeCashAccountIsoCountryCode,
   validateHoldingsDistributionUrl,
+  validateProviderBreakdownDataUrl,
 } from "@investments/db";
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -92,6 +93,7 @@ export function NewInstrumentPage() {
 
   const [yahooSymbol, setYahooSymbol] = useState("");
   const [holdingsDistributionUrl, setHoldingsDistributionUrl] = useState("");
+  const [providerBreakdownDataUrl, setProviderBreakdownDataUrl] = useState("");
   const [yahooPreview, setYahooPreview] = useState<YahooLookupResponse | null>(
     null,
   );
@@ -163,17 +165,37 @@ export function NewInstrumentPage() {
           return;
         }
         const urlRaw = holdingsDistributionUrl.trim();
-        if (urlRaw.length > 0) {
-          const v = validateHoldingsDistributionUrl(urlRaw);
-          if (!v.ok) {
-            setError(v.message);
-            return;
-          }
+        const breakdownRaw = providerBreakdownDataUrl.trim();
+        const holdingsV = validateHoldingsDistributionUrl(
+          urlRaw.length > 0 ? urlRaw : null,
+        );
+        const breakdownV = validateProviderBreakdownDataUrl(
+          breakdownRaw.length > 0 ? breakdownRaw : null,
+        );
+        if (!holdingsV.ok) {
+          setError(holdingsV.message);
+          return;
+        }
+        if (!breakdownV.ok) {
+          setError(breakdownV.message);
+          return;
+        }
+        if (
+          breakdownV.normalized &&
+          (!holdingsV.normalized || holdingsV.provider !== "jpm_xlsx")
+        ) {
+          setError(
+            "Provider breakdown data URL is only supported with a J.P. Morgan daily ETF holdings XLSX URL in Provider holdings URL.",
+          );
+          return;
         }
         await apiPost<InstrumentRow>("/instruments", {
           kind,
           yahooSymbol: s,
           ...(urlRaw.length > 0 ? { holdingsDistributionUrl: urlRaw } : {}),
+          ...(breakdownRaw.length > 0
+            ? { providerBreakdownDataUrl: breakdownRaw }
+            : {}),
         });
       } else if (kind === "custom") {
         const fid = Number.parseInt(seligsonFid, 10);
@@ -302,6 +324,15 @@ export function NewInstrumentPage() {
               />
             </label>
             <ProviderHoldingsUrlHint />
+            <label className="block text-sm">
+              Provider breakdown data URL (optional)
+              <input
+                className="mt-1 block w-full border rounded px-2 py-1 font-mono text-sm"
+                value={providerBreakdownDataUrl}
+                onChange={(e) => setProviderBreakdownDataUrl(e.target.value)}
+                placeholder="https://am.jpmorgan.com/FundsMarketingHandler/product-data?cusip=…"
+              />
+            </label>
             {yahooPreview && (
               <div className="text-sm text-slate-700 space-y-1 border-t pt-3 mt-2">
                 <p>
