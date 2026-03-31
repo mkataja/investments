@@ -49,7 +49,7 @@ export function instrumentKindColumnLabel(
   }
 }
 
-/** Row shape for list/detail ticker: Yahoo symbol, Seligson FID, or "-" for cash (same sentinel as portfolio tables use for Seligson custom). */
+/** Row shape for list/detail ticker: Yahoo symbol; Seligson custom has no public ticker (null); "-" for cash. */
 export function instrumentTickerDisplay(row: {
   kind: string;
   yahooSymbol: string | null;
@@ -59,7 +59,7 @@ export function instrumentTickerDisplay(row: {
     return row.yahooSymbol;
   }
   if (row.kind === "custom" && row.seligsonFund) {
-    return String(row.seligsonFund.fid);
+    return null;
   }
   if (row.kind === "cash_account") {
     return "-";
