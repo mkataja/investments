@@ -44,14 +44,8 @@ export function NewYahooEtfStockSection({
       >
         Preview from Yahoo
       </button>
-      <HoldingsBreakdownUrlFields
-        holdingsDistributionUrl={holdingsDistributionUrl}
-        setHoldingsDistributionUrl={setHoldingsDistributionUrl}
-        providerBreakdownDataUrl={providerBreakdownDataUrl}
-        setProviderBreakdownDataUrl={setProviderBreakdownDataUrl}
-      />
       {yahooPreview && (
-        <div className="text-sm text-slate-700 space-y-1 border-t pt-3 mt-2">
+        <div className="text-sm text-slate-700 space-y-1 border-b pb-3 mt-2">
           <p>
             <span className="text-slate-500">Name: </span>
             {yahooPreview.displayName}
@@ -72,6 +66,12 @@ export function NewYahooEtfStockSection({
           )}
         </div>
       )}
+      <HoldingsBreakdownUrlFields
+        holdingsDistributionUrl={holdingsDistributionUrl}
+        setHoldingsDistributionUrl={setHoldingsDistributionUrl}
+        providerBreakdownDataUrl={providerBreakdownDataUrl}
+        setProviderBreakdownDataUrl={setProviderBreakdownDataUrl}
+      />
     </div>
   );
 }
