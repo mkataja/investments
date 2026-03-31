@@ -17,6 +17,9 @@ export const DISTRIBUTION_SECTOR_IDS = [
   "communication_services",
   "other",
   "cash",
+  "long_government_bonds",
+  "long_corporate_bonds",
+  "short_bonds",
 ] as const;
 
 export type DistributionSectorId = (typeof DISTRIBUTION_SECTOR_IDS)[number];

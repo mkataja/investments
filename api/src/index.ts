@@ -1245,6 +1245,8 @@ function mapJoinedRowToInstrumentPayload(
           seligsonDistribution: seligsonRow
             ? {
                 holdingsHtml: seligsonRow.holdingsHtml,
+                allocationHtml: seligsonRow.allocationHtml,
+                countryHtml: seligsonRow.countryHtml,
               }
             : null,
         }

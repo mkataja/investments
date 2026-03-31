@@ -419,6 +419,12 @@ export function sectorIcon(sectorId: string): string {
       return "📡";
     case "other":
       return "⚠️";
+    case "long_government_bonds":
+      return "🏛️";
+    case "long_corporate_bonds":
+      return "🏢";
+    case "short_bonds":
+      return "📎";
     default:
       return "📊";
   }

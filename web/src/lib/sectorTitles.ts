@@ -15,4 +15,7 @@ export const DISTRIBUTION_SECTOR_TITLES: Record<DistributionSectorId, string> =
     communication_services: "Communication services",
     other: "Other",
     cash: "Cash",
+    long_government_bonds: "Long government bonds",
+    long_corporate_bonds: "Long corporate bonds",
+    short_bonds: "Short / money market bonds",
   };

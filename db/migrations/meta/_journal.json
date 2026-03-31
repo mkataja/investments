@@ -190,6 +190,13 @@
       "when": 1774914000000,
       "tag": "0026_seligson_resolution_cache_natural_key",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1774968892395,
+      "tag": "0027_known_madame_hydra",
+      "breakpoints": true
     }
   ]
 }

@@ -310,7 +310,8 @@ async function main() {
     .select({
       id: instruments.id,
       name: instruments.displayName,
-      html: seligsonDistributionCache.holdingsHtml,
+      holdingsHtml: seligsonDistributionCache.holdingsHtml,
+      allocationHtml: seligsonDistributionCache.allocationHtml,
     })
     .from(seligsonDistributionCache)
     .innerJoin(
@@ -320,11 +321,15 @@ async function main() {
     .orderBy(asc(instruments.id));
 
   for (const row of seligsonRows) {
-    const labels = extractSeligsonFirstColumnLabels(row.html);
+    const html = row.holdingsHtml?.trim() || row.allocationHtml?.trim() || "";
+    if (!html) {
+      continue;
+    }
+    const labels = extractSeligsonFirstColumnLabels(html);
     mergeIntoGlobal(seligsonGlobal, labels);
   }
   printSection(
-    "Seligson (`seligson_distribution_cache.holdings_html`, view=10 company column)",
+    "Seligson (`holdings_html` view=10 company column, else `allocation_html`)",
     seligsonGlobal,
     seligsonRows.length,
   );

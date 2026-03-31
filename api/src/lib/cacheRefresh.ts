@@ -27,7 +27,14 @@ import { parseSsgaHoldingsXlsx } from "../distributions/parseSsgaHoldingsXlsx.js
 import { parseVanguardUkGpxHoldingsJson } from "../distributions/parseVanguardUkGpxHoldings.js";
 import { parseXtrackersHoldingsXlsx } from "../distributions/parseXtrackersHoldingsXlsx.js";
 import { roundWeights } from "../distributions/roundWeights.js";
-import { fetchSeligsonHtml } from "../distributions/seligson.js";
+import {
+  SELIGSON_BOND_ALLOCATION_VIEW,
+  SELIGSON_BOND_COUNTRY_VIEW,
+  SELIGSON_HOLDINGS_VIEW,
+  fetchSeligsonHtml,
+  isSeligsonBondAllocationPage,
+  parseSeligsonBondFundDistributions,
+} from "../distributions/seligson.js";
 import { upsertSeligsonFundValuesFromPage } from "../distributions/seligsonFundValues.js";
 import { buildResolvedSeligsonHoldingsPayload } from "../distributions/seligsonHoldingsResolve.js";
 import type { YahooQuoteSummaryRaw } from "../distributions/yahoo.js";
@@ -309,12 +316,77 @@ export async function writeSeligsonDistributionCache(
   fid: number,
   fetchedAt: Date = new Date(),
 ): Promise<void> {
-  const holdingsHtml = await fetchSeligsonHtml(fid);
+  const allocationHtml = await fetchSeligsonHtml(
+    fid,
+    SELIGSON_BOND_ALLOCATION_VIEW,
+  );
+  let payload: {
+    countries: Record<string, number>;
+    sectors: Record<string, number>;
+  };
+
+  if (isSeligsonBondAllocationPage(allocationHtml)) {
+    const countryHtml = await fetchSeligsonHtml(
+      fid,
+      SELIGSON_BOND_COUNTRY_VIEW,
+    );
+    const { payload: rawPayload } = parseSeligsonBondFundDistributions(
+      allocationHtml,
+      countryHtml,
+    );
+    payload = {
+      countries: roundWeights(rawPayload.countries),
+      sectors: roundWeights(rawPayload.sectors),
+    };
+    await db.transaction(async (tx) => {
+      await tx
+        .insert(seligsonDistributionCache)
+        .values({
+          instrumentId,
+          fetchedAt,
+          holdingsHtml: null,
+          allocationHtml,
+          countryHtml,
+        })
+        .onConflictDoUpdate({
+          target: seligsonDistributionCache.instrumentId,
+          set: {
+            fetchedAt,
+            holdingsHtml: null,
+            allocationHtml,
+            countryHtml,
+          },
+        });
+      await tx
+        .delete(yahooFinanceCache)
+        .where(eq(yahooFinanceCache.instrumentId, instrumentId));
+      await tx
+        .insert(distributions)
+        .values({
+          instrumentId,
+          fetchedAt,
+          source: "seligson_scrape",
+          payload,
+        })
+        .onConflictDoUpdate({
+          target: distributions.instrumentId,
+          set: {
+            fetchedAt,
+            source: "seligson_scrape",
+            payload,
+          },
+        });
+    });
+    await upsertSeligsonFundValuesFromPage(db, fetchedAt);
+    return;
+  }
+
+  const holdingsHtml = await fetchSeligsonHtml(fid, SELIGSON_HOLDINGS_VIEW);
   const { payload: rawPayload } = await buildResolvedSeligsonHoldingsPayload(
     holdingsHtml,
     fetchedAt,
   );
-  const payload = {
+  payload = {
     countries: roundWeights(rawPayload.countries),
     sectors: roundWeights(rawPayload.sectors),
   };
@@ -326,12 +398,16 @@ export async function writeSeligsonDistributionCache(
         instrumentId,
         fetchedAt,
         holdingsHtml,
+        allocationHtml: null,
+        countryHtml: null,
       })
       .onConflictDoUpdate({
         target: seligsonDistributionCache.instrumentId,
         set: {
           fetchedAt,
           holdingsHtml,
+          allocationHtml: null,
+          countryHtml: null,
         },
       });
     await tx

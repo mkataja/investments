@@ -9,6 +9,7 @@ import {
 import type { DistributionPayload } from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
+import { distributionGeoScaleForCountryMerge } from "./distributionGeoScale.js";
 import { classifyNonCashInstrument } from "./nonCashAssetClass.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import { loadOpenPositionsForPortfolio } from "./positions.js";
@@ -348,7 +349,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       equitiesEur += principalEur;
     }
 
-    const geoScale = 1 - cashFrac;
+    const geoScale = distributionGeoScaleForCountryMerge(payload, cashFrac);
     if (payload?.countries && Object.keys(payload.countries).length > 0) {
       mergeWeighted(countryWeights, payload.countries, w * geoScale);
       const scaledCountries = scaleCountryWeights(

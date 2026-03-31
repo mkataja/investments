@@ -17,6 +17,10 @@ const USER_AGENT = "InvestmentsTracker/0.1 (personal)";
 
 /** FundViewer view=10 — holdings list (sector + country per line). */
 export const SELIGSON_HOLDINGS_VIEW = 10;
+/** FundViewer view=40 — allocation + bond-type split (korkorahastot). */
+export const SELIGSON_BOND_ALLOCATION_VIEW = 40;
+/** FundViewer view=20 — long-bond country maajakauma. */
+export const SELIGSON_BOND_COUNTRY_VIEW = 20;
 
 function parseFiPercent(text: string): number | null {
   const t = text.trim().replace(/\s/g, "").replace(",", ".");
@@ -39,7 +43,10 @@ export async function fetchSeligsonHtml(
   return res.text();
 }
 
-/** Parses fund display name from FundViewer intro HTML (any Salkun* view). */
+/**
+ * Parses fund display name from FundViewer intro HTML.
+ * Strips view-specific suffixes (e.g. **Salkun …**, **Arvopaperien listaus** on holdings view=10).
+ */
 export function parseSeligsonFundName(html: string): string | null {
   const $ = cheerio.load(html);
   const h1 = $("#content h1").first();
@@ -51,19 +58,28 @@ export function parseSeligsonFundName(html: string): string | null {
     .replace(/\u00a0/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const withoutSuffix = text.replace(/\s*-\s*Salkun.*$/i, "").trim();
+  const withoutSuffix = text
+    .replace(/\s*-\s*Salkun.*$/i, "")
+    .replace(/\s*-\s*Arvopaperi.*$/i, "")
+    .trim();
   return withoutSuffix || null;
 }
 
 export async function fetchSeligsonFundName(fid: number): Promise<string> {
-  const html = await fetchSeligsonHtml(fid, SELIGSON_HOLDINGS_VIEW);
-  const name = parseSeligsonFundName(html);
-  if (!name) {
-    throw new Error(
-      `Could not parse fund name from Seligson page for fid=${fid}`,
-    );
+  for (const view of [
+    SELIGSON_HOLDINGS_VIEW,
+    SELIGSON_BOND_ALLOCATION_VIEW,
+    SELIGSON_BOND_COUNTRY_VIEW,
+  ] as const) {
+    const html = await fetchSeligsonHtml(fid, view);
+    const name = parseSeligsonFundName(html);
+    if (name) {
+      return name;
+    }
   }
-  return name;
+  throw new Error(
+    `Could not parse fund name from Seligson page for fid=${fid}`,
+  );
 }
 
 export type SeligsonHoldingsRow = {
@@ -217,6 +233,204 @@ export function parseSeligsonHoldingsDistributions(holdingsHtml: string): {
   return {
     payload: { countries, sectors },
     notes,
+  };
+}
+
+/**
+ * Parses FundViewer view=40 bond sleeve + inner bond-type split (korkorahastot).
+ * Returns null when this is not a bond allocation page (e.g. equity fund: Osakkeet only, or “Ei korkosijoituksia”).
+ */
+function parseBondAllocationSectors(html: string): {
+  sectors: Record<string, number>;
+  notes: string[];
+} | null {
+  const notes: string[] = [];
+  const $ = cheerio.load(html);
+  let korkoTotal: number | null = null;
+  let cash: number | null = null;
+
+  $("table.fundprobe").each((_, table) => {
+    const $t = $(table);
+    const headerText = $t.find("tr.darkheader").first().text();
+    if (!/Allokaatio/i.test(headerText)) {
+      return;
+    }
+    $t.find("tr").each((_, tr) => {
+      const cells = $(tr).find("td");
+      if (cells.length < 2) {
+        return;
+      }
+      const label = $(cells[0]).text().trim().replace(/\s+/g, " ");
+      const pct = parseFiPercent($(cells[cells.length - 1]).text());
+      if (pct === null) {
+        return;
+      }
+      if (/^Korkosijoitukset$/i.test(label)) {
+        korkoTotal = pct;
+      }
+      if (/Käteinen/i.test(label)) {
+        cash = pct;
+      }
+    });
+  });
+
+  if (korkoTotal === null || cash === null || korkoTotal <= 1e-9) {
+    return null;
+  }
+
+  let longCorp = 0;
+  let longGovt = 0;
+  let shortPart = 0;
+  let sawInnerHeader = false;
+
+  $("table.fundprobe").each((_, table) => {
+    const $t = $(table);
+    const headerText = $t.find("tr.darkheader").first().text();
+    if (!/Korkosijoitusten jakauma/i.test(headerText)) {
+      return;
+    }
+    sawInnerHeader = true;
+    $t.find("tr").each((_, tr) => {
+      const cells = $(tr).find("td");
+      if (cells.length === 1) {
+        const only = $(cells[0]).text().trim();
+        if (/Ei korkosijoituksia/i.test(only)) {
+          longCorp = -1;
+        }
+        return;
+      }
+      if (cells.length < 2) {
+        return;
+      }
+      const label = $(cells[0]).text().trim().replace(/\s+/g, " ");
+      if (/Ei korkosijoituksia/i.test(label)) {
+        longCorp = -1;
+        return;
+      }
+      const pct = parseFiPercent($(cells[cells.length - 1]).text());
+      if (pct === null) {
+        return;
+      }
+      if (/Pitkät korot \(yrityslainat\)/i.test(label)) {
+        longCorp = pct;
+      }
+      if (/Pitkät korot \(valtionlainat\)/i.test(label)) {
+        longGovt = pct;
+      }
+      if (/^Lyhyet korot$/i.test(label)) {
+        shortPart = pct;
+      }
+    });
+  });
+
+  if (!sawInnerHeader || longCorp < 0) {
+    return null;
+  }
+
+  const innerSum = longCorp + longGovt + shortPart;
+  if (innerSum < 1e-9) {
+    return null;
+  }
+
+  const normCorp = longCorp / innerSum;
+  const normGovt = longGovt / innerSum;
+  const normShort = shortPart / innerSum;
+
+  return {
+    sectors: {
+      cash,
+      long_corporate_bonds: korkoTotal * normCorp,
+      long_government_bonds: korkoTotal * normGovt,
+      short_bonds: korkoTotal * normShort,
+    },
+    notes,
+  };
+}
+
+/** True when view=40 contains bond sleeve + inner pitkät/lyhyet korot breakdown. */
+export function isSeligsonBondAllocationPage(html: string): boolean {
+  return parseBondAllocationSectors(html) != null;
+}
+
+/**
+ * Parses FundViewer view=20 “Pitkien korkosijoitusten maajakauma” (weights sum to 100% of long bonds).
+ */
+export function parseSeligsonBondCountryRows(countryHtml: string): {
+  countries: Record<string, number>;
+  notes: string[];
+} {
+  const $ = cheerio.load(countryHtml);
+  const countries: Record<string, number> = {};
+  const notes: string[] = [];
+  let target: ReturnType<typeof $> | undefined;
+
+  $("table.fundprobe").each((_, table) => {
+    const head = $(table).find("tr.darkheader").first().text();
+    if (/maajakauma/i.test(head)) {
+      target = $(table);
+      return false;
+    }
+  });
+
+  if (!target) {
+    notes.push("Could not find maajakauma table.");
+    return { countries, notes };
+  }
+
+  target.find("tr").each((_, tr) => {
+    const row = $(tr);
+    if (row.hasClass("darkheader")) {
+      return;
+    }
+    const cells = row.find("td");
+    if (cells.length < 2) {
+      return;
+    }
+    const label = $(cells[0]).text().trim().replace(/\s+/g, " ");
+    if (!label || /osuus\s*%/i.test(label)) {
+      return;
+    }
+    const pct = parseFiPercent($(cells[cells.length - 1]).text());
+    if (pct === null || pct <= 0) {
+      return;
+    }
+    const iso = resolveRegionKeyToIso(label);
+    if (!iso) {
+      notes.push(`Unknown country label: ${label}`);
+      return;
+    }
+    countries[iso] = (countries[iso] ?? 0) + pct;
+  });
+
+  const sum = Object.values(countries).reduce((a, b) => a + b, 0);
+  if (sum > 1e-9) {
+    for (const k of Object.keys(countries)) {
+      const v = countries[k];
+      if (v !== undefined) {
+        countries[k] = v / sum;
+      }
+    }
+  }
+
+  return { countries, notes };
+}
+
+export function parseSeligsonBondFundDistributions(
+  allocationHtml: string,
+  countryHtml: string,
+): { payload: DistributionPayload; notes: string[] } {
+  const alloc = parseBondAllocationSectors(allocationHtml);
+  if (!alloc) {
+    return {
+      payload: { countries: {}, sectors: {} },
+      notes: ["Bond allocation parse failed"],
+    };
+  }
+  const { countries, notes: geoNotes } =
+    parseSeligsonBondCountryRows(countryHtml);
+  return {
+    payload: { countries, sectors: alloc.sectors },
+    notes: [...alloc.notes, ...geoNotes],
   };
 }
 

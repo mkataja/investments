@@ -251,8 +251,12 @@ export const seligsonDistributionCache = pgTable(
       .primaryKey()
       .references(() => instruments.id, { onDelete: "cascade" }),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
-    /** FundViewer view=10 holdings listing HTML (sector + geo derived from rows). */
-    holdingsHtml: text("holdings_html").notNull(),
+    /** FundViewer view=10 holdings listing HTML (sector + geo from line items). Null when using bond views. */
+    holdingsHtml: text("holdings_html"),
+    /** FundViewer view=40 allocation + bond-type split (bond funds). */
+    allocationHtml: text("allocation_html"),
+    /** FundViewer view=20 long-bond country weights (bond funds). */
+    countryHtml: text("country_html"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -260,6 +264,18 @@ export const seligsonDistributionCache = pgTable(
       .notNull()
       .defaultNow(),
   },
+  (t) => [
+    check(
+      "seligson_distribution_cache_html_source_ck",
+      sql`(
+        COALESCE(TRIM(${t.holdingsHtml}), '') <> ''
+        OR (
+          COALESCE(TRIM(${t.allocationHtml}), '') <> ''
+          AND COALESCE(TRIM(${t.countryHtml}), '') <> ''
+        )
+      )`,
+    ),
+  ],
 );
 
 /**
