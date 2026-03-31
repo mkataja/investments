@@ -913,6 +913,11 @@ app.post("/import/seligson", async (c) => {
   if (typeof file === "string") {
     return c.json({ message: "Expected file upload, not string" }, 400);
   }
+  const skipMissingRaw = body.skipMissingInstruments;
+  const skipMissingInstruments =
+    skipMissingRaw === true ||
+    skipMissingRaw === "true" ||
+    skipMissingRaw === "1";
   const tsvText = await (file as File).text();
 
   const parsed = parseSeligsonTransactionsTsv(tsvText);
@@ -1005,18 +1010,36 @@ app.post("/import/seligson", async (c) => {
   );
   missingFundNames.sort((a, b) => a.localeCompare(b));
 
+  let rowsForImport = parsed.rows;
+  let skippedRows = 0;
   if (missingFundNames.length > 0) {
-    return c.json(
-      {
-        message:
-          "No instrument matches the following fund names. Add Seligson custom instruments first.",
-        missingFundNames,
-      },
-      400,
+    if (!skipMissingInstruments) {
+      return c.json(
+        {
+          message:
+            "No instrument matches the following fund names. Add Seligson custom instruments first.",
+          missingFundNames,
+        },
+        400,
+      );
+    }
+    rowsForImport = parsed.rows.filter((r) =>
+      instrumentIdByFundName.has(normalizeSeligsonFundNameForMatch(r.fundName)),
     );
+    skippedRows = parsed.rows.length - rowsForImport.length;
+    if (rowsForImport.length === 0) {
+      return c.json(
+        {
+          message:
+            "No transactions left to import: every row references an unmatched fund name.",
+          missingFundNames,
+        },
+        400,
+      );
+    }
   }
 
-  const values = parsed.rows.map((r) => {
+  const values = rowsForImport.map((r) => {
     const instrumentId = instrumentIdByFundName.get(
       normalizeSeligsonFundNameForMatch(r.fundName),
     );
@@ -1076,7 +1099,13 @@ app.post("/import/seligson", async (c) => {
   const changed = written.length;
   const unchanged = processed - changed;
 
-  return c.json({ ok: true, processed, changed, unchanged });
+  return c.json({
+    ok: true,
+    processed,
+    changed,
+    unchanged,
+    ...(skippedRows > 0 ? { skippedRows } : {}),
+  });
 });
 
 const cashCurrencySchema = z.enum(

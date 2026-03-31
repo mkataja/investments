@@ -20,6 +20,7 @@ type DegiroOk = {
   processed: number;
   changed: number;
   unchanged: number;
+  skippedRows?: number;
 };
 
 type DegiroProposalOk = {
@@ -335,8 +336,7 @@ export function ImportPage() {
     }
   }
 
-  async function onSubmitSeligson(e: FormEvent) {
-    e.preventDefault();
+  async function submitSeligson(skipMissingInstruments: boolean) {
     setSeligsonError(null);
     setSeligsonResult(null);
     setSeligsonMissingFunds(null);
@@ -351,6 +351,9 @@ export function ImportPage() {
       form.append("file", seligsonFile);
       if (importPortfolioId != null) {
         form.append("portfolioId", String(importPortfolioId));
+      }
+      if (skipMissingInstruments) {
+        form.append("skipMissingInstruments", "true");
       }
       const data = await apiPostFormData<DegiroOk>("/import/seligson", form);
       if (
@@ -405,6 +408,11 @@ export function ImportPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  function onSubmitSeligson(e: FormEvent) {
+    e.preventDefault();
+    void submitSeligson(false);
   }
 
   return (
@@ -753,6 +761,20 @@ export function ImportPage() {
                 ))}
               </ul>
             ) : null}
+            {seligsonMissingFunds !== null &&
+            seligsonMissingFunds.length > 0 ? (
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    void submitSeligson(true);
+                  }}
+                >
+                  {busy ? "Working…" : "Import anyway"}
+                </Button>
+              </div>
+            ) : null}
           </ErrorAlert>
         ) : null}
         {seligsonResult !== null ? (
@@ -762,6 +784,10 @@ export function ImportPage() {
             {seligsonResult.changed} written to the database
             {seligsonResult.unchanged > 0
               ? `, ${seligsonResult.unchanged} already up to date`
+              : ""}
+            {seligsonResult.skippedRows != null &&
+            seligsonResult.skippedRows > 0
+              ? `, ${seligsonResult.skippedRows} skipped (no matching instrument)`
               : ""}
             .
           </p>
