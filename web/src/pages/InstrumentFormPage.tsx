@@ -1,207 +1,29 @@
 import {
-  type BrokerType,
   type CashCurrencyCode,
   DEFAULT_CASH_CURRENCY,
-  SUPPORTED_CASH_CURRENCY_CODES,
   normalizeCashAccountIsoCountryCode,
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
 } from "@investments/db";
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPatch, apiPost } from "../api";
 import { ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
-import { ProviderHoldingsUrlHint } from "../components/ProviderHoldingsUrlHint";
-import { EditInstrumentPageSkeleton } from "../components/listPageSkeletons";
-import { FormFieldsCardSkeleton } from "../components/skeletonPrimitives";
-
-type Kind = "etf" | "stock" | "custom" | "cash_account";
-
-type YahooLookupResponse = {
-  lookup: {
-    symbol: string;
-    shortName: string | null;
-    longName: string | null;
-    isin: string | null;
-    sector: string | null;
-    industry: string | null;
-    country: string | null;
-    quoteType: string | null;
-  };
-  displayName: string;
-};
-
-type InstrumentRow = {
-  id: number;
-  kind: string;
-  displayName: string;
-};
-
-type InstrumentDetail = {
-  id: number;
-  kind: string;
-  displayName: string;
-  yahooSymbol: string | null;
-  brokerId: number | null;
-  cashGeoKey: string | null;
-  cashCurrency: string | null;
-  holdingsDistributionUrl: string | null;
-  providerBreakdownDataUrl: string | null;
-};
-
-type BrokerRow = {
-  id: number;
-  name: string;
-  brokerType: BrokerType;
-};
-
-type InstrumentFormPageProps =
-  | { mode: "new" }
-  | { mode: "edit"; instrumentId: number };
-
-function HoldingsBreakdownUrlFields({
-  holdingsDistributionUrl,
-  setHoldingsDistributionUrl,
-  providerBreakdownDataUrl,
-  setProviderBreakdownDataUrl,
-  onClearError,
-}: {
-  holdingsDistributionUrl: string;
-  setHoldingsDistributionUrl: (v: string) => void;
-  providerBreakdownDataUrl: string;
-  setProviderBreakdownDataUrl: (v: string) => void;
-  onClearError?: () => void;
-}) {
-  return (
-    <>
-      <label className="block text-sm">
-        Provider holdings URL (optional)
-        <input
-          className="mt-1 block w-full border rounded px-2 py-1 font-mono text-sm"
-          value={holdingsDistributionUrl}
-          onChange={(e) => {
-            setHoldingsDistributionUrl(e.target.value);
-            onClearError?.();
-          }}
-        />
-      </label>
-      <ProviderHoldingsUrlHint />
-      <label className="block text-sm">
-        Provider breakdown data URL (optional)
-        <input
-          className="mt-1 block w-full border rounded px-2 py-1 font-mono text-sm"
-          value={providerBreakdownDataUrl}
-          onChange={(e) => {
-            setProviderBreakdownDataUrl(e.target.value);
-            onClearError?.();
-          }}
-          placeholder="https://am.jpmorgan.com/FundsMarketingHandler/product-data?cusip=…"
-        />
-      </label>
-    </>
-  );
-}
-
-function CashAccountFormFields({
-  brokersLoading,
-  cashBrokers,
-  cashBrokerId,
-  setCashBrokerId,
-  cashDisplayName,
-  setCashDisplayName,
-  cashDisplayNameInputRef,
-  cashCurrency,
-  setCashCurrency,
-  cashGeoKey,
-  setCashGeoKey,
-  showDistributionHint,
-}: {
-  brokersLoading: boolean;
-  cashBrokers: BrokerRow[];
-  cashBrokerId: number | "";
-  setCashBrokerId: (v: number | "") => void;
-  cashDisplayName: string;
-  setCashDisplayName: (v: string) => void;
-  cashDisplayNameInputRef?: RefObject<HTMLInputElement | null>;
-  cashCurrency: CashCurrencyCode;
-  setCashCurrency: (v: CashCurrencyCode) => void;
-  cashGeoKey: string;
-  setCashGeoKey: (v: string) => void;
-  showDistributionHint: boolean;
-}) {
-  if (brokersLoading) {
-    return <FormFieldsCardSkeleton ariaLabel="Loading brokers" fields={4} />;
-  }
-  return (
-    <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
-      <label className="block text-sm">
-        Broker
-        <select
-          className="mt-1 block w-full border rounded px-2 py-1"
-          value={cashBrokerId === "" ? "" : String(cashBrokerId)}
-          onChange={(e) => {
-            const v = e.target.value;
-            setCashBrokerId(v === "" ? "" : Number.parseInt(v, 10));
-          }}
-          required
-        >
-          {cashBrokers.length === 0 ? (
-            <option value="">
-              No cash-account-type broker - add one under Brokers
-            </option>
-          ) : (
-            cashBrokers.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))
-          )}
-        </select>
-      </label>
-      <label className="block text-sm">
-        Display name
-        <input
-          ref={cashDisplayNameInputRef}
-          className="mt-1 block w-full border rounded px-2 py-1"
-          required
-          value={cashDisplayName}
-          onChange={(e) => setCashDisplayName(e.target.value)}
-        />
-      </label>
-      <label className="block text-sm">
-        Currency
-        <select
-          className="mt-1 block w-full border rounded px-2 py-1"
-          value={cashCurrency}
-          onChange={(e) => setCashCurrency(e.target.value as CashCurrencyCode)}
-        >
-          {SUPPORTED_CASH_CURRENCY_CODES.map((code) => (
-            <option key={code} value={code}>
-              {code}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="block text-sm">
-        Country code
-        <input
-          className="mt-1 block w-full border rounded px-2 py-1"
-          required
-          value={cashGeoKey}
-          onChange={(e) => setCashGeoKey(e.target.value)}
-          placeholder="ISO 2-letter code (e.g. FI)"
-        />
-      </label>
-      {showDistributionHint ? (
-        <p className="text-xs text-slate-500">
-          Cash account country is not used for portfolio distribution
-          calculations.
-        </p>
-      ) : null}
-    </div>
-  );
-}
+import { CashAccountFormFields } from "../components/instrumentForm/CashAccountFormFields";
+import { EditInstrumentMode } from "../components/instrumentForm/EditInstrumentMode";
+import { InstrumentKindPicker } from "../components/instrumentForm/InstrumentKindPicker";
+import { NewCustomSeligsonSection } from "../components/instrumentForm/NewCustomSeligsonSection";
+import { NewYahooEtfStockSection } from "../components/instrumentForm/NewYahooEtfStockSection";
+import { INSTRUMENT_FORM_CANCEL_LINK_CLASS } from "../components/instrumentForm/cancelLinkClass";
+import type {
+  BrokerRow,
+  InstrumentDetail,
+  InstrumentFormPageProps,
+  InstrumentKind,
+  InstrumentRow,
+  YahooLookupResponse,
+} from "../components/instrumentForm/types";
 
 function InstrumentFormPage(props: InstrumentFormPageProps) {
   const navigate = useNavigate();
@@ -209,7 +31,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   const editInstrumentId = props.mode === "edit" ? props.instrumentId : null;
 
   const [error, setError] = useState<string | null>(null);
-  const [kind, setKind] = useState<Kind | null>(null);
+  const [kind, setKind] = useState<InstrumentKind | null>(null);
 
   const [brokers, setBrokers] = useState<BrokerRow[]>([]);
   const [brokersLoading, setBrokersLoading] = useState(true);
@@ -560,308 +382,92 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   const cashBrokers = brokers.filter((b) => b.brokerType === "cash_account");
 
   if (mode === "edit") {
-    if (loadingEdit) {
-      return <EditInstrumentPageSkeleton />;
-    }
-
-    if (!initial) {
-      return (
-        <div className="w-full min-w-0 space-y-4">
-          {error ? <ErrorAlert>{error}</ErrorAlert> : null}
-          <ButtonLink to="/instruments">Back to instruments</ButtonLink>
-        </div>
-      );
-    }
-
-    if (initial.kind === "custom") {
-      return (
-        <div className="w-full min-w-0 space-y-6">
-          <header className="space-y-2">
-            <Link
-              to="/instruments"
-              className="text-sm text-emerald-800 hover:underline"
-            >
-              ← Instruments
-            </Link>
-            <h1 className="text-2xl font-semibold text-slate-900">
-              Edit instrument
-            </h1>
-          </header>
-          <p className="text-slate-700 text-sm max-w-lg">
-            Seligson-linked instruments are not edited here.
-          </p>
-          <ButtonLink to="/instruments">Back to instruments</ButtonLink>
-        </div>
-      );
-    }
-
-    if (initial.kind === "etf" || initial.kind === "stock") {
-      return (
-        <div className="w-full min-w-0 space-y-6">
-          <header className="space-y-2">
-            <Link
-              to="/instruments"
-              className="text-sm text-emerald-800 hover:underline"
-            >
-              ← Instruments
-            </Link>
-            <h1 className="text-2xl font-semibold text-slate-900">
-              ETF / stock settings
-            </h1>
-            <p className="text-sm text-slate-600">
-              <span className="font-mono text-slate-800">
-                {initial.yahooSymbol ?? "-"}
-              </span>{" "}
-              - {initial.displayName}
-            </p>
-            {error ? <ErrorAlert>{error}</ErrorAlert> : null}
-          </header>
-
-          <form
-            onSubmit={(e) => void submitEditEtfStock(e)}
-            className="space-y-6"
-          >
-            <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
-              <HoldingsBreakdownUrlFields
-                holdingsDistributionUrl={holdingsDistributionUrl}
-                setHoldingsDistributionUrl={setHoldingsDistributionUrl}
-                providerBreakdownDataUrl={providerBreakdownDataUrl}
-                setProviderBreakdownDataUrl={setProviderBreakdownDataUrl}
-                onClearError={() => setError(null)}
-              />
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="submit"
-                className="bg-emerald-700 text-white px-4 py-2 rounded"
-              >
-                Save
-              </button>
-              <Link
-                to="/instruments"
-                className="inline-flex items-center justify-center text-sm font-medium rounded-md border border-slate-200 bg-white px-3 py-1.5 text-slate-800 shadow-sm hover:bg-slate-50"
-              >
-                Cancel
-              </Link>
-            </div>
-          </form>
-        </div>
-      );
-    }
-
-    if (initial.kind !== "cash_account") {
-      return (
-        <div className="w-full min-w-0 space-y-6">
-          <header className="space-y-2">
-            <Link
-              to="/instruments"
-              className="text-sm text-emerald-800 hover:underline"
-            >
-              ← Instruments
-            </Link>
-            <h1 className="text-2xl font-semibold text-slate-900">
-              Edit instrument
-            </h1>
-          </header>
-          <p className="text-slate-700 text-sm max-w-lg">
-            This instrument type cannot be edited here.
-          </p>
-          <ButtonLink to="/instruments">Back to instruments</ButtonLink>
-        </div>
-      );
-    }
-
     return (
-      <div className="w-full min-w-0 space-y-6">
-        <header className="space-y-2">
-          <Link
-            to="/instruments"
-            className="text-sm text-emerald-800 hover:underline"
-          >
-            ← Instruments
-          </Link>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Edit cash account
-          </h1>
-          {error ? <ErrorAlert>{error}</ErrorAlert> : null}
-        </header>
-
-        <form onSubmit={(e) => void submitEditCash(e)} className="space-y-6">
-          <CashAccountFormFields
-            brokersLoading={brokersLoading}
-            cashBrokers={cashBrokers}
-            cashBrokerId={cashBrokerId}
-            setCashBrokerId={setCashBrokerId}
-            cashDisplayName={cashDisplayName}
-            setCashDisplayName={setCashDisplayName}
-            cashCurrency={cashCurrency}
-            setCashCurrency={setCashCurrency}
-            cashGeoKey={cashGeoKey}
-            setCashGeoKey={setCashGeoKey}
-            showDistributionHint={false}
-          />
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="submit"
-              disabled={brokersLoading}
-              className="bg-emerald-700 text-white px-4 py-2 rounded disabled:bg-slate-300 disabled:cursor-not-allowed"
-            >
-              Save
-            </button>
-            <Link
-              to="/instruments"
-              className="inline-flex items-center justify-center text-sm font-medium rounded-md border border-slate-200 bg-white px-3 py-1.5 text-slate-800 shadow-sm hover:bg-slate-50"
-            >
-              Cancel
-            </Link>
-          </div>
-        </form>
-      </div>
+      <EditInstrumentMode
+        loadingEdit={loadingEdit}
+        initial={initial}
+        error={error}
+        holdingsDistributionUrl={holdingsDistributionUrl}
+        setHoldingsDistributionUrl={setHoldingsDistributionUrl}
+        providerBreakdownDataUrl={providerBreakdownDataUrl}
+        setProviderBreakdownDataUrl={setProviderBreakdownDataUrl}
+        submitEditEtfStock={submitEditEtfStock}
+        submitEditCash={submitEditCash}
+        onClearUrlError={() => setError(null)}
+        brokersLoading={brokersLoading}
+        cashBrokers={cashBrokers}
+        cashBrokerId={cashBrokerId}
+        setCashBrokerId={setCashBrokerId}
+        cashDisplayName={cashDisplayName}
+        setCashDisplayName={setCashDisplayName}
+        cashCurrency={cashCurrency}
+        setCashCurrency={setCashCurrency}
+        cashGeoKey={cashGeoKey}
+        setCashGeoKey={setCashGeoKey}
+      />
     );
   }
 
   return (
     <div className="w-full min-w-0 space-y-6">
       <header className="space-y-2">
-        <Link to="/" className="text-sm text-emerald-800 hover:underline">
-          ← Portfolio
+        <Link
+          to="/instruments"
+          className="text-sm text-emerald-800 hover:underline"
+        >
+          ← Instruments
         </Link>
         <h1 className="text-2xl font-semibold text-slate-900">
           New instrument
         </h1>
+        {kind ? (
+          <p className="text-sm text-slate-600">
+            {kind === "etf"
+              ? "ETF"
+              : kind === "stock"
+                ? "Stock"
+                : kind === "custom"
+                  ? "Custom (Seligson)"
+                  : "Cash account"}
+          </p>
+        ) : null}
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </header>
 
       <form onSubmit={(e) => void submitNew(e)} className="space-y-6">
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-slate-800">Instrument type</p>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["etf", "ETF"],
-                ["stock", "Stock"],
-                ["custom", "Custom (Seligson)"],
-                ["cash_account", "Cash account"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                className={`px-3 py-1.5 rounded border text-sm ${
-                  kind === value
-                    ? "bg-emerald-700 text-white border-emerald-800"
-                    : "bg-white border-slate-200 text-slate-800 hover:bg-slate-50"
-                }`}
-                onClick={() => {
-                  setKind(value);
-                  setError(null);
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+        <InstrumentKindPicker
+          kind={kind}
+          onKindChange={(value) => {
+            setKind(value);
+            setError(null);
+          }}
+        />
 
         {kind === "etf" || kind === "stock" ? (
-          <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
-            <label className="block text-sm">
-              Yahoo symbol
-              <input
-                ref={yahooSymbolInputRef}
-                className="mt-1 block w-full border rounded px-2 py-1"
-                value={yahooSymbol}
-                onChange={(e) => setYahooSymbol(e.target.value)}
-                placeholder={kind === "stock" ? "BRK-B" : "SXR8.DE"}
-              />
-            </label>
-            <button
-              type="button"
-              className="text-sm text-emerald-800 underline"
-              onClick={() => void previewYahoo()}
-            >
-              Preview from Yahoo
-            </button>
-            <HoldingsBreakdownUrlFields
-              holdingsDistributionUrl={holdingsDistributionUrl}
-              setHoldingsDistributionUrl={setHoldingsDistributionUrl}
-              providerBreakdownDataUrl={providerBreakdownDataUrl}
-              setProviderBreakdownDataUrl={setProviderBreakdownDataUrl}
-            />
-            {yahooPreview && (
-              <div className="text-sm text-slate-700 space-y-1 border-t pt-3 mt-2">
-                <p>
-                  <span className="text-slate-500">Name: </span>
-                  {yahooPreview.displayName}
-                </p>
-                {yahooPreview.lookup.isin && (
-                  <p>
-                    <span className="text-slate-500">ISIN: </span>
-                    {yahooPreview.lookup.isin}
-                  </p>
-                )}
-                {(yahooPreview.lookup.sector ||
-                  yahooPreview.lookup.country) && (
-                  <p>
-                    <span className="text-slate-500">Sector / country: </span>
-                    {[yahooPreview.lookup.sector, yahooPreview.lookup.country]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
+          <NewYahooEtfStockSection
+            kind={kind}
+            yahooSymbol={yahooSymbol}
+            setYahooSymbol={setYahooSymbol}
+            yahooSymbolInputRef={yahooSymbolInputRef}
+            onPreviewYahoo={previewYahoo}
+            holdingsDistributionUrl={holdingsDistributionUrl}
+            setHoldingsDistributionUrl={setHoldingsDistributionUrl}
+            providerBreakdownDataUrl={providerBreakdownDataUrl}
+            setProviderBreakdownDataUrl={setProviderBreakdownDataUrl}
+            yahooPreview={yahooPreview}
+          />
         ) : null}
 
         {kind === "custom" ? (
-          brokersLoading ? (
-            <FormFieldsCardSkeleton ariaLabel="Loading brokers" fields={3} />
-          ) : (
-            <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
-              <label className="block text-sm">
-                Broker
-                <select
-                  className="mt-1 block w-full border rounded px-2 py-1"
-                  value={customBrokerId === "" ? "" : String(customBrokerId)}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    setCustomBrokerId(v === "" ? "" : Number.parseInt(v, 10));
-                  }}
-                  required
-                >
-                  {seligsonBrokers.length === 0 ? (
-                    <option value="">
-                      No Seligson-type broker - add one under Brokers
-                    </option>
-                  ) : (
-                    seligsonBrokers.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))
-                  )}
-                </select>
-              </label>
-              <label className="block text-sm">
-                Seligson FID
-                <input
-                  ref={seligsonFidInputRef}
-                  type="number"
-                  min={1}
-                  className="mt-1 block w-full border rounded px-2 py-1"
-                  value={seligsonFid}
-                  onChange={(e) => setSeligsonFid(e.target.value)}
-                  placeholder="FundViewer fid=…"
-                />
-              </label>
-              <p className="text-xs text-slate-500">
-                The fund name is loaded from Seligson when you create the
-                instrument.
-              </p>
-            </div>
-          )
+          <NewCustomSeligsonSection
+            brokersLoading={brokersLoading}
+            seligsonBrokers={seligsonBrokers}
+            customBrokerId={customBrokerId}
+            setCustomBrokerId={setCustomBrokerId}
+            seligsonFid={seligsonFid}
+            setSeligsonFid={setSeligsonFid}
+            seligsonFidInputRef={seligsonFidInputRef}
+          />
         ) : null}
 
         {kind === "cash_account" ? (
@@ -877,20 +483,24 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
             setCashCurrency={setCashCurrency}
             cashGeoKey={cashGeoKey}
             setCashGeoKey={setCashGeoKey}
-            showDistributionHint
           />
         ) : null}
 
-        <button
-          type="submit"
-          disabled={
-            !kind ||
-            (brokersLoading && (kind === "custom" || kind === "cash_account"))
-          }
-          className="bg-emerald-700 disabled:bg-slate-300 text-white px-4 py-2 rounded"
-        >
-          Create instrument
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="submit"
+            disabled={
+              !kind ||
+              (brokersLoading && (kind === "custom" || kind === "cash_account"))
+            }
+            className="bg-emerald-700 disabled:bg-slate-300 text-white px-4 py-2 rounded"
+          >
+            Create instrument
+          </button>
+          <Link to="/instruments" className={INSTRUMENT_FORM_CANCEL_LINK_CLASS}>
+            Cancel
+          </Link>
+        </div>
       </form>
     </div>
   );

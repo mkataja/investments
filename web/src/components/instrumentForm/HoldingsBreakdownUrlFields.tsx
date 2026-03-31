@@ -1,0 +1,44 @@
+import { ProviderHoldingsUrlHint } from "../ProviderHoldingsUrlHint";
+
+export function HoldingsBreakdownUrlFields({
+  holdingsDistributionUrl,
+  setHoldingsDistributionUrl,
+  providerBreakdownDataUrl,
+  setProviderBreakdownDataUrl,
+  onClearError,
+}: {
+  holdingsDistributionUrl: string;
+  setHoldingsDistributionUrl: (v: string) => void;
+  providerBreakdownDataUrl: string;
+  setProviderBreakdownDataUrl: (v: string) => void;
+  onClearError?: () => void;
+}) {
+  return (
+    <>
+      <label className="block text-sm">
+        Provider holdings URL (optional)
+        <input
+          className="mt-1 block w-full border rounded px-2 py-1 font-mono text-sm"
+          value={holdingsDistributionUrl}
+          onChange={(e) => {
+            setHoldingsDistributionUrl(e.target.value);
+            onClearError?.();
+          }}
+        />
+      </label>
+      <ProviderHoldingsUrlHint />
+      <label className="block text-sm">
+        Provider breakdown data URL (optional)
+        <input
+          className="mt-1 block w-full border rounded px-2 py-1 font-mono text-sm"
+          value={providerBreakdownDataUrl}
+          onChange={(e) => {
+            setProviderBreakdownDataUrl(e.target.value);
+            onClearError?.();
+          }}
+          placeholder="https://am.jpmorgan.com/FundsMarketingHandler/product-data?cusip=…"
+        />
+      </label>
+    </>
+  );
+}
