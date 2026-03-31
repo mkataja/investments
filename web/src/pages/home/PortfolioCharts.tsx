@@ -1,5 +1,5 @@
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -21,6 +21,7 @@ import {
   DEFAULT_DISTRIBUTION_BAR_Y_AXIS_TICK_COUNT,
   distributionBarYAxisFromMax,
   maxDistributionBarChartValue,
+  secondLargestMainPortfolioBarValue,
 } from "../../lib/distributionBarChartAxis";
 import {
   allCountriesChartData,
@@ -70,6 +71,25 @@ function PieSideLegend({
 // Recharts tickFormatter(value, index) — only pass the numeric value to formatToPercentage.
 function chartYAxisPercentTick(value: number) {
   return formatToPercentage(value, { decimalPlaces: 0 });
+}
+
+function CountryChartZoomActiveIcon() {
+  return (
+    <svg
+      className="h-8 w-8"
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  );
 }
 
 function barChartMargin() {
@@ -225,21 +245,38 @@ export function PortfolioCharts({
     ],
   );
 
-  const countryYAxis = useMemo(
-    () =>
-      distributionBarYAxisFromMax(
-        maxDistributionBarChartValue(
-          countryBarChartData,
-          showDistributionCompare,
-        ),
-        distributionBarYAxisTickCount,
-      ),
-    [
+  const [countryChartYZoomed, setCountryChartYZoomed] = useState(false);
+
+  const countryYAxis = useMemo(() => {
+    const maxData01 = maxDistributionBarChartValue(
       countryBarChartData,
       showDistributionCompare,
+    );
+    const base = distributionBarYAxisFromMax(
+      maxData01,
       distributionBarYAxisTickCount,
-    ],
-  );
+    );
+    if (!countryChartYZoomed) return base;
+    const secondMax = secondLargestMainPortfolioBarValue(
+      countryBarChartData,
+      showDistributionCompare,
+    );
+    if (secondMax !== undefined && secondMax > 0) {
+      return distributionBarYAxisFromMax(
+        secondMax,
+        distributionBarYAxisTickCount,
+      );
+    }
+    return distributionBarYAxisFromMax(
+      base.domain[1] / 2,
+      distributionBarYAxisTickCount,
+    );
+  }, [
+    countryBarChartData,
+    showDistributionCompare,
+    distributionBarYAxisTickCount,
+    countryChartYZoomed,
+  ]);
 
   const assetMixPieDataRaw = useMemo(() => {
     const m = portfolio.assetMix;
@@ -515,9 +552,23 @@ export function PortfolioCharts({
         </div>
         <div className="min-w-0 subsection-stack">
           <h3 className="shrink-0">Countries</h3>
-          <div className="w-full h-[540px]">
+          <div
+            className={`relative w-full h-[540px] ${countryChartYZoomed ? "cursor-zoom-out" : "cursor-zoom-in"}`}
+          >
+            {countryChartYZoomed ? (
+              <div
+                className="pointer-events-none absolute right-2 top-2 z-10 text-slate-500"
+                aria-hidden
+              >
+                <CountryChartZoomActiveIcon />
+              </div>
+            ) : null}
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={countryBarChartData} margin={barChartMargin()}>
+              <BarChart
+                data={countryBarChartData}
+                margin={barChartMargin()}
+                onClick={() => setCountryChartYZoomed((z) => !z)}
+              >
                 <CartesianGrid
                   strokeDasharray="3 3"
                   vertical={false}
@@ -535,6 +586,7 @@ export function PortfolioCharts({
                   domain={countryYAxis.domain}
                   ticks={countryYAxis.ticks}
                   tickFormatter={chartYAxisPercentTick}
+                  allowDataOverflow={countryChartYZoomed}
                 />
                 <DistributionBarChartTooltip
                   content={distributionTooltipContent}

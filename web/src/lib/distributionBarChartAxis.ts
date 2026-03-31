@@ -26,6 +26,31 @@ export function maxDistributionBarChartValue(
 }
 
 /**
+ * Second-largest bar height for the **main** portfolio only: each row’s `value`, or `primary`
+ * when `compare` is true (comparison series is ignored). Used to scale the Y-axis so the
+ * tallest main bar can clip while the next tier “fits”. Returns `undefined` if fewer than two
+ * numeric values exist.
+ */
+export function secondLargestMainPortfolioBarValue(
+  rows: readonly { value?: number; primary?: number; compare?: number }[],
+  compare: boolean,
+): number | undefined {
+  const values: number[] = [];
+  for (const r of rows) {
+    if (compare) {
+      const p = r.primary;
+      if (typeof p === "number" && Number.isFinite(p)) values.push(p);
+    } else {
+      const v = r.value;
+      if (typeof v === "number" && Number.isFinite(v)) values.push(v);
+    }
+  }
+  if (values.length < 2) return undefined;
+  values.sort((a, b) => b - a);
+  return values[1];
+}
+
+/**
  * Domain [0, d] and `tickCount` ticks at i·d/(tickCount−1), i = 0…tickCount−1,
  * with d = (tickCount−1)·k/100 for integer k ≥ 1, choosing the smallest d that is ≥ `maxData01`
  * (weights in 0–1). `tickCount` is the number of labeled ticks (including 0), minimum 2.
