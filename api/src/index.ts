@@ -34,16 +34,11 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { db } from "./db.js";
-import {
-  fetchSeligsonFundName,
-  fetchSeligsonHtml,
-  parseSeligsonHoldingsDistributions,
-} from "./distributions/seligson.js";
+import { fetchSeligsonFundName } from "./distributions/seligson.js";
 import {
   buildYahooInstrumentLookup,
   displayNameFromYahooLookup,
   fetchYahooQuoteSummaryRaw,
-  normalizeYahooDistribution,
 } from "./distributions/yahoo.js";
 import { buildDegiroInstrumentProposals } from "./import/degiroInstrumentProposals.js";
 import { resolveDegiroInstrumentIds } from "./import/degiroResolveInstruments.js";
@@ -93,9 +88,6 @@ app.use(
     origin: ["http://localhost:5173", "http://127.0.0.1:5173"],
   }),
 );
-
-const devToolsAllowed = () =>
-  process.env.NODE_ENV === "development" || process.env.DEV_TOOLS === "true";
 
 app.get("/health", (c) => c.json({ ok: true }));
 
@@ -1880,70 +1872,6 @@ app.get("/portfolio/distributions", async (c) => {
   const data = await getPortfolioDistributions(portfolioId);
   return c.json(data);
 });
-
-app.get("/distribution-cache/:instrumentId", async (c) => {
-  const instrumentId = Number.parseInt(c.req.param("instrumentId"), 10);
-  const [dist] = await db
-    .select()
-    .from(distributions)
-    .where(eq(distributions.instrumentId, instrumentId));
-  const [yfc] = await db
-    .select()
-    .from(yahooFinanceCache)
-    .where(eq(yahooFinanceCache.instrumentId, instrumentId));
-  const [sdc] = await db
-    .select()
-    .from(seligsonDistributionCache)
-    .where(eq(seligsonDistributionCache.instrumentId, instrumentId));
-  if (!dist && !yfc && !sdc) {
-    return c.json(null);
-  }
-  return c.json({
-    distributions: dist ?? null,
-    yahooFinanceCache: yfc ?? null,
-    seligsonDistributionCache: sdc ?? null,
-  });
-});
-
-if (devToolsAllowed()) {
-  app.get("/dev/yahoo", async (c) => {
-    const symbol = c.req.query("symbol");
-    if (!symbol) {
-      return c.json({ error: "symbol required" }, 400);
-    }
-    try {
-      const raw = await fetchYahooQuoteSummaryRaw(symbol);
-      const normalized = normalizeYahooDistribution(raw, symbol);
-      return c.json({
-        raw,
-        normalized: normalized.payload,
-        notes: normalized.notes,
-      });
-    } catch (e) {
-      const { message, status } = formatYahooUpstreamError(e);
-      return c.json({ error: message }, status);
-    }
-  });
-
-  app.get("/dev/seligson", async (c) => {
-    const fidRaw = c.req.query("fid");
-    if (!fidRaw) {
-      return c.json({ error: "fid required" }, 400);
-    }
-    const fid = Number.parseInt(fidRaw, 10);
-    try {
-      const holdingsHtml = await fetchSeligsonHtml(fid);
-      const parsed = parseSeligsonHoldingsDistributions(holdingsHtml);
-      return c.json({
-        holdingsHtmlLength: holdingsHtml.length,
-        ...parsed,
-      });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return c.json({ error: message }, 500);
-    }
-  });
-}
 
 const port = Number.parseInt(process.env.PORT ?? "3001", 10);
 

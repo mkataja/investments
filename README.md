@@ -24,7 +24,7 @@ Postgres is exposed on **host port 50500** (to avoid clashing with other local P
 pnpm dev
 ```
 
-- Web: [http://localhost:5173](http://localhost:5173) — portfolio UI, `/instruments/new` to add instruments, `/dev` for Yahoo / Seligson data checks.
+- Web: [http://localhost:5173](http://localhost:5173) — portfolio UI and `/instruments/new` to add instruments.
 - API: [http://localhost:3001](http://localhost:3001) — `GET /health` health check.
 
 Set `VITE_API_URL` in `web` if the API is not on port 3001.
@@ -50,7 +50,6 @@ Use short, descriptive one-line titles (no `feat:` / `chore:` prefixes).
 - **ETFs/stocks** use `yahooSymbol`; distributions come from Yahoo `quoteSummary` (sectors / regions when available).
 - **Cash** (`cash_account`): balance is in `cash_currency` (EUR/USD); **country code** (ISO 3166-1 alpha-2, stored as `cash_geo_key`) is required for display and is not used for region/sector chart weights.
 - **Distribution cache** refreshes at least daily for instruments with open positions (API startup; `manual` cache rows are not overwritten).
-- **Dev-only routes** `GET /dev/yahoo?symbol=` and `GET /dev/seligson?fid=` are enabled when `NODE_ENV=development` or `DEV_TOOLS=true`.
 - **Public routes** `GET /instruments/lookup-yahoo?symbol=` previews Yahoo metadata for the new-instrument UI.
 
 ## Packages

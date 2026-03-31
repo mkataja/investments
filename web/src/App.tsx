@@ -1,6 +1,5 @@
 import { BrowserRouter, Link, Route, Routes } from "react-router-dom";
 import { BrokersPage } from "./pages/BrokersPage";
-import { DevPage } from "./pages/DevPage";
 import { HomePage } from "./pages/HomePage";
 import { ImportPage } from "./pages/ImportPage";
 import {
@@ -23,9 +22,6 @@ export function App() {
           <Link to="/brokers" className="text-emerald-800 hover:underline">
             Brokers
           </Link>
-          <Link to="/dev" className="text-emerald-800 hover:underline">
-            Data checks
-          </Link>
         </nav>
         <main className="w-full min-w-0 px-4 sm:px-6 py-6">
           <Routes>
@@ -38,7 +34,6 @@ export function App() {
             />
             <Route path="/brokers" element={<BrokersPage />} />
             <Route path="/import" element={<ImportPage />} />
-            <Route path="/dev" element={<DevPage />} />
           </Routes>
         </main>
       </div>
