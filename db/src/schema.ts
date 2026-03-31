@@ -249,8 +249,8 @@ export const seligsonDistributionCache = pgTable(
       .primaryKey()
       .references(() => instruments.id, { onDelete: "cascade" }),
     fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
-    countryHtml: text("country_html").notNull(),
-    otherDistributionHtml: text("other_distribution_html").notNull(),
+    /** FundViewer view=10 holdings listing HTML (sector + geo derived from rows). */
+    holdingsHtml: text("holdings_html").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

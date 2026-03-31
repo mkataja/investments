@@ -169,6 +169,13 @@
       "when": 1774910101200,
       "tag": "0023_oval_kang",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1774910200000,
+      "tag": "0024_seligson_holdings_html",
+      "breakpoints": true
     }
   ]
 }
