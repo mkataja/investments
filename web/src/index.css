@@ -4,9 +4,9 @@
 
 @layer base {
   :root {
-    /* Edit / Delete link color tokens (emerald-800, red-700) — also used for buy/sell prices */
-    --color-action-edit: 6 95 70;
-    --color-action-delete: 185 28 28;
+    /* Emerald-800 / red-700 — palette only; Tailwind aliases: action-edit/action-delete, buy/sell */
+    --color-accent: 6 95 70;
+    --color-danger: 185 28 28;
   }
 
   h1 {

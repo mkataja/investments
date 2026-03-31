@@ -19,6 +19,12 @@ function transactionSideLabel(side: string, instrumentKind?: string): string {
   return side;
 }
 
+function sideAccentClass(side: string): string | undefined {
+  if (side === "buy") return "text-buy";
+  if (side === "sell") return "text-sell";
+  return undefined;
+}
+
 type TransactionsTableProps = {
   transactions: HomeTransaction[];
   instrumentById: Map<number, HomeInstrument>;
@@ -60,10 +66,12 @@ export function TransactionsTable({
               <tr key={t.id} className="border-t border-slate-100">
                 <td className="p-2">{formatInstantForDisplay(t.tradeDate)}</td>
                 <td className="p-2">
-                  {transactionSideLabel(
-                    t.side,
-                    instrumentById.get(t.instrumentId)?.kind,
-                  )}
+                  <span className={sideAccentClass(t.side)}>
+                    {transactionSideLabel(
+                      t.side,
+                      instrumentById.get(t.instrumentId)?.kind,
+                    )}
+                  </span>
                 </td>
                 <td className="p-2 text-left min-w-[12rem] font-medium text-slate-900">
                   {instrumentNameById.get(t.instrumentId) ??
@@ -86,23 +94,25 @@ export function TransactionsTable({
                   "cash_account" ? (
                     "-"
                   ) : (
-                    <>
+                    <span className={sideAccentClass(t.side)}>
                       {formatTransactionUnitPriceForDisplay(
                         t.side,
                         t.unitPrice,
                       )}{" "}
                       {t.currency}
-                    </>
+                    </span>
                   )}
                 </td>
                 <td className="p-2 text-right tabular-nums">
-                  {formatTransactionTotalValueForDisplay(
-                    t.side,
-                    t.quantity,
-                    t.unitPrice,
-                    t.currency,
-                    instrumentById.get(t.instrumentId)?.kind,
-                  )}
+                  <span className={sideAccentClass(t.side)}>
+                    {formatTransactionTotalValueForDisplay(
+                      t.side,
+                      t.quantity,
+                      t.unitPrice,
+                      t.currency,
+                      instrumentById.get(t.instrumentId)?.kind,
+                    )}
+                  </span>
                 </td>
                 <td className="text-right p-2 space-x-3 whitespace-nowrap">
                   <button

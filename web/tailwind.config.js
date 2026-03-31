@@ -4,8 +4,10 @@ export default {
   theme: {
     extend: {
       colors: {
-        "action-edit": "rgb(var(--color-action-edit) / <alpha-value>)",
-        "action-delete": "rgb(var(--color-action-delete) / <alpha-value>)",
+        "action-edit": "rgb(var(--color-accent) / <alpha-value>)",
+        "action-delete": "rgb(var(--color-danger) / <alpha-value>)",
+        buy: "rgb(var(--color-accent) / <alpha-value>)",
+        sell: "rgb(var(--color-danger) / <alpha-value>)",
       },
       fontSize: {
         "heading-1": ["1.875rem", { lineHeight: "2.25rem" }],
