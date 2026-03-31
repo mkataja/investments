@@ -17,7 +17,7 @@ export function NewCustomSeligsonSection({
   setCustomBrokerId: (v: number | "") => void;
   seligsonFid: string;
   setSeligsonFid: (v: string) => void;
-  seligsonFidInputRef: RefObject<HTMLInputElement | null>;
+  seligsonFidInputRef: RefObject<HTMLInputElement>;
 }) {
   if (brokersLoading) {
     return <FormFieldsCardSkeleton ariaLabel="Loading brokers" fields={3} />;

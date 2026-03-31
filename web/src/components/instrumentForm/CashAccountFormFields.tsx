@@ -25,7 +25,7 @@ export function CashAccountFormFields({
   setCashBrokerId: (v: number | "") => void;
   cashDisplayName: string;
   setCashDisplayName: (v: string) => void;
-  cashDisplayNameInputRef?: RefObject<HTMLInputElement | null>;
+  cashDisplayNameInputRef?: RefObject<HTMLInputElement>;
   cashCurrency: CashCurrencyCode;
   setCashCurrency: (v: CashCurrencyCode) => void;
   cashGeoKey: string;

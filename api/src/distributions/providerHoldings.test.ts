@@ -131,7 +131,6 @@ describe("parseVanguardUkGpxHoldingsJson", () => {
     const { countries, sectors } = parseVanguardUkGpxHoldingsJson([
       {
         marketValuePercentage: 2,
-        marketValueBaseCurrency: "USD",
         bloombergIsoCountry: "US",
         securityType: "MM.TBILL",
         issuerName: "Cash",

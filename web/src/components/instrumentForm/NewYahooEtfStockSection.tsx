@@ -19,7 +19,7 @@ export function NewYahooEtfStockSection({
   kind: InstrumentKind;
   yahooSymbol: string;
   setYahooSymbol: (v: string) => void;
-  yahooSymbolInputRef: RefObject<HTMLInputElement | null>;
+  yahooSymbolInputRef: RefObject<HTMLInputElement>;
   onPreviewYahoo: () => void;
   holdingsDistributionUrl: string;
   setHoldingsDistributionUrl: (v: string) => void;
