@@ -774,15 +774,12 @@ export function ImportPage() {
                 />
               </div>
             </div>
-            <Button
-              type="submit"
-              disabled={
-                busy ||
-                (seligsonFile === null && seligsonPasteText.trim().length === 0)
-              }
-            >
+            {seligsonFile !== null ||
+            (seligsonPasteOpen && seligsonPasteText.trim().length > 0) ? (
+              <Button type="submit" disabled={busy}>
               {busy ? "Working…" : "Import"}
             </Button>
+            ) : null}
           </div>
           {seligsonPasteOpen ? (
             <div>

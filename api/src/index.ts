@@ -941,7 +941,10 @@ app.post("/import/seligson", async (c) => {
   const parsed = parseSeligsonTransactionsTsv(tsvText);
   if (!parsed.ok) {
     return c.json(
-      { message: "TSV validation failed", errors: parsed.errors },
+      {
+        message: "Transactions table data validation failed",
+        errors: parsed.errors,
+      },
       400,
     );
   }

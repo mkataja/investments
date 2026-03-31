@@ -28,6 +28,7 @@ export function HoldingsBreakdownUrlFields({
         />
       </label>
       <ProviderHoldingsUrlHint />
+      <hr />
       <label className="block text-sm">
         Provider breakdown data URL (optional)
         <input

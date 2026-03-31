@@ -601,17 +601,6 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
           ← Instruments
         </Link>
         <h1>New instrument</h1>
-        {kind ? (
-          <p className="text-sm text-slate-600">
-            {kind === "etf"
-              ? "ETF"
-              : kind === "stock"
-                ? "Stock"
-                : kind === "custom"
-                  ? "Seligson"
-                  : "Cash account"}
-          </p>
-        ) : null}
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </header>
 
