@@ -4,6 +4,7 @@ import {
   parseSeligsonFundName,
   parseSeligsonHoldingsDistributions,
   parseSeligsonHoldingsRows,
+  stripSeligsonFundViewerTitleSuffix,
 } from "./seligson.js";
 
 const MINIMAL_HOLDINGS_TABLE = `<div id="content"><h1>Test Fund - Salkun tiedot</h1>
@@ -24,9 +25,22 @@ describe("parseSeligsonFundName", () => {
     ).toBe("Seligson & Co Euro Corporate Bond");
     expect(
       parseSeligsonFundName(
+        `<div id="content"><h1>Seligson & Co Euro Corporate Bond\u2013 Arvopaperien listaus</h1></div>`,
+      ),
+    ).toBe("Seligson & Co Euro Corporate Bond");
+    expect(
+      parseSeligsonFundName(
         `<div id="content"><h1>Test Fund - Salkun jakaumat</h1></div>`,
       ),
     ).toBe("Test Fund");
+  });
+
+  it("stripSeligsonFundViewerTitleSuffix matches parseSeligsonFundName h1 rules", () => {
+    expect(
+      stripSeligsonFundViewerTitleSuffix(
+        "Seligson & Co Euro Corporate Bond\u2013 Arvopaperien listaus",
+      ),
+    ).toBe("Seligson & Co Euro Corporate Bond");
   });
 });
 

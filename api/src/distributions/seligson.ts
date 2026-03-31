@@ -43,6 +43,30 @@ export async function fetchSeligsonHtml(
   return res.text();
 }
 
+/** Match ASCII hyphen and common Unicode dash punctuation (e.g. Seligson uses en-dash in h1). */
+const SELIGSON_VIEW_TITLE_DASH = /\s*\p{Pd}\s*/u;
+
+/**
+ * Strips FundViewer view suffixes from a title string (same rules as {@link parseSeligsonFundName}).
+ * Used to sync stale `instruments.display_name` with parsed fund names.
+ */
+export function stripSeligsonFundViewerTitleSuffix(raw: string): string {
+  const text = raw
+    .replace(/\u00a0/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text
+    .replace(
+      new RegExp(`${SELIGSON_VIEW_TITLE_DASH.source}Salkun.*$`, "iu"),
+      "",
+    )
+    .replace(
+      new RegExp(`${SELIGSON_VIEW_TITLE_DASH.source}Arvopaperi.*$`, "iu"),
+      "",
+    )
+    .trim();
+}
+
 /**
  * Parses fund display name from FundViewer intro HTML.
  * Strips view-specific suffixes (e.g. **Salkun …**, **Arvopaperien listaus** on holdings view=10).
@@ -58,10 +82,7 @@ export function parseSeligsonFundName(html: string): string | null {
     .replace(/\u00a0/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const withoutSuffix = text
-    .replace(/\s*-\s*Salkun.*$/i, "")
-    .replace(/\s*-\s*Arvopaperi.*$/i, "")
-    .trim();
+  const withoutSuffix = stripSeligsonFundViewerTitleSuffix(text);
   return withoutSuffix || null;
 }
 

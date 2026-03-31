@@ -2,7 +2,7 @@
 
 ## Fund name and NAV
 
-The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`seligson_funds`** row ( **`fetchSeligsonFundName`** ). Failures are surfaced as HTTP errors with a message body. Exact routes and status codes are defined in **`api`**—read there before changing.
+The API **fetches Seligson HTML** to resolve **`name`** when inserting a new **`seligson_funds`** row ( **`fetchSeligsonFundName`** ). On **distribution refresh**, **`parseSeligsonFundName`** is applied to the same FundViewer HTML already fetched for that run, and **`seligson_funds.name`** is updated. **Instrument labels** use **`instruments.display_name`** (set to the fund name at create); refresh also updates **`display_name`** when it still mirrors the old fund title or strips to the same parsed name (so stale “… Arvopaperien listaus” titles in the UI are corrected). Failures are surfaced as HTTP errors with a message body. Exact routes and status codes are defined in **`api`**—read there before changing.
 
 **FundValues NAV (`FundValues_FI.html`)** uses shorter link text than FundViewer in some rows; **`fundValuesRowMatchesDbName`** includes **aliases** (e.g. table **`Global Brands`** ↔ DB name containing **Top 25 Brands**) in **`FUND_VALUES_TABLE_LABEL_ALIASES`** in **`api/src/distributions/seligsonFundValues.ts`**.
 

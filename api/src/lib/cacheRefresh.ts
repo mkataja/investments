@@ -34,6 +34,8 @@ import {
   fetchSeligsonHtml,
   isSeligsonBondAllocationPage,
   parseSeligsonBondFundDistributions,
+  parseSeligsonFundName,
+  stripSeligsonFundViewerTitleSuffix,
 } from "../distributions/seligson.js";
 import { upsertSeligsonFundValuesFromPage } from "../distributions/seligsonFundValues.js";
 import { buildResolvedSeligsonHoldingsPayload } from "../distributions/seligsonHoldingsResolve.js";
@@ -311,6 +313,53 @@ export async function writeProviderHoldingsDistributionCache(
   });
 }
 
+/** Updates `seligson_funds.name` from FundViewer HTML and syncs matching `instruments.display_name`. */
+async function updateSeligsonFundNameFromViewerHtml(
+  fid: number,
+  ...htmlParts: string[]
+): Promise<void> {
+  const [existing] = await db
+    .select()
+    .from(seligsonFunds)
+    .where(eq(seligsonFunds.fid, fid))
+    .limit(1);
+  if (!existing) {
+    return;
+  }
+  let name: string | null = null;
+  for (const html of htmlParts) {
+    name = parseSeligsonFundName(html);
+    if (name) {
+      break;
+    }
+  }
+  if (!name) {
+    return;
+  }
+  const previousFundName = existing.name;
+  if (name !== previousFundName) {
+    await db
+      .update(seligsonFunds)
+      .set({ name })
+      .where(eq(seligsonFunds.fid, fid));
+  }
+  const linked = await db
+    .select({ id: instruments.id, displayName: instruments.displayName })
+    .from(instruments)
+    .where(eq(instruments.seligsonFundId, existing.id));
+  for (const row of linked) {
+    const mirrorsFundRow = row.displayName === previousFundName;
+    const mirrorsParsedTitle =
+      stripSeligsonFundViewerTitleSuffix(row.displayName) === name;
+    if ((mirrorsFundRow || mirrorsParsedTitle) && row.displayName !== name) {
+      await db
+        .update(instruments)
+        .set({ displayName: name })
+        .where(eq(instruments.id, row.id));
+    }
+  }
+}
+
 export async function writeSeligsonDistributionCache(
   instrumentId: number,
   fid: number,
@@ -377,6 +426,11 @@ export async function writeSeligsonDistributionCache(
           },
         });
     });
+    await updateSeligsonFundNameFromViewerHtml(
+      fid,
+      allocationHtml,
+      countryHtml,
+    );
     await upsertSeligsonFundValuesFromPage(db, fetchedAt);
     return;
   }
@@ -431,6 +485,7 @@ export async function writeSeligsonDistributionCache(
       });
   });
 
+  await updateSeligsonFundNameFromViewerHtml(fid, holdingsHtml);
   await upsertSeligsonFundValuesFromPage(db, fetchedAt);
 }
 
