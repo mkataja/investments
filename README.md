@@ -33,6 +33,7 @@ Set `VITE_API_URL` in `web` if the API is not on port 3001.
 
 | Command | Purpose |
 | --- | --- |
+| `pnpm run ci` | Lint, test, and web + API builds in parallel (`concurrently`; use `run` because bare `pnpm ci` is reserved) |
 | `pnpm dev` | API + web together |
 | `pnpm db:migrate` | Apply Drizzle migrations |
 | `pnpm db:studio` | Drizzle Studio |

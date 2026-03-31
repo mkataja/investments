@@ -116,6 +116,7 @@ Shared **primary** controls (`Button`, `ButtonLink`) and a minimal style referen
 - **Lint:** always run **`pnpm lint`** (root **`biome check`**) and fix reported issues before **committing** or **treating work as complete**.
 - **Build:** also run **`pnpm --filter @investments/web build`** and **`pnpm --filter @investments/api build`** (TypeScript **`tsc`**; web also runs **Vite** production build). Lint alone does not catch TS errors that only **`tsc`** reports. Run the package(s) your change touches; both when edits span **`web`** and **`api`**.
 - **Tests:** run **affected** tests—packages, apps, or areas your change touches—before committing or signing off. Prefer the narrowest command that covers your edits (e.g. a package’s **`test`** script via **`pnpm --filter`** when present), not an unnecessary full-repo run unless the change warrants it. Root **`pnpm test`** runs Vitest in **`@investments/api`** (CSV import parser tests) then **`@investments/web`**.
+- **CI:** **`pnpm run ci`** runs **`lint`**, **`test`**, and both package **builds** **in parallel** (**`concurrently`**). The command exits non‑zero if any job fails; **prefixed output** (**`[lint]`**, **`[test]`**, **`[web]`**, **`[api]`**) shows which stream logged errors. (Bare **`pnpm ci`** is reserved by **pnpm** for install-with-lockfile in CI—use **`pnpm run ci`** for this script.)
 
 ### Git commits
 

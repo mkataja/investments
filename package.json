@@ -12,7 +12,8 @@
     "db:studio": "pnpm --filter @investments/db studio",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "test": "pnpm --filter @investments/api test && pnpm --filter @investments/web test"
+    "test": "pnpm --filter @investments/api test && pnpm --filter @investments/web test",
+    "ci": "concurrently -n lint,test,web,api -c cyan,magenta,blue,green \"pnpm lint\" \"pnpm test\" \"pnpm --filter @investments/web build\" \"pnpm --filter @investments/api build\""
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
