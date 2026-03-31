@@ -123,7 +123,7 @@ export function BrokersPage() {
   return (
     <div className="w-full min-w-0 space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-semibold text-slate-900">Brokers</h1>
+        <h1>Brokers</h1>
         <Button type="button" onClick={() => openAddModal()}>
           Add broker
         </Button>

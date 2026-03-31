@@ -46,7 +46,7 @@ function HoldingsSubtable({
 
   return (
     <div className="mb-4 last:mb-0">
-      <h3 className="text-base font-medium text-slate-700 mb-2">{title}</h3>
+      <h3>{title}</h3>
       <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
         <table className="min-w-full">
           <thead className="bg-slate-100 text-slate-700">
@@ -146,7 +146,7 @@ export function HoldingsTable({
 
   return (
     <section>
-      <h2 className="text-xl font-medium text-slate-800 mb-2">Holdings</h2>
+      <h2>Holdings</h2>
       <HoldingsSubtable
         title="Cash accounts"
         rows={cashAccounts}

@@ -38,10 +38,8 @@ export function Modal({ title, open, onClose, children }: ModalProps) {
         aria-labelledby="modal-title"
         className="relative z-50 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 shadow-lg"
       >
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 id="modal-title" className="text-lg font-semibold text-slate-900">
-            {title}
-          </h2>
+        <div className="flex items-center justify-between gap-3 mb-4 min-w-0 [&_h2]:mb-0">
+          <h2 id="modal-title">{title}</h2>
           <button
             type="button"
             className="text-sm text-emerald-800 hover:underline shrink-0"

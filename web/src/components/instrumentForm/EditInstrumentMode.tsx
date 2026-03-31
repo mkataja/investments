@@ -75,9 +75,7 @@ export function EditInstrumentMode({
           >
             ← Instruments
           </Link>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Edit instrument
-          </h1>
+          <h1>Edit instrument</h1>
         </header>
         <p className="text-slate-700 text-sm max-w-lg">
           Seligson-linked instruments are not edited here.
@@ -97,9 +95,7 @@ export function EditInstrumentMode({
           >
             ← Instruments
           </Link>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Edit instrument
-          </h1>
+          <h1>Edit instrument</h1>
           <p className="text-sm text-slate-600">
             {initial.kind === "etf" ? "ETF" : "Stock"}
           </p>
@@ -164,9 +160,7 @@ export function EditInstrumentMode({
           >
             ← Instruments
           </Link>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Edit instrument
-          </h1>
+          <h1>Edit instrument</h1>
         </header>
         <p className="text-slate-700 text-sm max-w-lg">
           This instrument type cannot be edited here.
@@ -185,9 +179,7 @@ export function EditInstrumentMode({
         >
           ← Instruments
         </Link>
-        <h1 className="text-2xl font-semibold text-slate-900">
-          Edit instrument
-        </h1>
+        <h1>Edit instrument</h1>
         <p className="text-sm text-slate-600">Cash account</p>
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </header>

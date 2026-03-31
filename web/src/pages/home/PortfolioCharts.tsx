@@ -184,7 +184,7 @@ export function PortfolioCharts({
 
   return (
     <section className="space-y-4">
-      <h2 className="text-xl font-medium text-slate-800">Distributions</h2>
+      <h2>Distributions</h2>
       <p className="text-slate-600">
         Total estimated portfolio value:{" "}
         <span className="font-semibold">
@@ -209,9 +209,7 @@ export function PortfolioCharts({
       </p>
       {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
         <div className="max-w-xl min-w-0">
-          <h3 className="text-base font-medium text-slate-700 mb-2">
-            Asset mix
-          </h3>
+          <h3>Asset mix</h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -244,9 +242,7 @@ export function PortfolioCharts({
       ) : null}
       <div className="grid md:grid-cols-2 gap-6">
         <div className="min-w-0 flex flex-col">
-          <h3 className="text-base font-medium text-slate-700 mb-2 shrink-0">
-            Regions
-          </h3>
+          <h3 className="shrink-0">Regions</h3>
           <div className="w-full h-[540px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -296,9 +292,7 @@ export function PortfolioCharts({
           </div>
         </div>
         <div className="min-w-0 flex flex-col">
-          <h3 className="text-base font-medium text-slate-700 mb-2 shrink-0">
-            Sectors
-          </h3>
+          <h3 className="shrink-0">Sectors</h3>
           <div className="w-full h-[540px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
@@ -349,9 +343,7 @@ export function PortfolioCharts({
         </div>
       </div>
       <div className="min-w-0 flex flex-col">
-        <h3 className="text-base font-medium text-slate-700 mb-2 shrink-0">
-          Countries
-        </h3>
+        <h3 className="shrink-0">Countries</h3>
         <div className="w-full h-[540px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart

@@ -40,7 +40,7 @@ export function TransactionsTable({
 }: TransactionsTableProps) {
   return (
     <section>
-      <h2 className="text-xl font-medium text-slate-800 mb-2">Transactions</h2>
+      <h2>Transactions</h2>
       <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
         <table className="min-w-full">
           <thead className="bg-slate-100 text-slate-700">

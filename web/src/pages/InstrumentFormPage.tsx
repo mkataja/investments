@@ -427,9 +427,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
         >
           ← Instruments
         </Link>
-        <h1 className="text-2xl font-semibold text-slate-900">
-          New instrument
-        </h1>
+        <h1>New instrument</h1>
         {kind ? (
           <p className="text-sm text-slate-600">
             {kind === "etf"

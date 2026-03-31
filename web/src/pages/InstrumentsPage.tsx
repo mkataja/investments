@@ -243,7 +243,7 @@ export function InstrumentsPage() {
   return (
     <div className="w-full min-w-0 space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-3xl font-semibold text-slate-900">Instruments</h1>
+        <h1>Instruments</h1>
         <div className="flex flex-wrap items-center gap-3">
           <Button
             disabled={
