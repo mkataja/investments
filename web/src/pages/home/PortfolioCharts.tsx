@@ -31,34 +31,17 @@ import {
   portfolioSectorBarRowsDual,
 } from "../../lib/distributionDisplay";
 import { formatToPercentage } from "../../lib/numberFormat";
+import {
+  PORTFOLIO_ASSET_MIX_COLORS,
+  PORTFOLIO_BOND_MIX_PIE_COLORS,
+  PORTFOLIO_DISTRIBUTION_BAR_COLORS,
+} from "../../lib/portfolioChartPalette";
 import { DISTRIBUTION_SECTOR_TITLES } from "../../lib/sectorTitles";
 import type { PortfolioDistributions } from "./types";
 
-const ASSET_MIX_COLORS = {
-  equities: "#0f766e",
-  bonds: "#6d28d9",
-  cashInFunds: "#14b8a6",
-  cashExcess: "#0369a1",
-} as const;
-
-const BOND_MIX_PIE_COLORS: Record<string, string> = {
-  long_government_bonds: "#7c3aed",
-  long_corporate_bonds: "#5b21b6",
-  short_bonds: "#a78bfa",
-  ultrashort_bonds: "#c4b5fd",
-};
-
-const DIST_CHART_COLORS = {
-  regionPrimary: "#0369a1",
-  regionCompare: "#38bdf8",
-  sectorPrimary: "#0369a1",
-  sectorCompare: "#38bdf8",
-  countryPrimary: "#0369a1",
-  countryCompare: "#38bdf8",
-} as const;
-
 const chartAxisTickStyle = { fontSize: "0.9rem" };
 const chartLegendStyle = { fontSize: "0.8rem" };
+const distributionBarChartGridStroke = "#e2e8f0";
 
 function PieSideLegend({
   items,
@@ -263,22 +246,22 @@ export function PortfolioCharts({
       {
         name: "Equities",
         value: m.equitiesEur,
-        fill: ASSET_MIX_COLORS.equities,
+        fill: PORTFOLIO_ASSET_MIX_COLORS.equities,
       },
       {
         name: "Bonds (total)",
         value: m.bondsTotalEur,
-        fill: ASSET_MIX_COLORS.bonds,
+        fill: PORTFOLIO_ASSET_MIX_COLORS.bonds,
       },
       {
         name: "Cash (in funds)",
         value: m.cashInFundsEur,
-        fill: ASSET_MIX_COLORS.cashInFunds,
+        fill: PORTFOLIO_ASSET_MIX_COLORS.cashInFunds,
       },
       {
         name: "Cash (in accounts - excluding emergency fund)",
         value: m.cashExcessEur,
-        fill: ASSET_MIX_COLORS.cashExcess,
+        fill: PORTFOLIO_ASSET_MIX_COLORS.cashExcess,
       },
     ].filter((d) => d.value > 1e-9);
   }, [portfolio.assetMix]);
@@ -296,7 +279,9 @@ export function PortfolioCharts({
             s.sectorId as keyof typeof DISTRIBUTION_SECTOR_TITLES
           ] ?? s.sectorId,
         value: s.weight,
-        fill: BOND_MIX_PIE_COLORS[s.sectorId] ?? ASSET_MIX_COLORS.bonds,
+        fill:
+          PORTFOLIO_BOND_MIX_PIE_COLORS[s.sectorId] ??
+          PORTFOLIO_ASSET_MIX_COLORS.bonds,
       })),
     [portfolio.bondMix],
   );
@@ -407,7 +392,11 @@ export function PortfolioCharts({
             <div className="w-full h-[540px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={regionBarChartData} margin={barChartMargin()}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke={distributionBarChartGridStroke}
+                  />
                   <XAxis
                     dataKey="name"
                     angle={-35}
@@ -430,12 +419,12 @@ export function PortfolioCharts({
                     <>
                       <Bar
                         dataKey="primary"
-                        fill={DIST_CHART_COLORS.regionPrimary}
+                        fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionPrimary}
                         name={selectedPortfolioLabel}
                       />
                       <Bar
                         dataKey="compare"
-                        fill={DIST_CHART_COLORS.regionCompare}
+                        fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionCompare}
                         name={comparePortfolioLabel}
                       />
                       <Legend
@@ -447,7 +436,7 @@ export function PortfolioCharts({
                   ) : (
                     <Bar
                       dataKey="value"
-                      fill={DIST_CHART_COLORS.regionPrimary}
+                      fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionPrimary}
                       name="Weight"
                     />
                   )}
@@ -460,7 +449,11 @@ export function PortfolioCharts({
             <div className="w-full h-[540px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={sectorBarChartData} margin={barChartMargin()}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    vertical={false}
+                    stroke={distributionBarChartGridStroke}
+                  />
                   <XAxis
                     dataKey="name"
                     angle={-35}
@@ -483,12 +476,12 @@ export function PortfolioCharts({
                     <>
                       <Bar
                         dataKey="primary"
-                        fill={DIST_CHART_COLORS.sectorPrimary}
+                        fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorPrimary}
                         name={selectedPortfolioLabel}
                       />
                       <Bar
                         dataKey="compare"
-                        fill={DIST_CHART_COLORS.sectorCompare}
+                        fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorCompare}
                         name={comparePortfolioLabel}
                       />
                       <Legend
@@ -500,7 +493,7 @@ export function PortfolioCharts({
                   ) : (
                     <Bar
                       dataKey="value"
-                      fill={DIST_CHART_COLORS.sectorPrimary}
+                      fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorPrimary}
                       name="Weight"
                     />
                   )}
@@ -514,7 +507,11 @@ export function PortfolioCharts({
           <div className="w-full h-[540px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={countryBarChartData} margin={barChartMargin()}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke={distributionBarChartGridStroke}
+                />
                 <XAxis
                   dataKey="name"
                   height={1}
@@ -535,12 +532,12 @@ export function PortfolioCharts({
                   <>
                     <Bar
                       dataKey="primary"
-                      fill={DIST_CHART_COLORS.countryPrimary}
+                      fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryPrimary}
                       name={selectedPortfolioLabel}
                     />
                     <Bar
                       dataKey="compare"
-                      fill={DIST_CHART_COLORS.countryCompare}
+                      fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryCompare}
                       name={comparePortfolioLabel}
                     />
                     <Legend
@@ -552,7 +549,7 @@ export function PortfolioCharts({
                 ) : (
                   <Bar
                     dataKey="value"
-                    fill={DIST_CHART_COLORS.countryPrimary}
+                    fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryPrimary}
                     name="Weight"
                   />
                 )}
