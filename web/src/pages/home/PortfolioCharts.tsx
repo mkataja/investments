@@ -73,6 +73,11 @@ function chartYAxisPercentTick(value: number) {
   return formatToPercentage(value, { decimalPlaces: 0 });
 }
 
+/** Short x-axis label for the aggregated remainder bar (matches `topCountriesChartData` "Other" row). */
+function countryBarXAxisTick(value: string | number) {
+  return value === "Other" ? "Oth." : String(value);
+}
+
 function CountryChartZoomActiveIcon() {
   return (
     <svg
@@ -614,6 +619,7 @@ export function PortfolioCharts({
                   height={1}
                   tick={chartAxisTickStyle}
                   tickMargin={4}
+                  tickFormatter={countryBarXAxisTick}
                 />
                 <YAxis
                   tick={chartAxisTickStyle}
