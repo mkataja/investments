@@ -383,7 +383,7 @@ export function HomePage() {
       />
 
       {portfolio ? (
-        <>
+        <div className="flex flex-col gap-4">
           <PortfolioCharts
             portfolio={portfolio}
             comparePortfolio={comparePortfolio}
@@ -396,7 +396,7 @@ export function HomePage() {
             instrumentById={instrumentById}
             instrumentTickerById={instrumentTickerById}
           />
-        </>
+        </div>
       ) : null}
 
       <TransactionsTable

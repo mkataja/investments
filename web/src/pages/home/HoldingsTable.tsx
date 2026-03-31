@@ -145,8 +145,8 @@ export function HoldingsTable({
   }, [portfolio.positions]);
 
   return (
-    <>
-      <h2 className="text-xl font-medium text-slate-800">Holdings</h2>
+    <section>
+      <h2 className="text-xl font-medium text-slate-800 mb-2">Holdings</h2>
       <HoldingsSubtable
         title="Cash accounts"
         rows={cashAccounts}
@@ -173,6 +173,6 @@ export function HoldingsTable({
         setTooltip={setHoldingTooltip}
         resolveInstrument={(id) => instrumentById.get(id)}
       />
-    </>
+    </section>
   );
 }
