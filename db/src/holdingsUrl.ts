@@ -2,7 +2,8 @@ export type HoldingsProviderKind =
   | "ishares_csv"
   | "ssga_xlsx"
   | "xtrackers_xlsx"
-  | "jpm_xlsx";
+  | "jpm_xlsx"
+  | "sec_13f_xml";
 
 function hostnameMatches(host: string, rootDomain: string): boolean {
   const h = host.toLowerCase();
@@ -34,6 +35,15 @@ export function resolveHoldingsProviderKind(
   }
   if (hostnameMatches(host, "jpmorgan.com")) {
     return "jpm_xlsx";
+  }
+  if (hostnameMatches(host, "sec.gov")) {
+    const p = u.pathname.toLowerCase();
+    if (
+      p.includes("/archives/edgar/data/") &&
+      (p.endsWith(".xml") || p.endsWith(".xml/"))
+    ) {
+      return "sec_13f_xml";
+    }
   }
   return null;
 }
@@ -73,7 +83,7 @@ export function validateHoldingsDistributionUrl(
     return {
       ok: false,
       message:
-        "Unsupported holdings URL host. Use iShares (ishares.com), SPDR / SSGA (ssga.com), Xtrackers / DWS (dws.com), or J.P. Morgan (am.jpmorgan.com).",
+        "Unsupported holdings URL host. Use iShares (ishares.com), SPDR / SSGA (ssga.com), Xtrackers / DWS (dws.com), J.P. Morgan (am.jpmorgan.com), or an SEC EDGAR 13F information table XML (sec.gov …/Archives/edgar/data/…/*.xml).",
     };
   }
   return { ok: true, normalized: u.toString(), provider };

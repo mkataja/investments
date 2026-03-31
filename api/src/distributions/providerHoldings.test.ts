@@ -49,6 +49,15 @@ describe("validateHoldingsDistributionUrl", () => {
       expect(r.provider).toBe("jpm_xlsx");
     }
   });
+  it("accepts sec.gov EDGAR 13F information table XML", () => {
+    const r = validateHoldingsDistributionUrl(
+      "https://www.sec.gov/Archives/edgar/data/1067983/000119312526054580/50240.xml",
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.provider).toBe("sec_13f_xml");
+    }
+  });
   it("rejects unsupported host", () => {
     const r = validateHoldingsDistributionUrl("https://example.com/h.csv");
     expect(r.ok).toBe(false);

@@ -10,6 +10,7 @@ import {
 } from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
+import { buildDistributionFromSec13FInfoTableXml } from "../distributions/buildSec13fDistribution.js";
 import { fetchProviderHoldingsBytes } from "../distributions/fetchProviderHoldings.js";
 import { parseIsharesHoldingsCsv } from "../distributions/parseIsharesHoldingsCsv.js";
 import { parseJpmHoldingsXlsx } from "../distributions/parseJpmHoldingsXlsx.js";
@@ -167,6 +168,11 @@ export async function writeProviderHoldingsDistributionCache(
     const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
     payload = parseIsharesHoldingsCsv(text);
     source = "ishares_holdings_csv";
+    raw = text;
+  } else if (v.provider === "sec_13f_xml") {
+    const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+    payload = await buildDistributionFromSec13FInfoTableXml(text);
+    source = "sec_13f_infotable_xml";
     raw = text;
   } else if (v.provider === "xtrackers_xlsx") {
     payload = parseXtrackersHoldingsXlsx(bytes);

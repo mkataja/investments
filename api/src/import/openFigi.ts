@@ -79,6 +79,17 @@ const EXCH_CODE_TO_YAHOO_SUFFIX: Record<string, string> = {
   XL: "l",
 };
 
+/** Yahoo `.{suffix}` (no leading dot) for a Bloomberg `exchCode`, when unambiguous. */
+export function yahooSuffixForBloombergExchCode(
+  exchCode: string,
+): string | null {
+  const code = exchCode.trim().toUpperCase();
+  if (code.length === 0) {
+    return null;
+  }
+  return EXCH_CODE_TO_YAHOO_SUFFIX[code] ?? null;
+}
+
 function isUsIsin(isin: string): boolean {
   return isin.startsWith("US");
 }
@@ -233,6 +244,83 @@ export async function fetchOpenFigiMapping(
       ticker: r.ticker,
       exchCode: r.exchCode,
     }));
+}
+
+/** OpenFIGI `/v3/mapping` rejects bodies with more than 10 jobs (HTTP 413). */
+const OPENFIGI_BATCH_MAX = 10;
+
+/**
+ * Map many CUSIPs in one or more OpenFIGI `/v3/mapping` calls (up to 10 ids each).
+ */
+export async function fetchOpenFigiMappingsByCusips(
+  cusips: string[],
+): Promise<Map<string, OpenFigiMappingRow[]>> {
+  const out = new Map<string, OpenFigiMappingRow[]>();
+  const unique = [
+    ...new Set(cusips.map((c) => c.replace(/\s+/g, "").toUpperCase())),
+  ].filter((c) => c.length === 9);
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  const key = process.env.OPENFIGI_API_KEY?.trim();
+  if (key) {
+    headers["X-OPENFIGI-APIKEY"] = key;
+  }
+
+  for (let off = 0; off < unique.length; off += OPENFIGI_BATCH_MAX) {
+    const chunk = unique.slice(off, off + OPENFIGI_BATCH_MAX);
+    const body = chunk.map((idValue) => ({
+      idType: "ID_CUSIP" as const,
+      idValue,
+    }));
+
+    const res = await fetch(OPENFIGI_URL, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(
+        `OpenFIGI HTTP ${res.status}${text ? `: ${text.slice(0, 200)}` : ""}`,
+      );
+    }
+
+    const json = (await res.json()) as unknown;
+    if (!Array.isArray(json)) {
+      throw new Error("OpenFIGI: expected array response");
+    }
+
+    for (let i = 0; i < chunk.length; i++) {
+      const cusip = chunk[i] ?? "";
+      const item = json[i] as {
+        data?: OpenFigiMappingRow[];
+        error?: string;
+      };
+      if (typeof item?.error === "string" && item.error.length > 0) {
+        throw new Error(`OpenFIGI: ${item.error}`);
+      }
+      const data = item?.data;
+      const rows = Array.isArray(data)
+        ? data
+            .filter(
+              (r): r is OpenFigiMappingRow =>
+                r != null &&
+                typeof (r as OpenFigiMappingRow).ticker === "string" &&
+                typeof (r as OpenFigiMappingRow).exchCode === "string",
+            )
+            .map((r) => ({
+              ticker: r.ticker,
+              exchCode: r.exchCode,
+            }))
+        : [];
+      out.set(cusip, rows);
+    }
+  }
+
+  return out;
 }
 
 /** Union of Yahoo symbols derived from all OpenFIGI listings for an ISIN. */
