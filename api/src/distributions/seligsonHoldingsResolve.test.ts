@@ -1,0 +1,60 @@
+import { describe, expect, it } from "vitest";
+import {
+  SELIGSON_RESOLUTION_UNKNOWN_COUNTRY_ISO,
+  buildSeligsonResolutionCacheKey,
+  extractIsinFromText,
+} from "./seligson.js";
+import { namesMatchSeligsonYahoo } from "./seligsonHoldingsResolve.js";
+
+describe("extractIsinFromText", () => {
+  it("returns first valid ISIN in markup", () => {
+    expect(extractIsinFromText("foo US0378331005 bar")).toBe("US0378331005");
+  });
+});
+
+describe("buildSeligsonResolutionCacheKey", () => {
+  it("uses normalized name and parsed ISO country", () => {
+    expect(
+      buildSeligsonResolutionCacheKey({
+        companyName: "ACME CORP",
+        countryFi: "Yhdysvallat",
+        toimialaFi: "Teknologia",
+        weight: 0.1,
+        isin: null,
+      }),
+    ).toEqual({
+      seligsonCompanyName: "acme corp",
+      countryIso: "US",
+    });
+  });
+
+  it("uses ZZ when Maa does not map to ISO", () => {
+    expect(
+      buildSeligsonResolutionCacheKey({
+        companyName: "Foo",
+        countryFi: "not-a-real-seligson-label-xyz",
+        toimialaFi: "Teknologia",
+        weight: 0.1,
+        isin: null,
+      }),
+    ).toEqual({
+      seligsonCompanyName: "foo",
+      countryIso: SELIGSON_RESOLUTION_UNKNOWN_COUNTRY_ISO,
+    });
+  });
+});
+
+describe("namesMatchSeligsonYahoo", () => {
+  it("matches substring names", () => {
+    expect(
+      namesMatchSeligsonYahoo("Microsoft Corporation", "Microsoft Corporation"),
+    ).toBe(true);
+    expect(
+      namesMatchSeligsonYahoo("Microsoft Corp", "Microsoft Corporation"),
+    ).toBe(true);
+  });
+
+  it("rejects short strings", () => {
+    expect(namesMatchSeligsonYahoo("AB", "AB")).toBe(false);
+  });
+});

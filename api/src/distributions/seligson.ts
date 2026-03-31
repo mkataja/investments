@@ -2,7 +2,11 @@ import type {
   DistributionPayload,
   DistributionSectorId,
 } from "@investments/db";
-import { resolveRegionKeyToIso } from "@investments/db";
+import {
+  normLabel,
+  normalizeIsinForStorage,
+  resolveRegionKeyToIso,
+} from "@investments/db";
 import * as cheerio from "cheerio";
 import { SELIGSON_FINNISH_SECTOR_LABEL_MAP } from "./sectorMapping.js";
 
@@ -68,7 +72,49 @@ export type SeligsonHoldingsRow = {
   toimialaFi: string;
   /** Weight 0–1 from Osuus % column. */
   weight: number;
+  /** Parsed from row HTML when an ISIN appears in markup (optional). */
+  isin: string | null;
 };
+
+/** First valid ISIN in text (e.g. row HTML), or null. */
+export function extractIsinFromText(text: string): string | null {
+  const re = /\b([A-Z]{2}[A-Z0-9]{9}[0-9])\b/gi;
+  for (const m of text.matchAll(re)) {
+    const n = normalizeIsinForStorage(m[1]);
+    if (n) {
+      return n;
+    }
+  }
+  return null;
+}
+
+/** When Finnish **Maa** does not map to ISO, resolution cache uses this sentinel (not a real country). */
+export const SELIGSON_RESOLUTION_UNKNOWN_COUNTRY_ISO = "ZZ";
+
+export type SeligsonResolutionCacheKey = {
+  /** Normalized via `normLabel` (lowercase, collapsed whitespace). */
+  seligsonCompanyName: string;
+  /** ISO 3166-1 alpha-2 from Seligson Maa, or {@link SELIGSON_RESOLUTION_UNKNOWN_COUNTRY_ISO}. */
+  countryIso: string;
+};
+
+/** Natural key for `seligson_holdings_resolution_cache` (name + parsed country ISO). */
+export function buildSeligsonResolutionCacheKey(
+  row: SeligsonHoldingsRow,
+): SeligsonResolutionCacheKey {
+  return {
+    seligsonCompanyName: normLabel(row.companyName),
+    countryIso:
+      resolveRegionKeyToIso(row.countryFi) ??
+      SELIGSON_RESOLUTION_UNKNOWN_COUNTRY_ISO,
+  };
+}
+
+export function serializeSeligsonResolutionCacheKey(
+  k: SeligsonResolutionCacheKey,
+): string {
+  return `${k.seligsonCompanyName}\x1f${k.countryIso}`;
+}
 
 function normalizeDashCell(s: string): string {
   return s
@@ -82,7 +128,7 @@ function isDashOnlyCell(s: string): boolean {
   return n === "" || n === "-";
 }
 
-function isCashHoldingsRow(row: SeligsonHoldingsRow): boolean {
+export function isCashHoldingsRow(row: SeligsonHoldingsRow): boolean {
   const upper = row.companyName.toUpperCase();
   if (upper.includes("KÄTEINEN") || upper.includes("KATEINEN")) {
     return true;
@@ -114,6 +160,7 @@ export function parseSeligsonHoldingsRows(holdingsHtml: string): {
     if (tds.length < 5) {
       return;
     }
+    const rowHtml = $(tr).html() ?? "";
     const companyName = $(tds[0]).text().trim();
     const countryFi = $(tds[1]).text().trim();
     const toimialaFi = $(tds[2]).text().trim();
@@ -122,7 +169,8 @@ export function parseSeligsonHoldingsRows(holdingsHtml: string): {
     if (!companyName || weight === null || weight <= 0) {
       return;
     }
-    rows.push({ companyName, countryFi, toimialaFi, weight });
+    const isin = extractIsinFromText(rowHtml);
+    rows.push({ companyName, countryFi, toimialaFi, weight, isin });
   });
 
   if (rows.length === 0) {

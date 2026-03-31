@@ -22,6 +22,7 @@ describe("parseSeligsonHoldingsRows", () => {
     expect(rows[0]?.countryFi).toBe("Yhdysvallat");
     expect(rows[0]?.toimialaFi).toBe("Teknologia");
     expect(rows[0]?.weight).toBeCloseTo(0.1, 5);
+    expect(rows[0]?.isin).toBeNull();
   });
 });
 

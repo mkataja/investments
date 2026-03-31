@@ -24,11 +24,9 @@ import { parseJpmProductDataSectorBreakdown } from "../distributions/parseJpmPro
 import { parseSsgaHoldingsXlsx } from "../distributions/parseSsgaHoldingsXlsx.js";
 import { parseXtrackersHoldingsXlsx } from "../distributions/parseXtrackersHoldingsXlsx.js";
 import { roundWeights } from "../distributions/roundWeights.js";
-import {
-  fetchSeligsonHtml,
-  parseSeligsonHoldingsDistributions,
-} from "../distributions/seligson.js";
+import { fetchSeligsonHtml } from "../distributions/seligson.js";
 import { upsertSeligsonFundValuesFromPage } from "../distributions/seligsonFundValues.js";
+import { buildResolvedSeligsonHoldingsPayload } from "../distributions/seligsonHoldingsResolve.js";
 import type { YahooQuoteSummaryRaw } from "../distributions/yahoo.js";
 import {
   extractIsinFromQuoteSummaryRaw,
@@ -295,8 +293,10 @@ export async function writeSeligsonDistributionCache(
   fetchedAt: Date = new Date(),
 ): Promise<void> {
   const holdingsHtml = await fetchSeligsonHtml(fid);
-  const { payload: rawPayload } =
-    parseSeligsonHoldingsDistributions(holdingsHtml);
+  const { payload: rawPayload } = await buildResolvedSeligsonHoldingsPayload(
+    holdingsHtml,
+    fetchedAt,
+  );
   const payload = {
     countries: roundWeights(rawPayload.countries),
     sectors: roundWeights(rawPayload.sectors),

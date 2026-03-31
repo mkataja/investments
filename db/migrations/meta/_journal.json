@@ -176,6 +176,20 @@
       "when": 1774910200000,
       "tag": "0024_seligson_holdings_html",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1774913511108,
+      "tag": "0025_right_venus",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1774914000000,
+      "tag": "0026_seligson_resolution_cache_natural_key",
+      "breakpoints": true
     }
   ]
 }

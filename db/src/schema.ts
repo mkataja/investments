@@ -2,10 +2,12 @@ import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  index,
   integer,
   jsonb,
   numeric,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -258,6 +260,43 @@ export const seligsonDistributionCache = pgTable(
       .notNull()
       .defaultNow(),
   },
+);
+
+/**
+ * Global cache: Seligson holdings line → Yahoo sector (or Seligson Toimiala fallback).
+ * Natural key: normalized Seligson company name + ISO country (`ZZ` when Maa does not map); no TTL.
+ */
+export const seligsonHoldingsResolutionCache = pgTable(
+  "seligson_holdings_resolution_cache",
+  {
+    /** Normalized via `normLabel` (lowercase, collapsed whitespace). */
+    seligsonCompanyName: text("seligson_company_name").notNull(),
+    /** ISO 3166-1 alpha-2; `ZZ` when Finnish Maa cannot be resolved. */
+    countryIso: text("country_iso").notNull(),
+    yahooSymbol: text("yahoo_symbol"),
+    /** Display name from Yahoo `quoteSummary` when `source = yahoo`. */
+    yahooCompanyName: text("yahoo_company_name"),
+    sectorCanonicalId: text("sector_canonical_id").notNull(),
+    rawSectorLabel: text("raw_sector_label"),
+    source: text("source").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.seligsonCompanyName, t.countryIso] }),
+    check(
+      "seligson_holdings_resolution_cache_source_ck",
+      sql`${t.source} IN ('yahoo', 'seligson_fallback')`,
+    ),
+    index("seligson_holdings_resolution_cache_yahoo_symbol_idx").on(
+      t.yahooSymbol,
+    ),
+  ],
 );
 
 export const distributions = pgTable("distributions", {
