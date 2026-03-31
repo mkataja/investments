@@ -164,38 +164,63 @@ export function createDistributionBarTooltipContent(options: {
             ))}
           </ol>
         ) : null}
-        {options.showCompare && topPrimary && topPrimary.length > 0 ? (
+        {!options.showCompare && topHoldings && topHoldings.length === 0 ? (
+          <p className="mt-2 border-t border-slate-200 pt-2 text-xs font-semibold text-slate-600">
+            No contributors in <em>{label != null && label !== "" ? label : "this bucket"}</em>
+          </p>
+        ) : null}
+        {options.showCompare ? (
           <div className="mt-2 border-t border-slate-200 pt-2">
             <p className="text-xs font-semibold text-slate-600 mb-1">
-              Top contributors in <em>{options.primaryLabel}</em>:
+              {(topPrimary?.length ?? 0) > 0 ? (
+                <>
+                  Top contributors in <em>{options.primaryLabel}</em>:
+                </>
+              ) : (
+                <>
+                  No contributors in <em>{options.primaryLabel}</em>
+                </>
+              )}
             </p>
-            <ol className="list-decimal space-y-0.5 pl-4 text-slate-600">
-              {topPrimary.map((h) => (
-                <li key={h.instrumentId} className="tabular-nums">
-                  <span className="font-medium text-slate-700">
-                    {h.displayName}
-                  </span>{" "}
-                  {formatToPercentage(h.pctOfBucket)}
-                </li>
-              ))}
-            </ol>
+            {(topPrimary?.length ?? 0) > 0 ? (
+              <ol className="list-decimal space-y-0.5 pl-4 text-slate-600">
+                {(topPrimary ?? []).map((h) => (
+                  <li key={h.instrumentId} className="tabular-nums">
+                    <span className="font-medium text-slate-700">
+                      {h.displayName}
+                    </span>{" "}
+                    {formatToPercentage(h.pctOfBucket)}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
           </div>
         ) : null}
-        {options.showCompare && topCompare && topCompare.length > 0 ? (
+        {options.showCompare ? (
           <div className="mt-2 border-t border-slate-200 pt-2">
             <p className="text-xs font-semibold text-slate-600 mb-1">
-              Top contributors in <em>{options.compareLabel}</em>:
+              {(topCompare?.length ?? 0) > 0 ? (
+                <>
+                  Top contributors in <em>{options.compareLabel}</em>:
+                </>
+              ) : (
+                <>
+                  No contributors in <em>{options.compareLabel}</em>
+                </>
+              )}
             </p>
-            <ol className="list-decimal space-y-0.5 pl-4 text-slate-600">
-              {topCompare.map((h) => (
-                <li key={h.instrumentId} className="tabular-nums">
-                  <span className="font-medium text-slate-700">
-                    {h.displayName}
-                  </span>{" "}
-                  {formatToPercentage(h.pctOfBucket)}
-                </li>
-              ))}
-            </ol>
+            {(topCompare?.length ?? 0) > 0 ? (
+              <ol className="list-decimal space-y-0.5 pl-4 text-slate-600">
+                {(topCompare ?? []).map((h) => (
+                  <li key={h.instrumentId} className="tabular-nums">
+                    <span className="font-medium text-slate-700">
+                      {h.displayName}
+                    </span>{" "}
+                    {formatToPercentage(h.pctOfBucket)}
+                  </li>
+                ))}
+              </ol>
+            ) : null}
           </div>
         ) : null}
       </div>
