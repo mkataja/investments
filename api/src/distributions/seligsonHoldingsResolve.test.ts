@@ -4,7 +4,10 @@ import {
   buildSeligsonResolutionCacheKey,
   extractIsinFromText,
 } from "./seligson.js";
-import { namesMatchSeligsonYahoo } from "./seligsonHoldingsResolve.js";
+import {
+  namesMatchSeligsonYahoo,
+  normalizeIsin12,
+} from "./seligsonHoldingsResolve.js";
 
 describe("extractIsinFromText", () => {
   it("returns first valid ISIN in markup", () => {
@@ -41,6 +44,18 @@ describe("buildSeligsonResolutionCacheKey", () => {
       seligsonCompanyName: "foo",
       countryIso: SELIGSON_RESOLUTION_UNKNOWN_COUNTRY_ISO,
     });
+  });
+});
+
+describe("normalizeIsin12", () => {
+  it("uppercases valid ISINs for OpenFIGI and Yahoo suffix rules", () => {
+    expect(normalizeIsin12("us0378331005")).toBe("US0378331005");
+    expect(normalizeIsin12(" US0378331005 ")).toBe("US0378331005");
+  });
+
+  it("returns null for invalid input", () => {
+    expect(normalizeIsin12(null)).toBe(null);
+    expect(normalizeIsin12("short")).toBe(null);
   });
 });
 

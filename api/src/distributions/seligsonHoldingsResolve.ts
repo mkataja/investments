@@ -12,7 +12,7 @@ import { and, eq, or } from "drizzle-orm";
 import { db } from "../db.js";
 import {
   type OpenFigiMappingRow,
-  fetchOpenFigiMappingsByIsins,
+  fetchOpenFigiMapping,
   yahooSymbolCandidatesFromOpenFigiRows,
 } from "../import/openFigi.js";
 import { yahooFinance } from "../lib/yahooClient.js";
@@ -46,6 +46,16 @@ function yahooRefreshGapMs(): number {
 function sectorFromToimiala(toimialaFi: string): DistributionSectorId {
   const t = toimialaFi.trim();
   return SELIGSON_FINNISH_SECTOR_LABEL_MAP[t] ?? "other";
+}
+
+export function normalizeIsin12(
+  isin: string | null | undefined,
+): string | null {
+  if (!isin) {
+    return null;
+  }
+  const n = isin.replace(/\s+/g, "").toUpperCase();
+  return /^[A-Z0-9]{12}$/.test(n) ? n : null;
 }
 
 function normalizeComparableName(s: string): string {
@@ -157,7 +167,8 @@ async function yahooSearchSymbolsForCompanyName(
     if (typeof sym !== "string" || sym.trim().length === 0) {
       continue;
     }
-    if ((item as { isYahooFinance?: boolean }).isYahooFinance !== true) {
+    // Yahoo often omits this flag; only drop rows explicitly marked non-Finance.
+    if ((item as { isYahooFinance?: boolean }).isYahooFinance === false) {
       continue;
     }
     if (
@@ -174,26 +185,27 @@ async function yahooSearchSymbolsForCompanyName(
   return [...new Set(out.map((s) => s.toLowerCase()))];
 }
 
+/**
+ * First candidate order wins (search / OpenFIGI order). Requiring exactly one
+ * verified match rejected valid names when several listings (e.g. ADS.DE + ADDYY)
+ * all matched name + country.
+ */
 async function quoteSummarySingleVerifiedCandidate(
   candidates: string[],
   row: SeligsonHoldingsRow,
   expectedIsin: string | null | undefined,
 ): Promise<{ raw: YahooQuoteSummaryRaw; symbol: string } | null> {
-  const passing: { raw: YahooQuoteSummaryRaw; symbol: string }[] = [];
   for (const sym of candidates) {
     try {
       const raw = await fetchYahooQuoteSummaryRaw(sym);
       if (verifyYahooMatchesRow(raw, sym, row, expectedIsin)) {
-        passing.push({ raw, symbol: sym });
+        return { raw, symbol: sym };
       }
     } catch {
       // try next candidate
     }
   }
-  if (passing.length !== 1) {
-    return null;
-  }
-  return passing[0] ?? null;
+  return null;
 }
 
 function yahooDisplayNameFromRaw(
@@ -204,44 +216,11 @@ function yahooDisplayNameFromRaw(
   return displayNameFromYahooLookup(lookup, symbol);
 }
 
-async function resolveViaYahooForRow(
-  row: SeligsonHoldingsRow,
-  figiByIsin: Map<string, OpenFigiMappingRow[]>,
-): Promise<ResolvedSector | null> {
-  const isin = row.isin;
-  if (isin) {
-    const figiRows = figiByIsin.get(isin) ?? [];
-    const candSet = yahooSymbolCandidatesFromOpenFigiRows(isin, figiRows);
-    const candidates = [...candSet].sort((a, b) => a.localeCompare(b));
-    const got = await quoteSummarySingleVerifiedCandidate(
-      candidates,
-      row,
-      isin,
-    );
-    if (got) {
-      const label = sectorLabelFromYahooRaw(got.raw);
-      if (label) {
-        const sectorId = mapSectorLabelToCanonicalIdWithWarn(label);
-        return {
-          sectorId,
-          source: "yahoo",
-          yahooSymbol: normalizeYahooSymbolForStorage(got.symbol),
-          yahooCompanyName: yahooDisplayNameFromRaw(got.raw, got.symbol),
-          rawLabel: label,
-        };
-      }
-    }
-  }
-
-  const searchSyms = await yahooSearchSymbolsForCompanyName(row.companyName);
-  if (searchSyms.length === 0) {
-    return null;
-  }
-  const got2 = await quoteSummarySingleVerifiedCandidate(searchSyms, row, isin);
-  if (!got2) {
-    return null;
-  }
-  const label = sectorLabelFromYahooRaw(got2.raw);
+function resolvedSectorFromVerifiedQuote(got: {
+  raw: YahooQuoteSummaryRaw;
+  symbol: string;
+}): ResolvedSector | null {
+  const label = sectorLabelFromYahooRaw(got.raw);
   if (!label) {
     return null;
   }
@@ -249,10 +228,54 @@ async function resolveViaYahooForRow(
   return {
     sectorId,
     source: "yahoo",
-    yahooSymbol: normalizeYahooSymbolForStorage(got2.symbol),
-    yahooCompanyName: yahooDisplayNameFromRaw(got2.raw, got2.symbol),
+    yahooSymbol: normalizeYahooSymbolForStorage(got.symbol),
+    yahooCompanyName: yahooDisplayNameFromRaw(got.raw, got.symbol),
     rawLabel: label,
   };
+}
+
+async function resolveViaYahooForRow(
+  row: SeligsonHoldingsRow,
+  getFigiRowsForIsin: (isin: string) => Promise<OpenFigiMappingRow[]>,
+): Promise<ResolvedSector | null> {
+  const isinNormalized = normalizeIsin12(row.isin);
+  const expectedIsin = isinNormalized ?? undefined;
+  if (row.companyName.trim().length > 0) {
+    const searchSyms = await yahooSearchSymbolsForCompanyName(row.companyName);
+    if (searchSyms.length > 0) {
+      const got = await quoteSummarySingleVerifiedCandidate(
+        searchSyms,
+        row,
+        expectedIsin,
+      );
+      if (got) {
+        const r = resolvedSectorFromVerifiedQuote(got);
+        if (r) {
+          return r;
+        }
+      }
+    }
+  }
+
+  if (!isinNormalized) {
+    return null;
+  }
+
+  const figiRows = await getFigiRowsForIsin(isinNormalized);
+  const candSet = yahooSymbolCandidatesFromOpenFigiRows(
+    isinNormalized,
+    figiRows,
+  );
+  const candidates = [...candSet].sort((a, b) => a.localeCompare(b));
+  const got = await quoteSummarySingleVerifiedCandidate(
+    candidates,
+    row,
+    expectedIsin,
+  );
+  if (!got) {
+    return null;
+  }
+  return resolvedSectorFromVerifiedQuote(got);
 }
 
 async function upsertResolutionCache(
@@ -368,23 +391,23 @@ export async function buildResolvedSeligsonHoldingsPayload(
     }
   }
 
-  const isinValues = [
-    ...new Set(
-      missingPairs
-        .map(
-          (p) =>
-            keyToSampleRow.get(serializeSeligsonResolutionCacheKey(p))?.isin,
-        )
-        .filter((x): x is string => !!x),
-    ),
-  ];
-
-  const figiByIsin =
-    isinValues.length > 0
-      ? await fetchOpenFigiMappingsByIsins(isinValues, {
-          beforeEachChunk: beforeHttp,
-        })
-      : new Map<string, OpenFigiMappingRow[]>();
+  const figiByIsin = new Map<string, OpenFigiMappingRow[]>();
+  async function getFigiRowsForIsin(
+    isin: string,
+  ): Promise<OpenFigiMappingRow[]> {
+    const normalized = normalizeIsin12(isin);
+    if (!normalized) {
+      return [];
+    }
+    const cached = figiByIsin.get(normalized);
+    if (cached) {
+      return cached;
+    }
+    await beforeHttp();
+    const rows = await fetchOpenFigiMapping(normalized);
+    figiByIsin.set(normalized, rows);
+    return rows;
+  }
 
   for (const p of missingPairs) {
     await beforeHttp();
@@ -395,7 +418,7 @@ export async function buildResolvedSeligsonHoldingsPayload(
 
     let resolved: ResolvedSector | null = await resolveViaYahooForRow(
       row,
-      figiByIsin,
+      getFigiRowsForIsin,
     );
 
     if (!resolved) {
