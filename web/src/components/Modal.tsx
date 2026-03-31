@@ -1,4 +1,5 @@
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useId } from "react";
+import { createPortal } from "react-dom";
 
 type ModalProps = {
   title: string;
@@ -8,6 +9,8 @@ type ModalProps = {
 };
 
 export function Modal({ title, open, onClose, children }: ModalProps) {
+  const titleId = useId();
+
   useEffect(() => {
     if (!open) {
       return;
@@ -21,11 +24,22 @@ export function Modal({ title, open, onClose, children }: ModalProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
+
   if (!open) {
     return null;
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-40 flex items-center justify-center p-4">
       <button
         type="button"
@@ -35,23 +49,23 @@ export function Modal({ title, open, onClose, children }: ModalProps) {
       />
       <dialog
         open
-        aria-labelledby="modal-title"
+        aria-modal="true"
+        aria-labelledby={titleId}
         className="relative z-50 w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-lg border border-slate-200 bg-white p-4 shadow-lg"
       >
         <div className="modal-stack">
-          <div className="flex items-center justify-between gap-3 min-w-0 [&_h2]:mb-0">
-            <h2 id="modal-title">{title}</h2>
-            <button
-              type="button"
-              className="text-sm text-emerald-800 hover:underline shrink-0"
-              onClick={onClose}
-            >
+          <div className="flex items-center justify-between gap-3 min-w-0">
+            <h2 id={titleId} className="modal-title">
+              {title}
+            </h2>
+            <button type="button" className="modal-close" onClick={onClose}>
               Close
             </button>
           </div>
           {children}
         </div>
       </dialog>
-    </div>
+    </div>,
+    document.body,
   );
 }

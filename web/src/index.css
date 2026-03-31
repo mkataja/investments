@@ -60,6 +60,15 @@
     @apply flex flex-col gap-4;
   }
 
+  /* Shared dialog chrome (see Modal.tsx). */
+  .modal-title {
+    @apply font-medium text-slate-800 text-heading-2 mb-0 min-w-0;
+  }
+
+  .modal-close {
+    @apply shrink-0 rounded px-2 py-1 text-sm text-emerald-800 hover:bg-emerald-50 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2;
+  }
+
   /* Dense forms (modals, compact field groups). */
   .form-stack {
     @apply flex flex-col gap-3;

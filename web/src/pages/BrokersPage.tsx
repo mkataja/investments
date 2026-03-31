@@ -167,17 +167,10 @@ export function BrokersPage() {
               ))}
             </select>
           </label>
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="pt-1">
             <Button type="submit">
               {editingId == null ? "Add broker" : "Save changes"}
             </Button>
-            <button
-              type="button"
-              className="text-sm text-slate-700 underline"
-              onClick={() => closeModal()}
-            >
-              Cancel
-            </button>
           </div>
         </form>
       </Modal>
