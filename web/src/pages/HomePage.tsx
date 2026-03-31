@@ -243,7 +243,60 @@ export function HomePage() {
     <div className="w-full min-w-0 page-stack">
       <header className="page-header-stack">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h1>Portfolio</h1>
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 min-w-0">
+            <h1 className="shrink-0">Portfolio</h1>
+            {portfolioEntities.length > 0 ? (
+              <div className="flex flex-wrap items-baseline gap-2">
+                <label className="text-sm text-slate-700 flex items-baseline gap-2">
+                  <span className="whitespace-nowrap">View</span>
+                  <select
+                    className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[10rem]"
+                    value={selectedPortfolioId ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const id = v === "" ? null : Number.parseInt(v, 10);
+                      setSelectedPortfolioId(
+                        id != null && Number.isFinite(id) ? id : null,
+                      );
+                    }}
+                  >
+                    {portfolioEntities.map((pe) => (
+                      <option key={pe.id} value={pe.id}>
+                        {pe.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {portfolioEntities.length > 1 ? (
+                  <label className="text-sm text-slate-700 flex items-baseline gap-2">
+                    <span className="whitespace-nowrap">Compare</span>
+                    <select
+                      className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[10rem]"
+                      value={comparePortfolioId ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        const id = v === "" ? null : Number.parseInt(v, 10);
+                        const next =
+                          id != null && Number.isFinite(id) ? id : null;
+                        setComparePortfolioId(next);
+                        writeStoredComparePortfolioId(next);
+                        setComparePortfolio(null);
+                      }}
+                    >
+                      <option value="">None</option>
+                      {portfolioEntities
+                        .filter((pe) => pe.id !== selectedPortfolioId)
+                        .map((pe) => (
+                          <option key={pe.id} value={pe.id}>
+                            {pe.name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" onClick={openNewPortfolioModal}>
               New portfolio
@@ -349,15 +402,6 @@ export function HomePage() {
             showDistributionCompare={showDistributionCompare}
             selectedPortfolioLabel={selectedPortfolioLabel}
             comparePortfolioLabel={comparePortfolioLabel}
-            portfolioEntities={portfolioEntities}
-            selectedPortfolioId={selectedPortfolioId}
-            onSelectedPortfolioChange={setSelectedPortfolioId}
-            comparePortfolioId={comparePortfolioId}
-            onComparePortfolioChange={(id) => {
-              setComparePortfolioId(id);
-              writeStoredComparePortfolioId(id);
-              setComparePortfolio(null);
-            }}
           />
           <HoldingsTable
             portfolio={portfolio}
