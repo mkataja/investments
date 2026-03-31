@@ -26,6 +26,9 @@ export const PORTFOLIO_UNKNOWN_COUNTRY_KEY = "__portfolio_unknown__";
 
 const CHART_UNKNOWN_LABEL = "Unknown";
 
+/** Country bar chart Y-axis: short label for unmapped / unknown ISO. */
+const COUNTRY_BAR_CHART_UNKNOWN_LABEL = "??";
+
 /** Sector distribution keys that describe bond sleeve mix (not equity sectors). */
 export const BOND_DISTRIBUTION_SECTOR_IDS = [
   "long_government_bonds",
@@ -143,7 +146,7 @@ export function topCountriesSegmentsForDisplay(
   return segments;
 }
 
-/** Country bar chart: all ISO / unknown segments sorted by weight; **Unknown** last. */
+/** Country bar chart: all ISO / unknown segments sorted by weight; unknown last. */
 export function allCountriesChartData(
   countries: Record<string, number>,
 ): Array<{ name: string; value: number; bucketKey: string }> {
@@ -152,7 +155,7 @@ export function allCountriesChartData(
     .filter(([, v]) => v >= MIN_PORTFOLIO_ALLOCATION_FRACTION)
     .map(([k, v]) => ({
       key: k,
-      name: k === UNMAPPED_COUNTRY_KEY ? CHART_UNKNOWN_LABEL : k,
+      name: k === UNMAPPED_COUNTRY_KEY ? COUNTRY_BAR_CHART_UNKNOWN_LABEL : k,
       value: v,
     }));
   return sortBarChartRowsUnknownLast(
@@ -221,7 +224,7 @@ function countryBarRowsWithKeys(
     .filter(([, v]) => v >= MIN_PORTFOLIO_ALLOCATION_FRACTION)
     .map(([k, v]) => ({
       key: k,
-      name: k === UNMAPPED_COUNTRY_KEY ? CHART_UNKNOWN_LABEL : k,
+      name: k === UNMAPPED_COUNTRY_KEY ? COUNTRY_BAR_CHART_UNKNOWN_LABEL : k,
       value: v,
     }));
   return sortBarChartRowsUnknownLastWithKeys(
