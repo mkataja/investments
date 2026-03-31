@@ -167,8 +167,7 @@ export function createDistributionBarTooltipContent(options: {
         {options.showCompare && topPrimary && topPrimary.length > 0 ? (
           <div className="mt-2 border-t border-slate-200 pt-2">
             <p className="text-xs font-semibold text-slate-600 mb-1">
-              Top contributors in{" "}
-              <span className="italic">{options.primaryLabel}</span>:
+              Top contributors in <em>{options.primaryLabel}</em>:
             </p>
             <ol className="list-decimal space-y-0.5 pl-4 text-slate-600">
               {topPrimary.map((h) => (
@@ -185,8 +184,7 @@ export function createDistributionBarTooltipContent(options: {
         {options.showCompare && topCompare && topCompare.length > 0 ? (
           <div className="mt-2 border-t border-slate-200 pt-2">
             <p className="text-xs font-semibold text-slate-600 mb-1">
-              Top contributors in{" "}
-              <span className="italic">{options.compareLabel}</span>:
+              Top contributors in <em>{options.compareLabel}</em>:
             </p>
             <ol className="list-decimal space-y-0.5 pl-4 text-slate-600">
               {topCompare.map((h) => (

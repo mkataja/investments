@@ -204,7 +204,7 @@ function isFlatIbkrExportHeader(firstRow: string[]): boolean {
   );
 }
 
-/** Flat trades export: `Date/Time`, `Buy/Sell`, `Price`, `CommissionCurrency` (no `TransactionType` / `TradePrice`). */
+/** Flat trades export: `Date/Time`, `Buy/Sell`, `Price`, `CurrencyPrimary` (no `TransactionType` / `TradePrice`). */
 function isFlatIbkrTradesExportHeader(firstRow: string[]): boolean {
   const keys = new Set(firstRow.map((c) => headerKey(String(c ?? ""))));
   return (
@@ -213,6 +213,7 @@ function isFlatIbkrTradesExportHeader(firstRow: string[]): boolean {
     keys.has("Buy/Sell") &&
     keys.has("Price") &&
     keys.has("Quantity") &&
+    keys.has("CurrencyPrimary") &&
     !keys.has("TransactionType")
   );
 }
@@ -374,6 +375,7 @@ function parseIbkrFlatTradesCsv(records: string[][]): ParseIbkrCsvResult {
     "Buy/Sell",
     "Quantity",
     "Price",
+    "CurrencyPrimary",
   ];
   const missing = need.filter((k) => !colIndex.has(k));
   if (missing.length > 0) {
@@ -381,19 +383,6 @@ function parseIbkrFlatTradesCsv(records: string[][]): ParseIbkrCsvResult {
       ok: false,
       errors: [
         `Flat IBKR trades CSV header missing columns: ${missing.join(", ")}`,
-      ],
-    };
-  }
-  const currencyCol = colIndex.has("CommissionCurrency")
-    ? "CommissionCurrency"
-    : colIndex.has("CurrencyPrimary")
-      ? "CurrencyPrimary"
-      : null;
-  if (currencyCol === null) {
-    return {
-      ok: false,
-      errors: [
-        "Flat IBKR trades CSV header missing CommissionCurrency or CurrencyPrimary",
       ],
     };
   }
@@ -414,7 +403,7 @@ function parseIbkrFlatTradesCsv(records: string[][]): ParseIbkrCsvResult {
     const buySellRaw = String(row[colIndex.get("Buy/Sell") ?? -1] ?? "");
     const qtyCell = String(row[colIndex.get("Quantity") ?? -1] ?? "");
     const priceCell = String(row[colIndex.get("Price") ?? -1] ?? "");
-    const curCell = String(row[colIndex.get(currencyCol) ?? -1] ?? "");
+    const curCell = String(row[colIndex.get("CurrencyPrimary") ?? -1] ?? "");
 
     const quantityStr =
       parseIbkrDecimalString(qtyCell) ?? parseEuropeanDecimalString(qtyCell);
@@ -445,7 +434,7 @@ function parseIbkrFlatTradesCsv(records: string[][]): ParseIbkrCsvResult {
 
     const currency = trimCell(curCell).toUpperCase();
     if (currency.length === 0 || currency === "-") {
-      errors.push(`Line ${line}: missing ${currencyCol}`);
+      errors.push(`Line ${line}: missing CurrencyPrimary`);
       continue;
     }
 
@@ -509,7 +498,7 @@ const IBKR_UNSUPPORTED_CSV_MESSAGE =
 
 /**
  * Interactive Brokers CSV: **flat Activity** export (**`ClientAccountID`**, **`DateTime`**, **`ExchTrade`**, …)
- * or **flat trades** (**`Date/Time`**, **`Buy/Sell`**, **`Price`**, **`CommissionCurrency`** or **`CurrencyPrimary`**, …).
+ * or **flat trades** (**`Date/Time`**, **`Buy/Sell`**, **`Price`**, **`CurrencyPrimary`**, …).
  * Forex (**`IDEALFX`**, `AAA.BBB` symbols) is skipped.
  */
 export function parseIbkrTransactionsCsv(csvText: string): ParseIbkrCsvResult {

@@ -23,6 +23,10 @@
   h6 {
     @apply font-medium text-slate-700 text-heading-4;
   }
+
+  code {
+    @apply whitespace-normal break-words rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.8125rem] text-slate-800;
+  }
 }
 
 @layer components {

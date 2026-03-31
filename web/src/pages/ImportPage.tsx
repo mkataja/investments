@@ -563,12 +563,48 @@ export function ImportPage() {
 
       <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2>Interactive Brokers</h2>
-        <p className="text-sm text-slate-600">
-          Use a flat Activity or trades CSV from IBKR (not the Statement
-          Transaction History section). Broker{" "}
-          <strong className="font-medium">IBKR</strong>; instruments match by
-          ISIN when present, otherwise Yahoo symbol. Forex lines are skipped.
-        </p>
+        <div className="mb-3 space-y-3 text-sm text-slate-600">
+          <p>
+            Upload a CSV from an IBKR{" "}
+            <strong className="font-medium">Flex Query</strong> (web client
+            portal → <em>Performance & Reports</em> → <em>Flex Queries</em>). A
+            plain transaction history CSV is not supported.
+          </p>
+          <div>
+            <p className="font-medium text-slate-800">Active Flex Query</p>
+            <p className="mt-1">
+              Use for importing all{" "}
+              <strong className="font-medium">past</strong> trades; does not
+              include same-day fills. Includes max 365 days per export — you can
+              import multiple exports to cover longer periods. Required columns:{" "}
+              <code>
+                ClientAccountID, DateTime, Symbol, ISIN, Exchange,
+                TransactionType, Quantity, TradePrice, CurrencyPrimary
+              </code>
+              .
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-slate-800">
+              Trade Confirmation Flex Query
+            </p>
+            <p className="mt-1">
+              Same-day fills only. Use to update{" "}
+              <strong className="font-medium">today&apos;s</strong> trades not
+              yet included in the above Active Flex Query. Required columns:{" "}
+              <code>
+                ClientAccountID, Date/Time, Symbol, ISIN, Exchange, Buy/Sell,
+                Quantity, Price, CurrencyPrimary
+              </code>
+              .
+            </p>
+          </div>
+          <p>
+            Broker name must be <strong className="font-medium">IBKR</strong>.
+            Instruments are matched by ISIN when present in the DB, otherwise
+            looked up by Yahoo symbol.
+          </p>
+        </div>
         <form
           className="flex flex-col gap-3 sm:flex-row sm:items-end"
           onSubmit={onSubmitIbkr}

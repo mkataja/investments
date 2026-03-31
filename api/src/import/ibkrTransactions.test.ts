@@ -26,16 +26,16 @@ describe("yahooSymbolLookupCandidates", () => {
   });
 });
 
-const SAMPLE_IBKR_FLAT_CSV = `"ClientAccountID","DateTime","Symbol","ISIN","Description","Exchange","TransactionType","Quantity","TradePrice","CurrencyPrimary","IBCommission","IBCommissionCurrency"
-"U22473172","2026-03-27 11:51:58 EDT","SPYI","IE00B3YLTY66","SP MS ALL CO WI MKT UC ET-AC","IBIS2","ExchTrade","50","9.752","EUR","-1.2914544","EUR"
-"U22473172","2025-11-14 11:36:04 EST","SPYL","IE000XZSV718","SPDR S&P 500 UCITS ETF ACC","GETTEX2","ExchTrade","20","14.292","EUR","-1.25","EUR"
-"U22473172","2025-10-13 14:45:07 EDT","BRK B","US0846707026","BERKSHIRE HATHAWAY INC-CL B","IBKRATS","ExchTrade","1","491.71","USD","-0.35047925","USD"
-"U22473172","2025-10-13 14:45:08 EDT","EUR.USD","","EUR.USD","IDEALFX","ExchTrade","-0.31","1.15666","USD","0","EUR"
-"U22473172","2025-10-13 14:45:08 EDT","EUR.USD","","EUR.USD","IDEALFX","ExchTrade","-425.02","1.15673","USD","0","EUR"
+const SAMPLE_IBKR_FLAT_CSV = `"ClientAccountID","DateTime","Symbol","ISIN","Description","Exchange","TransactionType","Quantity","TradePrice","CurrencyPrimary","IBCommission"
+"U22473172","2026-03-27 11:51:58 EDT","SPYI","IE00B3YLTY66","SP MS ALL CO WI MKT UC ET-AC","IBIS2","ExchTrade","50","9.752","EUR","-1.2914544"
+"U22473172","2025-11-14 11:36:04 EST","SPYL","IE000XZSV718","SPDR S&P 500 UCITS ETF ACC","GETTEX2","ExchTrade","20","14.292","EUR","-1.25"
+"U22473172","2025-10-13 14:45:07 EDT","BRK B","US0846707026","BERKSHIRE HATHAWAY INC-CL B","IBKRATS","ExchTrade","1","491.71","USD","-0.35047925"
+"U22473172","2025-10-13 14:45:08 EDT","EUR.USD","","EUR.USD","IDEALFX","ExchTrade","-0.31","1.15666","USD","0"
+"U22473172","2025-10-13 14:45:08 EDT","EUR.USD","","EUR.USD","IDEALFX","ExchTrade","-425.02","1.15673","USD","0"
 `;
 
 /** Flat trades export: `Date/Time`, `Buy/Sell`, `Price` (not `DateTime` / `ExchTrade` / `TradePrice`). */
-const SAMPLE_IBKR_FLAT_TRADES_CSV = `"ClientAccountID","Date/Time","Symbol","ISIN","Description","Exchange","Buy/Sell","Quantity","Price","Commission","CommissionCurrency"
+const SAMPLE_IBKR_FLAT_TRADES_CSV = `"ClientAccountID","Date/Time","Symbol","ISIN","Description","Exchange","Buy/Sell","Quantity","Price","Commission","CurrencyPrimary"
 "U22473172","2026-03-30 11:23:43 EDT","SPYI","IE00B3YLTY66","SP MS ALL CO WI MKT UC ET-AC","IBIS2","BUY","50","9.76","-1.291472","EUR"
 `;
 
@@ -68,7 +68,7 @@ describe("parseIbkrTransactionsCsv", () => {
     expect(brk?.isin).toBe("US0846707026");
   });
 
-  it("parses flat trades CSV (Date/Time, Buy/Sell, Price, CommissionCurrency)", () => {
+  it("parses flat trades CSV (Date/Time, Buy/Sell, Price, CurrencyPrimary)", () => {
     const result = parseIbkrTransactionsCsv(SAMPLE_IBKR_FLAT_TRADES_CSV);
     expect(result.ok).toBe(true);
     if (!result.ok) {
