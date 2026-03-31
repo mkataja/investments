@@ -29,6 +29,9 @@ importers:
       '@investments/db':
         specifier: workspace:*
         version: link:../db
+      '@investments/lib':
+        specifier: workspace:*
+        version: link:../lib
       cheerio:
         specifier: ^1.0.0
         version: 1.2.0
@@ -92,11 +95,16 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
+  lib: {}
+
   web:
     dependencies:
       '@investments/db':
         specifier: workspace:*
         version: link:../db
+      '@investments/lib':
+        specifier: workspace:*
+        version: link:../lib
       react:
         specifier: ^18.3.1
         version: 18.3.1

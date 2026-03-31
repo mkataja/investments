@@ -1,3 +1,5 @@
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
+
 /** Bond sector keys on merged portfolio `sectors` (same semantics as web `distributionDisplay`). */
 const BOND_DISTRIBUTION_SECTOR_IDS = [
   "long_government_bonds",
@@ -75,14 +77,17 @@ export function computeBondMix(
     out[k] = v;
   }
   const sum = Object.values(out).reduce((a, b) => a + b, 0);
-  if (sum < 1e-12) {
+  if (sum < MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     return [];
   }
   const slices: BondMixSlice[] = [];
   for (const k of Object.keys(out)) {
     const v = out[k];
     if (v !== undefined) {
-      slices.push({ sectorId: k, weight: v / sum });
+      const weight = v / sum;
+      if (weight >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
+        slices.push({ sectorId: k, weight });
+      }
     }
   }
   slices.sort((a, b) => b.weight - a.weight);

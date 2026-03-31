@@ -166,7 +166,8 @@ export function createDistributionBarTooltipContent(options: {
         ) : null}
         {!options.showCompare && topHoldings && topHoldings.length === 0 ? (
           <p className="mt-2 border-t border-slate-200 pt-2 text-xs font-semibold text-slate-600">
-            No contributors in <em>{label != null && label !== "" ? label : "this bucket"}</em>
+            No contributors in{" "}
+            <em>{label != null && label !== "" ? label : "this bucket"}</em>
           </p>
         ) : null}
         {options.showCompare ? (

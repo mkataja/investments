@@ -1,4 +1,5 @@
 import {
+  type DistributionPayload,
   aggregateRegionsToGeoBuckets,
   distributions,
   instruments,
@@ -6,7 +7,7 @@ import {
   seligsonFunds,
   yahooFinanceCache,
 } from "@investments/db";
-import type { DistributionPayload } from "@investments/db";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { distributionGeoScaleForCountryMerge } from "./distributionGeoScale.js";
@@ -29,6 +30,18 @@ type TopHoldingRow = {
 };
 
 type ContribMap = Map<string, Map<number, number>>;
+
+function filterWeightsByMinFraction(
+  m: Record<string, number>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(m)) {
+    if (typeof v === "number" && v >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
 
 function mergeWeighted(
   acc: Record<string, number>,
@@ -75,7 +88,7 @@ function addContrib(
   instrumentId: number,
   delta: number,
 ): void {
-  if (!Number.isFinite(delta) || delta <= 1e-18) {
+  if (!Number.isFinite(delta) || delta < MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     return;
   }
   let inner = map.get(bucketKey);
@@ -97,7 +110,7 @@ function top5FromContribMap(
   const rows = [...inner.entries()].map(([instrumentId, amt]) => ({
     instrumentId,
     displayName: idToName.get(instrumentId) ?? "?",
-    pctOfBucket: total > 1e-18 ? amt / total : 0,
+    pctOfBucket: total >= MIN_PORTFOLIO_ALLOCATION_FRACTION ? amt / total : 0,
   }));
   rows.sort((a, b) => b.pctOfBucket - a.pctOfBucket);
   return rows.slice(0, 5);
@@ -355,13 +368,13 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       );
       const regionalBuckets = aggregateRegionsToGeoBuckets(scaledCountries);
       for (const [bucket, val] of Object.entries(regionalBuckets)) {
-        if (val > 1e-18) {
+        if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
           addContrib(regionContrib, bucket, inst.id, val);
         }
       }
       const isoNorm = normalizeCountryWeightsToIso(scaledCountries);
       for (const [isoKey, val] of Object.entries(isoNorm)) {
-        if (val > 1e-18) {
+        if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
           addContrib(countryContrib, isoKey, inst.id, val);
         }
       }
@@ -372,13 +385,13 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       };
       const regionalBuckets = aggregateRegionsToGeoBuckets(instUnknown);
       for (const [bucket, val] of Object.entries(regionalBuckets)) {
-        if (val > 1e-18) {
+        if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
           addContrib(regionContrib, bucket, inst.id, val);
         }
       }
       const isoNorm = normalizeCountryWeightsToIso(instUnknown);
       for (const [isoKey, val] of Object.entries(isoNorm)) {
-        if (val > 1e-18) {
+        if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
           addContrib(countryContrib, isoKey, inst.id, val);
         }
       }
@@ -387,7 +400,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     const nonCashSectors = stripCashFromSectorWeights(payload?.sectors);
     const nonCashSectorSum = sumSectorWeights(nonCashSectors);
     if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
-      if (nonCashSectorSum > 1e-9) {
+      if (nonCashSectorSum >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
         mergeWeighted(sectors, nonCashSectors, w);
         for (const [s, v] of Object.entries(nonCashSectors)) {
           addContrib(sectorContrib, s, inst.id, w * v);
@@ -404,13 +417,13 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   const cashBelowEmergencyTarget =
     emergencyFundTargetEur > 0 && cashTotalEur < emergencyFundTargetEur;
 
-  if (missingCountryW > 0) {
+  if (missingCountryW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     countryWeights[PORTFOLIO_UNKNOWN_COUNTRY] = missingCountryW;
   }
 
   const sectorMassRaw =
     Object.values(sectors).reduce((a, b) => a + b, 0) + missingSectorW;
-  if (sectorMassRaw > 1e-12) {
+  if (sectorMassRaw >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     for (const k of Object.keys(sectors)) {
       const v = sectors[k];
       if (v !== undefined) {
@@ -419,7 +432,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     }
     missingSectorW /= sectorMassRaw;
   }
-  if (missingSectorW > 0) {
+  if (missingSectorW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     sectors[PORTFOLIO_UNKNOWN_SECTOR] = missingSectorW;
   }
 
@@ -455,7 +468,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   const regionsBucketed: Record<string, number> = {};
   const merged = aggregateRegionsToGeoBuckets(countryWeights);
   for (const [k, v] of Object.entries(merged)) {
-    if (v > 0) {
+    if (v >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
       regionsBucketed[k] = v;
     }
   }
@@ -464,10 +477,13 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     valued.map((r) => [r.inst.id, r.inst.displayName] as const),
   );
 
+  const countriesForResponse = filterWeightsByMinFraction(countryWeights);
+  const sectorsForResponse = filterWeightsByMinFraction(sectors);
+
   return {
-    countries: countryWeights,
+    countries: countriesForResponse,
     regions: regionsBucketed,
-    sectors,
+    sectors: sectorsForResponse,
     totalValueEur,
     mixedCurrencyWarning,
     nonCashPrincipalEur,
@@ -479,11 +495,11 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     cashBelowEmergencyTarget,
     assetMix: computeAssetMixEur({
       nonCashPrincipalEur,
-      mergedSectors: sectors,
+      mergedSectors: sectorsForResponse,
       cashInFundsEur,
       cashExcessEur,
     }),
-    bondMix: computeBondMix(sectors),
+    bondMix: computeBondMix(sectorsForResponse),
     positions,
     bucketTopHoldings: {
       regions: contribMapToTopRecord(regionContrib, idToName),

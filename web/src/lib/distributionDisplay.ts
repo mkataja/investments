@@ -10,6 +10,7 @@ import {
   geoBucketDisplayTitle,
   resolveRegionKeyToIso,
 } from "@investments/db";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
 import { formatToPercentage } from "./numberFormat.js";
 import { DISTRIBUTION_SECTOR_TITLES } from "./sectorTitles.js";
 
@@ -55,7 +56,7 @@ export function equitySectorsForDisplay(
     out[k] = v;
   }
   const sum = Object.values(out).reduce((a, b) => a + b, 0);
-  if (sum < 1e-12) {
+  if (sum < MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     return {};
   }
   for (const k of Object.keys(out)) {
@@ -130,7 +131,7 @@ export function topCountriesSegmentsForDisplay(
     pctLabel: formatPercentWidth4From01(w),
     weight: w,
   }));
-  if (restW > 0.0005) {
+  if (restW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     segments.push({
       key: "rest",
       label: "Other",
@@ -148,7 +149,7 @@ export function allCountriesChartData(
 ): Array<{ name: string; value: number; bucketKey: string }> {
   const norm = normalizeCountryWeightsForDisplay(countries);
   const rows = Object.entries(norm)
-    .filter(([, v]) => v > 0.0005)
+    .filter(([, v]) => v >= MIN_PORTFOLIO_ALLOCATION_FRACTION)
     .map(([k, v]) => ({
       key: k,
       name: k === UNMAPPED_COUNTRY_KEY ? CHART_UNKNOWN_LABEL : k,
@@ -184,7 +185,7 @@ function regionBarRowsWithKeys(
   regions: Record<string, number>,
 ): Array<{ key: string; name: string; value: number }> {
   const rows = Object.entries(regions)
-    .filter(([, v]) => v > 0.0005)
+    .filter(([, v]) => v >= MIN_PORTFOLIO_ALLOCATION_FRACTION)
     .map(([id, value]) => ({
       key: id,
       name:
@@ -200,7 +201,7 @@ function sectorBarRowsWithKeys(
   sectors: Record<string, number>,
 ): Array<{ key: string; name: string; value: number }> {
   const rows = Object.entries(sectors)
-    .filter(([, v]) => v > 0.0005)
+    .filter(([, v]) => v >= MIN_PORTFOLIO_ALLOCATION_FRACTION)
     .map(([id, value]) => ({
       key: id,
       name: sectorTitleForId(id),
@@ -217,7 +218,7 @@ function countryBarRowsWithKeys(
 ): Array<{ key: string; name: string; value: number }> {
   const norm = normalizeCountryWeightsForDisplay(countries);
   const rows = Object.entries(norm)
-    .filter(([, v]) => v > 0.0005)
+    .filter(([, v]) => v >= MIN_PORTFOLIO_ALLOCATION_FRACTION)
     .map(([k, v]) => ({
       key: k,
       name: k === UNMAPPED_COUNTRY_KEY ? CHART_UNKNOWN_LABEL : k,
@@ -329,7 +330,7 @@ export function portfolioRegionBarRows(
   regions: Record<string, number>,
 ): Array<{ name: string; value: number; bucketKey: string }> {
   const rows = Object.entries(regions)
-    .filter(([, v]) => v > 0.0005)
+    .filter(([, v]) => v >= MIN_PORTFOLIO_ALLOCATION_FRACTION)
     .map(([id, value]) => ({
       key: id,
       name:
@@ -346,7 +347,7 @@ export function portfolioSectorBarRows(
   sectors: Record<string, number>,
 ): Array<{ name: string; value: number; bucketKey: string }> {
   const rows = Object.entries(sectors)
-    .filter(([, v]) => v > 0.0005)
+    .filter(([, v]) => v >= MIN_PORTFOLIO_ALLOCATION_FRACTION)
     .map(([id, value]) => ({
       key: id,
       name: sectorTitleForId(id),
@@ -377,7 +378,12 @@ export function sortedSectorsForDisplay(
   sectors: Record<string, number>,
 ): SectorRow[] {
   return Object.entries(sectors)
-    .filter(([, v]) => typeof v === "number" && Number.isFinite(v) && v > 0)
+    .filter(
+      ([, v]) =>
+        typeof v === "number" &&
+        Number.isFinite(v) &&
+        v >= MIN_PORTFOLIO_ALLOCATION_FRACTION,
+    )
     .sort((a, b) => {
       const dw = b[1] - a[1];
       if (dw !== 0) {
@@ -410,7 +416,7 @@ export function geoSegmentsForDisplay(
   const out: GeoSegment[] = [];
   for (const b of GEO_BUCKET_ORDER) {
     const v = buckets[b];
-    if (v > 0.0005) {
+    if (v >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
       out.push({ bucket: b, pctLabel: formatPercentWidth4From01(v) });
     }
   }
@@ -491,7 +497,10 @@ export function formatDistributionTooltip(
     lines.push(`Countries: ${countryParts.join(", ")}`);
   }
   const secParts = Object.entries(sectors)
-    .filter(([, v]) => typeof v === "number" && v > 0.0005)
+    .filter(
+      ([, v]) =>
+        typeof v === "number" && v >= MIN_PORTFOLIO_ALLOCATION_FRACTION,
+    )
     .sort((a, b) =>
       sectorTitleCmp(sectorTitleForId(a[0]), sectorTitleForId(b[0])),
     )

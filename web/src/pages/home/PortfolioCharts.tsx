@@ -1,3 +1,4 @@
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
 import { useMemo } from "react";
 import {
   Bar,
@@ -240,7 +241,7 @@ export function PortfolioCharts({
     ],
   );
 
-  const assetMixPieData = useMemo(() => {
+  const assetMixPieDataRaw = useMemo(() => {
     const m = portfolio.assetMix;
     return [
       {
@@ -263,13 +264,23 @@ export function PortfolioCharts({
         value: m.cashExcessEur,
         fill: PORTFOLIO_ASSET_MIX_COLORS.cashExcess,
       },
-    ].filter((d) => d.value > 1e-9);
+    ];
   }, [portfolio.assetMix]);
 
   const assetMixPieTotalEur = useMemo(
-    () => assetMixPieData.reduce((s, d) => s + d.value, 0),
-    [assetMixPieData],
+    () => assetMixPieDataRaw.reduce((s, d) => s + d.value, 0),
+    [assetMixPieDataRaw],
   );
+
+  const assetMixPieData = useMemo(() => {
+    const t = assetMixPieTotalEur;
+    if (!(t > 0)) {
+      return [];
+    }
+    return assetMixPieDataRaw.filter(
+      (d) => d.value / t >= MIN_PORTFOLIO_ALLOCATION_FRACTION,
+    );
+  }, [assetMixPieDataRaw, assetMixPieTotalEur]);
 
   const bondMixPieData = useMemo(
     () =>

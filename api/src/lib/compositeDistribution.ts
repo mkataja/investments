@@ -1,4 +1,5 @@
 import type { DistributionPayload } from "@investments/db";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
 import { roundWeights } from "../distributions/roundWeights.js";
 import { distributionGeoScaleForCountryMerge } from "./distributionGeoScale.js";
 
@@ -51,13 +52,13 @@ export function mergeCompositeDistributionPayload(
     }
   }
 
-  if (missingCountryW > 0) {
+  if (missingCountryW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     countryWeights[PORTFOLIO_UNKNOWN_COUNTRY] = missingCountryW;
   }
 
   const sectorMassRaw =
     Object.values(sectors).reduce((a, b) => a + b, 0) + missingSectorW;
-  if (sectorMassRaw > 1e-12) {
+  if (sectorMassRaw >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     for (const k of Object.keys(sectors)) {
       const v = sectors[k];
       if (v !== undefined) {
@@ -66,7 +67,7 @@ export function mergeCompositeDistributionPayload(
     }
     missingSectorW /= sectorMassRaw;
   }
-  if (missingSectorW > 0) {
+  if (missingSectorW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     sectors[PORTFOLIO_UNKNOWN_SECTOR] = missingSectorW;
   }
 

@@ -1,4 +1,5 @@
 import type { DistributionPayload } from "@investments/db";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
 
 /**
  * Scale factor for merging `payload.countries` into portfolio weights.
@@ -19,7 +20,7 @@ export function distributionGeoScaleForCountryMerge(
       ? sec.long_corporate_bonds
       : 0;
   const longBondFrac = longGovt + longCorp;
-  if (longBondFrac > 1e-9) {
+  if (longBondFrac >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     return longBondFrac;
   }
   return 1 - cashFrac;

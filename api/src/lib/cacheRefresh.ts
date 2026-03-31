@@ -17,6 +17,7 @@ import {
   validateProviderBreakdownDataUrl,
   yahooFinanceCache,
 } from "@investments/db";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
 import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { buildDistributionFromSec13FInfoTableXml } from "../distributions/buildSec13fDistribution.js";
@@ -68,8 +69,6 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-const UNKNOWN_COUNTRY_WEIGHT_EPS = 1e-9;
-
 /** Same unmapped vs ISO rules as `aggregateRegionsToGeoBuckets`; ZZ tracked separately (maps to EM, not unknown bucket). */
 function collectUnknownCountryIssueParts(
   countries: Record<string, number> | undefined,
@@ -83,7 +82,7 @@ function collectUnknownCountryIssueParts(
     if (
       typeof w !== "number" ||
       !Number.isFinite(w) ||
-      w <= UNKNOWN_COUNTRY_WEIGHT_EPS
+      w < MIN_PORTFOLIO_ALLOCATION_FRACTION
     ) {
       continue;
     }
@@ -487,7 +486,7 @@ export async function writeCompositeDistributionCache(
   }
 
   const sumW = items.reduce((s, it) => s + it.weight, 0);
-  if (sumW > 1e-9) {
+  if (sumW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     for (const it of items) {
       it.weight /= sumW;
     }

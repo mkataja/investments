@@ -20,14 +20,14 @@ HTTP behavior lives in **`api`** only; routes are not duplicated here. Data mode
 
 ## Tooling
 
-- **`pnpm`** workspace: **`@investments/db`**, **`@investments/api`**, **`@investments/web`** — [`pnpm-workspace.yaml`](pnpm-workspace.yaml)
+- **`pnpm`** workspace: **`@investments/db`**, **`@investments/lib`** (shared app constants / helpers used by api + web), **`@investments/api`**, **`@investments/web`** — [`pnpm-workspace.yaml`](pnpm-workspace.yaml)
 - Biome — [`biome.json`](biome.json)
 
 ## Practical instructions
 
 ### Code style
 
-- Small reusable helpers belong in **`lib/`** (e.g. **`api/src/lib`**, **`web/src/lib`**) rather than inlined in handlers or pages.
+- Small reusable helpers belong in **`lib/`** (e.g. **`api/src/lib`**, **`web/src/lib`**) rather than inlined in handlers or pages. Code shared **only** between **`api`** and **`web`** (not DB schema) lives in **`@investments/lib`** (`lib/`).
 - No copy-paste duplication: extract shared UI, validation, or logic.
 - Web dates/times: **`web/src/lib/dateTimeFormat.ts`** — **`YYYY-MM-DD`**; with time **`YYYY-MM-DD HH:mm`** (local 24h).
 

@@ -7,6 +7,7 @@ pnpm workspace — [`pnpm-workspace.yaml`](../pnpm-workspace.yaml):
 | Package | Role |
 | --- | --- |
 | [`db`](../db) | Drizzle schema, migrations, shared types, `currencies.ts`, `yahooSymbol.ts` (Yahoo ticker normalization), `holdingsUrl.ts` (provider holdings URL validation), `geo/` (ISO country + default geo buckets), `brokerInstrumentRules`, `instrumentSelectLabel`, `appUser` (`USER_ID` — hard-coded until auth; no DB default for user identity) |
+| [`lib`](../lib) | Cross-package TypeScript shared by api + web only (e.g. `MIN_PORTFOLIO_ALLOCATION_FRACTION`); not DB schema |
 | [`api`](../api) | Hono API, valuation, distribution fetch/normalize, cache refresh |
 | [`web`](../web) | Vite + React + Tailwind; `/`, `/brokers`, `/instruments`, `/instruments/new`, `/instruments/:id/edit`, `/import` (Degiro CSV, IBKR CSV, Seligson TSV). Home subcomponents (charts, holdings, transactions, modals) under `web/src/pages/home/` |
 

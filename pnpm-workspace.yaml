@@ -1,4 +1,5 @@
 packages:
   - "db"
+  - "lib"
   - "web"
   - "api"
