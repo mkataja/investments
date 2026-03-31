@@ -404,7 +404,7 @@ export function sectorIcon(sectorId: string): string {
     case "consumer_cyclical":
       return "🛍️";
     case "consumer_defensive":
-      return "🥫";
+      return "🥔";
     case "industrials":
       return "🏭";
     case "energy":
@@ -414,7 +414,7 @@ export function sectorIcon(sectorId: string): string {
     case "real_estate":
       return "🏢";
     case "utilities":
-      return "💡";
+      return "🔌";
     case "communication_services":
       return "📡";
     case "other":
@@ -424,9 +424,9 @@ export function sectorIcon(sectorId: string): string {
     case "long_corporate_bonds":
       return "🏢";
     case "short_bonds":
-      return "📎";
+      return "▶️";
     default:
-      return "📊";
+      return "❓";
   }
 }
 
