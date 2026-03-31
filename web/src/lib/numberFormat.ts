@@ -64,3 +64,8 @@ export function roundQuantityForDisplay(raw: string): number {
   if (!Number.isFinite(n)) return 0;
   return Math.round(n);
 }
+
+export const formatToPercentage = (
+  v: number,
+  { decimalPlaces }: { decimalPlaces?: number } = {},
+) => `${(v * 100).toFixed(decimalPlaces ?? 1)}%`;

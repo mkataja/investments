@@ -10,6 +10,7 @@ import {
   geoBucketDisplayTitle,
   resolveRegionKeyToIso,
 } from "@investments/db";
+import { formatToPercentage } from "./numberFormat.js";
 import { DISTRIBUTION_SECTOR_TITLES } from "./sectorTitles.js";
 
 export type GeoBucket = GeoBucketId;
@@ -298,8 +299,7 @@ const NBSP = "\u00a0";
 
 /** Whole percent in a fixed 4-column field: value left-aligned, padded on the right (NBSP). */
 export function formatPercentWidth4From01(weight01: number): string {
-  const s = `${Math.round(weight01 * 100)}%`;
-  return s.padEnd(4, NBSP);
+  return formatToPercentage(weight01).padEnd(4, NBSP);
 }
 
 export type SectorRow = {
