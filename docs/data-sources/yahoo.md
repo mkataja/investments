@@ -1,0 +1,3 @@
+# Yahoo Finance (ETFs / stocks)
+
+Yahoo Finance via **`yahoo-finance2` v3** (shared **`YahooFinance`** instance in `api`, **`quoteSummary` only** for distributions and price snapshots—**no `quote()`**). Symbols are stored as **`yahooSymbol`**, trimmed and uppercased (**`normalizeYahooSymbolForStorage`** in **`@investments/db`**). Unofficial API—Yahoo may **429 / block** by IP; the API maps that to a readable message and **503**, uses **retries with backoff** on `quoteSummary`, and **staggers** startup distribution refresh for Yahoo rows (optional **`YAHOO_MIN_INTERVAL_MS`**, default ~900ms). **Portfolio valuation** uses the **`prices`** table, not live quotes. **Caching** reduces repeated calls.

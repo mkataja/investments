@@ -18,6 +18,16 @@ pnpm db:migrate
 
 Postgres is exposed on **host port 50500** (to avoid clashing with other local Postgres instances). Data lives in `.data/postgres` (gitignored).
 
+## Packages
+
+| Package | Role |
+| --- | --- |
+| `db` | Drizzle schema, SQL migrations, shared types, geo/sector helpers, `USER_ID` |
+| `api` | Hono API, valuation, distribution fetch and cache refresh |
+| `web` | Vite + React + Tailwind UI |
+
+Details: [`docs/architecture.md`](docs/architecture.md#repo-layout).
+
 ## Development
 
 ```bash
@@ -33,28 +43,23 @@ Set `VITE_API_URL` in `web` if the API is not on port 3001.
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm run ci` | Lint, test, and web + API builds in parallel (`concurrently`; use `run` because bare `pnpm ci` is reserved) |
 | `pnpm dev` | API + web together |
+| `pnpm run ci` | Lint, test, and web + API builds in parallel (`run` is necessary!) |
 | `pnpm db:migrate` | Apply Drizzle migrations |
 | `pnpm db:studio` | Drizzle Studio |
 | `pnpm docker:up` / `pnpm docker:down` | Postgres container |
 
-### Git commits
+## Architecture (overview)
 
-Use short, descriptive one-line titles (no `feat:` / `chore:` prefixes).
+- **Positions** are derived from **transactions** (net quantity per instrument); portfolio views aggregate by selected **`portfolio_id`**.
+- **Distributions** (country/sector weights per instrument) are **cached** in the DB; Yahoo `quoteSummary`, optional provider holdings files, and Seligson HTML each feed normalization in **`api`**. Portfolio-level charts merge weights by value.
+- **`USER_ID`** is a single hard-coded user in **`@investments/db`** until auth exists.
+
+**Reference:** [`docs/architecture.md`](docs/architecture.md) (packages, infra, tables, caching), [`docs/data-sources.md`](docs/data-sources.md) (pipelines), [`docs/api.md`](docs/api.md) (routes and imports).
 
 ## API notes
 
-- **Brokers:** **`name`** is unique. Create them at `/brokers` (types: exchange, Seligson, cash account). Degiro CSV import uses the broker whose **name** is **Degiro**; Seligson TSV import uses the broker named **Seligson**.
-- **Seligson funds** live in `seligson_funds` (fid + name); new rows are created when you add a custom instrument from `/instruments/new` (FID + Seligson-type broker).
-- **Instruments** of kind `custom` reference a `seligson_fund` row when using the Seligson integration; `broker_id` identifies the broker. Distributions are scraped from Seligson FundViewer holdings listing (`view=10`).
-- **ETFs/stocks** use `yahooSymbol`; distributions come from Yahoo `quoteSummary` (sectors / regions when available).
-- **Cash** (`cash_account`): balance is in `cash_currency` (EUR/USD); **country code** (ISO 3166-1 alpha-2, stored as `cash_geo_key`) is required for display and is not used for region/sector chart weights.
-- **Distribution cache** refreshes at least daily for instruments with open positions (API startup; `manual` cache rows are not overwritten).
-- **Public routes** `GET /instruments/lookup-yahoo?symbol=` previews Yahoo metadata for the new-instrument UI.
+Full route and import behavior: **[`docs/api.md`](docs/api.md)**. Caching / refresh: **[`docs/architecture.md` § Caching and distribution refresh](docs/architecture.md#caching-and-distribution-refresh)**.
 
-## Packages
-
-- `db` — Drizzle schema and SQL migrations
-- `api` — Hono server
-- `web` — React + Tailwind
+- Create brokers at `/brokers` (unique **name** per user). Imports match brokers by name: **Degiro**, **Seligson**, **IBKR**.
+- **`GET /instruments/lookup-yahoo?symbol=`** — Yahoo preview for the add-instrument form.
