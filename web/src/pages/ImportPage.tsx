@@ -702,10 +702,29 @@ export function ImportPage() {
 
       <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2>Seligson</h2>
-        <p className="text-sm text-slate-600">
-          Portfolio export (TSV). Fund names must match existing Seligson
-          instruments.
-        </p>
+        <div className="space-y-2 text-sm text-slate-600">
+          <p>
+            On{" "}
+            <a
+              href="https://omasalkku.seligson.fi/portfolio/transactions?view=transactions"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-slate-700 underline underline-offset-2 hover:text-slate-900"
+            >
+              <em>Oma Salkku</em> → <em>Tapahtumat</em>
+            </a>
+            , copy the full table from the header row through the summary row,
+            paste into a text editor, and save as a{" "}
+            <span className="font-medium">.tsv</span> file for import here. No
+            extra formatting is required, paste the content as-is. If needed,
+            change the default page size from 25 to all items so nothing is
+            missing.
+          </p>
+          <p>The PDF report is not supported.</p>
+          <p>
+            The funds need to be added to the instruments list before importing.
+          </p>
+        </div>
         <form
           className="flex flex-col gap-3 sm:flex-row sm:items-end"
           onSubmit={onSubmitSeligson}
