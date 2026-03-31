@@ -144,6 +144,9 @@ const ASSET_MIX_COLORS = {
   cashExcess: "#0369a1",
 } as const;
 
+const PORTFOLIO_EMERGENCY_FUND_NOTE =
+  "Emergency fund is the part of your savings you treat as reserved — not as portfolio investments. The asset mix considers only the cash above the emergency fund buffer as cash assets.";
+
 const DIST_CHART_COLORS = {
   regionPrimary: "#0369a1",
   regionCompare: "#38bdf8",
@@ -598,17 +601,22 @@ export function HomePage() {
               autoComplete="off"
             />
           </label>
-          <label className="block text-sm">
-            Emergency fund (EUR)
-            <input
-              className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              value={newPortfolioEmergencyFund}
-              onChange={(e) => setNewPortfolioEmergencyFund(e.target.value)}
-            />
-          </label>
+          <div className="space-y-1">
+            <label className="block text-sm">
+              Emergency fund (EUR)
+              <input
+                className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                value={newPortfolioEmergencyFund}
+                onChange={(e) => setNewPortfolioEmergencyFund(e.target.value)}
+              />
+            </label>
+            <p className="text-sm text-slate-600">
+              {PORTFOLIO_EMERGENCY_FUND_NOTE}
+            </p>
+          </div>
           <Button type="submit" disabled={newPortfolioBusy}>
             Create
           </Button>
@@ -634,17 +642,22 @@ export function HomePage() {
               autoComplete="off"
             />
           </label>
-          <label className="block text-sm">
-            Emergency fund (EUR)
-            <input
-              className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
-              type="text"
-              inputMode="decimal"
-              autoComplete="off"
-              value={editPortfolioEmergencyFund}
-              onChange={(e) => setEditPortfolioEmergencyFund(e.target.value)}
-            />
-          </label>
+          <div className="space-y-1">
+            <label className="block text-sm">
+              Emergency fund (EUR)
+              <input
+                className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                value={editPortfolioEmergencyFund}
+                onChange={(e) => setEditPortfolioEmergencyFund(e.target.value)}
+              />
+            </label>
+            <p className="text-sm text-slate-600">
+              {PORTFOLIO_EMERGENCY_FUND_NOTE}
+            </p>
+          </div>
           <Button type="submit" disabled={editPortfolioBusy}>
             Save
           </Button>
