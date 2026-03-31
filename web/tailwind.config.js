@@ -3,6 +3,10 @@ export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
+      colors: {
+        "action-edit": "rgb(var(--color-action-edit) / <alpha-value>)",
+        "action-delete": "rgb(var(--color-action-delete) / <alpha-value>)",
+      },
       fontSize: {
         "heading-1": ["1.875rem", { lineHeight: "2.25rem" }],
         "heading-2": ["1.25rem", { lineHeight: "1.75rem" }],

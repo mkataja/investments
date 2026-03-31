@@ -107,14 +107,14 @@ export function TransactionsTable({
                 <td className="text-right p-2 space-x-3 whitespace-nowrap">
                   <button
                     type="button"
-                    className="text-emerald-800 underline text-sm"
+                    className="text-action-edit underline text-sm"
                     onClick={() => onEdit(t)}
                   >
                     Edit
                   </button>
                   <button
                     type="button"
-                    className="text-red-700 underline text-sm"
+                    className="text-action-delete underline text-sm"
                     onClick={() => {
                       if (
                         !window.confirm(
