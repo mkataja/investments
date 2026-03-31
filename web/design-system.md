@@ -1,57 +1,57 @@
 # Web design system (minimal)
 
-This app uses **Tailwind CSS** with a small set of shared primitives. Extend here as patterns repeat.
+Tailwind CSS with a small set of shared primitives. Extend here as patterns repeat.
 
 ## Primary control (`Button`, `ButtonLink`)
 
-**Use for:** main actions in page headers and forms when the action should read as a **button** (not inline body text).
+Use for main actions in page headers and forms when the control should read as a button (not inline body text).
 
-**Implementation:** [`src/components/Button.tsx`](src/components/Button.tsx)
+Implementation: [`src/components/Button.tsx`](src/components/Button.tsx)
 
 | Export | Role |
 | --- | --- |
-| `Button` | `<button>` - defaults to `type="button"`; pass `type="submit"` in forms. |
-| `ButtonLink` | React Router `<Link>` with the same surface styles (navigation that looks like the primary button). |
-| `buttonPrimaryClassName` | Raw class string if you need the same look on another element (rare). |
+| `Button` | `<button>` — default `type="button"`; pass `type="submit"` in forms |
+| `ButtonLink` | React Router `<Link>` with the same surface styles |
+| `buttonPrimaryClassName` | Raw class string for rare non-button elements |
 
-**Visual:** white background, `emerald-200` border, `emerald-900` text, light shadow, hover fill `emerald-50`, visible focus ring. Disabled buttons use reduced opacity.
+Visual: white background, `emerald-200` border, `emerald-900` text, light shadow, hover `emerald-50`, visible focus ring. Disabled: reduced opacity.
 
 ## Page layout spacing
 
-**Stacking** uses flex column + gap so spacing is consistent (not ad-hoc `mb-*` on headings next to tables).
+Stack with flex column + gap (avoid ad-hoc `mb-*` on headings next to tables).
 
 | Class | Role |
 | --- | --- |
-| `page-stack` | Top-level page vertical rhythm between major regions (`gap-6`). Also use on long forms between major steps (same as former `space-y-6`). |
-| `page-section` | Major block: `h2`/`h3` + children (cards, charts, tables). `gap-4`; direct `h2` / `h3` margins cleared. |
-| `subsection-stack` | `h3` + block (table, chart). `gap-3`; direct `h3` margin cleared. |
-| `page-header-stack` | Page title area: back link, `h1`, subtitle, errors (`gap-2`). |
-| `modal-stack` | `Modal` body: title row + content (`gap-4`). |
-| `form-stack` | Compact vertical forms (`gap-3`; modals, bordered field cards). |
-| `field-note-stack` | Control + helper paragraph (`gap-1`). |
-| `list-stack` | Vertical stack of blocks (e.g. list items, `gap-3`). |
+| `page-stack` | Top-level vertical rhythm (`gap-6`); long forms between major steps |
+| `page-section` | Major block: `h2`/`h3` + children (`gap-4`; direct `h2`/`h3` margins cleared) |
+| `subsection-stack` | `h3` + table/chart (`gap-3`) |
+| `page-header-stack` | Title area: back link, `h1`, subtitle, errors (`gap-2`) |
+| `modal-stack` | `Modal` body (`gap-4`) |
+| `form-stack` | Compact vertical forms (`gap-3`) |
+| `field-note-stack` | Control + helper (`gap-1`) |
+| `list-stack` | Vertical blocks (`gap-3`) |
 
-Use these on page roots and `<section>`s instead of mixing `space-y-*` with default heading margins for the same structure. Tiny list spacing (`space-y-0.5` in dense lists) can stay local.
+Use on page roots and `<section>`s instead of mixing `space-y-*` with default heading margins. Dense lists may keep local `space-y-0.5`.
 
 ## Typography / headings
 
-**Defaults:** `web/src/index.css` (`@layer base`) styles **`h1`–`h6`** so bare elements render without `className`. **Semantic sizes** mirror Tailwind’s `text-3xl` / `text-xl` / `text-base` / `text-sm` and live in **`web/tailwind.config.js`** as **`fontSize.heading-1`** … **`heading-4`** (use `text-heading-*` utilities when you need the same scale on a non-heading element).
+Defaults: `web/src/index.css` (`@layer base`) styles `h1`–`h6` without requiring `className`. Semantic sizes mirror Tailwind `text-3xl` / `text-xl` / `text-base` / `text-sm` and live in `web/tailwind.config.js` as `fontSize.heading-1` … `heading-4` — use `text-heading-*` on non-heading elements when needed.
 
 | Level | Role |
 | --- | --- |
 | `h1` | Page title (`font-semibold`, slate-900) |
 | `h2` | Major section (`font-medium`, slate-800, `mb-2`) |
 | `h3` | Subsection / chart or table group (`font-medium`, slate-700, `mb-2`) |
-| `h4`–`h6` | Smaller labels (`heading-4` text size) |
+| `h4`–`h6` | Smaller labels (`heading-4` size) |
 
-**Context styling:** Put scoped colors on **wrappers** when needed (e.g. **`[&_h3]:text-amber-950`** on a callout, **`[&_h2]:mb-0`** on a dialog header row). **Layout-only** utilities on headings are fine (**`shrink-0`**, **`min-w-0`**, etc.); avoid duplicating **typography** on **`h1`–`h6`**—use globals or **`text-heading-*`** on non-heading elements.
+Scoped colors on wrappers when needed (e.g. `[&_h3]:text-amber-950`, `[&_h2]:mb-0` in dialog header). Layout-only utilities on headings (`shrink-0`, `min-w-0`) are fine; avoid duplicating typography on `h1`–`h6` — use globals or `text-heading-*`.
 
 ## Not covered yet
 
-- **Inline / table actions** (e.g. “Refresh”, “Remove”) often stay **text links** (`text-emerald-800` / `text-red-700` + underline) for density; migrate only when a screen needs consistency with primary controls.
-- **Destructive** primary styling is undefined - use text-style danger or add a `variant` when needed.
+- Inline/table actions (“Refresh”, “Remove”) often stay text links (`text-emerald-800` / `text-red-700` + underline); migrate when a screen needs primary-button consistency.
+- Destructive primary styling undefined — use text-style danger or add a `variant` when needed.
 
 ## Conventions
 
-- Prefer **reusing** `Button` / `ButtonLink` over copying Tailwind strings.
-- Prefer **bare** headings or headings with **layout-only** `className`; new variants belong in `Button.tsx` with a clear name and a row in this table.
+- Prefer reusing `Button` / `ButtonLink` over copying Tailwind strings.
+- Prefer bare headings or `className` with layout-only utilities; new variants belong in `Button.tsx` with a name and a row in this table.
