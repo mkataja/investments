@@ -4,7 +4,7 @@ pnpm monorepo: PostgreSQL (Docker), Drizzle, Hono API, Vite React UI. Track tran
 
 ## Prerequisites
 
-- Node 20+ and [pnpm](https://pnpm.io)
+- Node 25+ and [pnpm](https://pnpm.io)
 - Docker (for Postgres)
 
 ## Setup
