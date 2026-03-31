@@ -564,11 +564,10 @@ export function ImportPage() {
       <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2>Interactive Brokers</h2>
         <p className="text-sm text-slate-600">
-          Activity CSV: flat export with ISIN (recommended) or legacy Statement
-          rows with <strong className="font-medium">Transaction History</strong>
-          . Broker <strong className="font-medium">IBKR</strong>; instruments
-          match by ISIN when present, otherwise Yahoo symbol. Forex lines are
-          skipped.
+          Use a flat Activity or trades CSV from IBKR (not the Statement
+          Transaction History section). Broker{" "}
+          <strong className="font-medium">IBKR</strong>; instruments match by
+          ISIN when present, otherwise Yahoo symbol. Forex lines are skipped.
         </p>
         <form
           className="flex flex-col gap-3 sm:flex-row sm:items-end"

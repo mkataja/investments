@@ -1,23 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { yahooSymbolLookupCandidates } from "./ibkrResolveInstruments.js";
 import {
-  ibkrUnitPriceToEurStub,
   isIbkrFxRow,
   normalizeIbkrIsin,
   parseIbkrDecimalString,
   parseIbkrTransactionsCsv,
 } from "./ibkrTransactions.js";
-
-/** Minimal IBKR Activity CSV shape (Statement / Summary rows ignored). */
-const SAMPLE_IBKR_CSV = `Statement,Header,Field Name,Field Value
-Transaction History,Header,Date,Account,Description,Transaction Type,Symbol,Quantity,Price,Price Currency,Gross Amount ,Commission,Net Amount
-Transaction History,Data,2026-03-27,U***73172,SP MS ALL CO WI MKT UC ET-AC,Buy,SPYI,50.0,9.752,EUR,-487.6,-1.2914544,-488.89145440000004
-Transaction History,Data,2026-03-25,U***73172,Electronic Fund Transfer,Deposit,-,-,-,-,400.0,-,400.0
-Transaction History,Data,2025-11-14,U***73172,SPDR S&P 500 UCITS ETF ACC,Buy,SPYL,20.0,14.292,EUR,-285.84,-1.25,-287.09
-Transaction History,Data,2025-10-13,U***73172,Net Amount in Base from Forex Trade: -0.06 EUR.USD,Forex Trade Component,EUR.USD,-0.06,1.15673,USD,-1.5683735999992565E-5,-,-1.5683735999992565E-5
-Transaction History,Data,2025-10-13,U***73172,BERKSHIRE HATHAWAY INC-CL B,Buy,BRK B,1.0,491.71,USD,-424.9751188,-0.30291220619000003,-425.27803100618996
-Transaction History,Data,2025-10-11,U***73172,Electronic Fund Transfer,Deposit,-,-,-,-,1000.0,-,1000.0
-`;
 
 describe("parseIbkrDecimalString", () => {
   it("accepts dot decimals", () => {
@@ -52,24 +40,17 @@ const SAMPLE_IBKR_FLAT_TRADES_CSV = `"ClientAccountID","Date/Time","Symbol","ISI
 `;
 
 describe("parseIbkrTransactionsCsv", () => {
-  it("imports only Transaction History equity rows", () => {
-    const result = parseIbkrTransactionsCsv(SAMPLE_IBKR_CSV);
-    expect(result.ok).toBe(true);
-    if (!result.ok) {
+  it("rejects Statement-style Transaction History CSV", () => {
+    const csv = [
+      "Transaction History,Header,Date,Account,Description,Transaction Type,Symbol,Quantity,Price,Price Currency,Gross Amount ,Commission,Net Amount",
+      "Transaction History,Data,2026-03-27,U***1,X,Buy,ABC,1,10,EUR,-10,-,-10",
+    ].join("\n");
+    const result = parseIbkrTransactionsCsv(csv);
+    expect(result.ok).toBe(false);
+    if (result.ok) {
       return;
     }
-    expect(result.rows).toHaveLength(3);
-    const spyi = result.rows.find((r) => r.symbolRaw === "SPYI");
-    expect(spyi?.side).toBe("buy");
-    expect(spyi?.quantity).toBe("50");
-    expect(spyi?.currency).toBe("EUR");
-    expect(spyi?.unitPriceEur).toBe("9.752");
-    expect(spyi?.isin).toBeNull();
-    const brk = result.rows.find((r) => r.symbolRaw === "BRK B");
-    expect(brk?.currency).toBe("USD");
-    expect(brk?.unitPrice).toBe("491.71");
-    expect(brk?.unitPriceEur).toBe(ibkrUnitPriceToEurStub(491.71, "USD"));
-    expect(brk?.isin).toBeNull();
+    expect(result.errors.some((e) => e.includes("Statement-style"))).toBe(true);
   });
 
   it("parses flat Activity CSV with ISIN and skips FX", () => {
@@ -106,19 +87,6 @@ describe("parseIbkrTransactionsCsv", () => {
     expect(spyi.unitPrice).toBe("9.76");
     expect(spyi.currency).toBe("EUR");
     expect(spyi.unitPriceEur).toBe("9.76");
-  });
-
-  it("rejects invalid dates in Transaction History data", () => {
-    const csv = [
-      "Transaction History,Header,Date,Account,Description,Transaction Type,Symbol,Quantity,Price,Price Currency,Gross Amount ,Commission,Net Amount",
-      "Transaction History,Data,bad-date,U***1,X,Buy,ABC,1,10,EUR,-10,-,-10",
-    ].join("\n");
-    const result = parseIbkrTransactionsCsv(csv);
-    expect(result.ok).toBe(false);
-    if (result.ok) {
-      return;
-    }
-    expect(result.errors.some((e) => e.includes("invalid Date"))).toBe(true);
   });
 });
 
