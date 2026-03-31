@@ -50,6 +50,7 @@ import {
   portfolioSectorBarRowsDual,
 } from "../lib/distributionDisplay";
 import {
+  formatToPercentage,
   formatTransactionTotalValueForDisplay,
   formatTransactionUnitPriceForDisplay,
   formatUnitPriceForDisplay,
@@ -677,7 +678,7 @@ export function HomePage() {
           <p className="text-slate-600 text-sm">
             Total estimated:{" "}
             <span className="tabular-nums">
-              {portfolio.totalValueEur.toFixed(2)}
+              {portfolio.totalValueEur.toFixed(0)}
             </span>{" "}
             EUR (incl.{" "}
             <span className="tabular-nums">
@@ -709,9 +710,9 @@ export function HomePage() {
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={assetMixPieTooltipFormatter(
-                        assetMixPieTotalEur,
-                      )}
+                      formatter={(v: number) =>
+                        `${v.toFixed(0)} EUR (${formatToPercentage(v / assetMixPieTotalEur)})`
+                      }
                     />
                     <Legend
                       layout="vertical"
@@ -743,11 +744,7 @@ export function HomePage() {
                       tick={chartAxisTickStyle}
                       tickMargin={4}
                     />
-                    <YAxis
-                      tickFormatter={(v) => formatPercentWidth4From01(v)}
-                      tick={chartAxisTickStyle}
-                      width={44}
-                    />
+                    <YAxis tick={chartAxisTickStyle} width={44} />
                     <DistributionBarChartTooltip />
                     {showDistributionCompare ? (
                       <>
@@ -797,11 +794,7 @@ export function HomePage() {
                       tick={chartAxisTickStyle}
                       tickMargin={4}
                     />
-                    <YAxis
-                      tickFormatter={(v) => formatPercentWidth4From01(v)}
-                      tick={chartAxisTickStyle}
-                      width={44}
-                    />
+                    <YAxis tick={chartAxisTickStyle} width={44} />
                     <DistributionBarChartTooltip />
                     {showDistributionCompare ? (
                       <>
@@ -852,11 +845,7 @@ export function HomePage() {
                     tick={chartAxisTickStyle}
                     tickMargin={4}
                   />
-                  <YAxis
-                    tickFormatter={(v) => formatPercentWidth4From01(v)}
-                    tick={chartAxisTickStyle}
-                    width={44}
-                  />
+                  <YAxis tick={chartAxisTickStyle} width={44} />
                   <DistributionBarChartTooltip />
                   {showDistributionCompare ? (
                     <>

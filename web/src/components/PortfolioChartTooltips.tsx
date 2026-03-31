@@ -27,11 +27,7 @@
  */
 import type { CSSProperties, ComponentProps } from "react";
 import { Tooltip } from "recharts";
-import { formatPercentWidth4From01 } from "../lib/distributionDisplay";
-
-export function portfolioDistributionBarTooltipFormatter(v: number) {
-  return formatPercentWidth4From01(v);
-}
+import { formatToPercentage } from "../lib/numberFormat";
 
 type DistributionBarChartTooltipProps = ComponentProps<typeof Tooltip>;
 
@@ -73,7 +69,7 @@ export function DistributionBarChartTooltip(
 
   const formatter =
     formatterFromProps ??
-    (portfolioDistributionBarTooltipFormatter as NonNullable<
+    (formatToPercentage as NonNullable<
       DistributionBarChartTooltipProps["formatter"]
     >);
 
@@ -101,8 +97,3 @@ export function DistributionBarChartTooltip(
   );
 }
 DistributionBarChartTooltip.displayName = "Tooltip";
-
-export function assetMixPieTooltipFormatter(totalEur: number) {
-  return (v: number) =>
-    `${v.toFixed(2)} EUR (${((v / totalEur) * 100).toFixed(1)}%)`;
-}
