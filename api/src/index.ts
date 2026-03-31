@@ -16,6 +16,7 @@ import {
   seligsonFunds,
   transactions,
   validateHoldingsDistributionUrl,
+  validateProviderBreakdownDataUrl,
   yahooFinanceCache,
 } from "@investments/db";
 import {
@@ -1090,11 +1091,34 @@ const cashCurrencySchema = z.enum(
   SUPPORTED_CASH_CURRENCY_CODES as unknown as [string, ...string[]],
 );
 
+function assertEtfStockBreakdownUrls(
+  holdingsRaw: string | null | undefined,
+  breakdownRaw: string | null | undefined,
+): { ok: true } | { ok: false; message: string } {
+  const hv = validateHoldingsDistributionUrl(holdingsRaw);
+  if (!hv.ok) {
+    return { ok: false, message: hv.message };
+  }
+  const bv = validateProviderBreakdownDataUrl(breakdownRaw);
+  if (!bv.ok) {
+    return { ok: false, message: bv.message };
+  }
+  if (bv.normalized && (!hv.normalized || hv.provider !== "jpm_xlsx")) {
+    return {
+      ok: false,
+      message:
+        "Provider breakdown data URL is only supported with a J.P. Morgan daily ETF holdings XLSX URL in Provider holdings URL.",
+    };
+  }
+  return { ok: true };
+}
+
 const instrumentIn = z.discriminatedUnion("kind", [
   z.object({
     kind: z.enum(["etf", "stock"]),
     yahooSymbol: z.string().min(1).transform(normalizeYahooSymbolForStorage),
     holdingsDistributionUrl: z.string().optional(),
+    providerBreakdownDataUrl: z.string().optional(),
   }),
   z.object({
     kind: z.literal("custom"),
@@ -1121,10 +1145,14 @@ const instrumentIn = z.discriminatedUnion("kind", [
 const etfStockInstrumentPatchIn = z
   .object({
     holdingsDistributionUrl: z.union([z.string(), z.null()]).optional(),
+    providerBreakdownDataUrl: z.union([z.string(), z.null()]).optional(),
   })
-  .refine((o) => o.holdingsDistributionUrl !== undefined, {
-    message: "At least one field is required",
-  });
+  .refine(
+    (o) =>
+      o.holdingsDistributionUrl !== undefined ||
+      o.providerBreakdownDataUrl !== undefined,
+    { message: "At least one field is required" },
+  );
 
 /** Cash accounts and ETF/stock accept PATCH. */
 const cashInstrumentPatchIn = z
@@ -1464,21 +1492,23 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
 
   if (body.kind === "etf" || body.kind === "stock") {
     try {
-      if (
+      const holdingsRaw =
         body.holdingsDistributionUrl != null &&
         body.holdingsDistributionUrl.trim().length > 0
-      ) {
-        const v = validateHoldingsDistributionUrl(body.holdingsDistributionUrl);
-        if (!v.ok) {
-          return c.json({ message: v.message }, 400);
-        }
+          ? body.holdingsDistributionUrl
+          : null;
+      const breakdownRaw =
+        body.providerBreakdownDataUrl != null &&
+        body.providerBreakdownDataUrl.trim().length > 0
+          ? body.providerBreakdownDataUrl
+          : null;
+      const combo = assertEtfStockBreakdownUrls(holdingsRaw, breakdownRaw);
+      if (!combo.ok) {
+        return c.json({ message: combo.message }, 400);
       }
       const row = await insertEtfStockFromYahoo(body.kind, body.yahooSymbol, {
-        holdingsDistributionUrl:
-          body.holdingsDistributionUrl != null &&
-          body.holdingsDistributionUrl.trim().length > 0
-            ? body.holdingsDistributionUrl
-            : null,
+        holdingsDistributionUrl: holdingsRaw,
+        providerBreakdownDataUrl: breakdownRaw,
       });
       return c.json(row, 201);
     } catch (e) {
@@ -1698,20 +1728,44 @@ app.patch("/instruments/:id", async (c) => {
       return c.json({ message: parsed.error.flatten() }, 400);
     }
     const body = parsed.data;
-    const v = validateHoldingsDistributionUrl(body.holdingsDistributionUrl);
-    if (!v.ok) {
-      return c.json({ message: v.message }, 400);
+    const rawHoldings =
+      body.holdingsDistributionUrl !== undefined
+        ? body.holdingsDistributionUrl
+        : existing.holdingsDistributionUrl;
+    const rawBreakdown =
+      body.providerBreakdownDataUrl !== undefined
+        ? body.providerBreakdownDataUrl
+        : existing.providerBreakdownDataUrl;
+    const combo = assertEtfStockBreakdownUrls(rawHoldings, rawBreakdown);
+    if (!combo.ok) {
+      return c.json({ message: combo.message }, 400);
     }
-    const prevValidated = validateHoldingsDistributionUrl(
+    const hv = validateHoldingsDistributionUrl(rawHoldings);
+    if (!hv.ok) {
+      return c.json({ message: hv.message }, 400);
+    }
+    const bv = validateProviderBreakdownDataUrl(rawBreakdown);
+    if (!bv.ok) {
+      return c.json({ message: bv.message }, 400);
+    }
+    const prevH = validateHoldingsDistributionUrl(
       existing.holdingsDistributionUrl,
     );
-    const prevNorm = prevValidated.ok ? prevValidated.normalized : null;
-    const nextNorm = v.normalized;
+    const prevB = validateProviderBreakdownDataUrl(
+      existing.providerBreakdownDataUrl,
+    );
+    const prevHN = prevH.ok ? prevH.normalized : null;
+    const prevBN = prevB.ok ? prevB.normalized : null;
+    const nextHN = hv.normalized;
+    const nextBN = bv.normalized;
     await db
       .update(instruments)
-      .set({ holdingsDistributionUrl: v.normalized })
+      .set({
+        holdingsDistributionUrl: hv.normalized,
+        providerBreakdownDataUrl: bv.normalized,
+      })
       .where(eq(instruments.id, id));
-    if (prevNorm !== nextNorm) {
+    if (prevHN !== nextHN || prevBN !== nextBN) {
       const refresh = await refreshDistributionCacheForInstrumentId(id);
       if ("skipped" in refresh) {
         if (refresh.reason === "not_found") {

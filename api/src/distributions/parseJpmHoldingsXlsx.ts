@@ -66,7 +66,10 @@ function jpmAssetClassToSector(assetClass: string): DistributionSectorId {
   return mapSectorLabelToCanonicalIdWithWarn(assetClass);
 }
 
-export function parseJpmHoldingsXlsx(buf: Uint8Array): DistributionPayload {
+function parseJpmHoldingsXlsxInternal(buf: Uint8Array): {
+  countries: Record<string, number>;
+  sectorAgg: Record<string, number>;
+} {
   const wb = XLSX.read(buf, { type: "buffer", cellDates: false });
   const sheetName = wb.SheetNames.includes("Holdings")
     ? "Holdings"
@@ -127,6 +130,23 @@ export function parseJpmHoldingsXlsx(buf: Uint8Array): DistributionPayload {
 
   return {
     countries: normalizeRegionWeightsToIsoKeys(countryAgg),
+    sectorAgg,
+  };
+}
+
+/** Single pass: countries + cash from XLSX for merging with `product-data` sectors. */
+export function parseJpmHoldingsXlsxCountriesAndCashWeight(buf: Uint8Array): {
+  countries: Record<string, number>;
+  cashWeight: number;
+} {
+  const { countries, sectorAgg } = parseJpmHoldingsXlsxInternal(buf);
+  return { countries, cashWeight: sectorAgg.cash ?? 0 };
+}
+
+export function parseJpmHoldingsXlsx(buf: Uint8Array): DistributionPayload {
+  const { countries, sectorAgg } = parseJpmHoldingsXlsxInternal(buf);
+  return {
+    countries,
     sectors: sectorAgg,
   };
 }

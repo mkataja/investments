@@ -1,11 +1,15 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { validateHoldingsDistributionUrl } from "@investments/db";
+import {
+  validateHoldingsDistributionUrl,
+  validateProviderBreakdownDataUrl,
+} from "@investments/db";
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import { parseIsharesHoldingsCsv } from "./parseIsharesHoldingsCsv.js";
 import { parseJpmHoldingsXlsx } from "./parseJpmHoldingsXlsx.js";
+import { parseJpmProductDataSectorBreakdown } from "./parseJpmProductDataSectorBreakdown.js";
 import { parseSsgaHoldingsXlsx } from "./parseSsgaHoldingsXlsx.js";
 import { parseXtrackersHoldingsXlsx } from "./parseXtrackersHoldingsXlsx.js";
 
@@ -61,6 +65,110 @@ describe("validateHoldingsDistributionUrl", () => {
   it("rejects unsupported host", () => {
     const r = validateHoldingsDistributionUrl("https://example.com/h.csv");
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("validateProviderBreakdownDataUrl", () => {
+  it("accepts FundsMarketingHandler product-data on am.jpmorgan.com", () => {
+    const r = validateProviderBreakdownDataUrl(
+      "https://am.jpmorgan.com/FundsMarketingHandler/product-data?cusip=IE00BJRCLL96&country=gb&role=adv&language=en&userLoggedIn=false&version=9.5_1",
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.normalized).toContain("product-data");
+    }
+  });
+  it("rejects JPM excel holdings URL", () => {
+    const r = validateProviderBreakdownDataUrl(
+      "https://am.jpmorgan.com/FundsMarketingHandler/excel?type=dailyETFHoldings&cusip=IE00BJRCLL96",
+    );
+    expect(r.ok).toBe(false);
+  });
+});
+
+describe("parseJpmProductDataSectorBreakdown", () => {
+  it("aggregates emeaSectorBreakdown.data portfolio weights", () => {
+    const sectors = parseJpmProductDataSectorBreakdown({
+      emeaSectorBreakdown: {
+        data: [
+          {
+            name: "Technology",
+            secondaryValueMap: { PORTFOLIO_MARKET_VALUE_PC: 30 },
+          },
+          {
+            name: "Financials",
+            secondaryValueMap: { PORTFOLIO_MARKET_VALUE_PC: 20 },
+          },
+        ],
+      },
+    });
+    expect(sectors.technology).toBeCloseTo(0.3, 5);
+    expect(sectors.financials).toBeCloseTo(0.2, 5);
+  });
+
+  it("reads emeaSectorBreakdown from fundData wrapper", () => {
+    const sectors = parseJpmProductDataSectorBreakdown({
+      fundData: {
+        emeaSectorBreakdown: {
+          data: [
+            {
+              name: "Technology",
+              secondaryValueMap: { PORTFOLIO_MARKET_VALUE_PC: 25 },
+            },
+            {
+              name: "Health Care",
+              secondaryValueMap: { PORTFOLIO_MARKET_VALUE_PC: 15 },
+            },
+          ],
+        },
+      },
+    });
+    expect(sectors.technology).toBeCloseTo(0.25, 5);
+    expect(sectors.healthcare).toBeCloseTo(0.15, 5);
+  });
+
+  it("drops Total row so weights do not double and land in other", () => {
+    const sectors = parseJpmProductDataSectorBreakdown({
+      emeaSectorBreakdown: {
+        data: [
+          {
+            name: "Technology",
+            secondaryValueMap: { PORTFOLIO_MARKET_VALUE_PC: 30 },
+          },
+          {
+            name: "Total",
+            value: 100,
+            secondaryValue: 100,
+            secondaryValueMap: { en: "PORTFOLIO_MARKET_VALUE_PC" },
+          },
+        ],
+      },
+    });
+    expect(sectors.technology).toBeCloseTo(0.3, 5);
+    expect(sectors.other).toBeUndefined();
+  });
+
+  it("uses value as portfolio percent when only locale secondaryValueMap keys exist", () => {
+    const sectors = parseJpmProductDataSectorBreakdown({
+      emeaSectorBreakdown: {
+        data: [
+          {
+            name: "Health Care",
+            value: 11.9,
+            secondaryValue: 9.3,
+            secondaryValueMap: { en: "BENCHMARK_MARKET_VALUE_PC" },
+          },
+          {
+            name: "Financials",
+            value: 9.8,
+            secondaryValue: 14.7,
+            secondaryValueMap: { en: "BENCHMARK_MARKET_VALUE_PC" },
+          },
+        ],
+      },
+    });
+    expect(sectors.healthcare).toBeCloseTo(0.119, 5);
+    expect(sectors.financials).toBeCloseTo(0.098, 5);
   });
 });
 

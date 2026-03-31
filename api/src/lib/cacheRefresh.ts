@@ -7,14 +7,20 @@ import {
   seligsonDistributionCache,
   seligsonFunds,
   validateHoldingsDistributionUrl,
+  validateProviderBreakdownDataUrl,
   yahooFinanceCache,
 } from "@investments/db";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { buildDistributionFromSec13FInfoTableXml } from "../distributions/buildSec13fDistribution.js";
+import { fetchJpmProductDataJson } from "../distributions/fetchJpmProductData.js";
 import { fetchProviderHoldingsBytes } from "../distributions/fetchProviderHoldings.js";
 import { parseIsharesHoldingsCsv } from "../distributions/parseIsharesHoldingsCsv.js";
-import { parseJpmHoldingsXlsx } from "../distributions/parseJpmHoldingsXlsx.js";
+import {
+  parseJpmHoldingsXlsx,
+  parseJpmHoldingsXlsxCountriesAndCashWeight,
+} from "../distributions/parseJpmHoldingsXlsx.js";
+import { parseJpmProductDataSectorBreakdown } from "../distributions/parseJpmProductDataSectorBreakdown.js";
 import { parseSsgaHoldingsXlsx } from "../distributions/parseSsgaHoldingsXlsx.js";
 import { parseXtrackersHoldingsXlsx } from "../distributions/parseXtrackersHoldingsXlsx.js";
 import { roundWeights } from "../distributions/roundWeights.js";
@@ -183,6 +189,7 @@ export async function writeProviderHoldingsDistributionCache(
   instrumentId: number,
   url: string,
   fetchedAt: Date = new Date(),
+  options?: { providerBreakdownDataUrl?: string | null },
 ): Promise<void> {
   const v = validateHoldingsDistributionUrl(url);
   if (!v.ok || !v.normalized || !v.provider) {
@@ -211,9 +218,27 @@ export async function writeProviderHoldingsDistributionCache(
     source = "xtrackers_holdings_xlsx";
     raw = Buffer.from(bytes).toString("base64");
   } else if (v.provider === "jpm_xlsx") {
-    payload = parseJpmHoldingsXlsx(bytes);
-    source = "jpm_holdings_xlsx";
     raw = Buffer.from(bytes).toString("base64");
+    const breakdownRaw = options?.providerBreakdownDataUrl?.trim();
+    if (breakdownRaw) {
+      const bv = validateProviderBreakdownDataUrl(breakdownRaw);
+      if (!bv.ok || !bv.normalized) {
+        throw new Error(bv.ok ? "Invalid provider breakdown URL" : bv.message);
+      }
+      const json = await fetchJpmProductDataJson(bv.normalized);
+      const sectorsFromApi = parseJpmProductDataSectorBreakdown(json);
+      const { countries, cashWeight: cashW } =
+        parseJpmHoldingsXlsxCountriesAndCashWeight(bytes);
+      const sectors = { ...sectorsFromApi };
+      if (cashW > 0) {
+        sectors.cash = (sectors.cash ?? 0) + cashW;
+      }
+      payload = { countries, sectors };
+      source = "jpm_holdings_xlsx";
+    } else {
+      payload = parseJpmHoldingsXlsx(bytes);
+      source = "jpm_holdings_xlsx";
+    }
   } else {
     payload = parseSsgaHoldingsXlsx(bytes);
     source = "ssga_holdings_xlsx";
@@ -379,6 +404,7 @@ export async function refreshDistributionCacheForInstrumentId(
           inst.id,
           validated.normalized,
           now,
+          { providerBreakdownDataUrl: inst.providerBreakdownDataUrl },
         );
         if (inst.yahooSymbol) {
           const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
@@ -478,6 +504,7 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
             inst.id,
             validated.normalized,
             now,
+            { providerBreakdownDataUrl: inst.providerBreakdownDataUrl },
           );
           if (inst.yahooSymbol) {
             yahooRefreshIndex++;

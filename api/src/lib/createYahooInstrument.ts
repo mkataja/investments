@@ -3,6 +3,7 @@ import {
   normalizeIsinForStorage,
   normalizeYahooSymbolForStorage,
   validateHoldingsDistributionUrl,
+  validateProviderBreakdownDataUrl,
 } from "@investments/db";
 import { eq } from "drizzle-orm";
 import { db } from "../db.js";
@@ -30,6 +31,7 @@ export async function insertEtfStockFromYahoo(
   options?: {
     isinOverride?: string | null;
     holdingsDistributionUrl?: string | null;
+    providerBreakdownDataUrl?: string | null;
   },
 ): Promise<InstrumentRow> {
   const symbol = normalizeYahooSymbolForStorage(yahooSymbol);
@@ -54,6 +56,20 @@ export async function insertEtfStockFromYahoo(
     holdingsUrl = v.normalized;
   }
 
+  let breakdownUrl: string | null = null;
+  if (
+    options?.providerBreakdownDataUrl != null &&
+    options.providerBreakdownDataUrl.trim().length > 0
+  ) {
+    const v = validateProviderBreakdownDataUrl(
+      options.providerBreakdownDataUrl,
+    );
+    if (!v.ok || !v.normalized) {
+      throw new Error(v.ok ? "Invalid breakdown URL" : v.message);
+    }
+    breakdownUrl = v.normalized;
+  }
+
   const [row] = await db
     .insert(instruments)
     .values({
@@ -62,6 +78,7 @@ export async function insertEtfStockFromYahoo(
       yahooSymbol: symbol,
       isin: isin ?? undefined,
       holdingsDistributionUrl: holdingsUrl,
+      providerBreakdownDataUrl: breakdownUrl,
     })
     .returning();
   if (!row) {
@@ -69,7 +86,14 @@ export async function insertEtfStockFromYahoo(
   }
   try {
     if (holdingsUrl) {
-      await writeProviderHoldingsDistributionCache(row.id, holdingsUrl);
+      await writeProviderHoldingsDistributionCache(
+        row.id,
+        holdingsUrl,
+        new Date(),
+        {
+          providerBreakdownDataUrl: breakdownUrl,
+        },
+      );
       await upsertYahooPriceFromQuoteSummaryRaw(
         row.id,
         raw,
