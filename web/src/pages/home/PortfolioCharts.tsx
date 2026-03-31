@@ -25,7 +25,7 @@ import {
   portfolioSectorBarRowsDual,
 } from "../../lib/distributionDisplay";
 import { formatToPercentage } from "../../lib/numberFormat";
-import type { PortfolioDistributions } from "./types";
+import type { PortfolioDistributions, PortfolioEntity } from "./types";
 
 const ASSET_MIX_COLORS = {
   equities: "#0f766e",
@@ -61,6 +61,11 @@ type PortfolioChartsProps = {
   showDistributionCompare: boolean;
   selectedPortfolioLabel: string;
   comparePortfolioLabel: string;
+  portfolioEntities: PortfolioEntity[];
+  selectedPortfolioId: number | null;
+  onSelectedPortfolioChange: (id: number | null) => void;
+  comparePortfolioId: number | null;
+  onComparePortfolioChange: (id: number | null) => void;
 };
 
 export function PortfolioCharts({
@@ -69,6 +74,11 @@ export function PortfolioCharts({
   showDistributionCompare,
   selectedPortfolioLabel,
   comparePortfolioLabel,
+  portfolioEntities,
+  selectedPortfolioId,
+  onSelectedPortfolioChange,
+  comparePortfolioId,
+  onComparePortfolioChange,
 }: PortfolioChartsProps) {
   const distributionTooltipContent = useMemo(
     () =>
@@ -184,211 +194,263 @@ export function PortfolioCharts({
 
   return (
     <section className="page-section">
-      <h2>Distributions</h2>
-      <p className="text-slate-600">
-        Total estimated portfolio value:{" "}
-        <span className="font-semibold">
-          <span className="tabular-nums">
-            {(
-              portfolio.totalValueEur -
-              portfolio.assetAllocation.emergencyFundSliceEur
-            ).toFixed(0)}
-          </span>{" "}
-          EUR
-        </span>{" "}
-        (plus{" "}
-        <span className="tabular-nums">
-          {portfolio.assetAllocation.emergencyFundSliceEur.toFixed(0)}
-        </span>{" "}
-        EUR emergency fund)
-        {portfolio.mixedCurrencyWarning && (
-          <span className="text-amber-700 ml-2">
-            Mixed-currency warning (see API).
-          </span>
-        )}
-      </p>
-      {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
-        <div className="max-w-xl min-w-0 subsection-stack">
-          <h3>Asset mix</h3>
-          <div className="h-48">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={assetMixPieData}
-                  dataKey="value"
-                  nameKey="name"
-                  allowReorder="yes"
-                  minAngle={5}
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div className="min-w-0 flex-1 flex flex-col gap-4">
+          <h2 className="mb-0">Distributions</h2>
+          <p className="text-slate-600">
+            Total estimated portfolio value:{" "}
+            <span className="font-semibold">
+              <span className="tabular-nums">
+                {(
+                  portfolio.totalValueEur -
+                  portfolio.assetAllocation.emergencyFundSliceEur
+                ).toFixed(0)}
+              </span>{" "}
+              EUR
+            </span>{" "}
+            (plus{" "}
+            <span className="tabular-nums">
+              {portfolio.assetAllocation.emergencyFundSliceEur.toFixed(0)}
+            </span>{" "}
+            EUR emergency fund)
+            {portfolio.mixedCurrencyWarning && (
+              <span className="text-amber-700 ml-2">
+                Mixed-currency warning (see API).
+              </span>
+            )}
+          </p>
+          {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
+            <div className="max-w-xl min-w-0 subsection-stack">
+              <h3>Asset mix</h3>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={assetMixPieData}
+                      dataKey="value"
+                      nameKey="name"
+                      allowReorder="yes"
+                      minAngle={5}
+                    >
+                      {assetMixPieData.map((d) => (
+                        <Cell key={d.name} fill={d.fill} stroke="#fff" />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      separator=": "
+                      formatter={(v: number) =>
+                        `${v.toFixed(0)} EUR (${formatToPercentage(v / assetMixPieTotalEur)})`
+                      }
+                    />
+                    <Legend
+                      layout="vertical"
+                      align="right"
+                      verticalAlign="middle"
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          ) : null}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="min-w-0 subsection-stack">
+              <h3 className="shrink-0">Regions</h3>
+              <div className="w-full h-[540px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={regionBarChartData}
+                    margin={barChartMargin(showDistributionCompare)}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-35}
+                      textAnchor="end"
+                      height={72}
+                      tick={chartAxisTickStyle}
+                      tickMargin={4}
+                    />
+                    <YAxis tick={chartAxisTickStyle} width={44} />
+                    <DistributionBarChartTooltip
+                      content={distributionTooltipContent}
+                    />
+                    {showDistributionCompare ? (
+                      <>
+                        <Bar
+                          dataKey="primary"
+                          fill={DIST_CHART_COLORS.regionPrimary}
+                          name={selectedPortfolioLabel}
+                        />
+                        <Bar
+                          dataKey="compare"
+                          fill={DIST_CHART_COLORS.regionCompare}
+                          name={comparePortfolioLabel}
+                        />
+                        <Legend
+                          verticalAlign="top"
+                          height={28}
+                          wrapperStyle={chartLegendStyle}
+                        />
+                      </>
+                    ) : (
+                      <Bar
+                        dataKey="value"
+                        fill={DIST_CHART_COLORS.regionPrimary}
+                        name="Weight"
+                      />
+                    )}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="min-w-0 subsection-stack">
+              <h3 className="shrink-0">Sectors</h3>
+              <div className="w-full h-[540px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={sectorBarChartData}
+                    margin={barChartMargin(showDistributionCompare)}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="name"
+                      angle={-35}
+                      textAnchor="end"
+                      height={72}
+                      tick={chartAxisTickStyle}
+                      tickMargin={4}
+                    />
+                    <YAxis tick={chartAxisTickStyle} width={44} />
+                    <DistributionBarChartTooltip
+                      content={distributionTooltipContent}
+                    />
+                    {showDistributionCompare ? (
+                      <>
+                        <Bar
+                          dataKey="primary"
+                          fill={DIST_CHART_COLORS.sectorPrimary}
+                          name={selectedPortfolioLabel}
+                        />
+                        <Bar
+                          dataKey="compare"
+                          fill={DIST_CHART_COLORS.sectorCompare}
+                          name={comparePortfolioLabel}
+                        />
+                        <Legend
+                          verticalAlign="top"
+                          height={28}
+                          wrapperStyle={chartLegendStyle}
+                        />
+                      </>
+                    ) : (
+                      <Bar
+                        dataKey="value"
+                        fill={DIST_CHART_COLORS.sectorPrimary}
+                        name="Weight"
+                      />
+                    )}
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+          <div className="min-w-0 subsection-stack">
+            <h3 className="shrink-0">Countries</h3>
+            <div className="w-full h-[540px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={countryBarChartData}
+                  margin={barChartMargin(showDistributionCompare)}
                 >
-                  {assetMixPieData.map((d) => (
-                    <Cell key={d.name} fill={d.fill} stroke="#fff" />
-                  ))}
-                </Pie>
-                <Tooltip
-                  separator=": "
-                  formatter={(v: number) =>
-                    `${v.toFixed(0)} EUR (${formatToPercentage(v / assetMixPieTotalEur)})`
-                  }
-                />
-                <Legend
-                  layout="vertical"
-                  align="right"
-                  verticalAlign="middle"
-                />
-              </PieChart>
-            </ResponsiveContainer>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="name"
+                    height={1}
+                    tick={chartAxisTickStyle}
+                    tickMargin={4}
+                  />
+                  <YAxis tick={chartAxisTickStyle} width={44} />
+                  <DistributionBarChartTooltip
+                    content={distributionTooltipContent}
+                  />
+                  {showDistributionCompare ? (
+                    <>
+                      <Bar
+                        dataKey="primary"
+                        fill={DIST_CHART_COLORS.countryPrimary}
+                        name={selectedPortfolioLabel}
+                      />
+                      <Bar
+                        dataKey="compare"
+                        fill={DIST_CHART_COLORS.countryCompare}
+                        name={comparePortfolioLabel}
+                      />
+                      <Legend
+                        verticalAlign="top"
+                        height={28}
+                        wrapperStyle={chartLegendStyle}
+                      />
+                    </>
+                  ) : (
+                    <Bar
+                      dataKey="value"
+                      fill={DIST_CHART_COLORS.countryPrimary}
+                      name="Weight"
+                    />
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
-      ) : null}
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="min-w-0 subsection-stack">
-          <h3 className="shrink-0">Regions</h3>
-          <div className="w-full h-[540px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={regionBarChartData}
-                margin={barChartMargin(showDistributionCompare)}
+        {portfolioEntities.length > 0 ? (
+          <div className="flex flex-wrap items-center gap-2 lg:flex-col lg:items-end shrink-0">
+            <label className="text-sm text-slate-700 flex items-center gap-2">
+              <span className="whitespace-nowrap">View</span>
+              <select
+                className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[10rem]"
+                value={selectedPortfolioId ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const id = v === "" ? null : Number.parseInt(v, 10);
+                  onSelectedPortfolioChange(
+                    id != null && Number.isFinite(id) ? id : null,
+                  );
+                }}
               >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="name"
-                  angle={-35}
-                  textAnchor="end"
-                  height={72}
-                  tick={chartAxisTickStyle}
-                  tickMargin={4}
-                />
-                <YAxis tick={chartAxisTickStyle} width={44} />
-                <DistributionBarChartTooltip
-                  content={distributionTooltipContent}
-                />
-                {showDistributionCompare ? (
-                  <>
-                    <Bar
-                      dataKey="primary"
-                      fill={DIST_CHART_COLORS.regionPrimary}
-                      name={selectedPortfolioLabel}
-                    />
-                    <Bar
-                      dataKey="compare"
-                      fill={DIST_CHART_COLORS.regionCompare}
-                      name={comparePortfolioLabel}
-                    />
-                    <Legend
-                      verticalAlign="top"
-                      height={28}
-                      wrapperStyle={chartLegendStyle}
-                    />
-                  </>
-                ) : (
-                  <Bar
-                    dataKey="value"
-                    fill={DIST_CHART_COLORS.regionPrimary}
-                    name="Weight"
-                  />
-                )}
-              </BarChart>
-            </ResponsiveContainer>
+                {portfolioEntities.map((pe) => (
+                  <option key={pe.id} value={pe.id}>
+                    {pe.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {portfolioEntities.length > 1 ? (
+              <label className="text-sm text-slate-700 flex items-center gap-2">
+                <span className="whitespace-nowrap">Compare</span>
+                <select
+                  className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[10rem]"
+                  value={comparePortfolioId ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const id = v === "" ? null : Number.parseInt(v, 10);
+                    const next = id != null && Number.isFinite(id) ? id : null;
+                    onComparePortfolioChange(next);
+                  }}
+                >
+                  <option value="">None</option>
+                  {portfolioEntities
+                    .filter((pe) => pe.id !== selectedPortfolioId)
+                    .map((pe) => (
+                      <option key={pe.id} value={pe.id}>
+                        {pe.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            ) : null}
           </div>
-        </div>
-        <div className="min-w-0 subsection-stack">
-          <h3 className="shrink-0">Sectors</h3>
-          <div className="w-full h-[540px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={sectorBarChartData}
-                margin={barChartMargin(showDistributionCompare)}
-              >
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="name"
-                  angle={-35}
-                  textAnchor="end"
-                  height={72}
-                  tick={chartAxisTickStyle}
-                  tickMargin={4}
-                />
-                <YAxis tick={chartAxisTickStyle} width={44} />
-                <DistributionBarChartTooltip
-                  content={distributionTooltipContent}
-                />
-                {showDistributionCompare ? (
-                  <>
-                    <Bar
-                      dataKey="primary"
-                      fill={DIST_CHART_COLORS.sectorPrimary}
-                      name={selectedPortfolioLabel}
-                    />
-                    <Bar
-                      dataKey="compare"
-                      fill={DIST_CHART_COLORS.sectorCompare}
-                      name={comparePortfolioLabel}
-                    />
-                    <Legend
-                      verticalAlign="top"
-                      height={28}
-                      wrapperStyle={chartLegendStyle}
-                    />
-                  </>
-                ) : (
-                  <Bar
-                    dataKey="value"
-                    fill={DIST_CHART_COLORS.sectorPrimary}
-                    name="Weight"
-                  />
-                )}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-      <div className="min-w-0 subsection-stack">
-        <h3 className="shrink-0">Countries</h3>
-        <div className="w-full h-[540px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={countryBarChartData}
-              margin={barChartMargin(showDistributionCompare)}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="name"
-                height={1}
-                tick={chartAxisTickStyle}
-                tickMargin={4}
-              />
-              <YAxis tick={chartAxisTickStyle} width={44} />
-              <DistributionBarChartTooltip
-                content={distributionTooltipContent}
-              />
-              {showDistributionCompare ? (
-                <>
-                  <Bar
-                    dataKey="primary"
-                    fill={DIST_CHART_COLORS.countryPrimary}
-                    name={selectedPortfolioLabel}
-                  />
-                  <Bar
-                    dataKey="compare"
-                    fill={DIST_CHART_COLORS.countryCompare}
-                    name={comparePortfolioLabel}
-                  />
-                  <Legend
-                    verticalAlign="top"
-                    height={28}
-                    wrapperStyle={chartLegendStyle}
-                  />
-                </>
-              ) : (
-                <Bar
-                  dataKey="value"
-                  fill={DIST_CHART_COLORS.countryPrimary}
-                  name="Weight"
-                />
-              )}
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        ) : null}
       </div>
     </section>
   );
