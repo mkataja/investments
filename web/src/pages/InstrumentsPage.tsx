@@ -45,8 +45,7 @@ type InstrumentListItem = {
     payload: DistributionPayload;
     yahooFinance?: { raw: unknown } | null;
     seligsonDistribution?: {
-      countryHtml: string;
-      otherDistributionHtml: string;
+      holdingsHtml: string;
     } | null;
   } | null;
   seligsonFund: SeligsonFundSummary | null;

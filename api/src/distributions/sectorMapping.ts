@@ -93,7 +93,7 @@ export function mapSectorLabelToCanonicalId(raw: string): DistributionSectorId {
   return "other";
 }
 
-/** Finnish labels from Seligson FundViewer sector table (view=40). */
+/** Finnish labels from Seligson FundViewer holdings **Toimiala** column (view=10) and legacy sector summary. */
 export const SELIGSON_FINNISH_SECTOR_LABEL_MAP: Record<
   string,
   DistributionSectorId

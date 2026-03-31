@@ -2,7 +2,7 @@
  * Resolve Yahoo English country strings and Seligson Finnish labels to ISO 3166-1 alpha-2.
  * Unknown labels return null → `unknown` geo bucket in `geoBuckets.ts` (not EM).
  *
- * Seligson Maajakauma labels from sample FIDs 800, 5555, 818423, 581, 795, 3333, 88476 are
+ * Seligson FundViewer **Maa** labels (holdings view=10 and legacy Maajakauma) from sample FIDs 800, 5555, 818423, 581, 795, 3333, 88476 are
  * covered; add new `LABEL_TO_ISO` entries when FundViewer introduces new spellings.
  */
 

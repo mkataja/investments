@@ -37,7 +37,7 @@ import { db } from "./db.js";
 import {
   fetchSeligsonFundName,
   fetchSeligsonHtml,
-  parseSeligsonDistributions,
+  parseSeligsonHoldingsDistributions,
 } from "./distributions/seligson.js";
 import {
   buildYahooInstrumentLookup,
@@ -1223,8 +1223,7 @@ function mapJoinedRowToInstrumentPayload(
           yahooFinance: yahooRow ? { raw: yahooRow.raw } : null,
           seligsonDistribution: seligsonRow
             ? {
-                countryHtml: seligsonRow.countryHtml,
-                otherDistributionHtml: seligsonRow.otherDistributionHtml,
+                holdingsHtml: seligsonRow.holdingsHtml,
               }
             : null,
         }
@@ -1933,14 +1932,10 @@ if (devToolsAllowed()) {
     }
     const fid = Number.parseInt(fidRaw, 10);
     try {
-      const [html40, html20] = await Promise.all([
-        fetchSeligsonHtml(fid, 40),
-        fetchSeligsonHtml(fid, 20),
-      ]);
-      const parsed = parseSeligsonDistributions(html40, html20);
+      const holdingsHtml = await fetchSeligsonHtml(fid);
+      const parsed = parseSeligsonHoldingsDistributions(holdingsHtml);
       return c.json({
-        html40Length: html40.length,
-        html20Length: html20.length,
+        holdingsHtmlLength: holdingsHtml.length,
         ...parsed,
       });
     } catch (e) {

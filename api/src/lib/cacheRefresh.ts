@@ -26,7 +26,7 @@ import { parseXtrackersHoldingsXlsx } from "../distributions/parseXtrackersHoldi
 import { roundWeights } from "../distributions/roundWeights.js";
 import {
   fetchSeligsonHtml,
-  parseSeligsonDistributions,
+  parseSeligsonHoldingsDistributions,
 } from "../distributions/seligson.js";
 import { upsertSeligsonFundValuesFromPage } from "../distributions/seligsonFundValues.js";
 import type { YahooQuoteSummaryRaw } from "../distributions/yahoo.js";
@@ -294,14 +294,9 @@ export async function writeSeligsonDistributionCache(
   fid: number,
   fetchedAt: Date = new Date(),
 ): Promise<void> {
-  const [otherDistributionHtml, countryHtml] = await Promise.all([
-    fetchSeligsonHtml(fid, 40),
-    fetchSeligsonHtml(fid, 20),
-  ]);
-  const { payload: rawPayload } = parseSeligsonDistributions(
-    otherDistributionHtml,
-    countryHtml,
-  );
+  const holdingsHtml = await fetchSeligsonHtml(fid);
+  const { payload: rawPayload } =
+    parseSeligsonHoldingsDistributions(holdingsHtml);
   const payload = {
     countries: roundWeights(rawPayload.countries),
     sectors: roundWeights(rawPayload.sectors),
@@ -313,15 +308,13 @@ export async function writeSeligsonDistributionCache(
       .values({
         instrumentId,
         fetchedAt,
-        countryHtml,
-        otherDistributionHtml,
+        holdingsHtml,
       })
       .onConflictDoUpdate({
         target: seligsonDistributionCache.instrumentId,
         set: {
           fetchedAt,
-          countryHtml,
-          otherDistributionHtml,
+          holdingsHtml,
         },
       });
     await tx

@@ -89,22 +89,16 @@ function extractYahooRawSectorLabels(raw: unknown): string[] {
   return Object.keys(rawSectors);
 }
 
-function extractSeligsonFirstColumnLabels(
-  otherDistributionHtml: string,
-): string[] {
+function extractSeligsonFirstColumnLabels(holdingsHtml: string): string[] {
   const out: string[] = [];
-  const $ = cheerio.load(otherDistributionHtml);
-  const shareTableEl = $("#shares table.fundprobe.overflow").first();
-  if (shareTableEl.length === 0) {
-    return out;
-  }
-  shareTableEl.find("tr").each((_, el) => {
-    const tds = $(el).find("td");
-    if (tds.length < 6) {
+  const $ = cheerio.load(holdingsHtml);
+  $("table.fundprobe.company tbody tr").each((_, tr) => {
+    const tds = $(tr).find("td");
+    if (tds.length < 5) {
       return;
     }
     const first = $(tds[0]).text().trim();
-    if (first && first !== "Yhteensä") {
+    if (first) {
       out.push(first);
     }
   });
@@ -316,7 +310,7 @@ async function main() {
     .select({
       id: instruments.id,
       name: instruments.displayName,
-      html: seligsonDistributionCache.otherDistributionHtml,
+      html: seligsonDistributionCache.holdingsHtml,
     })
     .from(seligsonDistributionCache)
     .innerJoin(
@@ -330,7 +324,7 @@ async function main() {
     mergeIntoGlobal(seligsonGlobal, labels);
   }
   printSection(
-    "Seligson (`seligson_distribution_cache.other_distribution_html`, first column of #shares sector table)",
+    "Seligson (`seligson_distribution_cache.holdings_html`, view=10 company column)",
     seligsonGlobal,
     seligsonRows.length,
   );

@@ -11,6 +11,9 @@ const SELIGSON_BASE =
 
 const USER_AGENT = "InvestmentsTracker/0.1 (personal)";
 
+/** FundViewer view=10 — holdings list (sector + country per line). */
+export const SELIGSON_HOLDINGS_VIEW = 10;
+
 function parseFiPercent(text: string): number | null {
   const t = text.trim().replace(/\s/g, "").replace(",", ".");
   if (!t || t === "&nbsp;") {
@@ -22,7 +25,7 @@ function parseFiPercent(text: string): number | null {
 
 export async function fetchSeligsonHtml(
   fid: number,
-  view = 40,
+  view = SELIGSON_HOLDINGS_VIEW,
 ): Promise<string> {
   const url = `${SELIGSON_BASE}&view=${view}&fid=${fid}`;
   const res = await fetch(url, { headers: { "User-Agent": USER_AGENT } });
@@ -49,7 +52,7 @@ export function parseSeligsonFundName(html: string): string | null {
 }
 
 export async function fetchSeligsonFundName(fid: number): Promise<string> {
-  const html = await fetchSeligsonHtml(fid, 40);
+  const html = await fetchSeligsonHtml(fid, SELIGSON_HOLDINGS_VIEW);
   const name = parseSeligsonFundName(html);
   if (!name) {
     throw new Error(
@@ -59,91 +62,108 @@ export async function fetchSeligsonFundName(fid: number): Promise<string> {
   return name;
 }
 
-/**
- * Country weights from view=20 "Maajakauma" table; keys are ISO 3166-1 alpha-2.
- */
-export function parseSeligsonCountryTable(
-  html: string,
-  notes: string[],
-): Record<string, number> {
-  const $ = cheerio.load(html);
-  const countries: Record<string, number> = {};
-  $("table.fundprobe").each((_, table) => {
-    const $t = $(table);
-    const headerText = $t.find("tr.darkheader").first().text();
-    if (!headerText.includes("Maajakauma")) {
-      return;
-    }
-    $t.find("tr").each((_, tr) => {
-      const tds = $(tr).find("td");
-      if (tds.length < 2) {
-        return;
-      }
-      if ($(tds[0]).attr("colspan")) {
-        return;
-      }
-      const name = $(tds[0]).text().trim();
-      if (
-        name === "" ||
-        /Maajakauma/i.test(name) ||
-        $(tds[0]).hasClass("spacing")
-      ) {
-        return;
-      }
-      const pct = parseFiPercent($(tds[tds.length - 1]).text());
-      if (pct === null || pct <= 0) {
-        return;
-      }
-      const iso = resolveRegionKeyToIso(name);
-      if (!iso) {
-        notes.push(`Unknown Seligson country label: ${name}`);
-        return;
-      }
-      countries[iso] = (countries[iso] ?? 0) + pct;
-    });
-  });
-  return countries;
+export type SeligsonHoldingsRow = {
+  companyName: string;
+  countryFi: string;
+  toimialaFi: string;
+  /** Weight 0–1 from Osuus % column. */
+  weight: number;
+};
+
+function normalizeDashCell(s: string): string {
+  return s
+    .replace(/\u00a0/g, " ")
+    .trim()
+    .replace(/[\u2013\u2014\u2212-]/g, "-");
 }
 
-export function parseSeligsonDistributions(
-  otherDistributionHtml: string,
-  countryHtml: string,
-): {
-  payload: DistributionPayload;
+function isDashOnlyCell(s: string): boolean {
+  const n = normalizeDashCell(s);
+  return n === "" || n === "-";
+}
+
+function isCashHoldingsRow(row: SeligsonHoldingsRow): boolean {
+  const upper = row.companyName.toUpperCase();
+  if (upper.includes("KÄTEINEN") || upper.includes("KATEINEN")) {
+    return true;
+  }
+  if (isDashOnlyCell(row.countryFi) && isDashOnlyCell(row.toimialaFi)) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Parses view=10 `table.fundprobe.company` rows (Yritys, Maa, Toimiala, Osuus EUR, Osuus %).
+ */
+export function parseSeligsonHoldingsRows(holdingsHtml: string): {
+  rows: SeligsonHoldingsRow[];
   notes: string[];
 } {
   const notes: string[] = [];
+  const rows: SeligsonHoldingsRow[] = [];
+  const $ = cheerio.load(holdingsHtml);
+  const table = $("table.fundprobe.company").first();
+  if (table.length === 0) {
+    notes.push("Could not find holdings table (table.fundprobe.company).");
+    return { rows, notes };
+  }
+
+  table.find("tbody tr").each((_, tr) => {
+    const tds = $(tr).find("td");
+    if (tds.length < 5) {
+      return;
+    }
+    const companyName = $(tds[0]).text().trim();
+    const countryFi = $(tds[1]).text().trim();
+    const toimialaFi = $(tds[2]).text().trim();
+    const pctText = $(tds[4]).text();
+    const weight = parseFiPercent(pctText);
+    if (!companyName || weight === null || weight <= 0) {
+      return;
+    }
+    rows.push({ companyName, countryFi, toimialaFi, weight });
+  });
+
+  if (rows.length === 0) {
+    notes.push("Holdings table tbody had no data rows.");
+  }
+  return { rows, notes };
+}
+
+/**
+ * Sector and country weights from FundViewer view=10 holdings only (no Maajakauma / sector summary views).
+ * Each line’s Osuus % is allocated to ISO country (from Finnish Maa) and canonical sector (from Finnish Toimiala).
+ * Cash / cash-equivalent lines go to `sectors.cash` and are omitted from `countries`.
+ */
+export function parseSeligsonHoldingsDistributions(holdingsHtml: string): {
+  payload: DistributionPayload;
+  notes: string[];
+} {
+  const { rows, notes } = parseSeligsonHoldingsRows(holdingsHtml);
+  const countries: Record<string, number> = {};
   const sectors: Record<string, number> = {};
 
-  const $40 = cheerio.load(otherDistributionHtml);
-  const shareTableEl = $40("#shares table.fundprobe.overflow").first();
-  if (shareTableEl.length === 0) {
-    notes.push("Could not find #shares sector/region table.");
-  } else {
-    shareTableEl.find("tr").each((_, el) => {
-      const tds = $40(el).find("td");
-      if (tds.length < 6) {
-        return;
-      }
-      const first = $40(tds[0]).text().trim();
-      if (first === "" || first === "Yhteensä") {
-        return;
-      }
-      const sectorId: DistributionSectorId =
-        SELIGSON_FINNISH_SECTOR_LABEL_MAP[first] ?? "other";
-      const lastCell = parseFiPercent($40(tds[tds.length - 1]).text());
-      if (lastCell !== null && lastCell > 0) {
-        sectors[sectorId] = (sectors[sectorId] ?? 0) + lastCell;
-      }
-    });
-  }
+  for (const row of rows) {
+    const w = row.weight;
+    if (isCashHoldingsRow(row)) {
+      sectors.cash = (sectors.cash ?? 0) + w;
+      continue;
+    }
 
-  const countries = parseSeligsonCountryTable(countryHtml, notes);
-  if (Object.keys(countries).length === 0) {
-    notes.push("Maajakauma table not parsed or empty.");
-  }
-  if (Object.keys(sectors).length === 0) {
-    notes.push("Sector rows not parsed (check layout).");
+    const iso = resolveRegionKeyToIso(row.countryFi);
+    if (!iso) {
+      notes.push(
+        `Unknown Seligson country label: ${row.countryFi} (${row.companyName})`,
+      );
+    } else {
+      countries[iso] = (countries[iso] ?? 0) + w;
+    }
+
+    const t = row.toimialaFi.trim();
+    const sectorId: DistributionSectorId =
+      SELIGSON_FINNISH_SECTOR_LABEL_MAP[t] ?? "other";
+    sectors[sectorId] = (sectors[sectorId] ?? 0) + w;
   }
 
   return {
@@ -156,9 +176,6 @@ export async function fetchSeligsonDistributions(fid: number): Promise<{
   payload: DistributionPayload;
   notes: string[];
 }> {
-  const [otherDistributionHtml, countryHtml] = await Promise.all([
-    fetchSeligsonHtml(fid, 40),
-    fetchSeligsonHtml(fid, 20),
-  ]);
-  return parseSeligsonDistributions(otherDistributionHtml, countryHtml);
+  const holdingsHtml = await fetchSeligsonHtml(fid, SELIGSON_HOLDINGS_VIEW);
+  return parseSeligsonHoldingsDistributions(holdingsHtml);
 }
