@@ -24,6 +24,7 @@ import type {
   InstrumentRow,
   YahooLookupResponse,
 } from "../components/instrumentForm/types";
+import { mapYahooInstrumentFormError } from "../lib/yahooInstrumentFormError";
 
 function InstrumentFormPage(props: InstrumentFormPageProps) {
   const navigate = useNavigate();
@@ -50,6 +51,9 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   const [holdingsDistributionUrl, setHoldingsDistributionUrl] = useState("");
   const [providerBreakdownDataUrl, setProviderBreakdownDataUrl] = useState("");
   const [yahooPreview, setYahooPreview] = useState<YahooLookupResponse | null>(
+    null,
+  );
+  const [yahooPreviewError, setYahooPreviewError] = useState<string | null>(
     null,
   );
 
@@ -166,10 +170,11 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
 
   async function previewYahoo() {
     setError(null);
+    setYahooPreviewError(null);
     setYahooPreview(null);
     const s = yahooSymbol.trim();
     if (!s) {
-      setError("Enter a Yahoo symbol.");
+      setYahooPreviewError("Enter a Yahoo symbol.");
       return;
     }
     try {
@@ -178,18 +183,19 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
       );
       setYahooPreview(data);
     } catch (e) {
-      setError(String(e));
+      setYahooPreviewError(mapYahooInstrumentFormError(e));
     }
   }
 
   async function submitNew(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setYahooPreviewError(null);
     try {
       if (kind === "etf" || kind === "stock") {
         const s = yahooSymbol.trim();
         if (!s) {
-          setError("Enter a Yahoo symbol.");
+          setYahooPreviewError("Enter a Yahoo symbol.");
           return;
         }
         const urlRaw = holdingsDistributionUrl.trim();
@@ -274,7 +280,11 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
       }
       navigate("/instruments");
     } catch (err) {
-      setError(String(err));
+      if (kind === "etf" || kind === "stock") {
+        setYahooPreviewError(mapYahooInstrumentFormError(err));
+      } else {
+        setError(mapYahooInstrumentFormError(err));
+      }
     }
   }
 
@@ -440,6 +450,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
           onKindChange={(value) => {
             setKind(value);
             setError(null);
+            setYahooPreviewError(null);
           }}
         />
 
@@ -447,7 +458,10 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
           <NewYahooEtfStockSection
             kind={kind}
             yahooSymbol={yahooSymbol}
-            setYahooSymbol={setYahooSymbol}
+            setYahooSymbol={(v) => {
+              setYahooSymbol(v);
+              setYahooPreviewError(null);
+            }}
             yahooSymbolInputRef={yahooSymbolInputRef}
             onPreviewYahoo={previewYahoo}
             holdingsDistributionUrl={holdingsDistributionUrl}
@@ -455,6 +469,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
             providerBreakdownDataUrl={providerBreakdownDataUrl}
             setProviderBreakdownDataUrl={setProviderBreakdownDataUrl}
             yahooPreview={yahooPreview}
+            yahooPreviewError={yahooPreviewError}
           />
         ) : null}
 

@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { ErrorAlert } from "../ErrorAlert";
 import { HoldingsBreakdownUrlFields } from "./HoldingsBreakdownUrlFields";
 import type { InstrumentKind, YahooLookupResponse } from "./types";
 
@@ -13,6 +14,7 @@ export function NewYahooEtfStockSection({
   providerBreakdownDataUrl,
   setProviderBreakdownDataUrl,
   yahooPreview,
+  yahooPreviewError,
 }: {
   kind: InstrumentKind;
   yahooSymbol: string;
@@ -24,6 +26,7 @@ export function NewYahooEtfStockSection({
   providerBreakdownDataUrl: string;
   setProviderBreakdownDataUrl: (v: string) => void;
   yahooPreview: YahooLookupResponse | null;
+  yahooPreviewError: string | null;
 }) {
   return (
     <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
@@ -44,6 +47,9 @@ export function NewYahooEtfStockSection({
       >
         Preview from Yahoo
       </button>
+      {yahooPreviewError ? (
+        <ErrorAlert className="mt-2">{yahooPreviewError}</ErrorAlert>
+      ) : null}
       {yahooPreview && (
         <div className="text-sm text-slate-700">
           <p>
