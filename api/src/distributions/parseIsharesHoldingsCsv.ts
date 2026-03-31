@@ -1,4 +1,4 @@
-import type { DistributionPayload } from "@investments/db";
+import type { DistributionPayload } from "@investments/lib";
 import { parse } from "csv-parse/sync";
 import {
   mapSectorLabelToCanonicalIdWithWarn,

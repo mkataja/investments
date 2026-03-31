@@ -1,4 +1,4 @@
-import type { DistributionSectorId } from "@investments/db";
+import type { DistributionSectorId } from "@investments/lib";
 
 export const DISTRIBUTION_SECTOR_TITLES: Record<DistributionSectorId, string> =
   {

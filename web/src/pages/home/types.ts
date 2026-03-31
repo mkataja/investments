@@ -1,4 +1,4 @@
-import type { DistributionPayload } from "@investments/db";
+import type { DistributionPayload } from "@investments/lib";
 
 export type HomeBroker = {
   id: number;

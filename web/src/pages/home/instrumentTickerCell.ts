@@ -1,4 +1,4 @@
-import { instrumentTickerDisplay } from "@investments/db";
+import { instrumentTickerDisplay } from "@investments/lib";
 import type { HomeInstrument } from "./types";
 
 export function buildInstrumentTickerById(

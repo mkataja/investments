@@ -1,7 +1,7 @@
 import {
   type DistributionPayload,
   instrumentTickerDisplay,
-} from "@investments/db";
+} from "@investments/lib";
 import {
   type Dispatch,
   type ReactNode,

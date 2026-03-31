@@ -1,10 +1,10 @@
+import { instruments } from "@investments/db";
 import {
-  instruments,
   normalizeIsinForStorage,
   normalizeYahooSymbolForStorage,
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
-} from "@investments/db";
+} from "@investments/lib";
 import { eq } from "drizzle-orm";
 import { db } from "../db.js";
 import {

@@ -1,7 +1,5 @@
-import {
-  type DistributionPayload,
-  normalizeIsinForStorage,
-} from "@investments/db";
+import type { DistributionPayload } from "@investments/lib";
+import { normalizeIsinForStorage } from "@investments/lib";
 import type { QuoteSummaryResult } from "yahoo-finance2/modules/quoteSummary-iface";
 import { yahooFinance } from "../lib/yahooClient.js";
 import { withYahooRetries } from "../lib/yahooUpstream.js";

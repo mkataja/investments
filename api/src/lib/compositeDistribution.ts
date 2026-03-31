@@ -1,5 +1,7 @@
-import type { DistributionPayload } from "@investments/db";
-import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
+import {
+  type DistributionPayload,
+  MIN_PORTFOLIO_ALLOCATION_FRACTION,
+} from "@investments/lib";
 import { roundWeights } from "../distributions/roundWeights.js";
 import { distributionGeoScaleForCountryMerge } from "./distributionGeoScale.js";
 

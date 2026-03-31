@@ -1,4 +1,4 @@
-import { normLabel } from "@investments/db";
+import { normLabel } from "@investments/lib";
 
 export type InstrumentMatchCandidate = {
   id: number;

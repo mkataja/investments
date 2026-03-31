@@ -2,7 +2,7 @@ import {
   COMPOSITE_PSEUDO_KEYS,
   type CompositePseudoKey,
   transactionInstrumentSelectLabel,
-} from "@investments/db";
+} from "@investments/lib";
 
 const PSEUDO_LABEL: Record<CompositePseudoKey, string> = {
   other_equities: "Other equities (unknown distribution)",

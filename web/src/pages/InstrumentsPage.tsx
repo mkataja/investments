@@ -2,7 +2,7 @@ import {
   type DistributionPayload,
   instrumentKindColumnLabel,
   instrumentTickerDisplay,
-} from "@investments/db";
+} from "@investments/lib";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { apiDelete, apiGet, apiPost } from "../api";

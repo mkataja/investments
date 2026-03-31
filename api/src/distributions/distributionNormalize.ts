@@ -1,5 +1,5 @@
-import type { DistributionSectorId } from "@investments/db";
-import { normLabel, resolveRegionKeyToIso } from "@investments/db";
+import type { DistributionSectorId } from "@investments/lib";
+import { normLabel, resolveRegionKeyToIso } from "@investments/lib";
 import { sectorRefreshStorage } from "../lib/sectorRefreshContext.js";
 import { mapSectorLabelToCanonicalId } from "./sectorMapping.js";
 

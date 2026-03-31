@@ -1,4 +1,4 @@
-import type { DistributionSectorId } from "@investments/db";
+import type { DistributionSectorId } from "@investments/lib";
 import { mapSectorLabelToCanonicalIdWithWarn } from "./distributionNormalize.js";
 
 function parsePercentLike(v: unknown): number | null {

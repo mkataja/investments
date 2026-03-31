@@ -5,7 +5,7 @@ import {
   normalizeCashAccountIsoCountryCode,
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
-} from "@investments/db";
+} from "@investments/lib";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiGet, apiPatch, apiPost } from "../api";

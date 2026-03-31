@@ -4,13 +4,13 @@ import {
   type DistributionSectorId,
   GEO_BUCKET_ORDER,
   type GeoBucketId,
+  MIN_PORTFOLIO_ALLOCATION_FRACTION,
   aggregateRegionsToGeoBuckets,
   countryIsoToFlagEmoji,
   geoBucketDisplayIcon,
   geoBucketDisplayTitle,
   resolveRegionKeyToIso,
-} from "@investments/db";
-import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
+} from "@investments/lib";
 import { formatToPercentage } from "./numberFormat.js";
 import { DISTRIBUTION_SECTOR_TITLES } from "./sectorTitles.js";
 
@@ -455,7 +455,7 @@ export function sortedSectorsForDisplay(
     }));
 }
 
-/** @deprecated Use `geoBucketDisplayIcon` from `@investments/db` */
+/** @deprecated Use `geoBucketDisplayIcon` from `@investments/lib` */
 export function geoBucketDisplayLabel(bucket: GeoBucket): string {
   return geoBucketDisplayIcon(bucket);
 }

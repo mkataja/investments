@@ -1,3 +1,4 @@
+import type { DistributionPayload } from "@investments/lib";
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
@@ -63,7 +64,7 @@ export const brokers = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
     name: text("name").notNull(),
-    /** See `BROKER_TYPES` in `@investments/db` brokerTypes. */
+    /** See `BROKER_TYPES` in `@investments/lib` brokerTypes. */
     brokerType: text("broker_type").notNull().default("exchange"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
@@ -122,7 +123,7 @@ export const instruments = pgTable(
     cashInterestType: text("cash_interest_type"),
     /**
      * Optional HTTPS URL to provider holdings (iShares CSV, SSGA XLSX, DWS Xtrackers XLSX, JPM XLSX, SEC 13F XML, or Vanguard UK Professional product page).
-     * Parser is chosen from the URL hostname/path — see `validateHoldingsDistributionUrl` in `@investments/db`.
+     * Parser is chosen from the URL hostname/path — see `validateHoldingsDistributionUrl` in `@investments/lib`.
      */
     holdingsDistributionUrl: text("holdings_distribution_url"),
     /**
@@ -270,13 +271,6 @@ export const transactions = pgTable(
     index("transactions_instrument_id_idx").on(t.instrumentId),
   ],
 );
-
-export type DistributionPayload = {
-  /** Uppercase ISO 3166-1 alpha-2 country codes → weights (0–1). */
-  countries: Record<string, number>;
-  /** Canonical sector ids (`distribution/sectorIds.ts`) → weights (0–1). */
-  sectors: Record<string, number>;
-};
 
 export const yahooFinanceCache = pgTable("yahoo_finance_cache", {
   instrumentId: integer("instrument_id")

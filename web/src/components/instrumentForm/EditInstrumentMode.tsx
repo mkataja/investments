@@ -1,4 +1,4 @@
-import type { CashCurrencyCode } from "@investments/db";
+import type { CashCurrencyCode } from "@investments/lib";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { ButtonLink } from "../Button";

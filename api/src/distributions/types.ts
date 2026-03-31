@@ -1,7 +1,3 @@
-import type { DistributionPayload } from "@investments/db";
-
-export type { DistributionPayload };
-
 function unwrapYahooNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;

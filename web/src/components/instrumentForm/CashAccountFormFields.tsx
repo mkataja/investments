@@ -1,7 +1,7 @@
 import {
   type CashCurrencyCode,
   SUPPORTED_CASH_CURRENCY_CODES,
-} from "@investments/db";
+} from "@investments/lib";
 import type { RefObject } from "react";
 import { FormFieldsCardSkeleton } from "../skeletonPrimitives";
 import type { BrokerRow } from "./types";

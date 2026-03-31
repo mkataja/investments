@@ -20,11 +20,11 @@ Shared concepts: [normalization](#shared-label-and-sector-normalization), [provi
 
 ## Shared label and sector normalization
 
-`resolveRegionKeyToIso`: region/country labels → ISO (`db/src/geo/countryIso.ts`, re-exported `@investments/db`). `mapSectorLabelToCanonicalId` and Seligson Finnish sector constants: `api/src/distributions/sectorMapping.ts`. `api/src/distributions/distributionNormalize.ts`: region ISO merge and sector mapping for Yahoo and iShares/SSGA/Xtrackers/JPM (extra `console.warn` on unmapped strings where appropriate). Allowed sector keys in JSON: `db/src/distribution/sectorIds.ts`; UI titles: `web/src/lib/sectorTitles.ts`.
+`resolveRegionKeyToIso`: region/country labels → ISO (`lib/src/geo/countryIso.ts`, `@investments/lib`). `mapSectorLabelToCanonicalId` and Seligson Finnish sector constants: `api/src/distributions/sectorMapping.ts`. `api/src/distributions/distributionNormalize.ts`: region ISO merge and sector mapping for Yahoo and iShares/SSGA/Xtrackers/JPM (extra `console.warn` on unmapped strings where appropriate). Allowed sector keys in JSON: `lib/src/distribution/sectorIds.ts`; UI titles: `web/src/lib/sectorTitles.ts`.
 
 ## Provider holdings overview
 
-`instruments.holdings_distribution_url` — HTTPS file or API-backed resource; format from hostname/path (`validateHoldingsDistributionUrl` / `resolveHoldingsProviderKind` in `@investments/db`). Unsupported hosts → 400 on `POST`/`PATCH`.
+`instruments.holdings_distribution_url` — HTTPS file or API-backed resource; format from hostname/path (`validateHoldingsDistributionUrl` / `resolveHoldingsProviderKind` in `@investments/lib`). Unsupported hosts → 400 on `POST`/`PATCH`.
 
 When set, `distributions` from parsed file or GPX; raw in `provider_holdings_cache`; `yahoo_finance_cache` cleared for that instrument; `prices` still from Yahoo `quoteSummary` when `yahoo_symbol` is set.
 
@@ -43,7 +43,7 @@ Optional sector breakdown from J.P. Morgan product-data JSON (with JPM XLSX URL)
 
 ## Cash instruments
 
-No external valuation fetch beyond FX — nominal balance in `cash_currency` (`SUPPORTED_CASH_CURRENCY_CODES` in `db`). Country required: `cash_geo_key` (`instruments_cash_geo_required_ck`). `POST /instruments` validates ISO 3166-1 alpha-2 (`normalizeCashAccountIsoCountryCode` / `ISO_3166_1_ALPHA2_CODES` in `@investments/db`); stored uppercase. Legacy rows may predate this. `display_name` unique among cash instruments (case-insensitive, trimmed; partial unique `instruments_cash_account_display_name_uidx`); duplicate → 409 on `POST`. Not used for distribution chart weights — see [Geo buckets](#geo-buckets-and-portfolio-chart-rules).
+No external valuation fetch beyond FX — nominal balance in `cash_currency` (`SUPPORTED_CASH_CURRENCY_CODES` in `@investments/lib`). Country required: `cash_geo_key` (`instruments_cash_geo_required_ck`). `POST /instruments` validates ISO 3166-1 alpha-2 (`normalizeCashAccountIsoCountryCode` / `ISO_3166_1_ALPHA2_CODES` in `@investments/lib`); stored uppercase. Legacy rows may predate this. `display_name` unique among cash instruments (case-insensitive, trimmed; partial unique `instruments_cash_account_display_name_uidx`); duplicate → 409 on `POST`. Not used for distribution chart weights — see [Geo buckets](#geo-buckets-and-portfolio-chart-rules).
 
 ## Listed stocks (single names)
 
@@ -53,4 +53,4 @@ Sector/industry from Yahoo when present; geography is often issuer-country-only,
 
 `cash_account` positions excluded from aggregated region and sector weights (non-cash renormalized to 100%).
 
-`@investments/db` maps ISO codes to default buckets: `finland`, `europe` (excl. Finland, incl. Greenland), `north_america` (US, CA, PR/VI/GU/AS/MP/UM), `asia` (JP, KR, SG, TW, BN, AU, NZ — CN/HK/MO → `china`; other Asia → `emerging_markets`), `china` (CN+HK+MO), `emerging_markets` (LatAm, Caribbean, Mexico, Asian EM/frontier — see `db/src/geo/geoBuckets.ts`), `unknown`. `GET /portfolio/distributions` returns `regions` aggregated to these bucket ids (value-weighted). Per-instrument `distributions.payload.countries`: ISO weights (Seligson: view=10 per-line Maa, no macro fallback). Bucket display icons and ISO→flag emoji: `GEO_BUCKET_DISPLAY_ICONS`, `countryIsoToFlagEmoji` in `db/src/geo/geoBuckets.ts`.
+`@investments/lib` maps ISO codes to default buckets: `finland`, `europe` (excl. Finland, incl. Greenland), `north_america` (US, CA, PR/VI/GU/AS/MP/UM), `asia` (JP, KR, SG, TW, BN, AU, NZ — CN/HK/MO → `china`; other Asia → `emerging_markets`), `china` (CN+HK+MO), `emerging_markets` (LatAm, Caribbean, Mexico, Asian EM/frontier — see `lib/src/geo/geoBuckets.ts`), `unknown`. `GET /portfolio/distributions` returns `regions` aggregated to these bucket ids (value-weighted). Per-instrument `distributions.payload.countries`: ISO weights (Seligson: view=10 per-line Maa, no macro fallback). Bucket display icons and ISO→flag emoji: `GEO_BUCKET_DISPLAY_ICONS`, `countryIsoToFlagEmoji` in `lib/src/geo/geoBuckets.ts`.

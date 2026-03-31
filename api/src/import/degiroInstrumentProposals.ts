@@ -1,4 +1,4 @@
-import { normalizeYahooSymbolForStorage } from "@investments/db";
+import { normalizeYahooSymbolForStorage } from "@investments/lib";
 import {
   type YahooInstrumentLookup,
   buildYahooInstrumentLookup,

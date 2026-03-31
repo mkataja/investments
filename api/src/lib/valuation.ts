@@ -1,8 +1,5 @@
-import {
-  DEFAULT_CASH_CURRENCY,
-  type instruments,
-  prices,
-} from "@investments/db";
+import { type instruments, prices } from "@investments/db";
+import { DEFAULT_CASH_CURRENCY } from "@investments/lib";
 import type { InferSelectModel } from "drizzle-orm";
 import { inArray } from "drizzle-orm";
 import { db } from "../db.js";

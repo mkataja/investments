@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import {
   normalizeIsinForStorage,
   normalizeYahooSymbolForStorage,
-} from "@investments/db";
+} from "@investments/lib";
 import { parse } from "csv-parse/sync";
 import {
   normalizeUnicodeMinus,

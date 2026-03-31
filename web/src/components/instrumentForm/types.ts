@@ -1,4 +1,4 @@
-import type { BrokerType } from "@investments/db";
+import type { BrokerType } from "@investments/lib";
 
 export type InstrumentKind = "etf" | "stock" | "custom" | "cash_account";
 

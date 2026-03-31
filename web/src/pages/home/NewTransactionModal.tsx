@@ -2,7 +2,7 @@ import {
   DEFAULT_CASH_CURRENCY,
   SUPPORTED_CASH_CURRENCY_CODES,
   transactionInstrumentSelectLabel,
-} from "@investments/db";
+} from "@investments/lib";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPatch, apiPost } from "../../api";
 import { Button } from "../../components/Button";

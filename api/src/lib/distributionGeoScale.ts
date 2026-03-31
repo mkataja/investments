@@ -1,4 +1,4 @@
-import type { DistributionPayload } from "@investments/db";
+import type { DistributionPayload } from "@investments/lib";
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
 
 /**

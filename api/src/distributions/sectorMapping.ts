@@ -1,4 +1,4 @@
-import type { DistributionSectorId } from "@investments/db";
+import type { DistributionSectorId } from "@investments/lib";
 
 /**
  * Map free-text sector/industry labels (GICS-style, Yahoo, provider exports, etc.) to a canonical id.

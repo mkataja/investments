@@ -1,4 +1,4 @@
-import type { DistributionPayload } from "./schema.js";
+import type { DistributionPayload } from "./distributionPayload.js";
 
 /**
  * Synthetic allocation targets for composite instruments (not real `instruments` rows).
