@@ -419,8 +419,8 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   }
 
   return (
-    <div className="w-full min-w-0 space-y-6">
-      <header className="space-y-2">
+    <div className="w-full min-w-0 page-stack">
+      <header className="page-header-stack">
         <Link
           to="/instruments"
           className="text-sm text-emerald-800 hover:underline"
@@ -442,7 +442,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </header>
 
-      <form onSubmit={(e) => void submitNew(e)} className="space-y-6">
+      <form onSubmit={(e) => void submitNew(e)} className="page-stack">
         <InstrumentKindPicker
           kind={kind}
           onKindChange={(value) => {
@@ -529,7 +529,7 @@ export function EditInstrumentPage() {
 
   if (!Number.isFinite(id) || id < 1) {
     return (
-      <div className="w-full min-w-0 space-y-4">
+      <div className="w-full min-w-0 page-section">
         <ErrorAlert>Invalid instrument id.</ErrorAlert>
         <ButtonLink to="/instruments">Back to instruments</ButtonLink>
       </div>

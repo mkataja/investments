@@ -121,7 +121,7 @@ export function BrokersPage() {
   }
 
   return (
-    <div className="w-full min-w-0 space-y-6">
+    <div className="w-full min-w-0 page-stack">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1>Brokers</h1>
         <Button type="button" onClick={() => openAddModal()}>
@@ -141,7 +141,7 @@ export function BrokersPage() {
         open={modalOpen}
         onClose={closeModal}
       >
-        <form onSubmit={(e) => void submitModal(e)} className="space-y-3">
+        <form onSubmit={(e) => void submitModal(e)} className="form-stack">
           {formError ? <ErrorAlert>{formError}</ErrorAlert> : null}
           <label className="block text-sm">
             Name
@@ -182,7 +182,7 @@ export function BrokersPage() {
         </form>
       </Modal>
 
-      <section className="space-y-2">
+      <section className="page-section min-w-0">
         {initialLoad ? (
           <BrokersTableSkeleton />
         ) : (

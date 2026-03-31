@@ -36,7 +36,8 @@
     @apply flex flex-col gap-4;
   }
 
-  .page-section > h2 {
+  .page-section > h2,
+  .page-section > h3 {
     @apply mb-0;
   }
 
@@ -47,5 +48,30 @@
 
   .subsection-stack > h3 {
     @apply mb-0;
+  }
+
+  /* Page title row: back link, h1, subtitle, alerts (compact vertical rhythm). */
+  .page-header-stack {
+    @apply flex flex-col gap-2;
+  }
+
+  /* Modal body: title bar + content (replaces ad-hoc margin under header). */
+  .modal-stack {
+    @apply flex flex-col gap-4;
+  }
+
+  /* Dense forms (modals, compact field groups). */
+  .form-stack {
+    @apply flex flex-col gap-3;
+  }
+
+  /* Label + helper line under one control. */
+  .field-note-stack {
+    @apply flex flex-col gap-1;
+  }
+
+  /* Vertical list of blocks (e.g. proposal cards). */
+  .list-stack {
+    @apply flex flex-col gap-3;
   }
 }

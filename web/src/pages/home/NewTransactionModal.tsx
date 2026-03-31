@@ -258,7 +258,7 @@ export function NewTransactionModal({
       open={open}
       onClose={onClose}
     >
-      <form onSubmit={(e) => void submitTransaction(e)} className="space-y-3">
+      <form onSubmit={(e) => void submitTransaction(e)} className="form-stack">
         <label className="block text-sm">
           Broker
           <select

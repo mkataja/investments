@@ -236,7 +236,7 @@ export function HomePage() {
 
   return (
     <div className="w-full min-w-0 page-stack">
-      <header className="flex flex-col gap-2">
+      <header className="page-header-stack">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1>Portfolio</h1>
           <div className="flex flex-wrap items-center gap-2">
@@ -326,7 +326,7 @@ export function HomePage() {
       >
         <form
           onSubmit={(e) => void submitNewPortfolio(e)}
-          className="space-y-3"
+          className="form-stack"
         >
           <label className="block text-sm">
             Name
@@ -338,7 +338,7 @@ export function HomePage() {
               autoComplete="off"
             />
           </label>
-          <div className="space-y-1">
+          <div className="field-note-stack">
             <label className="block text-sm">
               Emergency fund (EUR)
               <input

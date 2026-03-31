@@ -15,7 +15,7 @@ export function InstrumentKindPicker({
   onKindChange: (value: InstrumentKind) => void;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="page-header-stack">
       <p className="text-sm font-medium text-slate-800">Instrument type</p>
       <div className="flex flex-wrap gap-2">
         {OPTIONS.map(({ value, label }) => (

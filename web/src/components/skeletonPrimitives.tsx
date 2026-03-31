@@ -28,12 +28,12 @@ export function FormFieldsCardSkeleton({
   const keys = FORM_FIELD_KEYS.slice(0, fields);
   return (
     <div
-      className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white"
+      className="form-stack border border-slate-200 rounded-lg p-4 bg-white"
       aria-busy="true"
       aria-label={ariaLabel}
     >
       {keys.map((rowKey) => (
-        <div key={rowKey} className="space-y-2">
+        <div key={rowKey} className="page-header-stack">
           <BlockSkeleton className="h-3 w-24" />
           <BlockSkeleton className="h-9 w-full max-w-full" />
         </div>

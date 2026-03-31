@@ -77,7 +77,7 @@ export function EditPortfolioModal({
 
   return (
     <Modal title="Edit portfolio" open={open} onClose={onClose}>
-      <form onSubmit={(e) => void onSubmit(e)} className="space-y-3">
+      <form onSubmit={(e) => void onSubmit(e)} className="form-stack">
         <label className="block text-sm">
           Name
           <input
@@ -88,7 +88,7 @@ export function EditPortfolioModal({
             autoComplete="off"
           />
         </label>
-        <div className="space-y-1">
+        <div className="field-note-stack">
           <label className="block text-sm">
             Emergency fund (EUR)
             <input

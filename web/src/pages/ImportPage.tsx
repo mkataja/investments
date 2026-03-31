@@ -408,10 +408,10 @@ export function ImportPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      <div>
+    <div className="max-w-2xl w-full min-w-0 page-stack">
+      <div className="page-header-stack">
         <h1>Import transactions</h1>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="text-sm text-slate-600">
           Upload broker exports to add or refresh transactions idempotently.
         </p>
       </div>
@@ -442,9 +442,9 @@ export function ImportPage() {
         </div>
       ) : null}
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2>Degiro</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="text-sm text-slate-600">
           Export <strong className="font-medium">Transactions</strong> from
           Degiro (CSV). Each row must resolve to exactly one instrument (etf,
           stock, or Seligson fund): by{" "}
@@ -455,7 +455,7 @@ export function ImportPage() {
           one step. Only EUR trades are imported.
         </p>
         <form
-          className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
           onSubmit={onSubmitDegiro}
         >
           <div className="min-w-0 flex-1">
@@ -484,12 +484,12 @@ export function ImportPage() {
           ) : null}
         </form>
         {error !== null ? (
-          <ErrorAlert className="mt-3">
+          <ErrorAlert>
             <div className="whitespace-pre-wrap break-words">{error}</div>
           </ErrorAlert>
         ) : null}
         {result !== null ? (
-          <p className="mt-3 text-sm text-emerald-800">
+          <p className="text-sm text-emerald-800">
             Processed {result.processed} transaction
             {result.processed === 1 ? "" : "s"}: {result.changed} written to the
             database
@@ -501,14 +501,14 @@ export function ImportPage() {
         ) : null}
 
         {pending !== null ? (
-          <div className="mt-5 rounded-lg border border-amber-200 bg-amber-50/80 p-4 [&_h3]:font-semibold [&_h3]:text-amber-950">
+          <div className="page-section rounded-lg border border-amber-200 bg-amber-50/80 p-4 [&_h3]:font-semibold [&_h3]:text-amber-950">
             <h3>Add missing instruments</h3>
-            <p className="mt-1 text-sm text-amber-950/90">
+            <p className="text-sm text-amber-950/90">
               These ISINs are not in your portfolio yet. We matched them to
               Yahoo Finance. Select which to create, then import the same CSV
               again with those instruments.
             </p>
-            <ul className="mt-3 space-y-3">
+            <ul className="list-stack">
               {pending.proposals.map((p) => (
                 <li
                   key={p.isin}
@@ -552,7 +552,7 @@ export function ImportPage() {
                 </li>
               ))}
             </ul>
-            <form onSubmit={onConfirmAddAndImport} className="mt-4">
+            <form onSubmit={onConfirmAddAndImport}>
               <Button type="submit" disabled={busy}>
                 {busy ? "Working…" : "Add selected and import"}
               </Button>
@@ -561,9 +561,9 @@ export function ImportPage() {
         ) : null}
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2>Interactive Brokers</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="text-sm text-slate-600">
           Activity CSV: flat export with ISIN (recommended) or legacy Statement
           rows with <strong className="font-medium">Transaction History</strong>
           . Broker <strong className="font-medium">IBKR</strong>; instruments
@@ -571,7 +571,7 @@ export function ImportPage() {
           skipped.
         </p>
         <form
-          className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
           onSubmit={onSubmitIbkr}
         >
           <div className="min-w-0 flex-1">
@@ -603,7 +603,7 @@ export function ImportPage() {
           ) : null}
         </form>
         {ibkrError !== null ? (
-          <ErrorAlert className="mt-3">
+          <ErrorAlert>
             <div className="whitespace-pre-wrap break-words">{ibkrError}</div>
             {ibkrMissingIsins !== null && ibkrMissingIsins.length > 0 ? (
               <ul className="mt-2 list-disc space-y-0.5 pl-5">
@@ -645,7 +645,7 @@ export function ImportPage() {
           </ErrorAlert>
         ) : null}
         {ibkrResult !== null ? (
-          <p className="mt-3 text-sm text-emerald-800">
+          <p className="text-sm text-emerald-800">
             Processed {ibkrResult.processed} transaction
             {ibkrResult.processed === 1 ? "" : "s"}: {ibkrResult.changed}{" "}
             written to the database
@@ -657,14 +657,14 @@ export function ImportPage() {
         ) : null}
       </section>
 
-      <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2>Seligson</h2>
-        <p className="mt-1 text-sm text-slate-600">
+        <p className="text-sm text-slate-600">
           Portfolio export (TSV). Fund names must match existing Seligson custom
           instruments.
         </p>
         <form
-          className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+          className="flex flex-col gap-3 sm:flex-row sm:items-end"
           onSubmit={onSubmitSeligson}
         >
           <div className="min-w-0 flex-1">
@@ -694,7 +694,7 @@ export function ImportPage() {
           ) : null}
         </form>
         {seligsonError !== null ? (
-          <ErrorAlert className="mt-3">
+          <ErrorAlert>
             <div className="whitespace-pre-wrap break-words">
               {seligsonError}
             </div>
@@ -721,7 +721,7 @@ export function ImportPage() {
           </ErrorAlert>
         ) : null}
         {seligsonResult !== null ? (
-          <p className="mt-3 text-sm text-emerald-800">
+          <p className="text-sm text-emerald-800">
             Processed {seligsonResult.processed} transaction
             {seligsonResult.processed === 1 ? "" : "s"}:{" "}
             {seligsonResult.changed} written to the database

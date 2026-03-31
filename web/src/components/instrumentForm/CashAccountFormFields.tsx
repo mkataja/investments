@@ -35,7 +35,7 @@ export function CashAccountFormFields({
     return <FormFieldsCardSkeleton ariaLabel="Loading brokers" fields={4} />;
   }
   return (
-    <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
+    <div className="form-stack border border-slate-200 rounded-lg p-4 bg-white">
       <label className="block text-sm">
         Broker
         <select

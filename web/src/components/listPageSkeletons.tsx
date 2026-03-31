@@ -50,7 +50,7 @@ export function InstrumentsTableSkeleton() {
                 <BlockSkeleton className="h-4 w-36 max-w-full" />
               </td>
               <td className="p-2 min-w-[14rem] max-w-xl">
-                <div className="space-y-2 py-0.5">
+                <div className="page-header-stack py-0.5">
                   <BlockSkeleton className="h-3 w-full max-w-[12rem]" />
                   <BlockSkeleton className="h-3 w-full max-w-[10rem]" />
                 </div>
@@ -113,7 +113,7 @@ export function BrokersTableSkeleton() {
 export function EditInstrumentPageSkeleton() {
   return (
     <div
-      className="w-full min-w-0 space-y-4"
+      className="w-full min-w-0 page-section"
       aria-busy="true"
       aria-label="Loading instrument"
     >

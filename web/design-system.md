@@ -22,11 +22,16 @@ This app uses **Tailwind CSS** with a small set of shared primitives. Extend her
 
 | Class | Role |
 | --- | --- |
-| `page-stack` | Top-level page vertical rhythm between major regions (same as `gap-6` / 1.5rem). |
-| `page-section` | A major block with an `h2` and children (intro copy, charts, tables). Uses `gap-4` (1rem); direct `h2` margin is cleared so gap controls spacing. |
-| `subsection-stack` | `h3` + block (table, chart). Uses `gap-3` (0.75rem); direct `h3` margin cleared. |
+| `page-stack` | Top-level page vertical rhythm between major regions (`gap-6`). Also use on long forms between major steps (same as former `space-y-6`). |
+| `page-section` | Major block: `h2`/`h3` + children (cards, charts, tables). `gap-4`; direct `h2` / `h3` margins cleared. |
+| `subsection-stack` | `h3` + block (table, chart). `gap-3`; direct `h3` margin cleared. |
+| `page-header-stack` | Page title area: back link, `h1`, subtitle, errors (`gap-2`). |
+| `modal-stack` | `Modal` body: title row + content (`gap-4`). |
+| `form-stack` | Compact vertical forms (`gap-3`; modals, bordered field cards). |
+| `field-note-stack` | Control + helper paragraph (`gap-1`). |
+| `list-stack` | Vertical stack of blocks (e.g. list items, `gap-3`). |
 
-Use these on page roots and `<section>`s instead of mixing `space-y-*` with default heading margins for the same structure.
+Use these on page roots and `<section>`s instead of mixing `space-y-*` with default heading margins for the same structure. Tiny list spacing (`space-y-0.5` in dense lists) can stay local.
 
 ## Typography / headings
 

@@ -58,7 +58,7 @@ export function EditInstrumentMode({
 
   if (!initial) {
     return (
-      <div className="w-full min-w-0 space-y-4">
+      <div className="w-full min-w-0 page-section">
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         <ButtonLink to="/instruments">Back to instruments</ButtonLink>
       </div>
@@ -67,8 +67,8 @@ export function EditInstrumentMode({
 
   if (initial.kind === "custom") {
     return (
-      <div className="w-full min-w-0 space-y-6">
-        <header className="space-y-2">
+      <div className="w-full min-w-0 page-stack">
+        <header className="page-header-stack">
           <Link
             to="/instruments"
             className="text-sm text-emerald-800 hover:underline"
@@ -87,8 +87,8 @@ export function EditInstrumentMode({
 
   if (initial.kind === "etf" || initial.kind === "stock") {
     return (
-      <div className="w-full min-w-0 space-y-6">
-        <header className="space-y-2">
+      <div className="w-full min-w-0 page-stack">
+        <header className="page-header-stack">
           <Link
             to="/instruments"
             className="text-sm text-emerald-800 hover:underline"
@@ -104,9 +104,9 @@ export function EditInstrumentMode({
 
         <form
           onSubmit={(e) => void submitEditEtfStock(e)}
-          className="space-y-6"
+          className="page-stack"
         >
-          <div className="space-y-3 border border-slate-200 rounded-lg p-4 bg-white">
+          <div className="form-stack border border-slate-200 rounded-lg p-4 bg-white">
             <label className="block text-sm">
               Yahoo symbol
               <input
@@ -152,8 +152,8 @@ export function EditInstrumentMode({
 
   if (initial.kind !== "cash_account") {
     return (
-      <div className="w-full min-w-0 space-y-6">
-        <header className="space-y-2">
+      <div className="w-full min-w-0 page-stack">
+        <header className="page-header-stack">
           <Link
             to="/instruments"
             className="text-sm text-emerald-800 hover:underline"
@@ -171,8 +171,8 @@ export function EditInstrumentMode({
   }
 
   return (
-    <div className="w-full min-w-0 space-y-6">
-      <header className="space-y-2">
+    <div className="w-full min-w-0 page-stack">
+      <header className="page-header-stack">
         <Link
           to="/instruments"
           className="text-sm text-emerald-800 hover:underline"
@@ -184,7 +184,7 @@ export function EditInstrumentMode({
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
       </header>
 
-      <form onSubmit={(e) => void submitEditCash(e)} className="space-y-6">
+      <form onSubmit={(e) => void submitEditCash(e)} className="page-stack">
         <CashAccountFormFields
           brokersLoading={brokersLoading}
           cashBrokers={cashBrokers}
