@@ -17,6 +17,11 @@ import {
   createDistributionBarTooltipContent,
 } from "../../components/PortfolioChartTooltips";
 import {
+  DEFAULT_DISTRIBUTION_BAR_Y_AXIS_TICK_COUNT,
+  distributionBarYAxisFromMax,
+  maxDistributionBarChartValue,
+} from "../../lib/distributionBarChartAxis";
+import {
   allCountriesChartData,
   allCountriesChartDataDual,
   portfolioRegionBarRows,
@@ -46,6 +51,11 @@ const DIST_CHART_COLORS = {
 const chartAxisTickStyle = { fontSize: "0.9rem" };
 const chartLegendStyle = { fontSize: "0.8rem" };
 
+// Recharts tickFormatter(value, index) — only pass the numeric value to formatToPercentage.
+function chartYAxisPercentTick(value: number) {
+  return formatToPercentage(value, { decimalPlaces: 0 });
+}
+
 function barChartMargin(showTopLegend: boolean) {
   return {
     top: showTopLegend ? 28 : 6,
@@ -66,6 +76,8 @@ type PortfolioChartsProps = {
   onSelectedPortfolioChange: (id: number | null) => void;
   comparePortfolioId: number | null;
   onComparePortfolioChange: (id: number | null) => void;
+  /** Labeled Y-axis ticks per distribution bar chart (including 0). Default 5. */
+  distributionBarYAxisTickCount?: number;
 };
 
 export function PortfolioCharts({
@@ -79,6 +91,7 @@ export function PortfolioCharts({
   onSelectedPortfolioChange,
   comparePortfolioId,
   onComparePortfolioChange,
+  distributionBarYAxisTickCount = DEFAULT_DISTRIBUTION_BAR_Y_AXIS_TICK_COUNT,
 }: PortfolioChartsProps) {
   const distributionTooltipContent = useMemo(
     () =>
@@ -164,6 +177,54 @@ export function PortfolioCharts({
     comparePortfolio?.bucketTopHoldings?.countries,
     showDistributionCompare,
   ]);
+
+  const regionYAxis = useMemo(
+    () =>
+      distributionBarYAxisFromMax(
+        maxDistributionBarChartValue(
+          regionBarChartData,
+          showDistributionCompare,
+        ),
+        distributionBarYAxisTickCount,
+      ),
+    [
+      regionBarChartData,
+      showDistributionCompare,
+      distributionBarYAxisTickCount,
+    ],
+  );
+
+  const sectorYAxis = useMemo(
+    () =>
+      distributionBarYAxisFromMax(
+        maxDistributionBarChartValue(
+          sectorBarChartData,
+          showDistributionCompare,
+        ),
+        distributionBarYAxisTickCount,
+      ),
+    [
+      sectorBarChartData,
+      showDistributionCompare,
+      distributionBarYAxisTickCount,
+    ],
+  );
+
+  const countryYAxis = useMemo(
+    () =>
+      distributionBarYAxisFromMax(
+        maxDistributionBarChartValue(
+          countryBarChartData,
+          showDistributionCompare,
+        ),
+        distributionBarYAxisTickCount,
+      ),
+    [
+      countryBarChartData,
+      showDistributionCompare,
+      distributionBarYAxisTickCount,
+    ],
+  );
 
   const assetMixPieData = useMemo(() => {
     const aa = portfolio.assetAllocation;
@@ -325,7 +386,13 @@ export function PortfolioCharts({
                     tick={chartAxisTickStyle}
                     tickMargin={4}
                   />
-                  <YAxis tick={chartAxisTickStyle} width={44} />
+                  <YAxis
+                    tick={chartAxisTickStyle}
+                    width={48}
+                    domain={regionYAxis.domain}
+                    ticks={regionYAxis.ticks}
+                    tickFormatter={chartYAxisPercentTick}
+                  />
                   <DistributionBarChartTooltip
                     content={distributionTooltipContent}
                   />
@@ -375,7 +442,13 @@ export function PortfolioCharts({
                     tick={chartAxisTickStyle}
                     tickMargin={4}
                   />
-                  <YAxis tick={chartAxisTickStyle} width={44} />
+                  <YAxis
+                    tick={chartAxisTickStyle}
+                    width={48}
+                    domain={sectorYAxis.domain}
+                    ticks={sectorYAxis.ticks}
+                    tickFormatter={chartYAxisPercentTick}
+                  />
                   <DistributionBarChartTooltip
                     content={distributionTooltipContent}
                   />
@@ -424,7 +497,13 @@ export function PortfolioCharts({
                   tick={chartAxisTickStyle}
                   tickMargin={4}
                 />
-                <YAxis tick={chartAxisTickStyle} width={44} />
+                <YAxis
+                  tick={chartAxisTickStyle}
+                  width={48}
+                  domain={countryYAxis.domain}
+                  ticks={countryYAxis.ticks}
+                  tickFormatter={chartYAxisPercentTick}
+                />
                 <DistributionBarChartTooltip
                   content={distributionTooltipContent}
                 />
