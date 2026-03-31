@@ -5,6 +5,7 @@ import {
   normalizeRegionWeightsToIsoKeys,
 } from "./distributionNormalize.js";
 import { parseSec13FInfoTableXml } from "./parseSec13FInfoTableXml.js";
+import { filterSec13FRowsByMinFilingWeight } from "./sec13fMaterialRows.js";
 import {
   type YahooQuoteSummaryRaw,
   fetchYahooQuoteSummaryRaw,
@@ -65,13 +66,14 @@ function sectorAndCountryFromYahooRaw(raw: YahooQuoteSummaryRaw): {
 export async function buildDistributionFromSec13FInfoTableXml(
   xmlText: string,
 ): Promise<DistributionPayload> {
-  const rows = parseSec13FInfoTableXml(xmlText);
-  if (rows.length === 0) {
+  const parsed = parseSec13FInfoTableXml(xmlText);
+  if (parsed.length === 0) {
     throw new Error(
       "No usable 13F infoTable rows (CUSIP / value / options filter).",
     );
   }
 
+  const rows = filterSec13FRowsByMinFilingWeight(parsed);
   const cusips = [...new Set(rows.map((r) => r.cusip))];
   const figiByCusip = await fetchOpenFigiMappingsByCusips(cusips);
 
