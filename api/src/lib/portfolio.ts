@@ -2,6 +2,7 @@ import {
   aggregateRegionsToGeoBuckets,
   distributions,
   instruments,
+  resolveRegionKeyToIso,
   seligsonFunds,
   yahooFinanceCache,
 } from "@investments/db";
@@ -13,6 +14,20 @@ import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import { loadOpenPositionsForPortfolio } from "./positions.js";
 import { valuePortfolioRowsEur } from "./valuation.js";
 
+const PORTFOLIO_UNKNOWN_COUNTRY = "__portfolio_unknown__";
+const PORTFOLIO_UNKNOWN_SECTOR = "__portfolio_unknown__";
+/** Matches `UNMAPPED_COUNTRY_KEY` in web `distributionDisplay` after ISO normalization. */
+const UNMAPPED_COUNTRY_ISO = "__unmapped__";
+
+type TopHoldingRow = {
+  instrumentId: number;
+  displayName: string;
+  /** Share of this bucket (0–1) from this holding. */
+  pctOfBucket: number;
+};
+
+type ContribMap = Map<string, Map<number, number>>;
+
 function mergeWeighted(
   acc: Record<string, number>,
   weights: Record<string, number>,
@@ -21,6 +36,83 @@ function mergeWeighted(
   for (const [k, v] of Object.entries(weights)) {
     acc[k] = (acc[k] ?? 0) + w * v;
   }
+}
+
+function scaleCountryWeights(
+  weights: Record<string, number>,
+  factor: number,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(weights)) {
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+      out[k] = v * factor;
+    }
+  }
+  return out;
+}
+
+/** Same key merge as web `normalizeCountryWeightsForDisplay` (ISO + `__unmapped__`). */
+function normalizeCountryWeightsToIso(
+  countries: Record<string, number>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [rawKey, w] of Object.entries(countries)) {
+    if (typeof w !== "number" || !Number.isFinite(w) || w <= 0) {
+      continue;
+    }
+    const iso = resolveRegionKeyToIso(rawKey.trim());
+    const k = iso ?? UNMAPPED_COUNTRY_ISO;
+    out[k] = (out[k] ?? 0) + w;
+  }
+  return out;
+}
+
+function addContrib(
+  map: ContribMap,
+  bucketKey: string,
+  instrumentId: number,
+  delta: number,
+): void {
+  if (!Number.isFinite(delta) || delta <= 1e-18) {
+    return;
+  }
+  let inner = map.get(bucketKey);
+  if (!inner) {
+    inner = new Map();
+    map.set(bucketKey, inner);
+  }
+  inner.set(instrumentId, (inner.get(instrumentId) ?? 0) + delta);
+}
+
+function top5FromContribMap(
+  inner: Map<number, number> | undefined,
+  idToName: Map<number, string>,
+): TopHoldingRow[] {
+  if (!inner || inner.size === 0) {
+    return [];
+  }
+  const total = [...inner.values()].reduce((a, b) => a + b, 0);
+  const rows = [...inner.entries()].map(([instrumentId, amt]) => ({
+    instrumentId,
+    displayName: idToName.get(instrumentId) ?? "?",
+    pctOfBucket: total > 1e-18 ? amt / total : 0,
+  }));
+  rows.sort((a, b) => b.pctOfBucket - a.pctOfBucket);
+  return rows.slice(0, 5);
+}
+
+function contribMapToTopRecord(
+  map: ContribMap,
+  idToName: Map<number, string>,
+): Record<string, TopHoldingRow[]> {
+  const out: Record<string, TopHoldingRow[]> = {};
+  for (const [bucketKey, inner] of map.entries()) {
+    const top = top5FromContribMap(inner, idToName);
+    if (top.length > 0) {
+      out[bucketKey] = top;
+    }
+  }
+  return out;
 }
 
 /** Sector weights without `cash` (embedded fund cash is shown in asset mix instead). */
@@ -80,6 +172,12 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     valueEur: number;
     valuationSource: string;
   }>;
+  /** Top holdings per distribution bucket (region / sector / country key). */
+  bucketTopHoldings: {
+    regions: Record<string, TopHoldingRow[]>;
+    sectors: Record<string, TopHoldingRow[]>;
+    countries: Record<string, TopHoldingRow[]>;
+  };
 }> {
   const pfRow = await loadPortfolioOwnedByUser(portfolioId);
   const emergencyFundTargetEurRaw = pfRow ? Number(pfRow.emergencyFundEur) : 0;
@@ -117,6 +215,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       mixedCurrencyWarning: false,
       assetAllocation: emptyAssetAllocation(),
       positions: [],
+      bucketTopHoldings: { regions: {}, sectors: {}, countries: {} },
     };
   }
 
@@ -200,6 +299,10 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   let missingCountryW = 0;
   let missingSectorW = 0;
 
+  const regionContrib: ContribMap = new Map();
+  const sectorContrib: ContribMap = new Map();
+  const countryContrib: ContribMap = new Map();
+
   let equitiesEur = 0;
   let bondsEur = 0;
   let cashTotalEur = 0;
@@ -246,8 +349,39 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     const geoScale = 1 - cashFrac;
     if (payload?.countries && Object.keys(payload.countries).length > 0) {
       mergeWeighted(countryWeights, payload.countries, w * geoScale);
+      const scaledCountries = scaleCountryWeights(
+        payload.countries,
+        w * geoScale,
+      );
+      const regionalBuckets = aggregateRegionsToGeoBuckets(scaledCountries);
+      for (const [bucket, val] of Object.entries(regionalBuckets)) {
+        if (val > 1e-18) {
+          addContrib(regionContrib, bucket, inst.id, val);
+        }
+      }
+      const isoNorm = normalizeCountryWeightsToIso(scaledCountries);
+      for (const [isoKey, val] of Object.entries(isoNorm)) {
+        if (val > 1e-18) {
+          addContrib(countryContrib, isoKey, inst.id, val);
+        }
+      }
     } else {
       missingCountryW += w * geoScale;
+      const instUnknown: Record<string, number> = {
+        [PORTFOLIO_UNKNOWN_COUNTRY]: w * geoScale,
+      };
+      const regionalBuckets = aggregateRegionsToGeoBuckets(instUnknown);
+      for (const [bucket, val] of Object.entries(regionalBuckets)) {
+        if (val > 1e-18) {
+          addContrib(regionContrib, bucket, inst.id, val);
+        }
+      }
+      const isoNorm = normalizeCountryWeightsToIso(instUnknown);
+      for (const [isoKey, val] of Object.entries(isoNorm)) {
+        if (val > 1e-18) {
+          addContrib(countryContrib, isoKey, inst.id, val);
+        }
+      }
     }
 
     const nonCashSectors = stripCashFromSectorWeights(payload?.sectors);
@@ -255,9 +389,13 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
       if (nonCashSectorSum > 1e-9) {
         mergeWeighted(sectors, nonCashSectors, w);
+        for (const [s, v] of Object.entries(nonCashSectors)) {
+          addContrib(sectorContrib, s, inst.id, w * v);
+        }
       }
     } else {
       missingSectorW += w;
+      addContrib(sectorContrib, PORTFOLIO_UNKNOWN_SECTOR, inst.id, w);
     }
   }
 
@@ -267,19 +405,22 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     emergencyFundTargetEur > 0 && cashTotalEur < emergencyFundTargetEur;
 
   if (missingCountryW > 0) {
-    countryWeights.__portfolio_unknown__ = missingCountryW;
+    countryWeights[PORTFOLIO_UNKNOWN_COUNTRY] = missingCountryW;
   }
 
   const sectorMassRaw =
     Object.values(sectors).reduce((a, b) => a + b, 0) + missingSectorW;
   if (sectorMassRaw > 1e-12) {
     for (const k of Object.keys(sectors)) {
-      sectors[k] /= sectorMassRaw;
+      const v = sectors[k];
+      if (v !== undefined) {
+        sectors[k] = v / sectorMassRaw;
+      }
     }
     missingSectorW /= sectorMassRaw;
   }
   if (missingSectorW > 0) {
-    sectors.__portfolio_unknown__ = missingSectorW;
+    sectors[PORTFOLIO_UNKNOWN_SECTOR] = missingSectorW;
   }
 
   const positions = valued.map((row) => {
@@ -308,6 +449,10 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     }
   }
 
+  const idToName = new Map<number, string>(
+    valued.map((r) => [r.inst.id, r.inst.displayName] as const),
+  );
+
   return {
     countries: countryWeights,
     regions: regionsBucketed,
@@ -325,5 +470,10 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       cashBelowEmergencyTarget,
     },
     positions,
+    bucketTopHoldings: {
+      regions: contribMapToTopRecord(regionContrib, idToName),
+      sectors: contribMapToTopRecord(sectorContrib, idToName),
+      countries: contribMapToTopRecord(countryContrib, idToName),
+    },
   };
 }

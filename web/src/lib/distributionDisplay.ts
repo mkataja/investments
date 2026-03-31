@@ -103,7 +103,7 @@ export function topCountriesSegmentsForDisplay(
 /** Country bar chart: all ISO / unknown segments sorted by weight; **Unknown** last. */
 export function allCountriesChartData(
   countries: Record<string, number>,
-): Array<{ name: string; value: number }> {
+): Array<{ name: string; value: number; bucketKey: string }> {
   const norm = normalizeCountryWeightsForDisplay(countries);
   const rows = Object.entries(norm)
     .filter(([, v]) => v > 0.0005)
@@ -121,9 +121,9 @@ export function allCountriesChartData(
 function sortBarChartRowsUnknownLast(
   rows: Array<{ key: string; name: string; value: number }>,
   isUnknown: (r: { key: string }) => boolean,
-): Array<{ name: string; value: number }> {
+): Array<{ name: string; value: number; bucketKey: string }> {
   return sortBarChartRowsUnknownLastWithKeys(rows, isUnknown).map(
-    ({ name, value }) => ({ name, value }),
+    ({ name, value, key }) => ({ name, value, bucketKey: key }),
   );
 }
 
@@ -194,7 +194,12 @@ function countryBarRowsWithKeys(
 export function portfolioRegionBarRowsDual(
   primary: Record<string, number>,
   compare: Record<string, number>,
-): Array<{ name: string; primary: number; compare: number }> {
+): Array<{
+  name: string;
+  primary: number;
+  compare: number;
+  bucketKey: string;
+}> {
   const pRows = regionBarRowsWithKeys(primary);
   const primaryKeys = new Set(pRows.map((r) => r.key));
   const compareOnly = regionBarRowsWithKeys(compare).filter(
@@ -205,11 +210,13 @@ export function portfolioRegionBarRowsDual(
       name: r.name,
       primary: r.value,
       compare: compare[r.key] ?? 0,
+      bucketKey: r.key,
     })),
     ...compareOnly.map((r) => ({
       name: r.name,
       primary: 0,
       compare: r.value,
+      bucketKey: r.key,
     })),
   ];
 }
@@ -217,7 +224,12 @@ export function portfolioRegionBarRowsDual(
 export function portfolioSectorBarRowsDual(
   primary: Record<string, number>,
   compare: Record<string, number>,
-): Array<{ name: string; primary: number; compare: number }> {
+): Array<{
+  name: string;
+  primary: number;
+  compare: number;
+  bucketKey: string;
+}> {
   const pRows = sectorBarRowsWithKeys(primary);
   const primaryKeys = new Set(pRows.map((r) => r.key));
   const compareOnly = sectorBarRowsWithKeys(compare).filter(
@@ -228,11 +240,13 @@ export function portfolioSectorBarRowsDual(
       name: r.name,
       primary: r.value,
       compare: compare[r.key] ?? 0,
+      bucketKey: r.key,
     })),
     ...compareOnly.map((r) => ({
       name: r.name,
       primary: 0,
       compare: r.value,
+      bucketKey: r.key,
     })),
   ];
 }
@@ -240,7 +254,12 @@ export function portfolioSectorBarRowsDual(
 export function allCountriesChartDataDual(
   primary: Record<string, number>,
   compare: Record<string, number>,
-): Array<{ name: string; primary: number; compare: number }> {
+): Array<{
+  name: string;
+  primary: number;
+  compare: number;
+  bucketKey: string;
+}> {
   const compareNorm = normalizeCountryWeightsForDisplay(compare);
   const pRows = countryBarRowsWithKeys(primary);
   const primaryKeys = new Set(pRows.map((r) => r.key));
@@ -252,11 +271,13 @@ export function allCountriesChartDataDual(
       name: r.name,
       primary: r.value,
       compare: compareNorm[r.key] ?? 0,
+      bucketKey: r.key,
     })),
     ...compareOnly.map((r) => ({
       name: r.name,
       primary: 0,
       compare: r.value,
+      bucketKey: r.key,
     })),
   ];
 }
@@ -264,7 +285,7 @@ export function allCountriesChartDataDual(
 /** Regions bar chart: sorted by weight; geo bucket **unknown** last. */
 export function portfolioRegionBarRows(
   regions: Record<string, number>,
-): Array<{ name: string; value: number }> {
+): Array<{ name: string; value: number; bucketKey: string }> {
   const rows = Object.entries(regions)
     .filter(([, v]) => v > 0.0005)
     .map(([id, value]) => ({
@@ -281,7 +302,7 @@ export function portfolioRegionBarRows(
 /** Sectors bar chart: sorted by weight; no-cache **Unknown** last. */
 export function portfolioSectorBarRows(
   sectors: Record<string, number>,
-): Array<{ name: string; value: number }> {
+): Array<{ name: string; value: number; bucketKey: string }> {
   const rows = Object.entries(sectors)
     .filter(([, v]) => v > 0.0005)
     .map(([id, value]) => ({

@@ -12,7 +12,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { DistributionBarChartTooltip } from "../../components/PortfolioChartTooltips";
+import {
+  DistributionBarChartTooltip,
+  createDistributionBarTooltipContent,
+} from "../../components/PortfolioChartTooltips";
 import {
   allCountriesChartData,
   allCountriesChartDataDual,
@@ -67,37 +70,88 @@ export function PortfolioCharts({
   selectedPortfolioLabel,
   comparePortfolioLabel,
 }: PortfolioChartsProps) {
+  const distributionTooltipContent = useMemo(
+    () =>
+      createDistributionBarTooltipContent({
+        showCompare: showDistributionCompare,
+        primaryLabel: selectedPortfolioLabel,
+        compareLabel: comparePortfolioLabel,
+      }),
+    [showDistributionCompare, selectedPortfolioLabel, comparePortfolioLabel],
+  );
+
   const regionBarChartData = useMemo(() => {
+    const th = portfolio.bucketTopHoldings?.regions ?? {};
+    const thCmp = comparePortfolio?.bucketTopHoldings?.regions ?? {};
     if (!showDistributionCompare) {
-      return portfolioRegionBarRows(portfolio.regions);
+      return portfolioRegionBarRows(portfolio.regions).map((r) => ({
+        ...r,
+        topHoldings: th[r.bucketKey] ?? [],
+      }));
     }
     return portfolioRegionBarRowsDual(
       portfolio.regions,
       comparePortfolio?.regions ?? {},
-    );
-  }, [portfolio.regions, comparePortfolio?.regions, showDistributionCompare]);
+    ).map((r) => ({
+      ...r,
+      topHoldingsPrimary: th[r.bucketKey] ?? [],
+      topHoldingsCompare: thCmp[r.bucketKey] ?? [],
+    }));
+  }, [
+    portfolio.regions,
+    portfolio.bucketTopHoldings?.regions,
+    comparePortfolio?.regions,
+    comparePortfolio?.bucketTopHoldings?.regions,
+    showDistributionCompare,
+  ]);
 
   const sectorBarChartData = useMemo(() => {
+    const th = portfolio.bucketTopHoldings?.sectors ?? {};
+    const thCmp = comparePortfolio?.bucketTopHoldings?.sectors ?? {};
     if (!showDistributionCompare) {
-      return portfolioSectorBarRows(portfolio.sectors);
+      return portfolioSectorBarRows(portfolio.sectors).map((r) => ({
+        ...r,
+        topHoldings: th[r.bucketKey] ?? [],
+      }));
     }
     return portfolioSectorBarRowsDual(
       portfolio.sectors,
       comparePortfolio?.sectors ?? {},
-    );
-  }, [portfolio.sectors, comparePortfolio?.sectors, showDistributionCompare]);
+    ).map((r) => ({
+      ...r,
+      topHoldingsPrimary: th[r.bucketKey] ?? [],
+      topHoldingsCompare: thCmp[r.bucketKey] ?? [],
+    }));
+  }, [
+    portfolio.sectors,
+    portfolio.bucketTopHoldings?.sectors,
+    comparePortfolio?.sectors,
+    comparePortfolio?.bucketTopHoldings?.sectors,
+    showDistributionCompare,
+  ]);
 
   const countryBarChartData = useMemo(() => {
+    const th = portfolio.bucketTopHoldings?.countries ?? {};
+    const thCmp = comparePortfolio?.bucketTopHoldings?.countries ?? {};
     if (!showDistributionCompare) {
-      return allCountriesChartData(portfolio.countries);
+      return allCountriesChartData(portfolio.countries).map((r) => ({
+        ...r,
+        topHoldings: th[r.bucketKey] ?? [],
+      }));
     }
     return allCountriesChartDataDual(
       portfolio.countries,
       comparePortfolio?.countries ?? {},
-    );
+    ).map((r) => ({
+      ...r,
+      topHoldingsPrimary: th[r.bucketKey] ?? [],
+      topHoldingsCompare: thCmp[r.bucketKey] ?? [],
+    }));
   }, [
     portfolio.countries,
+    portfolio.bucketTopHoldings?.countries,
     comparePortfolio?.countries,
+    comparePortfolio?.bucketTopHoldings?.countries,
     showDistributionCompare,
   ]);
 
@@ -208,7 +262,9 @@ export function PortfolioCharts({
                   tickMargin={4}
                 />
                 <YAxis tick={chartAxisTickStyle} width={44} />
-                <DistributionBarChartTooltip />
+                <DistributionBarChartTooltip
+                  content={distributionTooltipContent}
+                />
                 {showDistributionCompare ? (
                   <>
                     <Bar
@@ -258,7 +314,9 @@ export function PortfolioCharts({
                   tickMargin={4}
                 />
                 <YAxis tick={chartAxisTickStyle} width={44} />
-                <DistributionBarChartTooltip />
+                <DistributionBarChartTooltip
+                  content={distributionTooltipContent}
+                />
                 {showDistributionCompare ? (
                   <>
                     <Bar
@@ -309,7 +367,9 @@ export function PortfolioCharts({
                 tickMargin={4}
               />
               <YAxis tick={chartAxisTickStyle} width={44} />
-              <DistributionBarChartTooltip />
+              <DistributionBarChartTooltip
+                content={distributionTooltipContent}
+              />
               {showDistributionCompare ? (
                 <>
                   <Bar

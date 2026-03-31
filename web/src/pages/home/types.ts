@@ -43,6 +43,13 @@ export type PortfolioEntity = {
   updatedAt: string;
 };
 
+export type BucketTopHolding = {
+  instrumentId: number;
+  displayName: string;
+  /** Share of this bucket (0–1) from this holding. */
+  pctOfBucket: number;
+};
+
 export type PortfolioDistributions = {
   countries: Record<string, number>;
   regions: Record<string, number>;
@@ -68,4 +75,9 @@ export type PortfolioDistributions = {
     valueEur: number;
     valuationSource: string;
   }>;
+  bucketTopHoldings: {
+    regions: Record<string, BucketTopHolding[]>;
+    sectors: Record<string, BucketTopHolding[]>;
+    countries: Record<string, BucketTopHolding[]>;
+  };
 };

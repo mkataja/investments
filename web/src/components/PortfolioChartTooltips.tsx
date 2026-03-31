@@ -26,8 +26,13 @@
  * layout levers; no `DistributionBarChartTooltip` wrapper there.
  */
 import type { CSSProperties, ComponentProps } from "react";
-import { Tooltip } from "recharts";
+import { Tooltip, type TooltipProps } from "recharts";
+import type {
+  NameType,
+  ValueType,
+} from "recharts/types/component/DefaultTooltipContent";
 import { formatToPercentage } from "../lib/numberFormat";
+import type { BucketTopHolding } from "../pages/home/types";
 
 type DistributionBarChartTooltipProps = ComponentProps<typeof Tooltip>;
 
@@ -98,3 +103,104 @@ export function DistributionBarChartTooltip(
   );
 }
 DistributionBarChartTooltip.displayName = "Tooltip";
+
+type BarChartRowPayload = {
+  topHoldings?: BucketTopHolding[];
+  topHoldingsPrimary?: BucketTopHolding[];
+  topHoldingsCompare?: BucketTopHolding[];
+};
+
+/**
+ * Custom tooltip body for distribution bar charts: bar values plus top holdings per bucket.
+ * Create with {@link createDistributionBarTooltipContent} so compare labels stay in sync.
+ */
+export function createDistributionBarTooltipContent(options: {
+  showCompare: boolean;
+  primaryLabel: string;
+  compareLabel: string;
+}) {
+  return function DistributionBarTooltipContent(
+    props: TooltipProps<ValueType, NameType>,
+  ) {
+    const { active, payload, label } = props;
+    if (!active || !payload?.length) {
+      return null;
+    }
+    const row = payload[0]?.payload as BarChartRowPayload | undefined;
+    const topHoldings = row?.topHoldings;
+    const topPrimary = row?.topHoldingsPrimary;
+    const topCompare = row?.topHoldingsCompare;
+
+    return (
+      <div
+        className="rounded border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
+        style={{ outline: "none" }}
+      >
+        {label != null && label !== "" ? (
+          <p className="font-bold mb-1 text-slate-800">{label}</p>
+        ) : null}
+        {payload.map((p) => {
+          const v =
+            typeof p.value === "number"
+              ? p.value
+              : typeof p.value === "string"
+                ? Number(p.value)
+                : 0;
+          return (
+            <div key={String(p.dataKey ?? p.name)} className="text-slate-700">
+              {p.name}: {formatToPercentage(Number.isFinite(v) ? v : 0)}
+            </div>
+          );
+        })}
+        {!options.showCompare && topHoldings && topHoldings.length > 0 ? (
+          <ol className="mt-2 list-decimal space-y-0.5 border-t border-slate-200 pt-2 pl-4 text-slate-600">
+            {topHoldings.map((h) => (
+              <li key={h.instrumentId} className="tabular-nums">
+                <span className="font-medium text-slate-700">
+                  {h.displayName}
+                </span>{" "}
+                {formatToPercentage(h.pctOfBucket)}
+              </li>
+            ))}
+          </ol>
+        ) : null}
+        {options.showCompare && topPrimary && topPrimary.length > 0 ? (
+          <div className="mt-2 border-t border-slate-200 pt-2">
+            <p className="text-xs font-semibold text-slate-600 mb-1">
+              Top contributors in{" "}
+              <span className="italic">{options.primaryLabel}</span>:
+            </p>
+            <ol className="list-decimal space-y-0.5 pl-4 text-slate-600">
+              {topPrimary.map((h) => (
+                <li key={h.instrumentId} className="tabular-nums">
+                  <span className="font-medium text-slate-700">
+                    {h.displayName}
+                  </span>{" "}
+                  {formatToPercentage(h.pctOfBucket)}
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
+        {options.showCompare && topCompare && topCompare.length > 0 ? (
+          <div className="mt-2 border-t border-slate-200 pt-2">
+            <p className="text-xs font-semibold text-slate-600 mb-1">
+              Top contributors in{" "}
+              <span className="italic">{options.compareLabel}</span>:
+            </p>
+            <ol className="list-decimal space-y-0.5 pl-4 text-slate-600">
+              {topCompare.map((h) => (
+                <li key={h.instrumentId} className="tabular-nums">
+                  <span className="font-medium text-slate-700">
+                    {h.displayName}
+                  </span>{" "}
+                  {formatToPercentage(h.pctOfBucket)}
+                </li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
+      </div>
+    );
+  };
+}
