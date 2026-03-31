@@ -1,0 +1,1 @@
+ALTER TABLE "instruments" ADD COLUMN "provider_breakdown_data_url" text;

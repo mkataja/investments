@@ -20,6 +20,7 @@ function row(
     cashCurrency: null,
     cashInterestType: null,
     holdingsDistributionUrl: null,
+    providerBreakdownDataUrl: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

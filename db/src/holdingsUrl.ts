@@ -88,3 +88,52 @@ export function validateHoldingsDistributionUrl(
   }
   return { ok: true, normalized: u.toString(), provider };
 }
+
+const JPM_PRODUCT_DATA_PATH = "/fundsmarketinghandler/product-data";
+
+export type ValidateProviderBreakdownUrlResult =
+  | { ok: true; normalized: string | null }
+  | { ok: false; message: string };
+
+/**
+ * Empty/null clears. Non-empty must be HTTPS `am.jpmorgan.com` … `/FundsMarketingHandler/product-data` (JSON).
+ */
+export function validateProviderBreakdownDataUrl(
+  raw: string | null | undefined,
+): ValidateProviderBreakdownUrlResult {
+  if (raw == null) {
+    return { ok: true, normalized: null };
+  }
+  const trimmed = raw.trim();
+  if (trimmed.length === 0) {
+    return { ok: true, normalized: null };
+  }
+  let u: URL;
+  try {
+    u = new URL(trimmed);
+  } catch {
+    return { ok: false, message: "Invalid provider breakdown data URL" };
+  }
+  if (u.protocol !== "https:") {
+    return {
+      ok: false,
+      message: "Provider breakdown data URL must use HTTPS",
+    };
+  }
+  if (!hostnameMatches(u.hostname, "jpmorgan.com")) {
+    return {
+      ok: false,
+      message:
+        "Unsupported provider breakdown URL. Use J.P. Morgan AM JSON: https://am.jpmorgan.com/FundsMarketingHandler/product-data?… (see AGENTS.md).",
+    };
+  }
+  const pathLower = u.pathname.toLowerCase();
+  if (!pathLower.endsWith(JPM_PRODUCT_DATA_PATH)) {
+    return {
+      ok: false,
+      message:
+        "Provider breakdown URL path must be /FundsMarketingHandler/product-data",
+    };
+  }
+  return { ok: true, normalized: u.toString() };
+}

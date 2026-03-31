@@ -123,6 +123,11 @@ export const instruments = pgTable(
      * Parser is chosen from the URL hostname — see API `holdingsUrl` validation.
      */
     holdingsDistributionUrl: text("holdings_distribution_url"),
+    /**
+     * Optional J.P. Morgan `FundsMarketingHandler/product-data` JSON URL for GICS-style sector weights
+     * when `holdings_distribution_url` is a JPM daily ETF holdings XLSX; geographic weights still come from the XLSX.
+     */
+    providerBreakdownDataUrl: text("provider_breakdown_data_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
