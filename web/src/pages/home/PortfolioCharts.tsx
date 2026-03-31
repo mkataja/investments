@@ -245,7 +245,7 @@ export function PortfolioCharts({
           <h3 className="text-sm font-medium text-slate-700 mb-2 shrink-0">
             Regions
           </h3>
-          <div className="w-full h-[600px]">
+          <div className="w-full h-[540px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={regionBarChartData}
@@ -297,7 +297,7 @@ export function PortfolioCharts({
           <h3 className="text-sm font-medium text-slate-700 mb-2 shrink-0">
             Sectors
           </h3>
-          <div className="w-full h-[600px]">
+          <div className="w-full h-[540px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={sectorBarChartData}
@@ -350,7 +350,7 @@ export function PortfolioCharts({
         <h3 className="text-sm font-medium text-slate-700 mb-2 shrink-0">
           Countries
         </h3>
-        <div className="w-full aspect-[2.2/1] min-h-[280px]">
+        <div className="w-full h-[540px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={countryBarChartData}
@@ -359,9 +359,7 @@ export function PortfolioCharts({
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis
                 dataKey="name"
-                angle={-35}
-                textAnchor="end"
-                height={72}
+                height={1}
                 tick={chartAxisTickStyle}
                 tickMargin={4}
               />
