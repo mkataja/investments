@@ -24,6 +24,8 @@
         "noUselessFragments": "error"
       },
       "correctness": {
+        "noUnusedImports": "error",
+        "noUnusedPrivateClassMembers": "error",
         "noUnusedVariables": "error",
         "useExhaustiveDependencies": "warn"
       },
