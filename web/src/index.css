@@ -24,3 +24,28 @@
     @apply font-medium text-slate-700 text-heading-4;
   }
 }
+
+@layer components {
+  /* Vertical rhythm between major page regions (header, main blocks). */
+  .page-stack {
+    @apply flex flex-col gap-6;
+  }
+
+  /* Major content section: h2 + blocks (paragraphs, charts, tables). */
+  .page-section {
+    @apply flex flex-col gap-4;
+  }
+
+  .page-section > h2 {
+    @apply mb-0;
+  }
+
+  /* Subsection: h3 + following block (e.g. table, chart). */
+  .subsection-stack {
+    @apply flex flex-col gap-3;
+  }
+
+  .subsection-stack > h3 {
+    @apply mb-0;
+  }
+}

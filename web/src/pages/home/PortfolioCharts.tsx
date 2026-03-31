@@ -183,7 +183,7 @@ export function PortfolioCharts({
   );
 
   return (
-    <section className="space-y-4">
+    <section className="page-section">
       <h2>Distributions</h2>
       <p className="text-slate-600">
         Total estimated portfolio value:{" "}
@@ -208,7 +208,7 @@ export function PortfolioCharts({
         )}
       </p>
       {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
-        <div className="max-w-xl min-w-0">
+        <div className="max-w-xl min-w-0 subsection-stack">
           <h3>Asset mix</h3>
           <div className="h-48">
             <ResponsiveContainer width="100%" height="100%">
@@ -241,7 +241,7 @@ export function PortfolioCharts({
         </div>
       ) : null}
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="min-w-0 flex flex-col">
+        <div className="min-w-0 subsection-stack">
           <h3 className="shrink-0">Regions</h3>
           <div className="w-full h-[540px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -291,7 +291,7 @@ export function PortfolioCharts({
             </ResponsiveContainer>
           </div>
         </div>
-        <div className="min-w-0 flex flex-col">
+        <div className="min-w-0 subsection-stack">
           <h3 className="shrink-0">Sectors</h3>
           <div className="w-full h-[540px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -342,7 +342,7 @@ export function PortfolioCharts({
           </div>
         </div>
       </div>
-      <div className="min-w-0 flex flex-col">
+      <div className="min-w-0 subsection-stack">
         <h3 className="shrink-0">Countries</h3>
         <div className="w-full h-[540px]">
           <ResponsiveContainer width="100%" height="100%">

@@ -39,7 +39,7 @@ export function TransactionsTable({
   onError,
 }: TransactionsTableProps) {
   return (
-    <section>
+    <section className="page-section">
       <h2>Transactions</h2>
       <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
         <table className="min-w-full">
@@ -143,7 +143,7 @@ export function TransactionsTable({
         </table>
       </div>
       {transactions.length > 0 ? (
-        <p className="mt-2 text-sm text-slate-600 tabular-nums">
+        <p className="text-sm text-slate-600 tabular-nums">
           {transactions.length}{" "}
           {transactions.length === 1 ? "transaction" : "transactions"}
         </p>

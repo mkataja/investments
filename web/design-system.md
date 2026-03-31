@@ -16,6 +16,18 @@ This app uses **Tailwind CSS** with a small set of shared primitives. Extend her
 
 **Visual:** white background, `emerald-200` border, `emerald-900` text, light shadow, hover fill `emerald-50`, visible focus ring. Disabled buttons use reduced opacity.
 
+## Page layout spacing
+
+**Stacking** uses flex column + gap so spacing is consistent (not ad-hoc `mb-*` on headings next to tables).
+
+| Class | Role |
+| --- | --- |
+| `page-stack` | Top-level page vertical rhythm between major regions (same as `gap-6` / 1.5rem). |
+| `page-section` | A major block with an `h2` and children (intro copy, charts, tables). Uses `gap-4` (1rem); direct `h2` margin is cleared so gap controls spacing. |
+| `subsection-stack` | `h3` + block (table, chart). Uses `gap-3` (0.75rem); direct `h3` margin cleared. |
+
+Use these on page roots and `<section>`s instead of mixing `space-y-*` with default heading margins for the same structure.
+
 ## Typography / headings
 
 **Defaults:** `web/src/index.css` (`@layer base`) styles **`h1`–`h6`** so bare elements render without `className`. **Semantic sizes** mirror Tailwind’s `text-3xl` / `text-xl` / `text-base` / `text-sm` and live in **`web/tailwind.config.js`** as **`fontSize.heading-1`** … **`heading-4`** (use `text-heading-*` utilities when you need the same scale on a non-heading element).

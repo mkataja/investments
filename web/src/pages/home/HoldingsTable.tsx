@@ -45,7 +45,7 @@ function HoldingsSubtable({
   const sectionValueEur = rows.reduce((s, p) => s + p.valueEur, 0);
 
   return (
-    <div className="mb-4 last:mb-0">
+    <div className="subsection-stack">
       <h3>{title}</h3>
       <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
         <table className="min-w-full">
@@ -145,7 +145,7 @@ export function HoldingsTable({
   }, [portfolio.positions]);
 
   return (
-    <section>
+    <section className="page-section">
       <h2>Holdings</h2>
       <HoldingsSubtable
         title="Cash accounts"

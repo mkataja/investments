@@ -235,7 +235,7 @@ export function HomePage() {
   }
 
   return (
-    <div className="w-full min-w-0 space-y-6">
+    <div className="w-full min-w-0 page-stack">
       <header className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h1>Portfolio</h1>
@@ -383,7 +383,7 @@ export function HomePage() {
       />
 
       {portfolio ? (
-        <div className="flex flex-col gap-4">
+        <div className="page-section">
           <PortfolioCharts
             portfolio={portfolio}
             comparePortfolio={comparePortfolio}
