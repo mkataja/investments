@@ -35,6 +35,11 @@
     @apply flex flex-col gap-6;
   }
 
+  /* Constrain primary form columns (instrument new/edit, etc.). */
+  .page-form-max {
+    @apply max-w-3xl w-full min-w-0;
+  }
+
   /* Major content section: h2 + blocks (paragraphs, charts, tables). */
   .page-section {
     @apply flex flex-col gap-4;

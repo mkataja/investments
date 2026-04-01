@@ -587,7 +587,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   }
 
   return (
-    <div className="w-full min-w-0 page-stack">
+    <div className="page-form-max page-stack">
       <header className="page-header-stack">
         <Link to="/instruments" className="action-link">
           ← Instruments
@@ -714,7 +714,7 @@ export function EditInstrumentPage() {
 
   if (!Number.isFinite(id) || id < 1) {
     return (
-      <div className="w-full min-w-0 page-section">
+      <div className="page-form-max page-section">
         <ErrorAlert>Invalid instrument id.</ErrorAlert>
         <ButtonLink to="/instruments">Back to instruments</ButtonLink>
       </div>

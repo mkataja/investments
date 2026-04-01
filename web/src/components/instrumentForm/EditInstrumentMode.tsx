@@ -50,7 +50,7 @@ export function EditInstrumentMode({
 }) {
   if (!initial) {
     return (
-      <div className="w-full min-w-0 page-section">
+      <div className="page-form-max page-section">
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         <ButtonLink to="/instruments">Back to instruments</ButtonLink>
       </div>
@@ -59,7 +59,7 @@ export function EditInstrumentMode({
 
   if (initial.kind === "custom") {
     return (
-      <div className="w-full min-w-0 page-stack">
+      <div className="page-form-max page-stack">
         <header className="page-header-stack">
           <Link to="/instruments" className="action-link">
             ← Instruments
@@ -76,7 +76,7 @@ export function EditInstrumentMode({
 
   if (initial.kind === "etf" || initial.kind === "stock") {
     return (
-      <div className="w-full min-w-0 page-stack">
+      <div className="page-form-max page-stack">
         <header className="page-header-stack">
           <Link to="/instruments" className="action-link">
             ← Instruments
@@ -129,7 +129,7 @@ export function EditInstrumentMode({
 
   if (initial.kind !== "cash_account") {
     return (
-      <div className="w-full min-w-0 page-stack">
+      <div className="page-form-max page-stack">
         <header className="page-header-stack">
           <Link to="/instruments" className="action-link">
             ← Instruments
@@ -146,7 +146,7 @@ export function EditInstrumentMode({
 
   if (initial.kind === "cash_account") {
     return (
-      <div className="w-full min-w-0 page-stack">
+      <div className="page-form-max page-stack">
         <header className="page-header-stack">
           <Link to="/instruments" className="action-link">
             ← Instruments
