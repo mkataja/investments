@@ -48,7 +48,7 @@ Duplicating code is a maintenance nightmare, makes files larger than necessary, 
 - Obey **No copy-paste duplication** above: never paste big repeated blocks; extract components and functions instead.
 - If a file starts to exceed 300-500 lines, take a careful look if some of the components in it should be separated into new modules/files.
 - Web dates/times: **`web/src/lib/dateTimeFormat.ts`** — **`YYYY-MM-DD`**; with time **`YYYY-MM-DD HH:mm`** (local 24h).
-- **Web-only API contract code:** **`web/src/api/`** — transport in **`client.ts`**; add modules only for real API-shaped work (payload builders, response parsing, error body classification), not thin wrappers. Examples: **`portfolios.ts`** (**`normalizeWeightRowsForApi`**), **`transactions.ts`** (**`buildTransactionMutationBody`**), **`instrumentMutations.ts`** (create/patch JSON shapes), **`instrumentRefreshDistribution.ts`**, **`importResponses.ts`**, **`importHttpError.ts`**. Shared **`lib/`** is for code used by **`api`** (backend) and **`web`**, not web-only HTTP helpers.
+- **Web-only API contract code:** **`web/src/api/`** — transport in **`client.ts`**; add modules only for real API-shaped work (payload builders, response parsing, multipart field names, error body classification), not thin wrappers. Examples: **`portfolios.ts`** (**`normalizeWeightRowsForApi`**, create/patch portfolio bodies), **`transactions.ts`**, **`instrumentMutations.ts`**, **`instrumentCompositePreview.ts`**, **`instrumentRefreshDistribution.ts`**, **`importResponses.ts`**, **`importHttpError.ts`**, **`importFormData.ts`**. Shared **`lib/`** is for code used by **`api`** (backend) and **`web`**, not web-only HTTP helpers.
 
 ### Web UI polish
 
