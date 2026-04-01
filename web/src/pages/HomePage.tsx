@@ -239,9 +239,7 @@ export function HomePage() {
       />
 
       <NewTransactionModal
-        key={
-          txnModalOpen ? (editingTransaction?.id ?? "new") : "txn-closed"
-        }
+        key={txnModalOpen ? (editingTransaction?.id ?? "new") : "txn-closed"}
         open={txnModalOpen}
         onClose={() => {
           setTxnModalOpen(false);

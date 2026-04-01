@@ -1,10 +1,7 @@
 import type { RefObject } from "react";
 import { FormFieldsCardSkeleton } from "../skeletonPrimitives";
-import {
-  type CompositePreviewRow,
-  SeligsonCompositeAllocationPanel,
-} from "./SeligsonCompositeModal";
-import type { BrokerRow } from "./types";
+import { SeligsonCompositeAllocationPanel } from "./SeligsonCompositeModal";
+import type { BrokerRow, CompositePreviewRow } from "./types";
 
 export function NewCustomSeligsonSection({
   brokersLoading,

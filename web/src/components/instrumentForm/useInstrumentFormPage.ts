@@ -24,7 +24,7 @@ import {
   fetchCompositePreviewAndNonCashInstruments,
 } from "../../api";
 import { mapYahooInstrumentFormError } from "../../lib/yahooInstrumentFormError";
-import type { CompositePreviewRow } from "./SeligsonCompositeModal";
+import type { CompositePreviewRow } from "./types";
 import type {
   BrokerRow,
   InstrumentDetail,

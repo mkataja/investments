@@ -1,4 +1,4 @@
-import type { BrokerType } from "@investments/lib";
+import type { BrokerType, CompositePseudoKey } from "@investments/lib";
 
 export type InstrumentKind =
   | "etf"
@@ -50,3 +50,11 @@ export type BrokerRow = {
 export type InstrumentFormPageProps =
   | { mode: "new" }
   | { mode: "edit"; instrumentId: number };
+
+/** One row from Seligson composite table preview (map to instruments or pseudo-keys). */
+export type CompositePreviewRow = {
+  rawLabel: string;
+  pctOfFund: number;
+  suggestedInstrumentId: number | null;
+  suggestedPseudoKey: CompositePseudoKey | null;
+};

@@ -19,16 +19,17 @@ import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
 import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
 import {
-  type BenchmarkWeightFormRow,
-  weightRowsEqual,
-} from "../../lib/portfolioBenchmarkWeights";
-import {
   PortfolioFormBenchmarkTotalField,
   PortfolioFormDivider,
   PortfolioFormEmergencyFundBlock,
   PortfolioFormNameField,
 } from "./PortfolioFormFields";
-import type { HomeInstrument, PortfolioEntity } from "./types";
+import {
+  type BenchmarkWeightFormRow,
+  type HomeInstrument,
+  type PortfolioEntity,
+  weightRowsEqual,
+} from "./types";
 
 type EditPortfolioModalProps = {
   open: boolean;

@@ -23,7 +23,7 @@ export type HoldingDistributionTooltipState = {
   y: number;
 };
 
-export type HoldingTooltipInstrument = {
+type HoldingTooltipInstrument = {
   kind: string;
   displayName: string;
   yahooSymbol: string | null;

@@ -1,4 +1,4 @@
-import type { CompositePreviewRow } from "../components/instrumentForm/SeligsonCompositeModal";
+import type { CompositePreviewRow } from "../components/instrumentForm/types";
 import { apiGet, apiPost } from "./client";
 
 export type CompositePreviewResponse = {

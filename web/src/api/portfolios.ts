@@ -1,4 +1,4 @@
-import type { BenchmarkWeightFormRow } from "../lib/portfolioBenchmarkWeights";
+import type { BenchmarkWeightFormRow } from "../pages/home/types";
 
 export function buildCreatePortfolioBody(args: {
   name: string;

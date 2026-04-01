@@ -3,6 +3,7 @@ import {
   type CompositePseudoKey,
   transactionInstrumentSelectLabel,
 } from "@investments/lib";
+import type { CompositePreviewRow } from "./types";
 
 const PSEUDO_LABEL: Record<CompositePseudoKey, string> = {
   other_equities: "Other equities (unknown distribution)",
@@ -17,13 +18,6 @@ const PSEUDO_LABEL: Record<CompositePseudoKey, string> = {
   other_ultrashort_bonds:
     "Other ultrashort bonds (unknown country distribution)",
   cash: "Cash",
-};
-
-export type CompositePreviewRow = {
-  rawLabel: string;
-  pctOfFund: number;
-  suggestedInstrumentId: number | null;
-  suggestedPseudoKey: CompositePseudoKey | null;
 };
 
 type InstrumentOption = {
