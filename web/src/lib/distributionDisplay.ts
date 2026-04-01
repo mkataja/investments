@@ -118,6 +118,31 @@ export type CountrySegment = {
 
 const REST_ICON = "🌍";
 
+function isoAlpha2ToEnglishCountryName(iso: string): string {
+  const c = iso.trim().toUpperCase();
+  if (c.length !== 2 || !/^[A-Z]{2}$/.test(c)) {
+    return iso;
+  }
+  try {
+    const dn = new Intl.DisplayNames(["en"], { type: "region" });
+    return dn.of(c) ?? c;
+  } catch {
+    return c;
+  }
+}
+
+/** Tooltip heading for country bars: flag emoji + full English name (`Intl.DisplayNames`). */
+export function countryBarTooltipHeading(bucketKey: string): string {
+  if (bucketKey === "rest") {
+    return `${REST_ICON} Other`;
+  }
+  if (bucketKey === UNMAPPED_COUNTRY_KEY) {
+    return `⚠️ ${CHART_UNKNOWN_LABEL}`;
+  }
+  const iso = bucketKey.trim().toUpperCase();
+  return `${countryIsoToFlagEmoji(bucketKey)} ${isoAlpha2ToEnglishCountryName(bucketKey)} (${iso})`;
+}
+
 /** Top `topN` ISO countries by weight, then one "Other" row for the remainder (if any). */
 export function topCountriesSegmentsForDisplay(
   countries: Record<string, number>,
@@ -149,7 +174,12 @@ export function topCountriesSegmentsForDisplay(
 /** Country bar chart: all ISO / unknown segments sorted by weight; unknown last. */
 export function allCountriesChartData(
   countries: Record<string, number>,
-): Array<{ name: string; value: number; bucketKey: string }> {
+): Array<{
+  name: string;
+  value: number;
+  bucketKey: string;
+  tooltipHeading: string;
+}> {
   const norm = normalizeCountryWeightsForDisplay(countries);
   const rows = Object.entries(norm)
     .filter(([, v]) => v >= MIN_PORTFOLIO_ALLOCATION_FRACTION)
@@ -161,7 +191,10 @@ export function allCountriesChartData(
   return sortBarChartRowsUnknownLast(
     rows,
     (r) => r.key === UNMAPPED_COUNTRY_KEY,
-  );
+  ).map((r) => ({
+    ...r,
+    tooltipHeading: countryBarTooltipHeading(r.bucketKey),
+  }));
 }
 
 function sortBarChartRowsUnknownLast(
@@ -305,6 +338,7 @@ export function allCountriesChartDataDual(
   primary: number;
   compare: number;
   bucketKey: string;
+  tooltipHeading: string;
 }> {
   const compareNorm = normalizeCountryWeightsForDisplay(compare);
   const pRows = countryBarRowsWithKeys(primary);
@@ -318,12 +352,14 @@ export function allCountriesChartDataDual(
       primary: r.value,
       compare: compareNorm[r.key] ?? 0,
       bucketKey: r.key,
+      tooltipHeading: countryBarTooltipHeading(r.key),
     })),
     ...compareOnly.map((r) => ({
       name: r.name,
       primary: 0,
       compare: r.value,
       bucketKey: r.key,
+      tooltipHeading: countryBarTooltipHeading(r.key),
     })),
   ];
 }
@@ -334,7 +370,12 @@ const COUNTRY_BAR_CHART_OTHER_ROW_LABEL = "Other";
 export function topCountriesChartData(
   countries: Record<string, number>,
   topN: number,
-): Array<{ name: string; value: number; bucketKey: string }> {
+): Array<{
+  name: string;
+  value: number;
+  bucketKey: string;
+  tooltipHeading: string;
+}> {
   const full = allCountriesChartData(countries);
   if (topN < 1 || full.length <= topN) {
     return full;
@@ -347,6 +388,7 @@ export function topCountriesChartData(
       name: COUNTRY_BAR_CHART_OTHER_ROW_LABEL,
       value: rest,
       bucketKey: "rest",
+      tooltipHeading: countryBarTooltipHeading("rest"),
     },
   ];
 }
@@ -361,6 +403,7 @@ export function topCountriesChartDataDual(
   primary: number;
   compare: number;
   bucketKey: string;
+  tooltipHeading: string;
 }> {
   const full = allCountriesChartDataDual(primary, compare);
   if (topN < 1 || full.length <= topN) {
@@ -377,6 +420,7 @@ export function topCountriesChartDataDual(
       primary: primaryRest,
       compare: compareRest,
       bucketKey: "rest",
+      tooltipHeading: countryBarTooltipHeading("rest"),
     },
   ];
 }

@@ -105,6 +105,8 @@ export function DistributionBarChartTooltip(
 DistributionBarChartTooltip.displayName = "Tooltip";
 
 type BarChartRowPayload = {
+  /** Country bar chart: full heading (flag + locale name); X-axis stays short ISO. */
+  tooltipHeading?: string;
   topHoldings?: BucketTopHolding[];
   topHoldingsPrimary?: BucketTopHolding[];
   topHoldingsCompare?: BucketTopHolding[];
@@ -130,14 +132,17 @@ export function createDistributionBarTooltipContent(options: {
     const topHoldings = row?.topHoldings;
     const topPrimary = row?.topHoldingsPrimary;
     const topCompare = row?.topHoldingsCompare;
+    const headingLabel =
+      row?.tooltipHeading ??
+      (label != null && label !== "" ? String(label) : undefined);
 
     return (
       <div
         className="rounded border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm"
         style={{ outline: "none" }}
       >
-        {label != null && label !== "" ? (
-          <p className="font-bold mb-1 text-slate-800">{label}</p>
+        {headingLabel != null && headingLabel !== "" ? (
+          <p className="font-bold mb-1 text-slate-800">{headingLabel}</p>
         ) : null}
         {payload.map((p) => {
           const v =
@@ -167,7 +172,11 @@ export function createDistributionBarTooltipContent(options: {
         {!options.showCompare && topHoldings && topHoldings.length === 0 ? (
           <p className="mt-2 border-t border-slate-200 pt-2 text-xs font-semibold text-slate-600">
             No contributors in{" "}
-            <em>{label != null && label !== "" ? label : "this bucket"}</em>
+            <em>
+              {headingLabel != null && headingLabel !== ""
+                ? headingLabel
+                : "this bucket"}
+            </em>
           </p>
         ) : null}
         {options.showCompare ? (
