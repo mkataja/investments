@@ -68,9 +68,44 @@ async function loadPositionRowsAtDate(
   return out;
 }
 
+type MixPointResult =
+  | { kind: "empty" }
+  | { kind: "stop" }
+  | { kind: "ok"; equitiesEur: number; cashEur: number };
+
+async function assetMixPointForDate(
+  portfolioId: number,
+  asOfDate: string,
+): Promise<MixPointResult> {
+  const rows = await loadPositionRowsAtDate(portfolioId, asOfDate);
+  if (rows.length === 0) {
+    return { kind: "empty" };
+  }
+  const valued = await valuePortfolioRowsEurAsOf(rows, asOfDate);
+  let cashEur = 0;
+  let equitiesEur = 0;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const v = valued[i];
+    if (!row || !v) {
+      continue;
+    }
+    if (row.inst.kind === "cash_account") {
+      cashEur += v.valueEur;
+      continue;
+    }
+    if (v.source === "none") {
+      return { kind: "stop" };
+    }
+    equitiesEur += v.valueEur;
+  }
+  return { kind: "ok", equitiesEur, cashEur };
+}
+
 /**
- * POC: weekly points from first portfolio trade through today; **equities** = all non–cash-account
- * holdings; **cash** = `cash_account` instruments. Stops when any non-cash position lacks a price on or before the date.
+ * POC: weekly samples from first portfolio trade, plus a trailing point for **today** (UTC calendar)
+ * when the weekly grid does not land on today. **equitiesEur** = all non–`cash_account` holdings;
+ * **cashEur** = `cash_account` instruments. Stops when any non-cash position lacks a price on or before the date.
  */
 export async function getPortfolioAssetMixHistory(
   portfolioId: number,
@@ -101,46 +136,41 @@ export async function getPortfolioAssetMixHistory(
   const points: Array<{ date: string; equitiesEur: number; cashEur: number }> =
     [];
 
+  let stoppedEarly = false;
   for (let d = startDate; d <= today; d = addDaysUtc(d, STEP_DAYS)) {
-    const rows = await loadPositionRowsAtDate(portfolioId, d);
-    if (rows.length === 0) {
-      points.push({ date: d, equitiesEur: 0, cashEur: 0 });
-      if (d >= today) {
-        break;
-      }
-      continue;
-    }
-
-    const valued = await valuePortfolioRowsEurAsOf(rows, d);
-    let cashEur = 0;
-    let equitiesEur = 0;
-    let stop = false;
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
-      const v = valued[i];
-      if (!row || !v) {
-        continue;
-      }
-      if (row.inst.kind === "cash_account") {
-        cashEur += v.valueEur;
-        continue;
-      }
-      if (v.source === "none") {
-        stop = true;
-        break;
-      }
-      equitiesEur += v.valueEur;
-    }
-    if (stop) {
+    const r = await assetMixPointForDate(portfolioId, d);
+    if (r.kind === "stop") {
+      stoppedEarly = true;
       break;
     }
-    points.push({
-      date: d,
-      equitiesEur,
-      cashEur,
-    });
+    if (r.kind === "empty") {
+      points.push({ date: d, equitiesEur: 0, cashEur: 0 });
+    } else {
+      points.push({
+        date: d,
+        equitiesEur: r.equitiesEur,
+        cashEur: r.cashEur,
+      });
+    }
     if (d >= today) {
       break;
+    }
+  }
+
+  if (
+    !stoppedEarly &&
+    !points.some((p) => p.date === today) &&
+    startDate <= today
+  ) {
+    const r = await assetMixPointForDate(portfolioId, today);
+    if (r.kind === "empty") {
+      points.push({ date: today, equitiesEur: 0, cashEur: 0 });
+    } else if (r.kind === "ok") {
+      points.push({
+        date: today,
+        equitiesEur: r.equitiesEur,
+        cashEur: r.cashEur,
+      });
     }
   }
 
