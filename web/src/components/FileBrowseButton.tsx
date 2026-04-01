@@ -1,5 +1,4 @@
 import type { ChangeEvent, Ref } from "react";
-import { buttonPrimaryClassName } from "./Button";
 
 export function FileBrowseButton({
   id,
@@ -32,7 +31,7 @@ export function FileBrowseButton({
       />
       <label
         htmlFor={id}
-        className={`${buttonPrimaryClassName} inline-flex shrink-0 cursor-pointer`}
+        className="button-basic inline-flex shrink-0 cursor-pointer"
       >
         Browse…
       </label>

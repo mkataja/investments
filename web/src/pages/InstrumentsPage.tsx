@@ -265,11 +265,7 @@ export function InstrumentsPage() {
 
       {error ? <ErrorAlert>{error}</ErrorAlert> : null}
 
-      {notice && (
-        <p className="text-emerald-900 text-sm bg-emerald-50 border border-emerald-200 rounded px-3 py-2">
-          {notice}
-        </p>
-      )}
+      {notice && <p className="banner-notice">{notice}</p>}
 
       {initialLoad ? (
         <InstrumentsTableSkeleton />
@@ -342,16 +338,6 @@ export function InstrumentsPage() {
                     </td>
                     <td className="p-2 text-right">
                       <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end sm:gap-3">
-                        {(i.kind === "cash_account" ||
-                          i.kind === "etf" ||
-                          i.kind === "stock") && (
-                          <Link
-                            to={`/instruments/${i.id}/edit`}
-                            className="text-sm text-emerald-800 hover:underline"
-                          >
-                            Edit
-                          </Link>
-                        )}
                         {i.kind !== "cash_account" && (
                           <button
                             type="button"
@@ -362,17 +348,27 @@ export function InstrumentsPage() {
                             }
                             onClick={() => void refreshDistribution(i)}
                             aria-busy={rowRefreshing}
-                            className="text-sm text-emerald-800 hover:underline disabled:opacity-50 inline-flex items-center justify-end gap-1.5"
+                            className="action-primary"
                           >
                             {rowRefreshing ? (
                               <>
-                                <RowRefreshSpinner className="text-emerald-800" />
+                                <RowRefreshSpinner />
                                 <span>Refreshing…</span>
                               </>
                             ) : (
                               "Refresh"
                             )}
                           </button>
+                        )}
+                        {(i.kind === "cash_account" ||
+                          i.kind === "etf" ||
+                          i.kind === "stock") && (
+                          <Link
+                            to={`/instruments/${i.id}/edit`}
+                            className="action-primary"
+                          >
+                            Edit
+                          </Link>
                         )}
                         <button
                           type="button"
@@ -382,9 +378,9 @@ export function InstrumentsPage() {
                             refreshingAll
                           }
                           onClick={() => void removeInstrument(i)}
-                          className="text-sm text-red-700 hover:underline disabled:opacity-50"
+                          className="action-delete"
                         >
-                          {deletingId === i.id ? "Removing…" : "Remove"}
+                          {deletingId === i.id ? "Deleting..." : "Delete"}
                         </button>
                       </div>
                     </td>

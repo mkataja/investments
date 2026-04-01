@@ -131,7 +131,7 @@ export function NewCustomSeligsonSection({
           </label>
           <button
             type="button"
-            className="bg-emerald-700 disabled:bg-slate-300 text-white px-4 py-2 rounded w-fit"
+            className="button-primary w-fit"
             disabled={compositionLoading}
             onClick={onLoadComposition}
           >

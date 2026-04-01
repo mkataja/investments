@@ -20,8 +20,8 @@ function transactionSideLabel(side: string, instrumentKind?: string): string {
 }
 
 function sideAccentClass(side: string): string | undefined {
-  if (side === "buy") return "text-buy";
-  if (side === "sell") return "text-sell";
+  if (side === "buy") return "txn-side-buy";
+  if (side === "sell") return "txn-side-sell";
   return undefined;
 }
 
@@ -117,14 +117,14 @@ export function TransactionsTable({
                 <td className="text-right p-2 space-x-3 whitespace-nowrap">
                   <button
                     type="button"
-                    className="text-action-edit underline text-sm"
+                    className="action-primary"
                     onClick={() => onEdit(t)}
                   >
                     Edit
                   </button>
                   <button
                     type="button"
-                    className="text-action-delete underline text-sm"
+                    className="action-delete"
                     onClick={() => {
                       if (
                         !window.confirm(

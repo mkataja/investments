@@ -6,7 +6,6 @@ import { ErrorAlert } from "../ErrorAlert";
 import { EditInstrumentPageSkeleton } from "../listPageSkeletons";
 import { CashAccountFormFields } from "./CashAccountFormFields";
 import { HoldingsBreakdownUrlFields } from "./HoldingsBreakdownUrlFields";
-import { INSTRUMENT_FORM_CANCEL_LINK_CLASS } from "./cancelLinkClass";
 import type { BrokerRow, InstrumentDetail } from "./types";
 
 export function EditInstrumentMode({
@@ -69,10 +68,7 @@ export function EditInstrumentMode({
     return (
       <div className="w-full min-w-0 page-stack">
         <header className="page-header-stack">
-          <Link
-            to="/instruments"
-            className="text-sm text-emerald-800 hover:underline"
-          >
+          <Link to="/instruments" className="action-link">
             ← Instruments
           </Link>
           <h1>Edit instrument</h1>
@@ -89,16 +85,10 @@ export function EditInstrumentMode({
     return (
       <div className="w-full min-w-0 page-stack">
         <header className="page-header-stack">
-          <Link
-            to="/instruments"
-            className="text-sm text-emerald-800 hover:underline"
-          >
+          <Link to="/instruments" className="action-link">
             ← Instruments
           </Link>
-          <h1>Edit instrument</h1>
-          <p className="text-sm text-slate-600">
-            {initial.kind === "etf" ? "ETF" : "Stock"}
-          </p>
+          <h1>Edit {initial.kind === "etf" ? "ETF" : "stock"}</h1>
           {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         </header>
 
@@ -132,16 +122,10 @@ export function EditInstrumentMode({
             />
           </div>
           <div className="flex flex-wrap gap-3">
-            <button
-              type="submit"
-              className="bg-emerald-700 text-white px-4 py-2 rounded"
-            >
+            <button type="submit" className="button-primary">
               Save
             </button>
-            <Link
-              to="/instruments"
-              className={INSTRUMENT_FORM_CANCEL_LINK_CLASS}
-            >
+            <Link to="/instruments" className="button-cancel">
               Cancel
             </Link>
           </div>
@@ -154,10 +138,7 @@ export function EditInstrumentMode({
     return (
       <div className="w-full min-w-0 page-stack">
         <header className="page-header-stack">
-          <Link
-            to="/instruments"
-            className="text-sm text-emerald-800 hover:underline"
-          >
+          <Link to="/instruments" className="action-link">
             ← Instruments
           </Link>
           <h1>Edit instrument</h1>
@@ -170,47 +151,46 @@ export function EditInstrumentMode({
     );
   }
 
-  return (
-    <div className="w-full min-w-0 page-stack">
-      <header className="page-header-stack">
-        <Link
-          to="/instruments"
-          className="text-sm text-emerald-800 hover:underline"
-        >
-          ← Instruments
-        </Link>
-        <h1>Edit instrument</h1>
-        <p className="text-sm text-slate-600">Cash account</p>
-        {error ? <ErrorAlert>{error}</ErrorAlert> : null}
-      </header>
-
-      <form onSubmit={(e) => void submitEditCash(e)} className="page-stack">
-        <CashAccountFormFields
-          brokersLoading={brokersLoading}
-          cashBrokers={cashBrokers}
-          cashBrokerId={cashBrokerId}
-          setCashBrokerId={setCashBrokerId}
-          cashDisplayName={cashDisplayName}
-          setCashDisplayName={setCashDisplayName}
-          cashCurrency={cashCurrency}
-          setCashCurrency={setCashCurrency}
-          cashGeoKey={cashGeoKey}
-          setCashGeoKey={setCashGeoKey}
-        />
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={brokersLoading}
-            className="bg-emerald-700 text-white px-4 py-2 rounded disabled:bg-slate-300 disabled:cursor-not-allowed"
-          >
-            Save
-          </button>
-          <Link to="/instruments" className={INSTRUMENT_FORM_CANCEL_LINK_CLASS}>
-            Cancel
+  if (initial.kind === "cash_account") {
+    return (
+      <div className="w-full min-w-0 page-stack">
+        <header className="page-header-stack">
+          <Link to="/instruments" className="action-link">
+            ← Instruments
           </Link>
-        </div>
-      </form>
-    </div>
-  );
+          <h1>Edit cash account</h1>
+          <p className="text-sm text-slate-600">Cash account</p>
+          {error ? <ErrorAlert>{error}</ErrorAlert> : null}
+        </header>
+
+        <form onSubmit={(e) => void submitEditCash(e)} className="page-stack">
+          <CashAccountFormFields
+            brokersLoading={brokersLoading}
+            cashBrokers={cashBrokers}
+            cashBrokerId={cashBrokerId}
+            setCashBrokerId={setCashBrokerId}
+            cashDisplayName={cashDisplayName}
+            setCashDisplayName={setCashDisplayName}
+            cashCurrency={cashCurrency}
+            setCashCurrency={setCashCurrency}
+            cashGeoKey={cashGeoKey}
+            setCashGeoKey={setCashGeoKey}
+          />
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="submit"
+              disabled={brokersLoading}
+              className="button-primary"
+            >
+              Save
+            </button>
+            <Link to="/instruments" className="button-cancel">
+              Cancel
+            </Link>
+          </div>
+        </form>
+      </div>
+    );
+  }
 }

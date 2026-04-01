@@ -209,14 +209,14 @@ export function BrokersPage() {
                     <td className="px-3 py-2 space-x-3 whitespace-nowrap">
                       <button
                         type="button"
-                        className="text-emerald-800 underline text-sm"
+                        className="action-primary"
                         onClick={() => startEdit(r)}
                       >
                         Edit
                       </button>
                       <button
                         type="button"
-                        className="text-red-700 underline text-sm"
+                        className="action-delete"
                         onClick={() => void remove(r.id)}
                       >
                         Delete

@@ -17,7 +17,6 @@ import { InstrumentKindPicker } from "../components/instrumentForm/InstrumentKin
 import { NewCustomSeligsonSection } from "../components/instrumentForm/NewCustomSeligsonSection";
 import { NewYahooEtfStockSection } from "../components/instrumentForm/NewYahooEtfStockSection";
 import type { CompositePreviewRow } from "../components/instrumentForm/SeligsonCompositeModal";
-import { INSTRUMENT_FORM_CANCEL_LINK_CLASS } from "../components/instrumentForm/cancelLinkClass";
 import type {
   BrokerRow,
   InstrumentDetail,
@@ -594,10 +593,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   return (
     <div className="w-full min-w-0 page-stack">
       <header className="page-header-stack">
-        <Link
-          to="/instruments"
-          className="text-sm text-emerald-800 hover:underline"
-        >
+        <Link to="/instruments" className="action-link">
           ← Instruments
         </Link>
         <h1>New instrument</h1>
@@ -699,11 +695,11 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
                 (kind === "custom" || kind === "cash_account")) ||
               (kind === "custom" && useCompositeAllocation)
             }
-            className="bg-emerald-700 disabled:bg-slate-300 text-white px-4 py-2 rounded"
+            className="button-primary"
           >
             Create instrument
           </button>
-          <Link to="/instruments" className={INSTRUMENT_FORM_CANCEL_LINK_CLASS}>
+          <Link to="/instruments" className="button-cancel">
             Cancel
           </Link>
         </div>

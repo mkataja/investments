@@ -37,7 +37,7 @@ When changing **`web`** forms/flows, add small UX wins when obvious (focus prima
 
 Do not add extra UI copy unless the user asks. Minimum copy for usability.
 
-Shared primary controls: **[`web/design-system.md`](web/design-system.md)**. **`Modal`** (**`web/src/components/Modal.tsx`**): optional **`confirmBeforeClose`**. Headings: **`heading-1`**–**`heading-4`** in **`web/tailwind.config.js`**; base styles in **`web/src/index.css`**.
+Shared UI patterns: **[`web/design-system.md`](web/design-system.md)**. Layout and action styles are **named classes** in **`web/src/index.css`** (`@layer base` + `@layer components`); **`web/tailwind.config.js`** only extends **`heading-1`**–**`heading-4`** font sizes (no custom color palette). Merge classes with **`classNames`** from **`web/src/lib/css.ts`** when a component accepts **`className`**. **`Modal`** (**`web/src/components/Modal.tsx`**): optional **`confirmBeforeClose`**.
 
 ### Before commit or sign-off
 

@@ -513,7 +513,7 @@ export function ImportPage() {
           </ErrorAlert>
         ) : null}
         {result !== null ? (
-          <p className="text-sm text-emerald-800">
+          <p className="copy-success">
             Processed {result.processed} transaction
             {result.processed === 1 ? "" : "s"}: {result.changed} written to the
             database
@@ -570,7 +570,7 @@ export function ImportPage() {
                   ) : (
                     <div>
                       <span className="text-xs text-slate-600">{p.isin}</span>
-                      <p className="mt-1 text-red-600">{p.error}</p>
+                      <p className="field-error">{p.error}</p>
                     </div>
                   )}
                 </li>
@@ -700,7 +700,7 @@ export function ImportPage() {
           </ErrorAlert>
         ) : null}
         {ibkrResult !== null ? (
-          <p className="text-sm text-emerald-800">
+          <p className="copy-success">
             Processed {ibkrResult.processed} transaction
             {ibkrResult.processed === 1 ? "" : "s"}: {ibkrResult.changed}{" "}
             written to the database
@@ -777,8 +777,8 @@ export function ImportPage() {
             {seligsonFile !== null ||
             (seligsonPasteOpen && seligsonPasteText.trim().length > 0) ? (
               <Button type="submit" disabled={busy}>
-              {busy ? "Working…" : "Import"}
-            </Button>
+                {busy ? "Working…" : "Import"}
+              </Button>
             ) : null}
           </div>
           {seligsonPasteOpen ? (
@@ -853,7 +853,7 @@ export function ImportPage() {
           </ErrorAlert>
         ) : null}
         {seligsonResult !== null ? (
-          <p className="text-sm text-emerald-800">
+          <p className="copy-success">
             Processed {seligsonResult.processed} transaction
             {seligsonResult.processed === 1 ? "" : "s"}:{" "}
             {seligsonResult.changed} written to the database
