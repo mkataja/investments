@@ -292,9 +292,19 @@ export function HomePage() {
                     onChange={(e) => {
                       const v = e.target.value;
                       const id = v === "" ? null : Number.parseInt(v, 10);
-                      setSelectedPortfolioId(
-                        id != null && Number.isFinite(id) ? id : null,
-                      );
+                      const nextId =
+                        id != null && Number.isFinite(id) ? id : null;
+                      if (
+                        nextId != null &&
+                        comparePortfolioId != null &&
+                        comparePortfolioId === nextId
+                      ) {
+                        const formerViewId = selectedPortfolioId;
+                        setComparePortfolioId(formerViewId);
+                        writeStoredComparePortfolioId(formerViewId);
+                        setComparePortfolio(null);
+                      }
+                      setSelectedPortfolioId(nextId);
                     }}
                   >
                     {portfolioEntities.map((pe) => (
