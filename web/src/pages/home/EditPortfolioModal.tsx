@@ -7,14 +7,13 @@ import {
   useRef,
   useState,
 } from "react";
-import { apiGet, apiPatch, apiPut } from "../../api";
+import { apiGet, apiPatch, apiPut, normalizeWeightRowsForApi } from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
 import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
 import {
   type BenchmarkWeightFormRow,
-  normalizeWeightRowsForApi,
   weightRowsEqual,
 } from "../../lib/portfolioBenchmarkWeights";
 import {
