@@ -79,7 +79,9 @@ Consider as necessary:
 
 ### Git commits
 
-One-line titles; no "feat:", "chore:", etc. prefixes; no message body unless necessary.
+- One-line titles
+- NO commit prefixes (such as `feat:` or `db:`, etc.)
+- NO message body unless necessary
 
 Keep commits well-scoped: one logical whole in one commit. Avoid committing dependent code in separate commits. Avoid committing multiple separate wholes in one commit.
 
