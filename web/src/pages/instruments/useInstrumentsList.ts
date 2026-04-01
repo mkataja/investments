@@ -19,6 +19,10 @@ export function useInstrumentsList() {
     () => new Set(),
   );
   const [refreshingAll, setRefreshingAll] = useState(false);
+  const [refreshAllProgress, setRefreshAllProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -84,6 +88,7 @@ export function useInstrumentsList() {
     setError(null);
     setNotice(null);
     setRefreshingAll(true);
+    setRefreshAllProgress({ done: 0, total: targets.length });
     let ok = 0;
     let skippedManual = 0;
     let skippedOther = 0;
@@ -91,9 +96,10 @@ export function useInstrumentsList() {
     let failed = 0;
     let firstFailure: string | null = null;
     try {
-      for (const i of targets) {
+      for (const [idx, i] of targets.entries()) {
         if (isSkippedByRefreshAllBackoff(i)) {
           skippedBackoff += 1;
+          setRefreshAllProgress({ done: idx + 1, total: targets.length });
           continue;
         }
         try {
@@ -114,6 +120,7 @@ export function useInstrumentsList() {
             firstFailure = e instanceof Error ? e.message : String(e);
           }
         }
+        setRefreshAllProgress({ done: idx + 1, total: targets.length });
       }
       await load();
       const parts: string[] = [];
@@ -143,6 +150,7 @@ export function useInstrumentsList() {
       setError(String(e));
     } finally {
       setRefreshingAll(false);
+      setRefreshAllProgress(null);
     }
   }, [rows, load]);
 
@@ -200,6 +208,7 @@ export function useInstrumentsList() {
     sortedRows,
     refreshingIds,
     refreshingAll,
+    refreshAllProgress,
     deletingId,
     refreshableCount,
     refreshDistribution,

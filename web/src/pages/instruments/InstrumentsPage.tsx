@@ -12,6 +12,7 @@ export function InstrumentsPage() {
     sortedRows,
     refreshingIds,
     refreshingAll,
+    refreshAllProgress,
     deletingId,
     refreshableCount,
     refreshDistribution,
@@ -34,7 +35,9 @@ export function InstrumentsPage() {
             }
             onClick={() => void refreshAllDistributions()}
           >
-            {refreshingAll ? "Refreshing all..." : "Refresh all"}
+            {refreshingAll
+              ? `${refreshAllProgress?.done ?? 0}/${refreshAllProgress?.total ?? 0} refreshed`
+              : "Refresh all"}
           </Button>
           <ButtonLink to="/instruments/new">New instrument</ButtonLink>
         </div>
