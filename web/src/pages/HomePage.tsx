@@ -1,10 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { apiGet } from "../api";
+import { useMemo, useState } from "react";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import {
-  readStoredComparePortfolioId,
-  readStoredPortfolioId,
   writeStoredComparePortfolioId,
   writeStoredPortfolioId,
 } from "../lib/portfolioSelection";
@@ -15,103 +12,30 @@ import { NewTransactionModal } from "./home/NewTransactionModal";
 import { TransactionsTable } from "./home/TransactionsTable";
 import { buildInstrumentTickerById } from "./home/instrumentTickerCell";
 import { PortfolioCharts } from "./home/portfolioCharts";
-import type {
-  HomeInstrument,
-  HomeTransaction,
-  PortfolioDistributions,
-  PortfolioEntity,
-} from "./home/types";
-
-type Broker = {
-  id: number;
-  name: string;
-  brokerType: string;
-};
+import type { HomeTransaction } from "./home/types";
+import { useHomeData } from "./home/useHomeData";
 
 export function HomePage() {
-  const [brokers, setBrokers] = useState<Broker[]>([]);
-  const [transactions, setTransactions] = useState<HomeTransaction[]>([]);
-  const [instruments, setInstruments] = useState<HomeInstrument[]>([]);
-  const [portfolio, setPortfolio] = useState<PortfolioDistributions | null>(
-    null,
-  );
-  const [comparePortfolio, setComparePortfolio] =
-    useState<PortfolioDistributions | null>(null);
-  const [portfolioEntities, setPortfolioEntities] = useState<PortfolioEntity[]>(
-    [],
-  );
-  const [selectedPortfolioId, setSelectedPortfolioId] = useState<number | null>(
-    null,
-  );
-  const [comparePortfolioId, setComparePortfolioId] = useState<number | null>(
-    () => readStoredComparePortfolioId(),
-  );
-  const [error, setError] = useState<string | null>(null);
+  const {
+    brokers,
+    transactions,
+    instruments,
+    portfolio,
+    comparePortfolio,
+    setComparePortfolio,
+    portfolioEntities,
+    setPortfolioEntities,
+    selectedPortfolioId,
+    setSelectedPortfolioId,
+    comparePortfolioId,
+    setComparePortfolioId,
+    error,
+    setError,
+    load,
+  } = useHomeData();
+
   const [newPortfolioOpen, setNewPortfolioOpen] = useState(false);
   const [editPortfolioOpen, setEditPortfolioOpen] = useState(false);
-
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const plist = await apiGet<PortfolioEntity[]>("/portfolios");
-      setPortfolioEntities(plist);
-      const stored = readStoredPortfolioId();
-      let pid = selectedPortfolioId;
-      if (pid == null || !plist.some((x) => x.id === pid)) {
-        pid = plist.find((x) => x.id === stored)?.id ?? plist[0]?.id ?? null;
-      }
-      if (pid !== selectedPortfolioId) {
-        setSelectedPortfolioId(pid);
-        return;
-      }
-      let cmpId = comparePortfolioId;
-      if (pid == null) {
-        cmpId = null;
-        if (comparePortfolioId != null) {
-          writeStoredComparePortfolioId(null);
-        }
-      } else if (
-        cmpId != null &&
-        (cmpId === pid || !plist.some((x) => x.id === cmpId))
-      ) {
-        cmpId = null;
-        writeStoredComparePortfolioId(null);
-      }
-      if (cmpId !== comparePortfolioId) {
-        setComparePortfolioId(cmpId);
-        return;
-      }
-      if (pid == null) {
-        setBrokers([]);
-        setTransactions([]);
-        setInstruments([]);
-        setPortfolio(null);
-        setComparePortfolio(null);
-        return;
-      }
-      writeStoredPortfolioId(pid);
-      const [b, t, inst, p, pCmp] = await Promise.all([
-        apiGet<Broker[]>("/brokers"),
-        apiGet<HomeTransaction[]>(`/transactions?portfolioId=${pid}`),
-        apiGet<HomeInstrument[]>("/instruments"),
-        apiGet<PortfolioDistributions>(
-          `/portfolio/distributions?portfolioId=${pid}`,
-        ),
-        cmpId != null
-          ? apiGet<PortfolioDistributions>(
-              `/portfolio/distributions?portfolioId=${cmpId}`,
-            )
-          : Promise.resolve(null),
-      ]);
-      setBrokers(b);
-      setTransactions(t);
-      setInstruments(inst);
-      setPortfolio(p);
-      setComparePortfolio(pCmp);
-    } catch (e) {
-      setError(String(e));
-    }
-  }, [selectedPortfolioId, comparePortfolioId]);
 
   const instrumentNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -122,7 +46,7 @@ export function HomePage() {
   }, [instruments]);
 
   const instrumentById = useMemo(() => {
-    const m = new Map<number, HomeInstrument>();
+    const m = new Map<number, (typeof instruments)[number]>();
     for (const i of instruments) {
       m.set(i.id, i);
     }
@@ -171,10 +95,6 @@ export function HomePage() {
   }, [selectedPortfolioId, portfolioEntities]);
 
   const selectedIsBenchmark = selectedPortfolioEntity?.kind === "benchmark";
-
-  useEffect(() => {
-    void load();
-  }, [load]);
 
   const [txnModalOpen, setTxnModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] =
