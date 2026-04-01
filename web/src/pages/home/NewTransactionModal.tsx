@@ -6,11 +6,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPatch, apiPost } from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
+import { classNames } from "../../lib/css";
 import {
   formatLocalDateTimeYmdHm,
   parseLocalDateTimeYmdHm,
 } from "../../lib/dateTimeFormat";
 import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
+
+/** Keeps native disabled selects from gray backgrounds; matches other fields. */
+const TX_FORM_CONTROL =
+  "mt-1 block w-full border rounded px-2 py-1 bg-white disabled:bg-white disabled:text-slate-800";
 
 type Broker = {
   id: number;
@@ -250,7 +255,7 @@ export function NewTransactionModal({
           Broker
           <select
             ref={brokerSelectRef}
-            className="mt-1 block w-full border rounded px-2 py-1"
+            className={TX_FORM_CONTROL}
             value={txnForm.brokerId}
             onChange={(e) =>
               setTxnForm({
@@ -270,7 +275,7 @@ export function NewTransactionModal({
           Date and time
           <input
             type="text"
-            className="mt-1 block w-full border rounded px-2 py-1"
+            className={TX_FORM_CONTROL}
             autoComplete="off"
             placeholder="YYYY-MM-DD HH:mm"
             value={txnForm.tradeDate}
@@ -282,7 +287,16 @@ export function NewTransactionModal({
         <label className="block text-sm">
           {isCashTxn ? "Cash account" : "Instrument"}
           <select
-            className="mt-1 block w-full border rounded px-2 py-1"
+            className={classNames(
+              TX_FORM_CONTROL,
+              (txnInstrumentsLoading || txnInstruments.length === 0) &&
+                classNames(
+                  "disabled:opacity-80",
+                  txnInstrumentsLoading
+                    ? "disabled:cursor-wait"
+                    : "disabled:cursor-not-allowed",
+                ),
+            )}
             disabled={txnInstrumentsLoading || txnInstruments.length === 0}
             value={
               txnInstruments.some((i) => i.id === txnForm.instrumentId)
@@ -310,7 +324,7 @@ export function NewTransactionModal({
         <label className="block text-sm">
           {isCashTxn ? "Deposit / withdrawal" : "Side"}
           <select
-            className="mt-1 block w-full border rounded px-2 py-1"
+            className={TX_FORM_CONTROL}
             value={
               isCashTxn
                 ? txnForm.side === "buy"
@@ -351,7 +365,7 @@ export function NewTransactionModal({
             <label className="block text-sm">
               Sum
               <input
-                className="mt-1 block w-full border rounded px-2 py-1"
+                className={TX_FORM_CONTROL}
                 inputMode="decimal"
                 value={txnForm.quantity}
                 onChange={(e) =>
@@ -362,7 +376,7 @@ export function NewTransactionModal({
             <label className="block text-sm">
               Currency
               <select
-                className="mt-1 block w-full border rounded px-2 py-1"
+                className={TX_FORM_CONTROL}
                 value={txnForm.currency}
                 onChange={(e) =>
                   setTxnForm({ ...txnForm, currency: e.target.value })
@@ -381,7 +395,7 @@ export function NewTransactionModal({
             <label className="block text-sm">
               Quantity
               <input
-                className="mt-1 block w-full border rounded px-2 py-1"
+                className={TX_FORM_CONTROL}
                 value={txnForm.quantity}
                 onChange={(e) =>
                   setTxnForm({ ...txnForm, quantity: e.target.value })
@@ -391,7 +405,7 @@ export function NewTransactionModal({
             <label className="block text-sm">
               Unit price
               <input
-                className="mt-1 block w-full border rounded px-2 py-1"
+                className={TX_FORM_CONTROL}
                 value={txnForm.unitPrice}
                 onChange={(e) =>
                   setTxnForm({ ...txnForm, unitPrice: e.target.value })
@@ -401,7 +415,7 @@ export function NewTransactionModal({
             <label className="block text-sm">
               Currency
               <input
-                className="mt-1 block w-full border rounded px-2 py-1"
+                className={TX_FORM_CONTROL}
                 value={txnForm.currency}
                 onChange={(e) =>
                   setTxnForm({ ...txnForm, currency: e.target.value })
@@ -411,7 +425,7 @@ export function NewTransactionModal({
             <label className="block text-sm">
               Unit price EUR (optional)
               <input
-                className="mt-1 block w-full border rounded px-2 py-1"
+                className={TX_FORM_CONTROL}
                 value={txnForm.unitPriceEur}
                 onChange={(e) =>
                   setTxnForm({ ...txnForm, unitPriceEur: e.target.value })
