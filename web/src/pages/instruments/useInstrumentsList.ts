@@ -1,6 +1,13 @@
 import { instrumentTickerDisplay } from "@investments/lib";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { apiDelete, apiGet, apiPost } from "../../api";
+import {
+  apiDelete,
+  apiGet,
+  apiPost,
+  bucketRefreshBatchResult,
+  interpretRefreshDistributionResponse,
+  userMessageForSkippedRefresh,
+} from "../../api";
 import type { InstrumentListItem, RefreshDistributionResponse } from "./types";
 
 export function useInstrumentsList() {
@@ -43,19 +50,16 @@ export function useInstrumentsList() {
         const res = await apiPost<RefreshDistributionResponse>(
           `/instruments/${i.id}/refresh-distribution`,
         );
-        if ("skipped" in res) {
-          if (res.reason === "manual") {
-            setError(
-              "This instrument uses a manual distribution cache; automatic refresh is skipped.",
-            );
-          } else {
-            setError(`Refresh skipped (${res.reason}).`);
-          }
+        const interpreted = interpretRefreshDistributionResponse(res);
+        if (interpreted.kind === "skipped") {
+          setError(userMessageForSkippedRefresh(interpreted.reason));
           return;
         }
-        if ("instrument" in res && res.instrument) {
+        if (interpreted.kind === "merge") {
           setRows((prev) =>
-            prev.map((r) => (r.id === i.id ? { ...r, ...res.instrument } : r)),
+            prev.map((r) =>
+              r.id === i.id ? { ...r, ...interpreted.instrument } : r,
+            ),
           );
         } else {
           await load();
@@ -92,14 +96,13 @@ export function useInstrumentsList() {
           const res = await apiPost<RefreshDistributionResponse>(
             `/instruments/${i.id}/refresh-distribution`,
           );
-          if ("skipped" in res) {
-            if (res.reason === "manual") {
-              skippedManual += 1;
-            } else {
-              skippedOther += 1;
-            }
-          } else {
+          const bucket = bucketRefreshBatchResult(res);
+          if (bucket === "ok") {
             ok += 1;
+          } else if (bucket === "skipped_manual") {
+            skippedManual += 1;
+          } else {
+            skippedOther += 1;
           }
         } catch (e) {
           failed += 1;
