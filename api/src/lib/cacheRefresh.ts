@@ -214,7 +214,7 @@ export async function writeYahooDistributionCache(
         currency: priceExtract.currency,
         fetchedAt,
         source: "yahoo_quote_summary",
-        priceType: "close",
+        priceType: priceExtract.priceType,
       });
     }
   });
@@ -241,7 +241,7 @@ export async function upsertYahooPriceFromQuoteSummaryRaw(
       currency: priceExtract.currency,
       fetchedAt,
       source: "yahoo_quote_summary",
-      priceType: "close",
+      priceType: priceExtract.priceType,
     });
   }
   await maybeBackfillInstrumentIsinFromYahooRaw(
@@ -302,7 +302,7 @@ export async function upsertCommodityCachesFromYahooRaw(
         currency: priceExtract.currency,
         fetchedAt,
         source: "yahoo_quote_summary",
-        priceType: "close",
+        priceType: priceExtract.priceType,
       });
     }
   });

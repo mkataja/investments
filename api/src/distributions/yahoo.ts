@@ -112,10 +112,24 @@ export function displayNameFromYahooLookup(
   return (a || b || symbol).trim();
 }
 
+/**
+ * Map Yahoo `quoteSummary.price.marketState` to stored `prices.price_type`.
+ * `REGULAR` is the live regular session; other states use the last regular price
+ * (session close or stale prior close), so we store `close`.
+ */
+export function yahooPriceTypeFromMarketState(
+  marketState: unknown,
+): "close" | "intraday" {
+  if (typeof marketState !== "string") {
+    return "close";
+  }
+  return marketState.trim().toUpperCase() === "REGULAR" ? "intraday" : "close";
+}
+
 /** `quoteSummary` `price` module — used for `prices` upsert (no `quote()` call). */
 export function extractYahooPriceFromQuoteSummaryRaw(
   raw: YahooQuoteSummaryRaw,
-): { price: number; currency: string } | null {
+): { price: number; currency: string; priceType: "close" | "intraday" } | null {
   const p = raw.price as Record<string, unknown> | undefined;
   if (!p) {
     return null;
@@ -138,7 +152,11 @@ export function extractYahooPriceFromQuoteSummaryRaw(
   if (n === null || !(n > 0) || !c) {
     return null;
   }
-  return { price: n, currency: c };
+  return {
+    price: n,
+    currency: c,
+    priceType: yahooPriceTypeFromMarketState(p.marketState),
+  };
 }
 
 export function normalizeYahooDistribution(

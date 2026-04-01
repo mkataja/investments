@@ -1,12 +1,16 @@
-import { instruments, seligsonFundValueCache, seligsonFunds } from "@investments/db";
+import {
+  instruments,
+  seligsonFundValueCache,
+  seligsonFunds,
+} from "@investments/db";
 import * as cheerio from "cheerio";
 import { eq } from "drizzle-orm";
 import type { DbClient } from "../db.js";
-import { upsertPriceForDate } from "../lib/priceDistributionWrite.js";
 import {
   normalizeSeligsonFundNameForMatch,
   parseSeligsonTradeDateDMY,
 } from "../import/seligsonTransactions.js";
+import { upsertPriceForDate } from "../lib/priceDistributionWrite.js";
 
 const FUND_VALUES_URL =
   "https://www.seligson.fi/suomi/rahastot/FundValues_FI.html";
