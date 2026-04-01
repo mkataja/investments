@@ -244,7 +244,7 @@ export function InstrumentsPage() {
 
   return (
     <div className="w-full min-w-0 page-stack">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 page-header-sticky">
         <h1>Instruments</h1>
         <div className="flex flex-wrap items-center gap-3">
           <Button

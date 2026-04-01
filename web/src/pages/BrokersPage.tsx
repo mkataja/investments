@@ -132,7 +132,7 @@ export function BrokersPage() {
 
   return (
     <div className="w-full min-w-0 page-stack">
-      <header className="flex flex-wrap items-center justify-between gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-3 page-header-sticky">
         <h1>Brokers</h1>
         <Button type="button" onClick={() => openAddModal()}>
           Add broker

@@ -37,6 +37,7 @@ Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`headi
 | `page-section` | Section with heading + blocks |
 | `subsection-stack` | `h3` + table/chart block |
 | `page-header-stack` | Title row (back link, `h1`, meta) |
+| `page-header-sticky` | Sticky title bar — combine with `page-header-stack` or a flex title row (`sticky`, border, `bg-slate-50`) |
 | `modal-stack` | Modal body |
 | `modal-title` | Modal `h2` |
 | `form-stack` | Compact stacked form |
