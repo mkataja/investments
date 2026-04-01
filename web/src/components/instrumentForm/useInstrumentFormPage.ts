@@ -19,6 +19,9 @@ import {
   buildCreateCustomSeligsonBody,
   buildCreateEtfStockBody,
   buildPatchEtfStockUrlsBody,
+  computeCashAccountInstrumentPatch,
+  computeCommodityInstrumentPatch,
+  fetchCompositePreviewAndNonCashInstruments,
 } from "../../api";
 import { mapYahooInstrumentFormError } from "../../lib/yahooInstrumentFormError";
 import type { CompositePreviewRow } from "./SeligsonCompositeModal";
@@ -255,31 +258,11 @@ export function useInstrumentFormPage(props: InstrumentFormPageProps) {
     }
     setCompositionLoading(true);
     try {
-      const [preview, instList] = await Promise.all([
-        apiPost<{
-          asOfDate: string | null;
-          fundName: string | null;
-          rows: CompositePreviewRow[];
-          notes: string[];
-        }>("/instruments/composite-preview", {
-          source: "seligson_pharos_table",
-          url: u,
-        }),
-        apiGet<
-          Array<{
-            id: number;
-            kind: string;
-            displayName: string;
-            yahooSymbol: string | null;
-            seligsonFund: { id: number; fid: number; name: string } | null;
-          }>
-        >("/instruments"),
-      ]);
+      const { preview, instruments: instList } =
+        await fetchCompositePreviewAndNonCashInstruments(u);
       setCompositePreview(preview);
       setCompositeFundDisplayName(preview.fundName?.trim() ?? "");
-      setInstrumentOptionsForComposite(
-        instList.filter((i) => i.kind !== "cash_account"),
-      );
+      setInstrumentOptionsForComposite(instList);
       const sel: Record<number, string> = {};
       preview.rows.forEach((r, i) => {
         if (r.suggestedPseudoKey) {
@@ -515,37 +498,29 @@ export function useInstrumentFormPage(props: InstrumentFormPageProps) {
       return;
     }
 
-    const patch: Record<string, string | number> = {};
-
-    if (cashDisplayName.trim() !== initial.displayName) {
-      patch.displayName = cashDisplayName.trim();
-    }
-    if (
-      cashBrokerId !== "" &&
-      typeof cashBrokerId === "number" &&
-      cashBrokerId !== initial.brokerId
-    ) {
-      patch.brokerId = cashBrokerId;
-    }
-    if (cashCurrency !== (initial.cashCurrency ?? DEFAULT_CASH_CURRENCY)) {
-      patch.cashCurrency = cashCurrency;
-    }
-    const geoIso = normalizeCashAccountIsoCountryCode(cashGeoKey);
-    if (geoIso == null) {
-      setError("Enter a valid ISO 3166-1 alpha-2 country code (e.g. FI, US).");
+    const built = computeCashAccountInstrumentPatch({
+      initial: {
+        displayName: initial.displayName,
+        brokerId: initial.brokerId,
+        cashCurrency: initial.cashCurrency,
+        cashGeoKey: initial.cashGeoKey,
+      },
+      cashDisplayName,
+      cashBrokerId,
+      cashCurrency,
+      cashGeoKey,
+    });
+    if (!built.ok) {
+      setError(built.error);
       return;
     }
-    if (geoIso !== (initial.cashGeoKey ?? "")) {
-      patch.cashGeoKey = geoIso;
-    }
-
-    if (Object.keys(patch).length === 0) {
+    if (Object.keys(built.patch).length === 0) {
       navigate("/instruments");
       return;
     }
 
     try {
-      await apiPatch(`/instruments/${editInstrumentId}`, patch);
+      await apiPatch(`/instruments/${editInstrumentId}`, built.patch);
       navigate("/instruments");
     } catch (err) {
       setError(String(err));
@@ -613,32 +588,24 @@ export function useInstrumentFormPage(props: InstrumentFormPageProps) {
     if (!initial || initial.kind !== "commodity" || editInstrumentId == null) {
       return;
     }
-    const patch: Record<string, string | null> = {};
-    if (commoditySector !== initial.commoditySector) {
-      patch.commoditySector = commoditySector;
+    const built = computeCommodityInstrumentPatch({
+      initial: {
+        commoditySector: initial.commoditySector,
+        commodityCountryIso: initial.commodityCountryIso,
+      },
+      commoditySector,
+      commodityCountryIso,
+    });
+    if (!built.ok) {
+      setError(built.error);
+      return;
     }
-    const nextCountry = commodityCountryIso.trim();
-    const prevCountry = (initial.commodityCountryIso ?? "").trim();
-    if (nextCountry !== prevCountry) {
-      patch.commodityCountryIso = nextCountry.length === 0 ? null : nextCountry;
-    }
-    if (Object.keys(patch).length === 0) {
+    if (Object.keys(built.patch).length === 0) {
       navigate("/instruments");
       return;
     }
-    if (
-      patch.commodityCountryIso != null &&
-      patch.commodityCountryIso.length > 0
-    ) {
-      const iso = normalizeCashAccountIsoCountryCode(patch.commodityCountryIso);
-      if (iso == null) {
-        setError("Country must be a valid ISO code or blank.");
-        return;
-      }
-      patch.commodityCountryIso = iso;
-    }
     try {
-      await apiPatch(`/instruments/${editInstrumentId}`, patch);
+      await apiPatch(`/instruments/${editInstrumentId}`, built.patch);
       navigate("/instruments");
     } catch (err) {
       setError(String(err));
