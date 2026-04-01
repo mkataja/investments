@@ -158,6 +158,14 @@ export function HomePage() {
     [instruments],
   );
 
+  const brokerNameById = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const b of brokers) {
+      m.set(b.id, b.name);
+    }
+    return m;
+  }, [brokers]);
+
   const showDistributionCompare =
     comparePortfolioId != null && comparePortfolioId !== selectedPortfolioId;
 
@@ -413,6 +421,7 @@ export function HomePage() {
 
       <TransactionsTable
         transactions={transactions}
+        brokerNameById={brokerNameById}
         instrumentById={instrumentById}
         instrumentNameById={instrumentNameById}
         instrumentTickerById={instrumentTickerById}

@@ -27,6 +27,7 @@ function sideAccentClass(side: string): string | undefined {
 
 type TransactionsTableProps = {
   transactions: HomeTransaction[];
+  brokerNameById: Map<number, string>;
   instrumentById: Map<number, HomeInstrument>;
   instrumentNameById: Map<number, string>;
   instrumentTickerById: Map<number, string | null>;
@@ -37,6 +38,7 @@ type TransactionsTableProps = {
 
 export function TransactionsTable({
   transactions,
+  brokerNameById,
   instrumentById,
   instrumentNameById,
   instrumentTickerById,
@@ -55,6 +57,7 @@ export function TransactionsTable({
               <th className="text-left p-2 font-medium">Side</th>
               <th className="text-left p-2 font-medium">Instrument</th>
               <th className="text-left p-2 font-medium">Ticker</th>
+              <th className="text-left p-2 font-medium">Broker</th>
               <th className="text-right p-2 font-medium">Qty</th>
               <th className="text-right p-2 font-medium">Price</th>
               <th className="text-right p-2 font-medium">Value</th>
@@ -83,6 +86,9 @@ export function TransactionsTable({
                     instrumentById,
                     instrumentTickerById,
                   )}
+                </td>
+                <td className="p-2 text-left min-w-[8rem]">
+                  {brokerNameById.get(t.brokerId) ?? `#${t.brokerId}`}
                 </td>
                 <td className="p-2 text-right">
                   {instrumentById.get(t.instrumentId)?.kind === "cash_account"
