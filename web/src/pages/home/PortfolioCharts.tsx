@@ -17,7 +17,10 @@ import {
   secondLargestMainPortfolioBarValue,
 } from "../../lib/distributionBarChartAxis";
 import {
+  countryBarChartRestTailKeys,
+  countryBarChartRestTailKeysDual,
   equitySectorsForDisplay,
+  mergeRestCountryTopHoldings,
   portfolioRegionBarRows,
   portfolioRegionBarRowsDual,
   portfolioSectorBarRows,
@@ -265,22 +268,44 @@ export function PortfolioCharts({
     const th = portfolio.bucketTopHoldings?.countries ?? {};
     const thCmp = comparePortfolio?.bucketTopHoldings?.countries ?? {};
     if (!showDistributionCompare) {
+      const tailKeys = countryBarChartRestTailKeys(
+        portfolio.countries,
+        countryChartEntryCount,
+      );
       return topCountriesChartData(
         portfolio.countries,
         countryChartEntryCount,
       ).map((r) => ({
         ...r,
-        topHoldings: th[r.bucketKey] ?? [],
+        topHoldings:
+          r.bucketKey === "rest"
+            ? mergeRestCountryTopHoldings(tailKeys, th, portfolio.countries)
+            : (th[r.bucketKey] ?? []),
       }));
     }
+    const tailKeysDual = countryBarChartRestTailKeysDual(
+      portfolio.countries,
+      comparePortfolio?.countries ?? {},
+      countryChartEntryCount,
+    );
     return topCountriesChartDataDual(
       portfolio.countries,
       comparePortfolio?.countries ?? {},
       countryChartEntryCount,
     ).map((r) => ({
       ...r,
-      topHoldingsPrimary: th[r.bucketKey] ?? [],
-      topHoldingsCompare: thCmp[r.bucketKey] ?? [],
+      topHoldingsPrimary:
+        r.bucketKey === "rest"
+          ? mergeRestCountryTopHoldings(tailKeysDual, th, portfolio.countries)
+          : (th[r.bucketKey] ?? []),
+      topHoldingsCompare:
+        r.bucketKey === "rest"
+          ? mergeRestCountryTopHoldings(
+              tailKeysDual,
+              thCmp,
+              comparePortfolio?.countries ?? {},
+            )
+          : (thCmp[r.bucketKey] ?? []),
     }));
   }, [
     portfolio.countries,

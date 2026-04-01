@@ -430,6 +430,86 @@ export function topCountriesChartDataDual(
   ];
 }
 
+/** Same tail ISO keys as {@link topCountriesChartData} merges into `bucketKey: "rest"` (empty if no Rest bar). */
+export function countryBarChartRestTailKeys(
+  countries: Record<string, number>,
+  topN: number,
+): string[] {
+  const full = allCountriesChartData(countries);
+  if (topN < 1 || full.length <= topN) {
+    return [];
+  }
+  return full.slice(topN).map((r) => r.bucketKey);
+}
+
+/** Same tail keys as {@link topCountriesChartDataDual} merges into `bucketKey: "rest"`. */
+export function countryBarChartRestTailKeysDual(
+  primary: Record<string, number>,
+  compare: Record<string, number>,
+  topN: number,
+): string[] {
+  const full = allCountriesChartDataDual(primary, compare);
+  if (topN < 1 || full.length <= topN) {
+    return [];
+  }
+  return full.slice(topN).map((r) => r.bucketKey);
+}
+
+export type CountryBucketTopHolding = {
+  instrumentId: number;
+  displayName: string;
+  tickerSymbol: string | null;
+  pctOfBucket: number;
+};
+
+/**
+ * `bucketTopHoldings.countries` is keyed by ISO (no `rest`). Merge tail countries' top lists
+ * into one list with `pctOfBucket` relative to the combined Rest weight.
+ */
+export function mergeRestCountryTopHoldings(
+  tailKeys: string[],
+  thByCountry: Record<string, CountryBucketTopHolding[]>,
+  countryWeights: Record<string, number>,
+): CountryBucketTopHolding[] {
+  const norm = normalizeCountryWeightsForDisplay(countryWeights);
+  const byInstrument = new Map<
+    number,
+    { abs: number; displayName: string; tickerSymbol: string | null }
+  >();
+
+  for (const k of tailKeys) {
+    const w = norm[k] ?? 0;
+    if (w <= 0) continue;
+    for (const h of thByCountry[k] ?? []) {
+      const add = w * h.pctOfBucket;
+      const prev = byInstrument.get(h.instrumentId);
+      if (prev) {
+        prev.abs += add;
+      } else {
+        byInstrument.set(h.instrumentId, {
+          abs: add,
+          displayName: h.displayName,
+          tickerSymbol: h.tickerSymbol,
+        });
+      }
+    }
+  }
+
+  const total = tailKeys.reduce((s, k) => s + (norm[k] ?? 0), 0);
+  if (total < MIN_PORTFOLIO_ALLOCATION_FRACTION || byInstrument.size === 0) {
+    return [];
+  }
+
+  const rows = [...byInstrument.entries()].map(([instrumentId, meta]) => ({
+    instrumentId,
+    displayName: meta.displayName,
+    tickerSymbol: meta.tickerSymbol,
+    pctOfBucket: meta.abs / total,
+  }));
+  rows.sort((a, b) => b.pctOfBucket - a.pctOfBucket);
+  return rows.slice(0, 5);
+}
+
 /** Regions bar chart: sorted by weight; geo bucket **unknown** last. */
 export function portfolioRegionBarRows(
   regions: Record<string, number>,
