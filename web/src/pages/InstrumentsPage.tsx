@@ -92,7 +92,9 @@ export function InstrumentsPage() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
-  const [refreshingId, setRefreshingId] = useState<number | null>(null);
+  const [refreshingIds, setRefreshingIds] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
   const [refreshingAll, setRefreshingAll] = useState(false);
 
   const load = useCallback(async () => {
@@ -118,7 +120,7 @@ export function InstrumentsPage() {
     }
     setError(null);
     setNotice(null);
-    setRefreshingId(i.id);
+    setRefreshingIds((prev) => new Set(prev).add(i.id));
     try {
       const res = await apiPost<RefreshResponse>(
         `/instruments/${i.id}/refresh-distribution`,
@@ -143,7 +145,11 @@ export function InstrumentsPage() {
     } catch (e) {
       setError(String(e));
     } finally {
-      setRefreshingId(null);
+      setRefreshingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(i.id);
+        return next;
+      });
     }
   }
 
@@ -267,7 +273,7 @@ export function InstrumentsPage() {
               initialLoad ||
               refreshableCount === 0 ||
               refreshingAll ||
-              refreshingId !== null ||
+              refreshingIds.size > 0 ||
               deletingId !== null
             }
             onClick={() => void refreshAllDistributions()}
@@ -306,7 +312,8 @@ export function InstrumentsPage() {
             </thead>
             <tbody>
               {sortedRows.map((i) => {
-                const rowRefreshing = refreshingId === i.id || refreshingAll;
+                const rowRefreshing =
+                  refreshingIds.has(i.id) || refreshingAll;
                 const ticker = instrumentTickerDisplay(i);
                 return (
                   <tr
@@ -368,7 +375,7 @@ export function InstrumentsPage() {
                             type="button"
                             disabled={
                               deletingId === i.id ||
-                              refreshingId === i.id ||
+                              refreshingIds.has(i.id) ||
                               refreshingAll
                             }
                             onClick={() => void removeInstrument(i)}
@@ -381,7 +388,7 @@ export function InstrumentsPage() {
                           <button
                             type="button"
                             disabled={
-                              refreshingId === i.id ||
+                              refreshingIds.has(i.id) ||
                               deletingId === i.id ||
                               refreshingAll
                             }
