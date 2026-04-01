@@ -48,7 +48,7 @@ Duplicating code is a maintenance nightmare, makes files larger than necessary, 
 - Obey **No copy-paste duplication** above: never paste big repeated blocks; extract components and functions instead.
 - If a file starts to exceed 300-500 lines, take a careful look if some of the components in it should be separated into new modules/files.
 - Web dates/times: **`web/src/lib/dateTimeFormat.ts`** — **`YYYY-MM-DD`**; with time **`YYYY-MM-DD HH:mm`** (local 24h).
-- **Web backend calls:** **`web/src/api/client.ts`** — **`apiGet`**, **`apiPatch`**, **`apiPost`**, …; pages and hooks call these directly. Add **`web/src/api/*.ts`** modules only when there is real API-shaped work (payload validation, response checks, mapping), not thin wrappers around **`client`**. **`web/src/api/portfolios.ts`** currently holds **`normalizeWeightRowsForApi`** for benchmark weight PUT payloads.
+- **Web-only API contract code:** **`web/src/api/`** — transport in **`client.ts`**; add modules only for real API-shaped work (payload builders, response parsing, error body classification), not thin wrappers. Examples: **`portfolios.ts`** (**`normalizeWeightRowsForApi`**), **`transactions.ts`** (**`buildTransactionMutationBody`**), **`instrumentMutations.ts`** (create/patch JSON shapes), **`instrumentRefreshDistribution.ts`**, **`importResponses.ts`**, **`importHttpError.ts`**. Shared **`lib/`** is for code used by **`api`** (backend) and **`web`**, not web-only HTTP helpers.
 
 ### Web UI polish
 
