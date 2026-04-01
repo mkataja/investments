@@ -35,6 +35,13 @@ HTTP behavior lives in **`api`** only; routes are not duplicated here. Data mode
 
 Duplicating code is a maintenance nightmare, makes files larger than necessary, and causes drift and bugs.
 
+### Documentation and UI copy style
+
+- Keep documentation and UI copy terse and to the point. Avoid repeating.
+- Do not use the "…" character - use "...".
+- Do not overuse **emphasis** in documentation.
+- Put a space on both sides of en and em dashes in sentences.
+
 ### Code style
 
 - Small reusable helpers belong in **`lib/`** (e.g. **`api/src/lib`**, **`web/src/lib`**) rather than inlined in handlers or pages. Code shared **only** between **`api`** and **`web`** (not Drizzle DDL) lives in **`@investments/lib`** (`lib/`).
