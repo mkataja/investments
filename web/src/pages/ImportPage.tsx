@@ -2,6 +2,9 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   apiGet,
   apiPostFormData,
+  buildDegiroImportFormData,
+  buildIbkrImportFormData,
+  buildSeligsonImportFormData,
   classifyIbkrImportHttpError,
   classifySeligsonImportHttpError,
   parseDegiroImportResponse,
@@ -113,11 +116,10 @@ export function ImportPage() {
     }
     setBusy(true);
     try {
-      const form = new FormData();
-      form.append("file", degiroFile);
-      if (importPortfolioId != null) {
-        form.append("portfolioId", String(importPortfolioId));
-      }
+      const form = buildDegiroImportFormData({
+        file: degiroFile,
+        portfolioId: importPortfolioId,
+      });
       const data = await apiPostFormData<
         DegiroOk | DegiroNeedsInstruments | { message?: string }
       >("/import/degiro", form);
@@ -158,21 +160,15 @@ export function ImportPage() {
     }
     setBusy(true);
     try {
-      const form = new FormData();
-      form.append("file", degiroFile);
-      if (importPortfolioId != null) {
-        form.append("portfolioId", String(importPortfolioId));
-      }
-      form.append(
-        "createInstruments",
-        JSON.stringify(
-          toCreate.map((p) => ({
-            isin: p.isin,
-            yahooSymbol: p.yahooSymbol,
-            kind: p.kind,
-          })),
-        ),
-      );
+      const form = buildDegiroImportFormData({
+        file: degiroFile,
+        portfolioId: importPortfolioId,
+        createInstruments: toCreate.map((p) => ({
+          isin: p.isin,
+          yahooSymbol: p.yahooSymbol,
+          kind: p.kind,
+        })),
+      });
       const data = await apiPostFormData<DegiroOk | DegiroNeedsInstruments>(
         "/import/degiro",
         form,
@@ -209,11 +205,7 @@ export function ImportPage() {
     }
     setBusy(true);
     try {
-      const form = new FormData();
-      form.append("file", ibkrFile);
-      if (importPortfolioId != null) {
-        form.append("portfolioId", String(importPortfolioId));
-      }
+      const form = buildIbkrImportFormData(ibkrFile, importPortfolioId);
       const data = await apiPostFormData<DegiroOk>("/import/ibkr", form);
       const ok = parseImportOkResponse(data);
       if (ok != null) {
@@ -265,14 +257,11 @@ export function ImportPage() {
     }
     setBusy(true);
     try {
-      const form = new FormData();
-      form.append("file", fileForUpload);
-      if (importPortfolioId != null) {
-        form.append("portfolioId", String(importPortfolioId));
-      }
-      if (skipMissingInstruments) {
-        form.append("skipMissingInstruments", "true");
-      }
+      const form = buildSeligsonImportFormData({
+        file: fileForUpload,
+        portfolioId: importPortfolioId,
+        skipMissingInstruments,
+      });
       const data = await apiPostFormData<DegiroOk>("/import/seligson", form);
       const ok = parseImportOkResponse(data);
       if (ok != null) {
