@@ -4,45 +4,71 @@
 
 @layer base {
   h1 {
-    @apply font-semibold text-slate-900 text-heading-1;
+    @apply font-semibold
+      text-slate-900
+      text-heading-1;
   }
 
   h2 {
-    @apply font-medium text-slate-800 text-heading-2 mb-2;
+    @apply font-medium
+      text-slate-800
+      text-heading-2
+      mb-2;
   }
 
   h3 {
-    @apply font-medium text-slate-700 text-heading-3 mb-2;
+    @apply font-medium
+      text-slate-700
+      text-heading-3
+      mb-2;
   }
 
   h4 {
-    @apply font-medium text-slate-800 text-heading-4;
+    @apply font-medium
+      text-slate-800
+      text-heading-4;
   }
 
   h5,
   h6 {
-    @apply font-medium text-slate-700 text-heading-4;
+    @apply font-medium
+      text-slate-700
+      text-heading-4;
   }
 
   code {
-    @apply whitespace-normal break-words rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.8125rem] text-slate-800;
+    @apply whitespace-normal
+      break-words
+      rounded
+      bg-slate-100
+      px-1
+      py-0.5
+      font-mono
+      text-[0.8125rem]
+      text-slate-800;
   }
 }
 
 @layer components {
   /* Vertical rhythm between major page regions (header, main blocks). */
   .page-stack {
-    @apply flex flex-col gap-6;
+    @apply flex
+      flex-col
+      gap-6;
   }
 
   /* Constrain primary form columns (instrument new/edit, etc.). */
   .page-form-max {
-    @apply max-w-3xl w-full min-w-0;
+    @apply max-w-3xl
+      w-full
+      min-w-0;
   }
 
   /* Major content section: h2 + blocks (paragraphs, charts, tables). */
   .page-section {
-    @apply flex flex-col gap-4;
+    @apply flex
+      flex-col
+      gap-4;
   }
 
   .page-section > h2,
@@ -52,7 +78,9 @@
 
   /* Subsection: h3 + following block (e.g. table, chart). */
   .subsection-stack {
-    @apply flex flex-col gap-3;
+    @apply flex
+      flex-col
+      gap-3;
   }
 
   .subsection-stack > h3 {
@@ -61,48 +89,95 @@
 
   /* Page title row: back link, h1, subtitle, alerts (compact vertical rhythm). */
   .page-header-stack {
-    @apply flex flex-col gap-2;
+    @apply flex
+      flex-col
+      gap-2;
   }
 
   /* Sticky page title bar (combine with `page-header-stack` or a flex title row). */
   .page-header-sticky {
-    @apply sticky top-0 z-10 border-b border-slate-200 bg-slate-50 pb-3 pt-1;
+    @apply sticky
+      top-0
+      z-10
+      border-b
+      border-slate-200
+      bg-slate-50
+      pb-3
+      pt-1;
   }
 
   /* Modal body: title bar + content (replaces ad-hoc margin under header). */
   .modal-stack {
-    @apply flex flex-col gap-4;
+    @apply flex
+      flex-col
+      gap-4;
   }
 
   /* Shared dialog chrome (see Modal.tsx). */
   .modal-title {
-    @apply font-medium text-slate-800 text-heading-2 mb-0 min-w-0;
+    @apply font-medium
+      text-slate-800
+      text-heading-2
+      mb-0
+      min-w-0;
   }
 
   .modal-close {
-    @apply shrink-0 rounded px-2 py-1 text-sm text-emerald-800 hover:bg-emerald-50 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2;
+    @apply shrink-0
+      rounded
+      px-2
+      py-1
+      text-sm
+      text-emerald-800
+      hover:bg-emerald-50
+      hover:underline
+      focus:outline-none
+      focus-visible:ring-2
+      focus-visible:ring-emerald-500
+      focus-visible:ring-offset-2;
   }
 
   /* Dense forms (modals, compact field groups). */
   .form-stack {
-    @apply flex flex-col gap-3;
+    @apply flex
+      flex-col
+      gap-3;
   }
 
   /* Label + helper line under one control. */
   .field-note-stack {
-    @apply flex flex-col gap-1;
+    @apply flex
+      flex-col
+      gap-1;
   }
 
   /* Vertical list of blocks (e.g. proposal cards). */
   .list-stack {
-    @apply flex flex-col gap-3;
+    @apply flex
+      flex-col
+      gap-3;
   }
 
   /* --- Actions (see web/design-system.md) --- */
 
   /** App shell top nav (`App.tsx`) — underline is `.nav-bar-indicator` */
   .nav-bar-link {
-    @apply inline-flex items-center px-2 py-3 text-base font-medium tracking-wider text-slate-600 transition-colors duration-150 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 rounded-sm;
+    @apply inline-flex
+      items-center
+      px-2
+      py-3
+      text-base
+      font-medium
+      tracking-wider
+      text-slate-600
+      transition-colors
+      duration-150
+      hover:text-slate-900
+      focus-visible:outline
+      focus-visible:outline-2
+      focus-visible:outline-offset-2
+      focus-visible:outline-slate-400
+      rounded-sm;
   }
 
   .nav-bar-link-active {
@@ -110,59 +185,136 @@
   }
 
   .nav-bar-indicator {
-    @apply pointer-events-none absolute bottom-0 h-0.5 rounded-full bg-emerald-600;
+    @apply pointer-events-none
+      absolute
+      bottom-0
+      h-0.5
+      rounded-full
+      bg-emerald-600;
     transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s
       cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /** Inline / nav links (Router `<Link>`, back links) */
   .action-link {
-    @apply text-sm text-emerald-800 hover:underline;
+    @apply text-sm
+      text-emerald-800
+      hover:underline;
   }
 
   /** Default outline control — `Button`, `ButtonLink` */
   .button-basic {
-    @apply inline-flex items-center justify-center text-sm font-medium rounded-md border border-emerald-200 bg-white px-3 py-1.5 text-slate-900 shadow-sm hover:bg-emerald-50 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500;
+    @apply inline-flex
+      items-center
+      justify-center
+      text-sm
+      font-medium
+      rounded-md
+      border
+      border-emerald-200
+      bg-white
+      px-3
+      py-1.5
+      text-slate-900
+      shadow-sm
+      hover:bg-emerald-50
+      disabled:opacity-50
+      disabled:cursor-not-allowed
+      focus-visible:outline
+      focus-visible:outline-2
+      focus-visible:outline-offset-2
+      focus-visible:outline-emerald-500;
   }
 
   /** Neutral outline — e.g. `<Link className="button-cancel">` (Cancel next to Save, etc.) */
   .button-cancel {
-    @apply inline-flex items-center justify-center text-sm font-medium rounded-md border border-slate-200 bg-white px-3 py-1.5 text-slate-800 shadow-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400;
+    @apply inline-flex
+      items-center
+      justify-center
+      text-sm
+      font-medium
+      rounded-md
+      border
+      border-slate-200
+      bg-white
+      px-3
+      py-1.5
+      text-slate-800
+      shadow-sm
+      hover:bg-slate-50
+      focus-visible:outline
+      focus-visible:outline-2
+      focus-visible:outline-offset-2
+      focus-visible:outline-slate-400;
   }
 
   /** Filled green submit (forms; not the outline `Button`) */
   .button-primary {
-    @apply inline-flex items-center justify-center text-sm font-medium bg-emerald-700 text-white px-4 py-2 rounded disabled:bg-slate-300 disabled:cursor-not-allowed;
+    @apply inline-flex
+      items-center
+      justify-center
+      text-sm
+      font-medium
+      bg-emerald-700
+      text-white
+      px-4
+      py-2
+      rounded
+      disabled:bg-slate-300
+      disabled:cursor-not-allowed;
   }
 
   /** Primary inline action (underlined text — table Edit, etc.) */
   .action-primary {
-    @apply text-sm font-medium text-emerald-700 underline;
+    @apply text-sm
+      font-medium
+      text-emerald-700
+      underline;
   }
 
   /** Underlined destructive text button */
   .action-delete {
-    @apply text-sm font-medium text-red-700 underline;
+    @apply text-sm
+      font-medium
+      text-red-700
+      underline;
   }
 
   /** Positive notice banner */
   .banner-notice {
-    @apply text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-3 py-2;
+    @apply text-sm
+      text-emerald-700
+      bg-emerald-50
+      border
+      border-emerald-200
+      rounded
+      px-3
+      py-2;
   }
 
   /** Success / positive inline copy */
   .copy-success {
-    @apply text-sm text-emerald-700;
+    @apply text-sm
+      text-emerald-700;
   }
 
   /** Inline field validation */
   .field-error {
-    @apply mt-1 text-sm text-red-600;
+    @apply mt-1
+      text-sm
+      text-red-600;
   }
 
   /** `ErrorAlert` */
   .error-alert {
-    @apply rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700;
+    @apply rounded
+      border
+      border-red-200
+      bg-red-50
+      px-3
+      py-2
+      text-sm
+      text-red-700;
   }
 
   /** Transaction table buy / sell tint */
