@@ -25,6 +25,7 @@ Scripts/versions: root [`package.json`](../package.json). Setup, ports, env: [`R
 - Auto refresh when cached `fetchedAt` is older than 24h and the instrument has an open position — not every request.
 - API startup may async-refresh stale caches for instruments with open positions (must not block listen).
 - `source = manual` `distributions` rows are not overwritten by auto refresh or `POST /instruments/:id/refresh-distribution` (that route returns `{ skipped: true, reason: "manual" }` with 200).
+- Concurrent `POST /instruments/:id/refresh-distribution` requests (and ETF/stock `PATCH` when URLs change) share one global FIFO queue in `api/src/lib/cacheRefresh.ts`: only one distribution refresh runs at a time; others wait. Startup stale-cache refresh uses a separate path.
 
 ## Domain model (mental map)
 

@@ -723,7 +723,23 @@ export type RefreshDistributionResult =
   | { skipped: true; reason: "not_found" | "cash_account" | "manual" }
   | { error: string; status: 503 | 502 };
 
-export async function refreshDistributionCacheForInstrumentId(
+/** One global FIFO queue so only one distribution refresh runs at a time (HTTP + PATCH). */
+let distributionRefreshQueueTail: Promise<void> = Promise.resolve();
+
+export function refreshDistributionCacheForInstrumentId(
+  instrumentId: number,
+): Promise<RefreshDistributionResult> {
+  const next = distributionRefreshQueueTail.then(() =>
+    refreshDistributionCacheForInstrumentIdImpl(instrumentId),
+  );
+  distributionRefreshQueueTail = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}
+
+async function refreshDistributionCacheForInstrumentIdImpl(
   instrumentId: number,
 ): Promise<RefreshDistributionResult> {
   const [inst] = await db
