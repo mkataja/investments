@@ -1,6 +1,6 @@
 import { HttpError } from "./client";
 
-export type IbkrImportErrorAction =
+type IbkrImportErrorAction =
   | { kind: "ambiguousIsins"; isins: string[]; message: string }
   | {
       kind: "missingSymbols";
@@ -47,7 +47,7 @@ export function classifyIbkrImportHttpError(
   return { kind: "message", message };
 }
 
-export type SeligsonImportErrorAction =
+type SeligsonImportErrorAction =
   | { kind: "missingFunds"; names: string[]; message: string }
   | { kind: "ambiguousFunds"; names: string[]; message: string }
   | { kind: "message"; message: string };

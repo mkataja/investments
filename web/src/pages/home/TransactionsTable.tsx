@@ -1,4 +1,4 @@
-import { apiDelete } from "../../api";
+import { apiDelete } from "../../api/client";
 import { formatInstantForDisplay } from "../../lib/dateTimeFormat";
 import {
   formatTransactionTotalValueForDisplay,

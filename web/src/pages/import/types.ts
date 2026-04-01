@@ -17,7 +17,7 @@ export type DegiroProposalOk = {
   quoteType: string | null;
 };
 
-export type DegiroProposalErr = {
+type DegiroProposalErr = {
   isin: string;
   product: string;
   referenceExchange: string;

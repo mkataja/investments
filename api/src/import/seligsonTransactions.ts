@@ -100,7 +100,7 @@ export function parseSeligsonTradeDateDMY(raw: string): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-export type SeligsonTsvRowKind = "Merkintä" | "Lunastus";
+type SeligsonTsvRowKind = "Merkintä" | "Lunastus";
 
 function resolveTyyppi(
   tyyppiRaw: string,
@@ -169,7 +169,7 @@ export function buildSeligsonExternalId(
   );
 }
 
-export type SeligsonParsedRow = {
+type SeligsonParsedRow = {
   tradeDate: string;
   side: "buy" | "sell";
   fundName: string;
@@ -180,7 +180,7 @@ export type SeligsonParsedRow = {
   externalId: string;
 };
 
-export type ParseSeligsonTsvResult =
+type ParseSeligsonTsvResult =
   | { ok: true; rows: SeligsonParsedRow[] }
   | { ok: false; errors: string[] };
 

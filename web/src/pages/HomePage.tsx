@@ -11,7 +11,7 @@ import { NewPortfolioModal } from "./home/NewPortfolioModal";
 import { NewTransactionModal } from "./home/NewTransactionModal";
 import { TransactionsTable } from "./home/TransactionsTable";
 import { buildInstrumentTickerById } from "./home/instrumentTickerCell";
-import { PortfolioCharts } from "./home/portfolioCharts";
+import { PortfolioCharts } from "./home/portfolioCharts/PortfolioCharts";
 import type { HomeTransaction } from "./home/types";
 import { useHomeData } from "./home/useHomeData";
 

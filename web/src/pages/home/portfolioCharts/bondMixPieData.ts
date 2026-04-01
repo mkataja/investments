@@ -7,11 +7,11 @@ import { DISTRIBUTION_SECTOR_TITLES } from "../../../lib/sectorTitles";
 import type { PortfolioDistributions } from "../types";
 
 export const BOND_MIX_NO_BONDS_SECTOR_ID = "_no_bonds";
-export const BOND_MIX_NO_BONDS_LABEL = "No bonds";
+const BOND_MIX_NO_BONDS_LABEL = "No bonds";
 /** slate-500 — synthetic slice when a portfolio has no bond sleeve (compare mode). */
-export const BOND_MIX_NO_BONDS_FILL = "#64748b";
+const BOND_MIX_NO_BONDS_FILL = "#64748b";
 
-export type BondMixPieRow = {
+type BondMixPieRow = {
   sectorId: string;
   name: string;
   value: number;

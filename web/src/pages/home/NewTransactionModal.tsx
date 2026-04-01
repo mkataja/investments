@@ -3,12 +3,8 @@ import {
   sortByTransactionInstrumentSelectLabel,
 } from "@investments/lib";
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  apiGet,
-  apiPatch,
-  apiPost,
-  buildTransactionMutationBody,
-} from "../../api";
+import { apiGet, apiPatch, apiPost } from "../../api/client";
+import { buildTransactionMutationBody } from "../../api/transactions";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { classNames } from "../../lib/css";
@@ -33,7 +29,7 @@ type Instrument = {
 };
 
 /** Row shape for editing an existing transaction (from GET /transactions). */
-export type EditTransactionSource = {
+type EditTransactionSource = {
   id: number;
   portfolioId: number;
   brokerId: number;
@@ -85,7 +81,7 @@ function buildTxnForm(
   };
 }
 
-export type NewTransactionModalProps = {
+type NewTransactionModalProps = {
   open: boolean;
   onClose: () => void;
   brokers: Broker[];

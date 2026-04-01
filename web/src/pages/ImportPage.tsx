@@ -1,15 +1,18 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { apiGet, apiPostFormData } from "../api/client";
 import {
-  apiGet,
-  apiPostFormData,
   buildDegiroImportFormData,
   buildIbkrImportFormData,
   buildSeligsonImportFormData,
+} from "../api/importFormData";
+import {
   classifyIbkrImportHttpError,
   classifySeligsonImportHttpError,
+} from "../api/importHttpError";
+import {
   parseDegiroImportResponse,
   parseImportOkResponse,
-} from "../api";
+} from "../api/importResponses";
 import type { PortfolioEntity } from "./home/types";
 import { ImportDegiroSection } from "./import/ImportDegiroSection";
 import { ImportIbkrSection } from "./import/ImportIbkrSection";

@@ -45,17 +45,3 @@ function normalizeWeights(w: Record<string, number>): Record<string, number> {
   }
   return out;
 }
-
-export function recordFromUnknownObject(obj: unknown): Record<string, number> {
-  const out: Record<string, number> = {};
-  if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
-    return out;
-  }
-  for (const [k, v] of Object.entries(obj)) {
-    const n = unwrapYahooNumber(v);
-    if (n !== null) {
-      out[k] = n;
-    }
-  }
-  return normalizeWeights(out);
-}

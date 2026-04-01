@@ -18,7 +18,7 @@ export function normalizeRawBenchmarkWeights(
   return rawPositive.map((w) => w / sum);
 }
 
-export type ValuedPortfolioRow = {
+type ValuedPortfolioRow = {
   inst: InstrumentRow;
   qty: number;
   valueEur: number;

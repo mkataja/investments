@@ -1,14 +1,14 @@
 import type { CompositePreviewRow } from "../components/instrumentForm/types";
 import { apiGet, apiPost } from "./client";
 
-export type CompositePreviewResponse = {
+type CompositePreviewResponse = {
   asOfDate: string | null;
   fundName: string | null;
   rows: CompositePreviewRow[];
   notes: string[];
 };
 
-export type InstrumentOptionForComposite = {
+type InstrumentOptionForComposite = {
   id: number;
   kind: string;
   displayName: string;

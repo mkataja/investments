@@ -3,7 +3,7 @@ import { USER_ID } from "@investments/lib";
 import { eq, sql } from "drizzle-orm";
 import { db } from "../db.js";
 
-export type PositionQty = {
+type PositionQty = {
   instrumentId: number;
   quantity: number;
 };

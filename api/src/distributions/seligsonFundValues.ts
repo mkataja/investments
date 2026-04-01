@@ -22,13 +22,13 @@ const FUND_VALUES_TABLE_LABEL_ALIASES: Readonly<Record<string, string>> = {
   "global brands": "top 25 brands",
 };
 
-export type ParsedFundValueRow = {
+type ParsedFundValueRow = {
   fundLabel: string;
   value: number;
   currency: string;
 };
 
-export async function fetchSeligsonFundValuesHtml(): Promise<string> {
+async function fetchSeligsonFundValuesHtml(): Promise<string> {
   const res = await fetch(FUND_VALUES_URL, {
     headers: { "User-Agent": USER_AGENT },
   });

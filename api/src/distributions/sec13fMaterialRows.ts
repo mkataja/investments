@@ -1,7 +1,7 @@
 import type { Sec13FInfoTableRow } from "./parseSec13FInfoTableXml.js";
 
 /** Minimum fraction of total filing value (sum of `value` cells) to resolve via OpenFIGI/Yahoo. */
-export const SEC_13F_MIN_POSITION_FRACTION_OF_FILING = 0.0025;
+const SEC_13F_MIN_POSITION_FRACTION_OF_FILING = 0.0025;
 
 /**
  * Keeps 13F lines whose reported value is at least `SEC_13F_MIN_POSITION_FRACTION_OF_FILING`

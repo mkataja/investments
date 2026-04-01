@@ -1,6 +1,6 @@
 import type { DegiroNeedsInstruments, DegiroOk } from "../pages/import/types";
 
-export type ParseDegiroImportResult =
+type ParseDegiroImportResult =
   | { outcome: "needsInstruments"; value: DegiroNeedsInstruments }
   | { outcome: "ok"; value: DegiroOk }
   | { outcome: "unexpected" };

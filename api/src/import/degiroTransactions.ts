@@ -31,7 +31,7 @@ export const DEGIRO_TRANSACTIONS_HEADER: readonly string[] = [
 const DEGIRO_ORDER_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function isDegiroOrderIdCell(s: string): boolean {
+function isDegiroOrderIdCell(s: string): boolean {
   return DEGIRO_ORDER_ID_RE.test(normalizeDegiroCell(s));
 }
 
@@ -115,7 +115,7 @@ export function normalizeUnicodeMinus(s: string): string {
 }
 
 /** Normalize a cell for hashing and comparison (trim, minus sign). */
-export function normalizeDegiroCell(cell: string): string {
+function normalizeDegiroCell(cell: string): string {
   return normalizeUnicodeMinus(cell.trim());
 }
 
@@ -144,7 +144,7 @@ export function extractDegiroOrderId(normalized: readonly string[]): string {
 }
 
 /** Volume-weighted average unit price from fill lines (same currency). */
-export function volumeWeightedAveragePrice(fills: DegiroFill[]): number {
+function volumeWeightedAveragePrice(fills: DegiroFill[]): number {
   let sumAbsQty = 0;
   let sumPxQty = 0;
   for (const f of fills) {
@@ -159,7 +159,7 @@ export function volumeWeightedAveragePrice(fills: DegiroFill[]): number {
 }
 
 /** Plain decimal string for stored unit price (no scientific notation). */
-export function formatDegiroUnitPriceString(n: number): string {
+function formatDegiroUnitPriceString(n: number): string {
   if (!Number.isFinite(n)) {
     throw new Error("Invalid number for unit price");
   }
@@ -366,7 +366,7 @@ function validateAndAggregateDegiroFills(
   };
 }
 
-export type ParseDegiroCsvResult =
+type ParseDegiroCsvResult =
   | { ok: true; rows: DegiroParsedRow[] }
   | { ok: false; errors: string[] };
 

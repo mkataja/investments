@@ -9,10 +9,9 @@ import {
 } from "@investments/lib";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { apiGet, apiPatch, apiPost } from "../../api/client";
+import { fetchCompositePreviewAndNonCashInstruments } from "../../api/instrumentCompositePreview";
 import {
-  apiGet,
-  apiPatch,
-  apiPost,
   buildCreateCashAccountBody,
   buildCreateCommodityBody,
   buildCreateCustomCompositeBody,
@@ -21,8 +20,7 @@ import {
   buildPatchEtfStockUrlsBody,
   computeCashAccountInstrumentPatch,
   computeCommodityInstrumentPatch,
-  fetchCompositePreviewAndNonCashInstruments,
-} from "../../api";
+} from "../../api/instrumentMutations";
 import { mapYahooInstrumentFormError } from "../../lib/yahooInstrumentFormError";
 import type { CompositePreviewRow } from "./types";
 import type {

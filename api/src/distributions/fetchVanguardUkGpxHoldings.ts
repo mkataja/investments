@@ -10,7 +10,7 @@ const VANGUARD_UK_CONSUMER_ID = "uk2";
  * BORS security-type filters aligned with the UK Professional UI (equity + mutual fund lines).
  * Lines with only other types (e.g. some derivatives) are omitted from the API response for this set.
  */
-export const VANGUARD_UK_GPX_HOLDINGS_SECURITY_TYPES = [
+const VANGUARD_UK_GPX_HOLDINGS_SECURITY_TYPES = [
   "EQ.DRCPT",
   "EQ.ETF",
   "EQ.FSH",
@@ -86,7 +86,7 @@ type GpxHoldingsResponse = {
   errors?: GpxGraphqlError[];
 };
 
-export type VanguardUkGpxFetchSnapshot = {
+type VanguardUkGpxFetchSnapshot = {
   portId: string;
   pages: unknown[];
 };

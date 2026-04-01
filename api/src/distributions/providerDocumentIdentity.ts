@@ -5,13 +5,13 @@ import {
 } from "@investments/lib";
 import * as XLSX from "xlsx";
 
-export type ProviderDocumentIdentifiers = {
+type ProviderDocumentIdentifiers = {
   isins: string[];
   tickers: string[];
   names: string[];
 };
 
-export type InstrumentMatchFields = {
+type InstrumentMatchFields = {
   displayName: string;
   yahooSymbol: string | null;
   isin: string | null;

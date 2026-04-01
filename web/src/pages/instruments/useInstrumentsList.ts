@@ -1,13 +1,11 @@
 import { instrumentTickerDisplay } from "@investments/lib";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { apiDelete, apiGet, apiPost } from "../../api/client";
 import {
-  apiDelete,
-  apiGet,
-  apiPost,
   bucketRefreshBatchResult,
   interpretRefreshDistributionResponse,
   userMessageForSkippedRefresh,
-} from "../../api";
+} from "../../api/instrumentRefreshDistribution";
 import type { InstrumentListItem, RefreshDistributionResponse } from "./types";
 
 export function useInstrumentsList() {

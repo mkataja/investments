@@ -12,7 +12,7 @@ import {
   yahooSymbolCandidatesFromOpenFigiRows,
 } from "./openFigi.js";
 
-export type DegiroInstrumentProposalOk = {
+type DegiroInstrumentProposalOk = {
   isin: string;
   product: string;
   referenceExchange: string;
@@ -23,7 +23,7 @@ export type DegiroInstrumentProposalOk = {
   quoteType: string | null;
 };
 
-export type DegiroInstrumentProposalErr = {
+type DegiroInstrumentProposalErr = {
   isin: string;
   product: string;
   referenceExchange: string;
@@ -31,7 +31,7 @@ export type DegiroInstrumentProposalErr = {
   error: string;
 };
 
-export type DegiroInstrumentProposal =
+type DegiroInstrumentProposal =
   | DegiroInstrumentProposalOk
   | DegiroInstrumentProposalErr;
 

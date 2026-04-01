@@ -4,7 +4,7 @@ import {
   type BrokerType,
 } from "@investments/lib";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiDelete, apiGet, apiPatch, apiPost } from "../api";
+import { apiDelete, apiGet, apiPatch, apiPost } from "../api/client";
 import { Button } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import { Modal } from "../components/Modal";

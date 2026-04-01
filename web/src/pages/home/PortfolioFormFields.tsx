@@ -1,6 +1,6 @@
 import type { ComponentPropsWithRef } from "react";
 
-export const PORTFOLIO_EMERGENCY_FUND_NOTE =
+const PORTFOLIO_EMERGENCY_FUND_NOTE =
   "Emergency fund is the part of your savings you treat as reserved — not as portfolio investments. The asset mix considers only the cash above the emergency fund buffer as cash assets.";
 
 export function PortfolioFormDivider() {

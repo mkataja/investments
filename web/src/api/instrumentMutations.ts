@@ -5,7 +5,7 @@ import {
 } from "@investments/lib";
 import type { InstrumentDetail } from "../components/instrumentForm/types";
 
-export type CustomCompositeConstituent = {
+type CustomCompositeConstituent = {
   rawLabel: string;
   weightOfFund: number;
   targetInstrumentId?: number;
@@ -94,7 +94,7 @@ export function buildPatchEtfStockUrlsBody(args: {
   };
 }
 
-export type InstrumentPatchResult<T extends Record<string, unknown>> =
+type InstrumentPatchResult<T extends Record<string, unknown>> =
   | { ok: true; patch: T }
   | { ok: false; error: string };
 

@@ -3,7 +3,7 @@ import { parseFiPercent } from "./seligson.js";
 
 const USER_AGENT = "InvestmentsTracker/0.1 (personal)";
 
-export type SeligsonPharosAllocationRow = {
+type SeligsonPharosAllocationRow = {
   rawLabel: string;
   /** Share of total fund (0–1), from “Osuus rahastosta”. */
   pctOfFund: number;

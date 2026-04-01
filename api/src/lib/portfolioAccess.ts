@@ -15,7 +15,7 @@ export async function loadPortfolioOwnedByUser(
 }
 
 /** Lowest-id **live** portfolio (imports and transactions require a live portfolio). */
-export async function defaultLivePortfolioIdForUser(): Promise<number | null> {
+async function defaultLivePortfolioIdForUser(): Promise<number | null> {
   const [row] = await db
     .select({ id: portfolios.id })
     .from(portfolios)
@@ -23,10 +23,6 @@ export async function defaultLivePortfolioIdForUser(): Promise<number | null> {
     .orderBy(asc(portfolios.id))
     .limit(1);
   return row?.id ?? null;
-}
-
-export async function defaultPortfolioIdForUser(): Promise<number | null> {
-  return defaultLivePortfolioIdForUser();
 }
 
 export async function resolvePortfolioIdFromImportBody(

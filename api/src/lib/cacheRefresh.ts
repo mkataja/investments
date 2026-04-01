@@ -573,7 +573,7 @@ async function updateSeligsonFundNameFromViewerHtml(
   }
 }
 
-export async function instrumentHasCompositeConstituents(
+async function instrumentHasCompositeConstituents(
   instrumentId: number,
 ): Promise<boolean> {
   const [r] = await db
@@ -800,7 +800,7 @@ export async function writeSeligsonDistributionCache(
   await upsertSeligsonFundValuesFromPage(db, fetchedAt);
 }
 
-export type RefreshDistributionResult =
+type RefreshDistributionResult =
   | { ok: true }
   | { skipped: true; reason: "not_found" | "cash_account" | "manual" }
   | { error: string; status: 503 | 502 };

@@ -1,7 +1,7 @@
 /**
  * JSON body for POST /transactions or PATCH /transactions/:id (new/edit transaction modal).
  */
-export type TransactionMutationInput = {
+type TransactionMutationInput = {
   portfolioId: number;
   brokerId: number;
   tradeDateIso: string;

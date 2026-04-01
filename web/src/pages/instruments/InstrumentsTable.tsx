@@ -39,7 +39,7 @@ function RowRefreshSpinner({ className }: { className?: string }) {
   );
 }
 
-export type InstrumentsTableProps = {
+type InstrumentsTableProps = {
   sortedRows: InstrumentListItem[];
   error: string | null;
   refreshingIds: ReadonlySet<number>;

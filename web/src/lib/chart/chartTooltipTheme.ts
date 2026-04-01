@@ -2,6 +2,11 @@ import type { ChartOptions } from "chart.js";
 import { CHART_TOOLTIP_STYLE } from "./chartTooltipConstants";
 import { chartJsExternalTooltipHandler } from "./externalTooltip";
 
+/** Shared across bar and pie/doughnut (same external tooltip handler). */
+type SharedTooltipPluginOptions = NonNullable<
+  ChartOptions<"bar" | "pie" | "doughnut">["plugins"]
+>["tooltip"];
+
 const titleFont = { size: 16, weight: "bold" as const };
 const bodyFont = { size: 15 };
 
@@ -11,7 +16,7 @@ const bodyFont = { size: 15 };
  *
  * `position: "followCursor"` is registered on `Tooltip.positioners` in **`registerChartJs`**.
  */
-export const CHART_TOOLTIP_BASE = {
+export const CHART_TOOLTIP_BASE: SharedTooltipPluginOptions = {
   enabled: false,
   external: chartJsExternalTooltipHandler,
   position: "followCursor" as const,
@@ -29,4 +34,4 @@ export const CHART_TOOLTIP_BASE = {
   cornerRadius: 6,
   displayColors: true,
   usePointStyle: true,
-} satisfies NonNullable<ChartOptions<"bar">["plugins"]>["tooltip"];
+};

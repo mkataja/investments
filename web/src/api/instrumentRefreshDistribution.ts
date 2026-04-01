@@ -3,7 +3,7 @@ import type {
   RefreshDistributionResponse,
 } from "../pages/instruments/types";
 
-export type InterpretRefreshDistributionResult =
+type InterpretRefreshDistributionResult =
   | { kind: "skipped"; reason: string }
   | { kind: "merge"; instrument: InstrumentListItem }
   | { kind: "reload" };
@@ -27,7 +27,7 @@ export function userMessageForSkippedRefresh(reason: string): string {
   return `Refresh skipped (${reason}).`;
 }
 
-export type RefreshBatchBucket = "ok" | "skipped_manual" | "skipped_other";
+type RefreshBatchBucket = "ok" | "skipped_manual" | "skipped_other";
 
 /** For refresh-all: count outcome without full row merge. */
 export function bucketRefreshBatchResult(

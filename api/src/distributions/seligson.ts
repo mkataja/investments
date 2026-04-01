@@ -377,7 +377,7 @@ export function isSeligsonBondAllocationPage(html: string): boolean {
 /**
  * Parses FundViewer view=20 “Pitkien korkosijoitusten maajakauma” (weights sum to 100% of long bonds).
  */
-export function parseSeligsonBondCountryRows(countryHtml: string): {
+function parseSeligsonBondCountryRows(countryHtml: string): {
   countries: Record<string, number>;
   notes: string[];
 } {
@@ -454,12 +454,4 @@ export function parseSeligsonBondFundDistributions(
     payload: { countries, sectors: alloc.sectors },
     notes: [...alloc.notes, ...geoNotes],
   };
-}
-
-export async function fetchSeligsonDistributions(fid: number): Promise<{
-  payload: DistributionPayload;
-  notes: string[];
-}> {
-  const holdingsHtml = await fetchSeligsonHtml(fid, SELIGSON_HOLDINGS_VIEW);
-  return parseSeligsonHoldingsDistributions(holdingsHtml);
 }

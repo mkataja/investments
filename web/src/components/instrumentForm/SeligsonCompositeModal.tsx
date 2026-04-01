@@ -28,7 +28,7 @@ type InstrumentOption = {
   seligsonFund: { name: string } | null;
 };
 
-export type SeligsonCompositeAllocationPanelProps = {
+type SeligsonCompositeAllocationPanelProps = {
   asOfDate: string | null;
   notes: string[];
   fundDisplayName: string;

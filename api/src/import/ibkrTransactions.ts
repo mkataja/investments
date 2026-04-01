@@ -14,7 +14,7 @@ export const IBKR_CSV_EXTERNAL_SOURCE = "ibkr_csv" as const;
 /** Matches `api/src/lib/valuation.ts` stub for non-EUR until persisted FX. */
 const STUB_EUR_PER_USD = 0.92;
 
-export type IbkrParsedRow = {
+type IbkrParsedRow = {
   tradeDate: string;
   /** IBKR ticker as in the CSV (before Yahoo normalization). */
   symbolRaw: string;
@@ -70,7 +70,7 @@ function formatPlainDecimal(n: number): string {
   return out === "" ? "0" : out;
 }
 
-export function ibkrUnitPriceToEurStub(
+function ibkrUnitPriceToEurStub(
   unitPriceNum: number,
   currency: string,
 ): string {
@@ -190,7 +190,7 @@ function shouldSkipIbkrFlatTradesRow(
   return false;
 }
 
-export type ParseIbkrCsvResult =
+type ParseIbkrCsvResult =
   | { ok: true; rows: IbkrParsedRow[] }
   | { ok: false; errors: string[] };
 

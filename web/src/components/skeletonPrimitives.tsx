@@ -1,6 +1,6 @@
 import Skeleton from "react-loading-skeleton";
 
-export const SKELETON_BASE = {
+const SKELETON_BASE = {
   baseColor: "#e2e8f0",
   highlightColor: "#f1f5f9",
 } as const;

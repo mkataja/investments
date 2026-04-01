@@ -6,10 +6,7 @@ export type InstrumentMatchCandidate = {
   labels: string[];
 };
 
-export function scoreInstrumentLabelMatch(
-  query: string,
-  candidate: string,
-): number {
+function scoreInstrumentLabelMatch(query: string, candidate: string): number {
   const q = normLabel(query.trim());
   const c = normLabel(candidate.trim());
   if (!q || !c) {

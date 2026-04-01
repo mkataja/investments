@@ -3,27 +3,20 @@
 import {
   COMMODITY_DISTRIBUTION_SECTOR_IDS,
   type DistributionSectorId,
-  GEO_BUCKET_ORDER,
   type GeoBucketId,
   MIN_PORTFOLIO_ALLOCATION_FRACTION,
-  aggregateRegionsToGeoBuckets,
   countryIsoToFlagEmoji,
-  geoBucketDisplayIcon,
   geoBucketDisplayTitle,
   resolveRegionKeyToIso,
 } from "@investments/lib";
 import { formatToPercentage } from "./numberFormat.js";
 import { DISTRIBUTION_SECTOR_TITLES } from "./sectorTitles.js";
 
-export type GeoBucket = GeoBucketId;
-
-export { aggregateRegionsToGeoBuckets, GEO_BUCKET_ORDER };
-
 /** Weights merged under this key could not be resolved to ISO (see `resolveRegionKeyToIso`). */
-export const UNMAPPED_COUNTRY_KEY = "__unmapped__";
+const UNMAPPED_COUNTRY_KEY = "__unmapped__";
 
 /** Synthetic key from API for non-cash holdings with no distribution cache (see `api` portfolio merge). */
-export const PORTFOLIO_UNKNOWN_COUNTRY_KEY = "__portfolio_unknown__";
+const PORTFOLIO_UNKNOWN_COUNTRY_KEY = "__portfolio_unknown__";
 
 const CHART_UNKNOWN_LABEL = "Unknown";
 
@@ -31,18 +24,18 @@ const CHART_UNKNOWN_LABEL = "Unknown";
 const COUNTRY_BAR_CHART_UNKNOWN_LABEL = "??";
 
 /** Sector distribution keys that describe bond sleeve mix (not equity sectors). */
-export const BOND_DISTRIBUTION_SECTOR_IDS = [
+const BOND_DISTRIBUTION_SECTOR_IDS = [
   "long_government_bonds",
   "long_corporate_bonds",
   "short_bonds",
   "ultrashort_bonds",
 ] as const;
 
-export function isBondDistributionSectorId(id: string): boolean {
+function isBondDistributionSectorId(id: string): boolean {
   return (BOND_DISTRIBUTION_SECTOR_IDS as readonly string[]).includes(id);
 }
 
-export function isCommodityDistributionSectorId(id: string): boolean {
+function isCommodityDistributionSectorId(id: string): boolean {
   return (COMMODITY_DISTRIBUTION_SECTOR_IDS as readonly string[]).includes(id);
 }
 
@@ -87,18 +80,11 @@ function sectorTitleForId(id: string): string {
   return t ?? id;
 }
 
-/** @deprecated Use aggregateRegionsToGeoBuckets */
-export function aggregateRegionsToBuckets(
-  countries: Record<string, number>,
-): Record<GeoBucket, number> {
-  return aggregateRegionsToGeoBuckets(countries);
-}
-
 /**
  * Merge country/label keys into ISO alpha-2 keys; unresolvable weight is summed under
  * `UNMAPPED_COUNTRY_KEY`.
  */
-export function normalizeCountryWeightsForDisplay(
+function normalizeCountryWeightsForDisplay(
   countries: Record<string, number>,
 ): Record<string, number> {
   const out: Record<string, number> = {};
@@ -113,7 +99,7 @@ export function normalizeCountryWeightsForDisplay(
   return out;
 }
 
-export type CountrySegment = {
+type CountrySegment = {
   key: string;
   label: string;
   icon: string;
@@ -137,7 +123,7 @@ function isoAlpha2ToEnglishCountryName(iso: string): string {
 }
 
 /** Tooltip heading for country bars: flag emoji + full English name (`Intl.DisplayNames`). */
-export function countryBarTooltipHeading(bucketKey: string): string {
+function countryBarTooltipHeading(bucketKey: string): string {
   if (bucketKey === "rest") {
     return `${REST_ICON} Rest`;
   }
@@ -177,9 +163,7 @@ export function topCountriesSegmentsForDisplay(
 }
 
 /** Country bar chart: all ISO / unknown segments sorted by weight; unknown last. */
-export function allCountriesChartData(
-  countries: Record<string, number>,
-): Array<{
+function allCountriesChartData(countries: Record<string, number>): Array<{
   name: string;
   value: number;
   bucketKey: string;
@@ -335,7 +319,7 @@ export function portfolioSectorBarRowsDual(
   ];
 }
 
-export function allCountriesChartDataDual(
+function allCountriesChartDataDual(
   primary: Record<string, number>,
   compare: Record<string, number>,
 ): Array<{
@@ -455,7 +439,7 @@ export function countryBarChartRestTailKeysDual(
   return full.slice(topN).map((r) => r.bucketKey);
 }
 
-export type CountryBucketTopHolding = {
+type CountryBucketTopHolding = {
   instrumentId: number;
   displayName: string;
   tickerSymbol: string | null;
@@ -551,7 +535,7 @@ export function formatPercentWidth4From01(weight01: number): string {
   return formatToPercentage(weight01).padEnd(5, NBSP);
 }
 
-export type SectorRow = {
+type SectorRow = {
   name: string;
   weight: number;
   icon: string;
@@ -584,47 +568,8 @@ export function sortedSectorsForDisplay(
     }));
 }
 
-/** @deprecated Use `geoBucketDisplayIcon` from `@investments/lib` */
-export function geoBucketDisplayLabel(bucket: GeoBucket): string {
-  return geoBucketDisplayIcon(bucket);
-}
-
-export type GeoSegment = { bucket: GeoBucket; pctLabel: string };
-
-const bucketOrderIndex = new Map(
-  GEO_BUCKET_ORDER.map((b, i) => [b, i] as const),
-);
-
-export function geoSegmentsForDisplay(
-  buckets: Record<GeoBucket, number>,
-): GeoSegment[] {
-  const out: GeoSegment[] = [];
-  for (const b of GEO_BUCKET_ORDER) {
-    const v = buckets[b];
-    if (v >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-      out.push({ bucket: b, pctLabel: formatPercentWidth4From01(v) });
-    }
-  }
-  out.sort((a, b) => {
-    const va = buckets[a.bucket];
-    const vb = buckets[b.bucket];
-    if (vb !== va) return vb - va;
-    return (
-      (bucketOrderIndex.get(a.bucket) ?? 0) -
-      (bucketOrderIndex.get(b.bucket) ?? 0)
-    );
-  });
-  return out;
-}
-
-export function formatGeoLine(buckets: Record<GeoBucket, number>): string {
-  return geoSegmentsForDisplay(buckets)
-    .map((s) => `${geoBucketDisplayIcon(s.bucket)} ${s.pctLabel}`)
-    .join(" · ");
-}
-
 /** Icons for canonical sector ids (`db` sector id vocabulary). */
-export function sectorIcon(sectorId: string): string {
+function sectorIcon(sectorId: string): string {
   switch (sectorId) {
     case "cash":
       return "💵";
@@ -669,35 +614,4 @@ export function sectorIcon(sectorId: string): string {
     default:
       return "❓";
   }
-}
-
-export function formatDistributionTooltip(
-  countries: Record<string, number>,
-  sectors: Record<string, number>,
-): string {
-  const lines: string[] = [];
-  const norm = normalizeCountryWeightsForDisplay(countries);
-  const countryParts = Object.entries(norm)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 12)
-    .map(([k, v]) => {
-      const label = k === UNMAPPED_COUNTRY_KEY ? CHART_UNKNOWN_LABEL : k;
-      return `${label} ${formatPercentWidth4From01(v)}`;
-    });
-  if (countryParts.length > 0) {
-    lines.push(`Countries: ${countryParts.join(", ")}`);
-  }
-  const secParts = Object.entries(sectors)
-    .filter(
-      ([, v]) =>
-        typeof v === "number" && v >= MIN_PORTFOLIO_ALLOCATION_FRACTION,
-    )
-    .sort((a, b) =>
-      sectorTitleCmp(sectorTitleForId(a[0]), sectorTitleForId(b[0])),
-    )
-    .map(([k, v]) => `${sectorTitleForId(k)} ${formatPercentWidth4From01(v)}`);
-  if (secParts.length > 0) {
-    lines.push(`Sectors: ${secParts.join(", ")}`);
-  }
-  return lines.join("\n");
 }

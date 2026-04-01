@@ -51,7 +51,7 @@ function collectInstrumentIdsByIbkrYahooListing(
   return ids;
 }
 
-export type IbkrResolveRowInput = {
+type IbkrResolveRowInput = {
   symbolRaw: string;
   /** Normalized 12-char ISIN from the CSV, or null when absent. */
   isin: string | null;

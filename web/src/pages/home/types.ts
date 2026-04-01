@@ -34,7 +34,7 @@ export type HomeTransaction = {
   unitPriceEur?: string | null;
 };
 
-export type PortfolioKind = "live" | "benchmark";
+type PortfolioKind = "live" | "benchmark";
 
 export type PortfolioEntity = {
   id: number;

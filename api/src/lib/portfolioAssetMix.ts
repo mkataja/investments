@@ -64,7 +64,7 @@ export function commodityPrincipalShareFromMergedSectors(
   return Math.min(1, Math.max(0, w));
 }
 
-export type AssetMixEur = {
+type AssetMixEur = {
   equitiesEur: number;
   bondsTotalEur: number;
   commodityGoldEur: number;
@@ -112,7 +112,7 @@ export function computeAssetMixEur(input: {
   };
 }
 
-export type BondMixSlice = {
+type BondMixSlice = {
   sectorId: string;
   /** Share within the bond sleeve (0–1); slices sum to 1 when non-empty. */
   weight: number;

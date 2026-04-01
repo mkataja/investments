@@ -5,7 +5,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { apiPost, buildCreatePortfolioBody } from "../../api";
+import { apiPost } from "../../api/client";
+import { buildCreatePortfolioBody } from "../../api/portfolios";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";

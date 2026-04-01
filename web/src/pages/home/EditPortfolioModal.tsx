@@ -7,13 +7,11 @@ import {
   useRef,
   useState,
 } from "react";
+import { apiGet, apiPatch, apiPut } from "../../api/client";
 import {
-  apiGet,
-  apiPatch,
-  apiPut,
   buildPatchPortfolioBody,
   normalizeWeightRowsForApi,
-} from "../../api";
+} from "../../api/portfolios";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";

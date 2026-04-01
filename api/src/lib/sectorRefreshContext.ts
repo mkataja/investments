@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 
-export type SectorRefreshContext = {
+type SectorRefreshContext = {
   instrumentId: number;
   displayName: string;
 };
