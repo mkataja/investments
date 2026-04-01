@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { apiPost } from "../../api";
+import { apiPost, buildCreatePortfolioBody } from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
@@ -82,12 +82,15 @@ export function NewPortfolioModal({
     setBusy(true);
     onError(null);
     try {
-      const row = await apiPost<PortfolioEntity>("/portfolios", {
-        name: trimmed,
-        kind,
-        emergencyFundEur: efParsed,
-        ...(benchmarkTotalEur != null ? { benchmarkTotalEur } : {}),
-      });
+      const row = await apiPost<PortfolioEntity>(
+        "/portfolios",
+        buildCreatePortfolioBody({
+          name: trimmed,
+          kind,
+          emergencyFundEur: efParsed,
+          ...(benchmarkTotalEur != null ? { benchmarkTotalEur } : {}),
+        }),
+      );
       onClose();
       await onCreated(row);
     } catch (err) {

@@ -7,7 +7,13 @@ import {
   useRef,
   useState,
 } from "react";
-import { apiGet, apiPatch, apiPut, normalizeWeightRowsForApi } from "../../api";
+import {
+  apiGet,
+  apiPatch,
+  apiPut,
+  buildPatchPortfolioBody,
+  normalizeWeightRowsForApi,
+} from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
@@ -187,13 +193,16 @@ export function EditPortfolioModal({
           weights: apiWeights,
         });
       }
-      await apiPatch<PortfolioEntity>(`/portfolios/${portfolio.id}`, {
-        name: trimmed,
-        emergencyFundEur: emergencyFundEurForPatch,
-        ...(isBenchmark && benchmarkTotalEurForPatch != null
-          ? { benchmarkTotalEur: benchmarkTotalEurForPatch }
-          : {}),
-      });
+      await apiPatch<PortfolioEntity>(
+        `/portfolios/${portfolio.id}`,
+        buildPatchPortfolioBody({
+          name: trimmed,
+          emergencyFundEur: emergencyFundEurForPatch,
+          ...(isBenchmark && benchmarkTotalEurForPatch != null
+            ? { benchmarkTotalEur: benchmarkTotalEurForPatch }
+            : {}),
+        }),
+      );
       onClose();
       await onSaved();
     } catch (err) {
