@@ -1,5 +1,4 @@
 import {
-  DEFAULT_CASH_CURRENCY,
   SUPPORTED_CASH_CURRENCY_CODES,
   sortByTransactionInstrumentSelectLabel,
 } from "@investments/lib";
@@ -144,19 +143,13 @@ export function NewTransactionModal({
           return;
         }
         const first = sorted[0];
-        const firstIsCash = first?.kind === "cash_account";
-        setTxnForm((f) => ({
-          ...f,
-          instrumentId: first?.id ?? 0,
-          quantity: firstIsCash ? "" : "1",
-          unitPrice: firstIsCash ? "1" : "0",
-          currency: firstIsCash
-            ? (first?.cashCurrency?.trim().toUpperCase() ??
-              DEFAULT_CASH_CURRENCY)
-            : "EUR",
-          side: "buy",
-          unitPriceEur: "",
-        }));
+        setTxnForm((f) => {
+          const keepSelection = sorted.some((i) => i.id === f.instrumentId);
+          return {
+            ...f,
+            instrumentId: keepSelection ? f.instrumentId : (first?.id ?? 0),
+          };
+        });
         onError(null);
       } catch (e) {
         if (!cancelled) {
@@ -298,19 +291,7 @@ export function NewTransactionModal({
             }
             onChange={(e) => {
               const id = Number.parseInt(e.target.value, 10);
-              const inst = txnInstruments.find((i) => i.id === id);
-              const isCash = inst?.kind === "cash_account";
-              setTxnForm((f) => ({
-                ...f,
-                instrumentId: id,
-                quantity: isCash ? "" : "1",
-                unitPrice: isCash ? "1" : f.unitPrice,
-                currency: isCash
-                  ? (inst?.cashCurrency?.trim().toUpperCase() ??
-                    DEFAULT_CASH_CURRENCY)
-                  : f.currency,
-                side: "buy",
-              }));
+              setTxnForm((f) => ({ ...f, instrumentId: id }));
             }}
           >
             {txnInstrumentsLoading ? (
