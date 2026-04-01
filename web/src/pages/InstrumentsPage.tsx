@@ -157,19 +157,28 @@ export function InstrumentsPage() {
     let ok = 0;
     let skippedManual = 0;
     let skippedOther = 0;
+    let failed = 0;
+    let firstFailure: string | null = null;
     try {
       for (const i of targets) {
-        const res = await apiPost<RefreshResponse>(
-          `/instruments/${i.id}/refresh-distribution`,
-        );
-        if ("skipped" in res) {
-          if (res.reason === "manual") {
-            skippedManual += 1;
+        try {
+          const res = await apiPost<RefreshResponse>(
+            `/instruments/${i.id}/refresh-distribution`,
+          );
+          if ("skipped" in res) {
+            if (res.reason === "manual") {
+              skippedManual += 1;
+            } else {
+              skippedOther += 1;
+            }
           } else {
-            skippedOther += 1;
+            ok += 1;
           }
-        } else {
-          ok += 1;
+        } catch (e) {
+          failed += 1;
+          if (firstFailure == null) {
+            firstFailure = e instanceof Error ? e.message : String(e);
+          }
         }
       }
       await load();
@@ -184,6 +193,11 @@ export function InstrumentsPage() {
       }
       if (skippedOther > 0) {
         parts.push(`${skippedOther} skipped`);
+      }
+      if (failed > 0) {
+        parts.push(
+          `${failed} failed${firstFailure ? ` (${firstFailure.length > 120 ? `${firstFailure.slice(0, 117)}…` : firstFailure})` : ""}`,
+        );
       }
       if (parts.length > 0) {
         setNotice(parts.join(" · "));
