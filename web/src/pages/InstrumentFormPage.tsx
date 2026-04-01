@@ -38,7 +38,6 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   const [brokers, setBrokers] = useState<BrokerRow[]>([]);
   const [brokersLoading, setBrokersLoading] = useState(true);
 
-  const [loadingEdit, setLoadingEdit] = useState(mode === "edit");
   const [initial, setInitial] = useState<InstrumentDetail | null>(null);
 
   const yahooSymbolInputRef = useRef<HTMLInputElement>(null);
@@ -104,7 +103,6 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
       return;
     }
     setError(null);
-    setLoadingEdit(true);
     void apiGet<InstrumentDetail>(`/instruments/${editInstrumentId}`)
       .then((row) => {
         setInitial(row);
@@ -121,8 +119,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
           setProviderBreakdownDataUrl(row.providerBreakdownDataUrl ?? "");
         }
       })
-      .catch((e) => setError(String(e)))
-      .finally(() => setLoadingEdit(false));
+      .catch((e) => setError(String(e)));
   }, [mode, editInstrumentId]);
 
   useEffect(() => {
@@ -566,7 +563,6 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   if (mode === "edit") {
     return (
       <EditInstrumentMode
-        loadingEdit={loadingEdit}
         initial={initial}
         error={error}
         holdingsDistributionUrl={holdingsDistributionUrl}

@@ -3,13 +3,11 @@ import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { ButtonLink } from "../Button";
 import { ErrorAlert } from "../ErrorAlert";
-import { EditInstrumentPageSkeleton } from "../listPageSkeletons";
 import { CashAccountFormFields } from "./CashAccountFormFields";
 import { HoldingsBreakdownUrlFields } from "./HoldingsBreakdownUrlFields";
 import type { BrokerRow, InstrumentDetail } from "./types";
 
 export function EditInstrumentMode({
-  loadingEdit,
   initial,
   error,
   holdingsDistributionUrl,
@@ -30,7 +28,6 @@ export function EditInstrumentMode({
   cashGeoKey,
   setCashGeoKey,
 }: {
-  loadingEdit: boolean;
   initial: InstrumentDetail | null;
   error: string | null;
   holdingsDistributionUrl: string;
@@ -51,10 +48,6 @@ export function EditInstrumentMode({
   cashGeoKey: string;
   setCashGeoKey: (v: string) => void;
 }) {
-  if (loadingEdit) {
-    return <EditInstrumentPageSkeleton />;
-  }
-
   if (!initial) {
     return (
       <div className="w-full min-w-0 page-section">

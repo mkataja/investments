@@ -1,4 +1,4 @@
-import { BlockSkeleton, FormFieldsCardSkeleton } from "./skeletonPrimitives";
+import { BlockSkeleton } from "./skeletonPrimitives";
 
 const INSTR_ROW_KEYS = [
   "ins-sk-1",
@@ -106,20 +106,6 @@ export function BrokersTableSkeleton() {
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-export function EditInstrumentPageSkeleton() {
-  return (
-    <div
-      className="w-full min-w-0 page-section"
-      aria-busy="true"
-      aria-label="Loading instrument"
-    >
-      <BlockSkeleton className="h-4 w-36" />
-      <BlockSkeleton className="h-8 w-64 max-w-full" />
-      <FormFieldsCardSkeleton ariaLabel="Loading form" fields={4} />
     </div>
   );
 }
