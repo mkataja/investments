@@ -20,6 +20,7 @@ export function HomePage() {
     brokers,
     transactions,
     instruments,
+    assetMixHistoryPoints,
     portfolio,
     comparePortfolio,
     setComparePortfolio,
@@ -260,6 +261,7 @@ export function HomePage() {
             showDistributionCompare={showDistributionCompare}
             selectedPortfolioLabel={selectedPortfolioLabel}
             comparePortfolioLabel={comparePortfolioLabel}
+            assetMixHistoryPoints={assetMixHistoryPoints}
           />
           <HoldingsTable
             portfolio={portfolio}

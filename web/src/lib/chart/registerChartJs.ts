@@ -5,7 +5,9 @@ import {
   CategoryScale,
   Chart as ChartJS,
   Legend,
+  LineElement,
   LinearScale,
+  PointElement,
   Tooltip,
 } from "chart.js";
 
@@ -39,6 +41,8 @@ ChartJS.register(
   BarElement,
   CategoryScale,
   LinearScale,
+  LineElement,
+  PointElement,
   Legend,
   Tooltip,
   investmentsDistributionTooltipPlugin,

@@ -7,6 +7,7 @@ import {
   writeStoredPortfolioId,
 } from "../../lib/portfolioSelection";
 import type {
+  AssetMixHistoryPoint,
   HomeBroker,
   HomeInstrument,
   HomeTransaction,
@@ -23,6 +24,9 @@ export function useHomeData() {
   );
   const [comparePortfolio, setComparePortfolio] =
     useState<PortfolioDistributions | null>(null);
+  const [assetMixHistoryPoints, setAssetMixHistoryPoints] = useState<
+    AssetMixHistoryPoint[]
+  >([]);
   const [portfolioEntities, setPortfolioEntities] = useState<PortfolioEntity[]>(
     [],
   );
@@ -71,10 +75,11 @@ export function useHomeData() {
         setInstruments([]);
         setPortfolio(null);
         setComparePortfolio(null);
+        setAssetMixHistoryPoints([]);
         return;
       }
       writeStoredPortfolioId(pid);
-      const [b, t, inst, p, pCmp] = await Promise.all([
+      const [b, t, inst, p, pCmp, mixHist] = await Promise.all([
         apiGet<HomeBroker[]>("/brokers"),
         apiGet<HomeTransaction[]>(`/transactions?portfolioId=${pid}`),
         apiGet<HomeInstrument[]>("/instruments"),
@@ -86,12 +91,16 @@ export function useHomeData() {
               `/portfolio/distributions?portfolioId=${cmpId}`,
             )
           : Promise.resolve(null),
+        apiGet<{ points: AssetMixHistoryPoint[] }>(
+          `/portfolio/asset-mix-history?portfolioId=${pid}`,
+        ),
       ]);
       setBrokers(b);
       setTransactions(t);
       setInstruments(inst);
       setPortfolio(p);
       setComparePortfolio(pCmp);
+      setAssetMixHistoryPoints(mixHist.points);
     } catch (e) {
       setError(String(e));
     }
@@ -105,6 +114,7 @@ export function useHomeData() {
     brokers,
     transactions,
     instruments,
+    assetMixHistoryPoints,
     portfolio,
     comparePortfolio,
     setComparePortfolio,
