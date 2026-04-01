@@ -1,0 +1,10 @@
+@layer components {
+  /** Transaction table buy / sell tint */
+  .txn-side-buy {
+    @apply text-emerald-800;
+  }
+
+  .txn-side-sell {
+    @apply text-red-700;
+  }
+}

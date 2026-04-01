@@ -104,9 +104,6 @@ function BondMixRows(
   );
 }
 
-/**
- * Tooltip for asset–mix and bond–mix pie slices (HTML + styles in `index.css`).
- */
 export function PortfolioPieTooltip(props: PortfolioPieTooltipProps) {
   if (props.kind === "assetMix") {
     return <AssetMixRows {...props} />;

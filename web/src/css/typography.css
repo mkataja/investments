@@ -1,0 +1,46 @@
+@layer base {
+  h1 {
+    @apply font-semibold
+      text-slate-900
+      text-heading-1;
+  }
+
+  h2 {
+    @apply font-medium
+      text-slate-800
+      text-heading-2
+      mb-2;
+  }
+
+  h3 {
+    @apply font-medium
+      text-slate-700
+      text-heading-3
+      mb-2;
+  }
+
+  h4 {
+    @apply font-medium
+      text-slate-800
+      text-heading-4;
+  }
+
+  h5,
+  h6 {
+    @apply font-medium
+      text-slate-700
+      text-heading-4;
+  }
+
+  code {
+    @apply whitespace-normal
+      break-words
+      rounded
+      bg-slate-100
+      px-1
+      py-0.5
+      font-mono
+      text-[0.8125rem]
+      text-slate-800;
+  }
+}

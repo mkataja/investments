@@ -49,9 +49,6 @@ function HoldingsList({ holdings }: { holdings: BucketTopHolding[] }) {
   );
 }
 
-/**
- * Tooltip for region / sector / country distribution bar charts (HTML + Tailwind classes in `index.css`).
- */
 export function DistributionChartTooltip(props: DistributionChartTooltipProps) {
   const {
     heading,

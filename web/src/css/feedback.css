@@ -1,0 +1,39 @@
+@layer components {
+  /** Positive notice banner */
+  .banner-notice {
+    @apply text-sm
+      text-emerald-700
+      bg-emerald-50
+      border
+      border-emerald-200
+      rounded
+      px-3
+      py-2;
+  }
+
+  /** Success / positive inline copy */
+  .copy-success {
+    @apply text-sm
+      text-emerald-700;
+  }
+
+  /** Inline field validation */
+  .field-error {
+    @apply mt-1
+      text-sm
+      text-red-600;
+  }
+
+  /** `ErrorAlert` */
+  .error-alert {
+    @apply rounded
+      border
+      border-red-200
+      bg-red-50
+      px-3
+      py-2
+      text-sm
+      text-red-700;
+  }
+}
+

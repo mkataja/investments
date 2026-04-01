@@ -1,0 +1,86 @@
+@layer components {
+  /** Inline / nav links (Router `<Link>`, back links) */
+  .action-link {
+    @apply text-sm
+      text-emerald-800
+      hover:underline;
+  }
+
+  /** Default outline control — `Button`, `ButtonLink` */
+  .button-basic {
+    @apply inline-flex
+      items-center
+      justify-center
+      text-sm
+      font-medium
+      rounded-md
+      border
+      border-emerald-200
+      bg-white
+      px-3
+      py-1.5
+      text-slate-900
+      shadow-sm
+      hover:bg-slate-50
+      disabled:opacity-50
+      disabled:cursor-not-allowed
+      focus-visible:outline
+      focus-visible:outline-2
+      focus-visible:outline-offset-2
+      focus-visible:outline-emerald-500;
+  }
+
+  /** Neutral outline — e.g. `<Link className="button-cancel">` (Cancel next to Save, etc.) */
+  .button-cancel {
+    @apply inline-flex
+      items-center
+      justify-center
+      text-sm
+      font-medium
+      rounded-md
+      border
+      border-slate-200
+      bg-white
+      px-3
+      py-1.5
+      text-slate-800
+      shadow-sm
+      hover:bg-slate-50
+      focus-visible:outline
+      focus-visible:outline-2
+      focus-visible:outline-offset-2
+      focus-visible:outline-slate-400;
+  }
+
+  /** Filled green submit (forms; not the outline `Button`) */
+  .button-primary {
+    @apply inline-flex
+      items-center
+      justify-center
+      text-sm
+      font-medium
+      bg-emerald-700
+      text-white
+      px-4
+      py-2
+      rounded
+      disabled:bg-slate-300
+      disabled:cursor-not-allowed;
+  }
+
+  /** Primary inline action (underlined text — table Edit, etc.) */
+  .action-primary {
+    @apply text-sm
+      font-medium
+      text-emerald-700
+      underline;
+  }
+
+  /** Underlined destructive text button */
+  .action-delete {
+    @apply text-sm
+      font-medium
+      text-red-700
+      underline;
+  }
+}

@@ -2,7 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import "./lib/chart/registerChartJs";
-import "./index.css";
+import "./css/index.css";
 import "react-loading-skeleton/dist/skeleton.css";
 
 const el = document.getElementById("root");

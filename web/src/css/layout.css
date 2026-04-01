@@ -1,0 +1,71 @@
+@layer components {
+  /* Vertical rhythm between major page regions (header, main blocks). */
+  .page-stack {
+    @apply flex
+      flex-col
+      gap-6;
+  }
+
+  /* Constrain primary form columns (instrument new/edit, etc.). */
+  .page-form-max {
+    @apply max-w-3xl
+      w-full
+      min-w-0;
+  }
+
+  /* Major content section: h2 + blocks (paragraphs, charts, tables). */
+  .page-section {
+    @apply flex
+      flex-col
+      gap-4;
+  }
+
+  .page-section > h2,
+  .page-section > h3 {
+    @apply mb-0;
+  }
+
+  /* Subsection: h3 + following block (e.g. table, chart). */
+  .subsection-stack {
+    @apply flex
+      flex-col
+      gap-3;
+  }
+
+  .subsection-stack > h3 {
+    @apply mb-0;
+  }
+
+  /* Page title row: back link, h1, subtitle, alerts (compact vertical rhythm). */
+  .page-header-stack {
+    @apply flex
+      flex-col
+      gap-2;
+  }
+
+  /* Sticky page title bar (combine with `page-header-stack` or a flex title row). */
+  .page-header-sticky {
+    @apply sticky
+      top-0
+      z-10
+      border-b
+      border-slate-200
+      bg-slate-50
+      pb-3
+      pt-1;
+  }
+
+  /* Modal body: title bar + content (replaces ad-hoc margin under header). */
+  .modal-stack {
+    @apply flex
+      flex-col
+      gap-4;
+  }
+
+  /* Vertical list of blocks (e.g. proposal cards). */
+  .list-stack {
+    @apply flex
+      flex-col
+      gap-3;
+  }
+}

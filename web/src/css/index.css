@@ -1,0 +1,12 @@
+@import "./typography.css";
+@import "./layout.css";
+@import "./forms.css";
+@import "./navigation.css";
+@import "./buttons.css";
+@import "./feedback.css";
+@import "./transactions.css";
+@import "./charts.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

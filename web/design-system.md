@@ -1,6 +1,6 @@
 # Web design system (minimal)
 
-Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`heading-4`**. Shared UI lives in **`web/src/index.css`** (`@layer base`: `h1`–`h6`, `code`; `@layer components`: tables below). **Do not** define reusable Tailwind class lists as **`const`** strings in TypeScript — add a **named class** there with **`@apply`** instead. Prefer **globally reusable** names (role or appearance), not names tied to one feature or page — e.g. **`form-control`**, not **`transaction-modal-form-control`**. Merge with **`classNames`** from [`src/lib/css.ts`](src/lib/css.ts) when passing through **`className`**.
+Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`heading-4`**. Shared UI lives in **`web/src/css/`** (partial files; **`index.css`** imports them and runs `@tailwind`). **`typography.css`**: `@layer base` for `h1`–`h6`, `code`; named classes in the tables below use `@layer components` in the other partials. **Do not** define reusable Tailwind class lists as **`const`** strings in TypeScript — add a **named class** there with **`@apply`** instead. Prefer **globally reusable** names (role or appearance), not names tied to one feature or page — e.g. **`form-control`**, not **`transaction-modal-form-control`**. Merge with **`classNames`** from [`src/lib/css.ts`](src/lib/css.ts) when passing through **`className`**.
 
 ## `Button` / `ButtonLink`
 
@@ -11,7 +11,7 @@ Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`headi
 | `Button` | Default outlined `<button>` |
 | `ButtonLink` | Same surface as `<Link>` |
 
-## Action & feedback (`web/src/index.css`)
+## Action & feedback (`web/src/css/`)
 
 | Class | For |
 | --- | --- |
@@ -29,7 +29,7 @@ Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`headi
 | `modal-close` | Modal dismiss |
 | `txn-side-buy` / `txn-side-sell` | Buy vs sell amount styling |
 
-## Page layout (`web/src/index.css`)
+## Page layout (`web/src/css/`)
 
 | Class | For |
 | --- | --- |
@@ -47,7 +47,7 @@ Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`headi
 
 ## Headings
 
-Base styles in **`web/src/index.css`**; sizes from **`text-heading-*`**. Use `fontSize` extend in **`web/tailwind.config.js`** for new levels.
+Base styles in **`web/src/css/typography.css`**; sizes from **`text-heading-*`**. Use `fontSize` extend in **`web/tailwind.config.js`** for new levels.
 
 ## Not covered
 
@@ -55,5 +55,5 @@ Filled destructive button — add a class or `Button` variant when needed.
 
 ## Conventions
 
-Reuse `Button` / `ButtonLink` and the classes above; new patterns go in **`index.css`** (with **`@apply`**, not TS **`const`** class strings), use **global** class names, and add the relevant row to the table here.
+Reuse `Button` / `ButtonLink` and the classes above; new patterns go in **`web/src/css/`** (with **`@apply`**, not TS **`const`** class strings), use **global** class names, and add the relevant row to the table here.
 
