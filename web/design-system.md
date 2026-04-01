@@ -1,6 +1,6 @@
 # Web design system (minimal)
 
-Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`heading-4`**. Shared UI lives in **`web/src/index.css`** (`@layer base`: `h1`–`h6`, `code`; `@layer components`: tables below). Merge with **`classNames`** from [`src/lib/css.ts`](src/lib/css.ts) when passing through **`className`**.
+Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`heading-4`**. Shared UI lives in **`web/src/index.css`** (`@layer base`: `h1`–`h6`, `code`; `@layer components`: tables below). **Do not** define reusable Tailwind class lists as **`const`** strings in TypeScript — add a **named class** there with **`@apply`** instead. Prefer **globally reusable** names (role or appearance), not names tied to one feature or page — e.g. **`form-control`**, not **`transaction-modal-form-control`**. Merge with **`classNames`** from [`src/lib/css.ts`](src/lib/css.ts) when passing through **`className`**.
 
 ## `Button` / `ButtonLink`
 
@@ -54,4 +54,5 @@ Filled destructive button — add a class or `Button` variant when needed.
 
 ## Conventions
 
-Reuse `Button` / `ButtonLink` and the classes above; new patterns go in **`index.css`** and the relevant table here.
+Reuse `Button` / `ButtonLink` and the classes above; new patterns go in **`index.css`** (with **`@apply`**, not TS **`const`** class strings), use **global** class names, and add the relevant row to the table here.
+
