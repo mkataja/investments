@@ -2437,7 +2437,9 @@ app.get("/portfolio/asset-mix-history", async (c) => {
   if (!pf) {
     return c.json({ message: "Portfolio not found" }, 404);
   }
-  const data = await getPortfolioAssetMixHistory(portfolioId);
+  const data = await getPortfolioAssetMixHistory(portfolioId, {
+    portfolio: pf,
+  });
   return c.json(data);
 });
 

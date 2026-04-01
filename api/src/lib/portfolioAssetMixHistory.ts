@@ -1,4 +1,4 @@
-import { instruments, transactions } from "@investments/db";
+import { instruments, type portfolios, transactions } from "@investments/db";
 import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../db.js";
 import { calendarDateUtcFromInstant } from "./calendarDateUtc.js";
@@ -68,6 +68,8 @@ async function loadPositionRowsAtDate(
   return out;
 }
 
+type PortfolioRow = typeof portfolios.$inferSelect;
+
 type MixPointResult =
   | { kind: "empty" }
   | { kind: "stop" }
@@ -109,11 +111,13 @@ async function assetMixPointForDate(
  */
 export async function getPortfolioAssetMixHistory(
   portfolioId: number,
+  options?: { portfolio: PortfolioRow },
 ): Promise<{
   points: Array<{ date: string; equitiesEur: number; cashEur: number }>;
 }> {
-  const pf = await loadPortfolioOwnedByUser(portfolioId);
-  if (!pf) {
+  const pf =
+    options?.portfolio ?? (await loadPortfolioOwnedByUser(portfolioId));
+  if (!pf || pf.id !== portfolioId) {
     return { points: [] };
   }
   if (pf.kind === "benchmark") {
