@@ -1,27 +1,38 @@
 import type { ChartData, ChartOptions } from "chart.js";
 import { useMemo } from "react";
+import { CHART_TOOLTIP_STYLE } from "../../../lib/chart/chartTooltipConstants";
+import { PORTFOLIO_DISTRIBUTION_BAR_COLORS } from "../../../lib/portfolioChartPalette";
 import type { AssetMixHistoryPoint } from "../types";
+import { DISTRIBUTION_BAR_CHART_GRID_STROKE } from "./distributionBarChartOptions";
 
 export function useAssetMixHistoryLine(points: AssetMixHistoryPoint[]) {
   return useMemo(() => {
+    const equitiesRgb = "59 127 212";
+    const cashRgb = "21 128 61";
     const data: ChartData<"line"> = {
       labels: points.map((p) => p.date),
       datasets: [
         {
           label: "Equities",
           data: points.map((p) => p.equitiesEur),
-          borderColor: "rgb(30 64 175)",
-          backgroundColor: "rgba(30, 64, 175, 0.15)",
-          tension: 0.15,
-          fill: false,
+          borderColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionPrimary,
+          backgroundColor: `rgba(${equitiesRgb} / 0.12)`,
+          cubicInterpolationMode: "monotone",
+          fill: true,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          borderWidth: 2,
         },
         {
           label: "Cash",
           data: points.map((p) => p.cashEur),
-          borderColor: "rgb(21 128 61)",
-          backgroundColor: "rgba(21, 128, 61, 0.12)",
-          tension: 0.15,
-          fill: false,
+          borderColor: `rgb(${cashRgb})`,
+          backgroundColor: `rgba(${cashRgb} / 0.1)`,
+          cubicInterpolationMode: "monotone",
+          fill: true,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          borderWidth: 2,
         },
       ],
     };
@@ -30,13 +41,34 @@ export function useAssetMixHistoryLine(points: AssetMixHistoryPoint[]) {
     const options: ChartOptions<"line"> = {
       responsive: true,
       maintainAspectRatio: false,
+      animation: { duration: 320 },
+      interaction: { mode: "index", intersect: false },
+      elements: {
+        line: {
+          borderJoinStyle: "round",
+          borderCapStyle: "round",
+        },
+        point: {
+          hoverBorderWidth: 2,
+        },
+      },
       scales: {
         x: {
-          ticks: { maxRotation: 45, minRotation: 0 },
+          grid: { display: false },
+          ticks: {
+            font: { size: 14 },
+            color: "#475569",
+            maxRotation: 40,
+            minRotation: 0,
+            autoSkip: true,
+          },
+          border: { display: false },
         },
         y: {
           min: 0,
           ticks: {
+            font: { size: 14 },
+            color: "#475569",
             callback: (tickValue) => {
               const v =
                 typeof tickValue === "number" ? tickValue : Number(tickValue);
@@ -52,11 +84,39 @@ export function useAssetMixHistoryLine(points: AssetMixHistoryPoint[]) {
               return String(v);
             },
           },
+          grid: {
+            color: DISTRIBUTION_BAR_CHART_GRID_STROKE,
+            lineWidth: 1,
+            drawTicks: false,
+          },
+          border: { display: false },
         },
       },
       plugins: {
-        legend: { position: "bottom" },
+        legend: {
+          position: "top",
+          align: "end",
+          labels: {
+            boxWidth: 12,
+            boxHeight: 12,
+            padding: 14,
+            font: { size: 14 },
+            usePointStyle: true,
+            pointStyle: "rectRounded",
+          },
+        },
         tooltip: {
+          backgroundColor: CHART_TOOLTIP_STYLE.backgroundColor,
+          titleColor: CHART_TOOLTIP_STYLE.titleColor,
+          bodyColor: CHART_TOOLTIP_STYLE.bodyColor,
+          borderColor: CHART_TOOLTIP_STYLE.borderColor,
+          borderWidth: 1,
+          padding: 12,
+          cornerRadius: 6,
+          displayColors: true,
+          usePointStyle: true,
+          titleFont: { size: CHART_TOOLTIP_STYLE.titleSizePx, weight: "bold" },
+          bodyFont: { size: CHART_TOOLTIP_STYLE.bodySizePx },
           callbacks: {
             label: (ctx) => {
               const n = ctx.parsed.y;

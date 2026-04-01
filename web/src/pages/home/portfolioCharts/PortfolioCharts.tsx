@@ -131,7 +131,7 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
               positions). Series stops when a price is missing for a held
               instrument.
             </p>
-            <div className="w-full h-56 min-w-0">
+            <div className="w-full h-[448px] min-w-0">
               <Line data={assetMixLineData} options={assetMixLineOptions} />
             </div>
           </div>

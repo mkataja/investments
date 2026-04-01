@@ -5,7 +5,7 @@ import {
 } from "../../../components/PortfolioChartTooltips";
 import { formatToPercentage } from "../../../lib/numberFormat";
 
-const DISTRIBUTION_BAR_CHART_GRID_STROKE = "#e2e8f0";
+export const DISTRIBUTION_BAR_CHART_GRID_STROKE = "#e2e8f0";
 
 function yStepFromAxis(axis: { domain: [number, number]; ticks: number[] }) {
   const t0 = axis.ticks[0];
