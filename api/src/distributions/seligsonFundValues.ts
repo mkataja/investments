@@ -1,14 +1,12 @@
-import {
-  instruments,
-  seligsonFundValueCache,
-  seligsonFunds,
-} from "@investments/db";
+import { instruments, seligsonFundValueCache, seligsonFunds } from "@investments/db";
 import * as cheerio from "cheerio";
 import { eq } from "drizzle-orm";
 import type { DbClient } from "../db.js";
-import { normalizeSeligsonFundNameForMatch } from "../import/seligsonTransactions.js";
-import { calendarDateUtcFromInstant } from "../lib/calendarDateUtc.js";
 import { upsertPriceForDate } from "../lib/priceDistributionWrite.js";
+import {
+  normalizeSeligsonFundNameForMatch,
+  parseSeligsonTradeDateDMY,
+} from "../import/seligsonTransactions.js";
 
 const FUND_VALUES_URL =
   "https://www.seligson.fi/suomi/rahastot/FundValues_FI.html";
@@ -27,6 +25,8 @@ type ParsedFundValueRow = {
   fundLabel: string;
   value: number;
   currency: string;
+  /** ISO `YYYY-MM-DD` from table `Pvm` (Finnish `d.m.yyyy`). */
+  priceDate: string;
 };
 
 async function fetchSeligsonFundValuesHtml(): Promise<string> {
@@ -79,7 +79,7 @@ function parseArvoCell(
 }
 
 /**
- * Parse the main `table.rahasto` on FundValues_FI.html (fund short name + NAV).
+ * Parse the main `table.rahasto` on FundValues_FI.html (fund short name, `Pvm`, `Arvo`).
  */
 export function parseFundValuesTable(html: string): ParsedFundValueRow[] {
   const $ = cheerio.load(html);
@@ -104,6 +104,11 @@ export function parseFundValuesTable(html: string): ParsedFundValueRow[] {
     if (!label) {
       return;
     }
+    const pvmCell = $tr.find('td[data-label="Pvm"]').first().text();
+    const priceDate = parseSeligsonTradeDateDMY(pvmCell);
+    if (!priceDate) {
+      return;
+    }
     const arvoCell = $tr.find('td[data-label="Arvo"]').first().text();
     const parsed = parseArvoCell(arvoCell);
     if (!parsed) {
@@ -113,6 +118,7 @@ export function parseFundValuesTable(html: string): ParsedFundValueRow[] {
       fundLabel: label,
       value: parsed.value,
       currency: parsed.currency,
+      priceDate,
     });
   });
   return out;
@@ -186,11 +192,10 @@ export async function upsertSeligsonFundValuesFromPage(
       .select()
       .from(instruments)
       .where(eq(instruments.seligsonFundId, sf.id));
-    const priceDate = calendarDateUtcFromInstant(fetchedAt);
     for (const inst of insts) {
       await upsertPriceForDate(d, {
         instrumentId: inst.id,
-        priceDate,
+        priceDate: row.priceDate,
         quotedPrice: String(row.value),
         currency: row.currency,
         fetchedAt,

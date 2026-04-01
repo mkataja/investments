@@ -41,6 +41,31 @@ describe("parseFundValuesTable", () => {
     expect(rows[0]?.fundLabel).toBe("Eurooppa");
     expect(rows[0]?.value).toBeCloseTo(5.589, 6);
     expect(rows[0]?.currency).toBe("EUR");
+    expect(rows[0]?.priceDate).toBe("2026-03-30");
+  });
+
+  it("uses per-row Pvm when funds differ (e.g. OMX vs others)", () => {
+    const html = `<table class="rahasto"><tr><th>R</th><th>P</th><th>A</th></tr>
+${rowHtml("Eurooppa", "5,0 €").replace("30.03.2026", "01.04.2026")}
+<tr>
+  <td><a href="/x">OMXH25</a></td>
+  <td data-label="Pvm">31.03.2026</td>
+  <td data-label="Arvo">90,45 €</td>
+</tr>
+</table>`;
+    const rows = parseFundValuesTable(html);
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fundLabel: "Eurooppa",
+          priceDate: "2026-04-01",
+        }),
+        expect.objectContaining({
+          fundLabel: "OMXH25",
+          priceDate: "2026-03-31",
+        }),
+      ]),
+    );
   });
 
   it("parses multi-digit fractional part (live FundValues shape)", () => {
