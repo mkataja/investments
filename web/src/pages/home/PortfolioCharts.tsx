@@ -385,11 +385,15 @@ export function PortfolioCharts({
             </span>{" "}
             EUR
           </span>{" "}
-          (plus{" "}
-          <span className="tabular-nums">
-            {portfolio.emergencyFundSliceEur.toFixed(0)}
-          </span>{" "}
-          EUR emergency fund)
+          {portfolio.emergencyFundSliceEur > 0 ? (
+            <>
+              (plus{" "}
+              <span className="tabular-nums">
+                {portfolio.emergencyFundSliceEur.toFixed(0)}
+              </span>{" "}
+              EUR emergency fund)
+            </>
+          ) : null}
           {portfolio.mixedCurrencyWarning && (
             <span className="text-amber-700 ml-2">
               Mixed-currency warning (see API).

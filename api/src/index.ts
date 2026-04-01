@@ -5,6 +5,7 @@ import {
   distributions,
   instrumentCompositeConstituents,
   instruments,
+  portfolioBenchmarkWeights,
   portfolios,
   providerHoldingsCache,
   seligsonDistributionCache,
@@ -113,22 +114,41 @@ function mapPortfolioRow(row: InferSelectModel<typeof portfolios>) {
   return {
     ...row,
     emergencyFundEur: Number(row.emergencyFundEur),
+    benchmarkTotalEur: Number(row.benchmarkTotalEur),
   };
 }
 
 const portfolioCreateIn = z.object({
   name: z.string().trim().min(1),
   emergencyFundEur: z.number().finite().nonnegative().optional(),
+  kind: z.enum(["live", "benchmark"]).optional(),
+  benchmarkTotalEur: z.number().finite().positive().optional(),
 });
 
 const portfolioPatchIn = z
   .object({
     name: z.string().trim().min(1).optional(),
     emergencyFundEur: z.number().finite().nonnegative().optional(),
+    kind: z.enum(["live", "benchmark"]).optional(),
+    benchmarkTotalEur: z.number().finite().positive().optional(),
   })
-  .refine((o) => o.name != null || o.emergencyFundEur != null, {
-    message: "At least one field is required",
-  });
+  .refine(
+    (o) =>
+      o.name != null ||
+      o.emergencyFundEur != null ||
+      o.kind != null ||
+      o.benchmarkTotalEur != null,
+    { message: "At least one field is required" },
+  );
+
+const benchmarkWeightsPutIn = z.object({
+  weights: z.array(
+    z.object({
+      instrumentId: z.number().int().positive(),
+      weight: z.number().finite().positive(),
+    }),
+  ),
+});
 
 app.get("/portfolios", async (c) => {
   const rows = await db
@@ -153,12 +173,15 @@ app.post("/portfolios", zValidator("json", portfolioCreateIn), async (c) => {
       409,
     );
   }
+  const kind = body.kind ?? "live";
   const [row] = await db
     .insert(portfolios)
     .values({
       userId: USER_ID,
       name,
+      kind,
       emergencyFundEur: String(body.emergencyFundEur ?? 0),
+      benchmarkTotalEur: String(body.benchmarkTotalEur ?? 10_000),
     })
     .returning();
   if (!row) {
@@ -200,12 +223,38 @@ app.patch(
         );
       }
     }
+    if (body.kind != null && body.kind !== existing.kind) {
+      if (body.kind === "benchmark" && existing.kind === "live") {
+        const [cntRow] = await db
+          .select({ n: count() })
+          .from(transactions)
+          .where(eq(transactions.portfolioId, id));
+        if (Number(cntRow?.n ?? 0) > 0) {
+          return c.json(
+            {
+              message:
+                "Cannot convert a portfolio with transactions to a benchmark",
+            },
+            400,
+          );
+        }
+      }
+      if (body.kind === "live" && existing.kind === "benchmark") {
+        await db
+          .delete(portfolioBenchmarkWeights)
+          .where(eq(portfolioBenchmarkWeights.portfolioId, id));
+      }
+    }
     const [row] = await db
       .update(portfolios)
       .set({
         name: nextName,
         ...(body.emergencyFundEur != null
           ? { emergencyFundEur: String(body.emergencyFundEur) }
+          : {}),
+        ...(body.kind != null ? { kind: body.kind } : {}),
+        ...(body.benchmarkTotalEur != null
+          ? { benchmarkTotalEur: String(body.benchmarkTotalEur) }
           : {}),
       })
       .where(eq(portfolios.id, id))
@@ -214,6 +263,84 @@ app.patch(
       return c.json({ message: "Not found" }, 404);
     }
     return c.json(mapPortfolioRow(row));
+  },
+);
+
+app.get("/portfolios/:id/benchmark-weights", async (c) => {
+  const id = Number.parseInt(c.req.param("id"), 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid id" }, 400);
+  }
+  const pf = await loadPortfolioOwnedByUser(id);
+  if (!pf) {
+    return c.json({ message: "Not found" }, 404);
+  }
+  if (pf.kind !== "benchmark") {
+    return c.json({ message: "Portfolio is not a benchmark" }, 400);
+  }
+  const rows = await db
+    .select()
+    .from(portfolioBenchmarkWeights)
+    .where(eq(portfolioBenchmarkWeights.portfolioId, id))
+    .orderBy(asc(portfolioBenchmarkWeights.sortOrder));
+  return c.json({
+    weights: rows.map((r) => ({
+      instrumentId: r.instrumentId,
+      weight: Number.parseFloat(String(r.weight)),
+      sortOrder: r.sortOrder,
+    })),
+  });
+});
+
+app.put(
+  "/portfolios/:id/benchmark-weights",
+  zValidator("json", benchmarkWeightsPutIn),
+  async (c) => {
+    const id = Number.parseInt(c.req.param("id"), 10);
+    if (!Number.isFinite(id) || id < 1) {
+      return c.json({ message: "Invalid id" }, 400);
+    }
+    const pf = await loadPortfolioOwnedByUser(id);
+    if (!pf) {
+      return c.json({ message: "Not found" }, 404);
+    }
+    if (pf.kind !== "benchmark") {
+      return c.json({ message: "Portfolio is not a benchmark" }, 400);
+    }
+    const body = c.req.valid("json");
+    const seen = new Set<number>();
+    for (const w of body.weights) {
+      if (seen.has(w.instrumentId)) {
+        return c.json({ message: "Duplicate instrumentId in weights" }, 400);
+      }
+      seen.add(w.instrumentId);
+    }
+    const instIds = [...seen];
+    if (instIds.length > 0) {
+      const instRows = await db
+        .select({ id: instruments.id })
+        .from(instruments)
+        .where(inArray(instruments.id, instIds));
+      if (instRows.length !== instIds.length) {
+        return c.json({ message: "One or more instruments not found" }, 400);
+      }
+    }
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(portfolioBenchmarkWeights)
+        .where(eq(portfolioBenchmarkWeights.portfolioId, id));
+      if (body.weights.length > 0) {
+        await tx.insert(portfolioBenchmarkWeights).values(
+          body.weights.map((w, i) => ({
+            portfolioId: id,
+            instrumentId: w.instrumentId,
+            weight: String(w.weight),
+            sortOrder: i,
+          })),
+        );
+      }
+    });
+    return c.body(null, 204);
   },
 );
 
@@ -433,6 +560,12 @@ app.post("/transactions", zValidator("json", transactionIn), async (c) => {
   if (!pf) {
     return c.json({ message: "Portfolio not found" }, 404);
   }
+  if (pf.kind === "benchmark") {
+    return c.json(
+      { message: "Cannot add transactions to a benchmark portfolio" },
+      400,
+    );
+  }
   if (pf.userId !== brk.userId) {
     return c.json(
       { message: "Portfolio and broker must belong to the same user" },
@@ -515,6 +648,12 @@ app.patch("/transactions/:id", zValidator("json", transactionIn), async (c) => {
     .limit(1);
   if (!pf) {
     return c.json({ message: "Portfolio not found" }, 404);
+  }
+  if (pf.kind === "benchmark") {
+    return c.json(
+      { message: "Cannot add transactions to a benchmark portfolio" },
+      400,
+    );
   }
   if (pf.userId !== brk.userId) {
     return c.json(
@@ -2099,6 +2238,9 @@ app.get("/positions", async (c) => {
   const pf = await loadPortfolioOwnedByUser(portfolioId);
   if (!pf) {
     return c.json({ message: "Portfolio not found" }, 404);
+  }
+  if (pf.kind === "benchmark") {
+    return c.json([]);
   }
   const pos = await loadOpenPositionsForPortfolio(portfolioId);
   const instRows =

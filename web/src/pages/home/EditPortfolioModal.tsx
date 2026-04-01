@@ -2,22 +2,66 @@ import {
   type FormEvent,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
-import { apiPatch } from "../../api";
+import { apiGet, apiPatch, apiPut } from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
-import type { PortfolioEntity } from "./types";
+import type { HomeInstrument, PortfolioEntity } from "./types";
 
 export const PORTFOLIO_EMERGENCY_FUND_NOTE =
   "Emergency fund is the part of your savings you treat as reserved — not as portfolio investments. The asset mix considers only the cash above the emergency fund buffer as cash assets.";
+
+type WeightRow = { instrumentId: number | ""; weightStr: string };
+
+function normalizeWeightRowsForApi(rows: WeightRow[]): Array<{
+  instrumentId: number;
+  weight: number;
+}> {
+  const out: Array<{ instrumentId: number; weight: number }> = [];
+  const seen = new Set<number>();
+  for (const r of rows) {
+    if (r.instrumentId === "") {
+      continue;
+    }
+    const w = Number.parseFloat(r.weightStr.trim().replace(",", "."));
+    if (!Number.isFinite(w) || w <= 0) {
+      continue;
+    }
+    if (seen.has(r.instrumentId)) {
+      throw new Error("Each instrument can only appear once.");
+    }
+    seen.add(r.instrumentId);
+    out.push({ instrumentId: r.instrumentId, weight: w });
+  }
+  return out;
+}
+
+function weightRowsEqual(a: WeightRow[], b: WeightRow[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = b[i];
+    if (x === undefined || y === undefined) {
+      return false;
+    }
+    if (x.instrumentId !== y.instrumentId || x.weightStr !== y.weightStr) {
+      return false;
+    }
+  }
+  return true;
+}
 
 type EditPortfolioModalProps = {
   open: boolean;
   onClose: () => void;
   portfolio: PortfolioEntity | null;
+  instruments: HomeInstrument[];
   onSaved: () => void | Promise<void>;
   onError: (message: string | null) => void;
 };
@@ -26,6 +70,7 @@ export function EditPortfolioModal({
   open,
   onClose,
   portfolio,
+  instruments,
   onSaved,
   onError,
 }: EditPortfolioModalProps) {
@@ -35,8 +80,29 @@ export function EditPortfolioModal({
       ? String(portfolio.emergencyFundEur)
       : "0",
   );
+  const [benchmarkTotal, setBenchmarkTotal] = useState(() =>
+    portfolio != null && Number.isFinite(portfolio.benchmarkTotalEur)
+      ? String(portfolio.benchmarkTotalEur)
+      : "10000",
+  );
+  const [weightRows, setWeightRows] = useState<WeightRow[]>([
+    { instrumentId: "", weightStr: "" },
+  ]);
+  const [initialWeightRows, setInitialWeightRows] = useState<WeightRow[]>([]);
+  const [weightsLoadToken, setWeightsLoadToken] = useState(0);
   const [busy, setBusy] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const kind = portfolio?.kind ?? "live";
+  const isBenchmark = kind === "benchmark";
+
+  const instrumentsSorted = useMemo(
+    () =>
+      [...instruments].sort((a, b) =>
+        a.displayName.localeCompare(b.displayName),
+      ),
+    [instruments],
+  );
 
   useLayoutEffect(() => {
     if (!open || portfolio == null) {
@@ -48,7 +114,58 @@ export function EditPortfolioModal({
         ? String(portfolio.emergencyFundEur)
         : "0",
     );
+    setBenchmarkTotal(
+      Number.isFinite(portfolio.benchmarkTotalEur)
+        ? String(portfolio.benchmarkTotalEur)
+        : "10000",
+    );
+    if ((portfolio.kind ?? "live") === "benchmark") {
+      setWeightsLoadToken((t) => t + 1);
+    } else {
+      setWeightRows([{ instrumentId: "", weightStr: "" }]);
+      setInitialWeightRows([]);
+    }
   }, [open, portfolio]);
+
+  useEffect(() => {
+    if (!open || portfolio == null || !isBenchmark) {
+      return;
+    }
+    let cancelled = false;
+    const id = portfolio.id;
+    const token = weightsLoadToken;
+    void (async () => {
+      try {
+        const res = await apiGet<{
+          weights: Array<{ instrumentId: number; weight: number }>;
+        }>(`/portfolios/${id}/benchmark-weights`);
+        if (cancelled || token !== weightsLoadToken) {
+          return;
+        }
+        const next: WeightRow[] =
+          res.weights.length > 0
+            ? res.weights.map((w) => ({
+                instrumentId: w.instrumentId,
+                weightStr: String(w.weight),
+              }))
+            : [{ instrumentId: "", weightStr: "" }];
+        setWeightRows(next);
+        setInitialWeightRows(
+          next.map((r) => ({
+            instrumentId: r.instrumentId,
+            weightStr: r.weightStr,
+          })),
+        );
+      } catch (e) {
+        if (!cancelled) {
+          onError(String(e));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, portfolio, isBenchmark, weightsLoadToken, onError]);
 
   useEffect(() => {
     if (!open) return;
@@ -67,17 +184,49 @@ export function EditPortfolioModal({
     if (trimmed.length === 0) {
       return;
     }
-    const efParsed = Number.parseFloat(emergencyFund.trim().replace(",", "."));
-    if (!Number.isFinite(efParsed) || efParsed < 0) {
-      onError("Emergency fund must be a non-negative number.");
-      return;
+    let emergencyFundEurForPatch: number;
+    let benchmarkTotalEurForPatch: number | undefined;
+    if (isBenchmark) {
+      const v = portfolio.emergencyFundEur;
+      emergencyFundEurForPatch = Number.isFinite(v) ? v : 0;
+      const bt = Number.parseFloat(benchmarkTotal.trim().replace(",", "."));
+      if (!Number.isFinite(bt) || bt <= 0) {
+        onError("Total amount must be a positive number.");
+        return;
+      }
+      benchmarkTotalEurForPatch = bt;
+    } else {
+      const efParsed = Number.parseFloat(
+        emergencyFund.trim().replace(",", "."),
+      );
+      if (!Number.isFinite(efParsed) || efParsed < 0) {
+        onError("Emergency fund must be a non-negative number.");
+        return;
+      }
+      emergencyFundEurForPatch = efParsed;
     }
     setBusy(true);
     onError(null);
     try {
+      if (isBenchmark) {
+        let apiWeights: Array<{ instrumentId: number; weight: number }>;
+        try {
+          apiWeights = normalizeWeightRowsForApi(weightRows);
+        } catch (err) {
+          onError(String(err));
+          setBusy(false);
+          return;
+        }
+        await apiPut(`/portfolios/${portfolio.id}/benchmark-weights`, {
+          weights: apiWeights,
+        });
+      }
       await apiPatch<PortfolioEntity>(`/portfolios/${portfolio.id}`, {
         name: trimmed,
-        emergencyFundEur: efParsed,
+        emergencyFundEur: emergencyFundEurForPatch,
+        ...(isBenchmark && benchmarkTotalEurForPatch != null
+          ? { benchmarkTotalEur: benchmarkTotalEurForPatch }
+          : {}),
       });
       onClose();
       await onSaved();
@@ -88,13 +237,23 @@ export function EditPortfolioModal({
     }
   }
 
+  const portfolioBenchmarkTotalEur =
+    portfolio != null && Number.isFinite(portfolio.benchmarkTotalEur)
+      ? portfolio.benchmarkTotalEur
+      : 10000;
+
   const portfolioDirty =
     portfolio != null &&
     (name.trim() !== portfolio.name.trim() ||
-      parseDecimalInputLoose(emergencyFund) !==
-        (Number.isFinite(portfolio.emergencyFundEur)
-          ? portfolio.emergencyFundEur
-          : 0));
+      (!isBenchmark &&
+        parseDecimalInputLoose(emergencyFund) !==
+          (Number.isFinite(portfolio.emergencyFundEur)
+            ? portfolio.emergencyFundEur
+            : 0)) ||
+      (isBenchmark &&
+        (parseDecimalInputLoose(benchmarkTotal) !==
+          portfolioBenchmarkTotalEur ||
+          !weightRowsEqual(weightRows, initialWeightRows))));
 
   return (
     <Modal
@@ -102,37 +261,157 @@ export function EditPortfolioModal({
       open={open}
       onClose={onClose}
       confirmBeforeClose={portfolioDirty}
+      dialogClassName={isBenchmark ? "max-w-3xl" : undefined}
     >
-      <form onSubmit={(e) => void onSubmit(e)} className="form-stack">
-        <label className="block text-sm">
-          Name
-          <input
-            ref={nameInputRef}
-            className="mt-1 block w-full border border-slate-300 rounded px-2 py-1"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoComplete="off"
-          />
-        </label>
-        <div className="field-note-stack">
+      <form onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-5">
+        <div className="flex flex-col gap-2">
           <label className="block text-sm">
-            Emergency fund (EUR)
+            Name
             <input
-              className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
-              type="text"
-              inputMode="decimal"
+              ref={nameInputRef}
+              className="mt-1 block w-full border border-slate-300 rounded px-2 py-1"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               autoComplete="off"
-              value={emergencyFund}
-              onChange={(e) => setEmergencyFund(e.target.value)}
             />
           </label>
-          <p className="text-sm text-slate-600">
-            {PORTFOLIO_EMERGENCY_FUND_NOTE}
-          </p>
         </div>
-        <Button type="submit" disabled={busy}>
-          Save
-        </Button>
+
+        {isBenchmark ? (
+          <>
+            <hr className="border-slate-200 w-full" />
+            <div className="flex flex-col gap-4">
+              <label className="block text-sm max-w-xs">
+                Synthetic portfolio value total value (EUR)
+                <input
+                  className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={benchmarkTotal}
+                  onChange={(e) => setBenchmarkTotal(e.target.value)}
+                />
+              </label>
+              <hr />
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Target weights for comparison charts. Use any positive numbers;
+                they are normalized to 100%.
+              </p>
+              <div className="flex flex-col gap-3">
+                {weightRows.map((row, idx) => (
+                  <div
+                    key={`${idx}-${row.instrumentId === "" ? "e" : row.instrumentId}`}
+                    className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-end sm:gap-3"
+                  >
+                    <label className="block text-sm min-w-0 w-full sm:flex-1">
+                      Instrument
+                      <select
+                        className="mt-1 block w-full min-w-0 border border-slate-300 rounded px-2 py-1 text-sm bg-white"
+                        value={
+                          row.instrumentId === ""
+                            ? ""
+                            : String(row.instrumentId)
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setWeightRows((prev) => {
+                            const next = [...prev];
+                            const cur = next[idx];
+                            if (!cur) return prev;
+                            next[idx] = {
+                              ...cur,
+                              instrumentId:
+                                v === "" ? "" : Number.parseInt(v, 10),
+                            };
+                            return next;
+                          });
+                        }}
+                      >
+                        <option value="">Select…</option>
+                        {instrumentsSorted.map((i) => (
+                          <option key={i.id} value={i.id}>
+                            {i.displayName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="block text-sm w-full shrink-0 sm:w-28">
+                      Weight
+                      <input
+                        className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        value={row.weightStr}
+                        onChange={(e) => {
+                          const t = e.target.value;
+                          setWeightRows((prev) => {
+                            const next = [...prev];
+                            const cur = next[idx];
+                            if (!cur) return prev;
+                            next[idx] = { ...cur, weightStr: t };
+                            return next;
+                          });
+                        }}
+                      />
+                    </label>
+                    <Button
+                      type="button"
+                      className="shrink-0 w-full sm:w-auto"
+                      onClick={() => {
+                        setWeightRows((prev) =>
+                          prev.filter((_, j) => j !== idx),
+                        );
+                      }}
+                    >
+                      Remove
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <Button
+                  type="button"
+                  onClick={() =>
+                    setWeightRows((prev) => [
+                      ...prev,
+                      { instrumentId: "", weightStr: "" },
+                    ])
+                  }
+                >
+                  Add line
+                </Button>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <hr className="border-slate-200 w-full" />
+            <div className="field-note-stack gap-2">
+              <label className="block text-sm">
+                Emergency fund (EUR)
+                <input
+                  className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={emergencyFund}
+                  onChange={(e) => setEmergencyFund(e.target.value)}
+                />
+              </label>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                {PORTFOLIO_EMERGENCY_FUND_NOTE}
+              </p>
+            </div>
+          </>
+        )}
+
+        <hr className="border-slate-200 w-full" />
+        <div>
+          <Button type="submit" disabled={busy}>
+            Save
+          </Button>
+        </div>
       </form>
     </Modal>
   );

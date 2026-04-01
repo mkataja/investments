@@ -14,14 +14,19 @@ export async function loadPortfolioOwnedByUser(
   return row ?? null;
 }
 
-export async function defaultPortfolioIdForUser(): Promise<number | null> {
+/** Lowest-id **live** portfolio (imports and transactions require a live portfolio). */
+export async function defaultLivePortfolioIdForUser(): Promise<number | null> {
   const [row] = await db
     .select({ id: portfolios.id })
     .from(portfolios)
-    .where(eq(portfolios.userId, USER_ID))
+    .where(and(eq(portfolios.userId, USER_ID), eq(portfolios.kind, "live")))
     .orderBy(asc(portfolios.id))
     .limit(1);
   return row?.id ?? null;
+}
+
+export async function defaultPortfolioIdForUser(): Promise<number | null> {
+  return defaultLivePortfolioIdForUser();
 }
 
 export async function resolvePortfolioIdFromImportBody(
@@ -32,11 +37,11 @@ export async function resolvePortfolioIdFromImportBody(
 > {
   const raw = body.portfolioId;
   if (raw === undefined || raw === null || String(raw).trim() === "") {
-    const id = await defaultPortfolioIdForUser();
+    const id = await defaultLivePortfolioIdForUser();
     if (id == null) {
       return {
         ok: false,
-        message: "No portfolio exists for user",
+        message: "No live portfolio exists for user",
         status: 500,
       };
     }
@@ -49,6 +54,13 @@ export async function resolvePortfolioIdFromImportBody(
   const row = await loadPortfolioOwnedByUser(n);
   if (!row) {
     return { ok: false, message: "Portfolio not found", status: 404 };
+  }
+  if (row.kind === "benchmark") {
+    return {
+      ok: false,
+      message: "Cannot import into a benchmark portfolio",
+      status: 400,
+    };
   }
   return { ok: true, portfolioId: n };
 }

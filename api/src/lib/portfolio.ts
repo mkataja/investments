@@ -11,8 +11,12 @@ import {
   instrumentTickerDisplay,
   resolveRegionKeyToIso,
 } from "@investments/lib";
-import { eq, inArray } from "drizzle-orm";
+import { type InferSelectModel, eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
+import {
+  BENCHMARK_TOTAL_EUR_DEFAULT,
+  loadBenchmarkValuedRows,
+} from "./benchmarkPortfolio.js";
 import { distributionGeoScaleForCountryMerge } from "./distributionGeoScale.js";
 import { classifyNonCashInstrument } from "./nonCashAssetClass.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
@@ -250,52 +254,82 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     };
   };
 
-  const pos = await loadOpenPositionsForPortfolio(portfolioId);
-  if (pos.length === 0) {
-    return {
-      countries: {},
-      regions: {},
-      sectors: {},
-      totalValueEur: 0,
-      mixedCurrencyWarning: false,
-      ...emptyDistributions(),
-      positions: [],
-      bucketTopHoldings: { regions: {}, sectors: {}, countries: {} },
-    };
-  }
-
-  const instRows = await db
-    .select()
-    .from(instruments)
-    .where(
-      inArray(
-        instruments.id,
-        pos.map((p) => p.instrumentId),
-      ),
-    );
-
-  const rows: Array<{
-    inst: (typeof instRows)[0];
+  let valued: Array<{
+    inst: InferSelectModel<typeof instruments>;
     qty: number;
-  }> = [];
-  for (const p of pos) {
-    const inst = instRows.find((i) => i.id === p.instrumentId);
-    if (!inst) {
-      continue;
-    }
-    rows.push({ inst, qty: p.quantity });
-  }
+    valueEur: number;
+    source: string;
+  }>;
 
-  const valuedResults = await valuePortfolioRowsEur(rows);
-  const valued = rows.map((row, i) => {
-    const v = valuedResults[i];
-    return {
-      inst: row.inst,
-      qty: row.qty,
-      valueEur: v?.valueEur ?? 0,
-      source: v?.source ?? "none",
-    };
-  });
+  if (pfRow?.kind === "benchmark") {
+    const notionRaw = Number(pfRow.benchmarkTotalEur);
+    const bench = await loadBenchmarkValuedRows(
+      portfolioId,
+      Number.isFinite(notionRaw) && notionRaw > 0
+        ? notionRaw
+        : BENCHMARK_TOTAL_EUR_DEFAULT,
+    );
+    if (bench.length === 0) {
+      return {
+        countries: {},
+        regions: {},
+        sectors: {},
+        totalValueEur: 0,
+        mixedCurrencyWarning: false,
+        ...emptyDistributions(),
+        positions: [],
+        bucketTopHoldings: { regions: {}, sectors: {}, countries: {} },
+      };
+    }
+    valued = bench;
+  } else {
+    const pos = await loadOpenPositionsForPortfolio(portfolioId);
+    if (pos.length === 0) {
+      return {
+        countries: {},
+        regions: {},
+        sectors: {},
+        totalValueEur: 0,
+        mixedCurrencyWarning: false,
+        ...emptyDistributions(),
+        positions: [],
+        bucketTopHoldings: { regions: {}, sectors: {}, countries: {} },
+      };
+    }
+
+    const instRows = await db
+      .select()
+      .from(instruments)
+      .where(
+        inArray(
+          instruments.id,
+          pos.map((p) => p.instrumentId),
+        ),
+      );
+
+    const rows: Array<{
+      inst: (typeof instRows)[0];
+      qty: number;
+    }> = [];
+    for (const p of pos) {
+      const inst = instRows.find((i) => i.id === p.instrumentId);
+      if (!inst) {
+        continue;
+      }
+      rows.push({ inst, qty: p.quantity });
+    }
+
+    const valuedResults = await valuePortfolioRowsEur(rows);
+    valued = rows.map((row, i) => {
+      const v = valuedResults[i];
+      return {
+        inst: row.inst,
+        qty: row.qty,
+        valueEur: v?.valueEur ?? 0,
+        source: v?.source ?? "none",
+      };
+    });
+  }
 
   const totalValueEur = valued.reduce((s, x) => s + x.valueEur, 0);
   const mixedCurrencyWarning = false;

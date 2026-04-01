@@ -34,11 +34,16 @@ export type HomeTransaction = {
   unitPriceEur?: string | null;
 };
 
+export type PortfolioKind = "live" | "benchmark";
+
 export type PortfolioEntity = {
   id: number;
   userId: number;
   name: string;
+  kind: PortfolioKind;
   emergencyFundEur: number;
+  /** Synthetic total EUR for benchmark distributions; meaningful when `kind === "benchmark"`. */
+  benchmarkTotalEur: number;
   createdAt: string;
   updatedAt: string;
 };

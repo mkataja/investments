@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { HttpError, apiGet, apiPostFormData } from "../api";
 import { Button } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
@@ -7,14 +7,7 @@ import {
   readStoredPortfolioId,
   writeStoredPortfolioId,
 } from "../lib/portfolioSelection";
-
-type PortfolioEntity = {
-  id: number;
-  userId: number;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-};
+import type { PortfolioEntity } from "./home/types";
 
 type DegiroOk = {
   ok: true;
@@ -122,14 +115,23 @@ export function ImportPage() {
     null,
   );
 
+  const livePortfolios = useMemo(
+    () => portfolios.filter((p) => (p.kind ?? "live") !== "benchmark"),
+    [portfolios],
+  );
+
   useEffect(() => {
     void (async () => {
       try {
         const list = await apiGet<PortfolioEntity[]>("/portfolios");
         setPortfolios(list);
         const stored = readStoredPortfolioId();
+        const storedRow = list.find((p) => p.id === stored);
         const pick =
-          list.find((p) => p.id === stored)?.id ?? list[0]?.id ?? null;
+          storedRow && (storedRow.kind ?? "live") !== "benchmark"
+            ? storedRow.id
+            : (list.find((p) => (p.kind ?? "live") !== "benchmark")?.id ??
+              null);
         setImportPortfolioId(pick);
       } catch {
         setPortfolios([]);
@@ -444,7 +446,7 @@ export function ImportPage() {
         </p>
       </div>
 
-      {portfolios.length > 0 ? (
+      {livePortfolios.length > 0 ? (
         <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <label className="block text-sm text-slate-700">
             Import into portfolio
@@ -460,7 +462,7 @@ export function ImportPage() {
                 }
               }}
             >
-              {portfolios.map((p) => (
+              {livePortfolios.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
@@ -468,6 +470,11 @@ export function ImportPage() {
             </select>
           </label>
         </div>
+      ) : portfolios.length > 0 ? (
+        <p className="text-sm text-slate-600">
+          Add a live portfolio before importing (benchmark portfolios cannot
+          hold transactions).
+        </p>
       ) : null}
 
       <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

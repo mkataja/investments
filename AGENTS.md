@@ -16,7 +16,7 @@ Multi-broker portfolio tracker: transactions per broker; positions from buy/sell
 | Packages, infra, DB tables, caching, positions | [`docs/architecture.md`](docs/architecture.md) |
 | Routes, imports, portfolio response shapes | [`docs/api.md`](docs/api.md) |
 
-HTTP behavior lives in **`api`** only; routes are not duplicated here. Data model: **`db/src/schema.ts`** + migrations.
+HTTP behavior lives in **`api`** only; routes are not duplicated here. Data model: **`db/src/schema.ts`** + migrations. Benchmark portfolios (`portfolios.kind`, `portfolio_benchmark_weights`, `benchmark_total_eur`) hold target instrument weights instead of transactions — see [`docs/architecture.md`](docs/architecture.md).
 
 ## Tooling
 

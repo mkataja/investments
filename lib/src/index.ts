@@ -11,4 +11,5 @@ export * from "./instrumentKind.js";
 export * from "./instrumentSelectLabel.js";
 export * from "./isin.js";
 export * from "./minPortfolioAllocationFraction.js";
+export * from "./portfolioKinds.js";
 export * from "./yahooSymbol.js";

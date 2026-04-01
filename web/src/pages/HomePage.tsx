@@ -62,6 +62,11 @@ export function HomePage() {
   const [newPortfolioName, setNewPortfolioName] = useState("");
   const [newPortfolioEmergencyFund, setNewPortfolioEmergencyFund] =
     useState("0");
+  const [newPortfolioKind, setNewPortfolioKind] = useState<
+    "live" | "benchmark"
+  >("live");
+  const [newPortfolioBenchmarkTotal, setNewPortfolioBenchmarkTotal] =
+    useState("10000");
   const [newPortfolioBusy, setNewPortfolioBusy] = useState(false);
   const [editPortfolioOpen, setEditPortfolioOpen] = useState(false);
   const newPortfolioNameInputRef = useRef<HTMLInputElement>(null);
@@ -194,6 +199,8 @@ export function HomePage() {
     return portfolioEntities.find((p) => p.id === selectedPortfolioId) ?? null;
   }, [selectedPortfolioId, portfolioEntities]);
 
+  const selectedIsBenchmark = selectedPortfolioEntity?.kind === "benchmark";
+
   useEffect(() => {
     void load();
   }, [load]);
@@ -208,19 +215,33 @@ export function HomePage() {
     if (name.length === 0) {
       return;
     }
-    const efParsed = Number.parseFloat(
-      newPortfolioEmergencyFund.trim().replace(",", "."),
-    );
+    const efParsed =
+      newPortfolioKind === "benchmark"
+        ? 0
+        : Number.parseFloat(newPortfolioEmergencyFund.trim().replace(",", "."));
     if (!Number.isFinite(efParsed) || efParsed < 0) {
       setError("Emergency fund must be a non-negative number.");
       return;
+    }
+    let benchmarkTotalEur: number | undefined;
+    if (newPortfolioKind === "benchmark") {
+      const bt = Number.parseFloat(
+        newPortfolioBenchmarkTotal.trim().replace(",", "."),
+      );
+      if (!Number.isFinite(bt) || bt <= 0) {
+        setError("Total amount must be a positive number.");
+        return;
+      }
+      benchmarkTotalEur = bt;
     }
     setNewPortfolioBusy(true);
     setError(null);
     try {
       const row = await apiPost<PortfolioEntity>("/portfolios", {
         name,
+        kind: newPortfolioKind,
         emergencyFundEur: efParsed,
+        ...(benchmarkTotalEur != null ? { benchmarkTotalEur } : {}),
       });
       setPortfolioEntities((prev) =>
         [...prev, row].sort((a, b) => a.id - b.id),
@@ -230,6 +251,11 @@ export function HomePage() {
       setNewPortfolioOpen(false);
       setNewPortfolioName("");
       setNewPortfolioEmergencyFund("0");
+      setNewPortfolioKind("live");
+      setNewPortfolioBenchmarkTotal("10000");
+      if ((row.kind ?? "live") === "benchmark") {
+        setEditPortfolioOpen(true);
+      }
     } catch (err) {
       setError(String(err));
     } finally {
@@ -240,12 +266,15 @@ export function HomePage() {
   function openNewPortfolioModal() {
     setNewPortfolioName("");
     setNewPortfolioEmergencyFund("0");
+    setNewPortfolioKind("live");
+    setNewPortfolioBenchmarkTotal("10000");
     setNewPortfolioOpen(true);
   }
 
   const newPortfolioDirty =
     newPortfolioName.trim() !== "" ||
-    parseDecimalInputLoose(newPortfolioEmergencyFund) !== 0;
+    parseDecimalInputLoose(newPortfolioEmergencyFund) !== 0 ||
+    newPortfolioKind !== "live";
 
   return (
     <div className="w-full min-w-0 page-stack">
@@ -270,7 +299,9 @@ export function HomePage() {
                   >
                     {portfolioEntities.map((pe) => (
                       <option key={pe.id} value={pe.id}>
-                        {pe.name}
+                        {(pe.kind ?? "live") === "benchmark"
+                          ? `${pe.name} (benchmark)`
+                          : pe.name}
                       </option>
                     ))}
                   </select>
@@ -296,7 +327,9 @@ export function HomePage() {
                         .filter((pe) => pe.id !== selectedPortfolioId)
                         .map((pe) => (
                           <option key={pe.id} value={pe.id}>
-                            {pe.name}
+                            {(pe.kind ?? "live") === "benchmark"
+                              ? `${pe.name} (benchmark)`
+                              : pe.name}
                           </option>
                         ))}
                     </select>
@@ -321,17 +354,23 @@ export function HomePage() {
             >
               Edit portfolio
             </Button>
-            <ButtonLink to="/portfolio/import">Import transactions</ButtonLink>
-            <Button
-              type="button"
-              disabled={selectedPortfolioId == null}
-              onClick={() => {
-                setEditingTransaction(null);
-                setTxnModalOpen(true);
-              }}
-            >
-              Add transaction
-            </Button>
+            {selectedIsBenchmark ? null : (
+              <>
+                <ButtonLink to="/portfolio/import">
+                  Import transactions
+                </ButtonLink>
+                <Button
+                  type="button"
+                  disabled={selectedPortfolioId == null}
+                  onClick={() => {
+                    setEditingTransaction(null);
+                    setTxnModalOpen(true);
+                  }}
+                >
+                  Add transaction
+                </Button>
+              </>
+            )}
           </div>
         </div>
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
@@ -345,37 +384,84 @@ export function HomePage() {
       >
         <form
           onSubmit={(e) => void submitNewPortfolio(e)}
-          className="form-stack"
+          className="flex flex-col gap-5"
         >
-          <label className="block text-sm">
-            Name
-            <input
-              ref={newPortfolioNameInputRef}
-              className="mt-1 block w-full border border-slate-300 rounded px-2 py-1"
-              value={newPortfolioName}
-              onChange={(e) => setNewPortfolioName(e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-          <div className="field-note-stack">
+          <div className="flex flex-col gap-2">
             <label className="block text-sm">
-              Emergency fund (EUR)
+              Name
               <input
-                className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
-                type="text"
-                inputMode="decimal"
+                ref={newPortfolioNameInputRef}
+                className="mt-1 block w-full border border-slate-300 rounded px-2 py-1"
+                value={newPortfolioName}
+                onChange={(e) => setNewPortfolioName(e.target.value)}
                 autoComplete="off"
-                value={newPortfolioEmergencyFund}
-                onChange={(e) => setNewPortfolioEmergencyFund(e.target.value)}
               />
             </label>
-            <p className="text-sm text-slate-600">
-              {PORTFOLIO_EMERGENCY_FUND_NOTE}
-            </p>
           </div>
-          <Button type="submit" disabled={newPortfolioBusy}>
-            Create
-          </Button>
+          <hr className="border-slate-200 w-full" />
+          <div className="flex flex-col gap-2">
+            <label className="block text-sm">
+              Type
+              <select
+                className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 text-sm bg-white"
+                value={newPortfolioKind}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setNewPortfolioKind(v === "benchmark" ? "benchmark" : "live");
+                }}
+              >
+                <option value="live">Live (transactions)</option>
+                <option value="benchmark">Benchmark (target weights)</option>
+              </select>
+            </label>
+          </div>
+          {newPortfolioKind === "benchmark" ? (
+            <>
+              <hr className="border-slate-200 w-full" />
+              <label className="block text-sm max-w-xs">
+                Synthetic portfolio value total value (EUR)
+                <input
+                  className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={newPortfolioBenchmarkTotal}
+                  onChange={(e) =>
+                    setNewPortfolioBenchmarkTotal(e.target.value)
+                  }
+                />
+              </label>
+            </>
+          ) : null}
+          {newPortfolioKind === "live" ? (
+            <>
+              <hr className="border-slate-200 w-full" />
+              <div className="field-note-stack gap-2">
+                <label className="block text-sm">
+                  Emergency fund (EUR)
+                  <input
+                    className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+                    type="text"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={newPortfolioEmergencyFund}
+                    onChange={(e) =>
+                      setNewPortfolioEmergencyFund(e.target.value)
+                    }
+                  />
+                </label>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  {PORTFOLIO_EMERGENCY_FUND_NOTE}
+                </p>
+              </div>
+            </>
+          ) : null}
+          <hr className="border-slate-200 w-full" />
+          <div>
+            <Button type="submit" disabled={newPortfolioBusy}>
+              Create
+            </Button>
+          </div>
         </form>
       </Modal>
 
@@ -384,6 +470,7 @@ export function HomePage() {
         open={editPortfolioOpen}
         onClose={() => setEditPortfolioOpen(false)}
         portfolio={selectedPortfolioEntity}
+        instruments={instruments}
         onSaved={load}
         onError={setError}
       />
@@ -415,23 +502,26 @@ export function HomePage() {
             portfolio={portfolio}
             instrumentById={instrumentById}
             instrumentTickerById={instrumentTickerById}
+            hideQtyAndUnitEur={selectedIsBenchmark}
           />
         </div>
       ) : null}
 
-      <TransactionsTable
-        transactions={transactions}
-        brokerNameById={brokerNameById}
-        instrumentById={instrumentById}
-        instrumentNameById={instrumentNameById}
-        instrumentTickerById={instrumentTickerById}
-        onEdit={(t) => {
-          setEditingTransaction(t);
-          setTxnModalOpen(true);
-        }}
-        onDeleted={load}
-        onError={setError}
-      />
+      {selectedIsBenchmark ? null : (
+        <TransactionsTable
+          transactions={transactions}
+          brokerNameById={brokerNameById}
+          instrumentById={instrumentById}
+          instrumentNameById={instrumentNameById}
+          instrumentTickerById={instrumentTickerById}
+          onEdit={(t) => {
+            setEditingTransaction(t);
+            setTxnModalOpen(true);
+          }}
+          onDeleted={load}
+          onError={setError}
+        />
+      )}
     </div>
   );
 }

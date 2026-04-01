@@ -15,6 +15,8 @@ type HoldingsTableProps = {
   portfolio: PortfolioDistributions;
   instrumentById: Map<number, HomeInstrument>;
   instrumentTickerById: Map<number, string | null>;
+  /** Benchmark portfolios use synthetic notionals; hide quantity and unit price columns. */
+  hideQtyAndUnitEur?: boolean;
 };
 
 type PortfolioPosition = PortfolioDistributions["positions"][number];
@@ -29,6 +31,7 @@ function HoldingsSubtable({
   instrumentById,
   instrumentTickerById,
   setHoldingTooltip,
+  hideQtyAndUnitEur,
 }: {
   title: string;
   rows: PortfolioPosition[];
@@ -37,6 +40,7 @@ function HoldingsSubtable({
   setHoldingTooltip: Dispatch<
     SetStateAction<HoldingDistributionTooltipState | null>
   >;
+  hideQtyAndUnitEur?: boolean;
 }) {
   if (rows.length === 0) {
     return null;
@@ -53,8 +57,12 @@ function HoldingsSubtable({
             <tr>
               <th className="text-left p-2 font-medium">Instrument</th>
               <th className="text-left p-2 font-medium">Ticker</th>
-              <th className="text-right p-2 font-medium">Qty</th>
-              <th className="text-right p-2 font-medium">Unit EUR</th>
+              {hideQtyAndUnitEur ? null : (
+                <>
+                  <th className="text-right p-2 font-medium">Qty</th>
+                  <th className="text-right p-2 font-medium">Unit EUR</th>
+                </>
+              )}
               <th className="text-right p-2 font-medium">Value EUR</th>
               <th className="text-right p-2 font-medium">Weight</th>
             </tr>
@@ -92,14 +100,18 @@ function HoldingsSubtable({
                   <td className="p-2 text-left tabular-nums text-slate-700">
                     {ticker}
                   </td>
-                  <td className="p-2 text-right tabular-nums">
-                    {roundQuantityForDisplay(String(p.quantity))}
-                  </td>
-                  <td className="p-2 text-right tabular-nums">
-                    {p.unitPriceEur == null
-                      ? "-"
-                      : formatUnitPriceForDisplay(String(p.unitPriceEur))}
-                  </td>
+                  {hideQtyAndUnitEur ? null : (
+                    <>
+                      <td className="p-2 text-right tabular-nums">
+                        {roundQuantityForDisplay(String(p.quantity))}
+                      </td>
+                      <td className="p-2 text-right tabular-nums">
+                        {p.unitPriceEur == null
+                          ? "-"
+                          : formatUnitPriceForDisplay(String(p.unitPriceEur))}
+                      </td>
+                    </>
+                  )}
                   <td className="p-2 text-right tabular-nums">
                     {p.valueEur.toFixed(2)}
                   </td>
@@ -120,6 +132,7 @@ export function HoldingsTable({
   portfolio,
   instrumentById,
   instrumentTickerById,
+  hideQtyAndUnitEur = false,
 }: HoldingsTableProps) {
   const [holdingTooltip, setHoldingTooltip] =
     useState<HoldingDistributionTooltipState | null>(null);
@@ -153,6 +166,7 @@ export function HoldingsTable({
         instrumentById={instrumentById}
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}
+        hideQtyAndUnitEur={hideQtyAndUnitEur}
       />
       <HoldingsSubtable
         title="Equities"
@@ -160,6 +174,7 @@ export function HoldingsTable({
         instrumentById={instrumentById}
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}
+        hideQtyAndUnitEur={hideQtyAndUnitEur}
       />
       <HoldingsSubtable
         title="Bonds"
@@ -167,6 +182,7 @@ export function HoldingsTable({
         instrumentById={instrumentById}
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}
+        hideQtyAndUnitEur={hideQtyAndUnitEur}
       />
       <HoldingDistributionTooltipLayer
         tooltip={holdingTooltip}

@@ -1,0 +1,1 @@
+ALTER TABLE "portfolios" ADD COLUMN "benchmark_total_eur" numeric(24, 8) DEFAULT '10000' NOT NULL;

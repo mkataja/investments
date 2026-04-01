@@ -1,6 +1,8 @@
 import { type ReactNode, useCallback, useEffect, useId } from "react";
 import { createPortal } from "react-dom";
 
+import { classNames } from "../lib/css";
+
 const CLOSE_CONFIRM_MESSAGE = "Discard changes and close?";
 
 type ModalProps = {
@@ -8,6 +10,8 @@ type ModalProps = {
   open: boolean;
   onClose: () => void;
   children: ReactNode;
+  /** Overrides default `max-w-lg` on the dialog panel (e.g. `max-w-3xl`). */
+  dialogClassName?: string;
   /**
    * When true, Escape, backdrop click, and the Close control ask for confirmation
    * before calling `onClose`. Successful submit flows should call `onClose` from
@@ -22,6 +26,7 @@ export function Modal({
   onClose,
   children,
   confirmBeforeClose = false,
+  dialogClassName,
 }: ModalProps) {
   const titleId = useId();
 
@@ -62,7 +67,10 @@ export function Modal({
           open
           aria-modal="true"
           aria-labelledby={titleId}
-          className="relative z-50 w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain rounded-lg border border-slate-200 bg-white p-4 shadow-lg"
+          className={classNames(
+            "relative z-50 w-full max-h-[90vh] overflow-y-auto overscroll-contain rounded-lg border border-slate-200 bg-white p-4 shadow-lg",
+            dialogClassName ?? "max-w-lg",
+          )}
         >
           <div className="modal-stack">
             <div className="flex items-center justify-between gap-3 min-w-0">

@@ -30,6 +30,7 @@ export const users = pgTable("users", {
 
 /**
  * One row per named portfolio bucket; transactions are scoped to a portfolio.
+ * `kind = benchmark`: target weights in `portfolio_benchmark_weights`; no transactions.
  */
 export const portfolios = pgTable(
   "portfolios",
@@ -39,6 +40,7 @@ export const portfolios = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    kind: text("kind").notNull().default("live"),
     /** Amount reserved as emergency cash; drives asset mix cash vs excess split for this portfolio. */
     emergencyFundEur: numeric("emergency_fund_eur", {
       precision: 24,
@@ -46,6 +48,15 @@ export const portfolios = pgTable(
     })
       .notNull()
       .default("0"),
+    /**
+     * Synthetic total EUR for benchmark notionals (`getPortfolioDistributions`); ignored when `kind` is live.
+     */
+    benchmarkTotalEur: numeric("benchmark_total_eur", {
+      precision: 24,
+      scale: 8,
+    })
+      .notNull()
+      .default("10000"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -53,7 +64,10 @@ export const portfolios = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [uniqueIndex("portfolios_user_name_uidx").on(t.userId, t.name)],
+  (t) => [
+    uniqueIndex("portfolios_user_name_uidx").on(t.userId, t.name),
+    check("portfolios_kind_ck", sql`${t.kind} IN ('live', 'benchmark')`),
+  ],
 );
 
 export const brokers = pgTable(
@@ -219,6 +233,38 @@ export const instrumentCompositeConstituents = pgTable(
   ],
 );
 
+/**
+ * Target weights for `portfolios.kind = benchmark` (fractions; normalized in application).
+ */
+export const portfolioBenchmarkWeights = pgTable(
+  "portfolio_benchmark_weights",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    portfolioId: integer("portfolio_id")
+      .notNull()
+      .references(() => portfolios.id, { onDelete: "cascade" }),
+    instrumentId: integer("instrument_id")
+      .notNull()
+      .references(() => instruments.id, { onDelete: "restrict" }),
+    weight: numeric("weight", { precision: 24, scale: 8 }).notNull(),
+    sortOrder: integer("sort_order").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("portfolio_benchmark_weights_portfolio_instrument_uidx").on(
+      t.portfolioId,
+      t.instrumentId,
+    ),
+    index("portfolio_benchmark_weights_portfolio_id_idx").on(t.portfolioId),
+    index("portfolio_benchmark_weights_instrument_id_idx").on(t.instrumentId),
+  ],
+);
+
 export const transactions = pgTable(
   "transactions",
   {
@@ -228,7 +274,7 @@ export const transactions = pgTable(
       .references(() => users.id, { onDelete: "restrict" }),
     portfolioId: integer("portfolio_id")
       .notNull()
-      .references(() => portfolios.id, { onDelete: "restrict" }),
+      .references(() => portfolios.id, { onDelete: "cascade" }),
     brokerId: integer("broker_id")
       .notNull()
       .references(() => brokers.id),
@@ -434,7 +480,22 @@ export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
     references: [users.id],
   }),
   transactions: many(transactions),
+  benchmarkWeights: many(portfolioBenchmarkWeights),
 }));
+
+export const portfolioBenchmarkWeightsRelations = relations(
+  portfolioBenchmarkWeights,
+  ({ one }) => ({
+    portfolio: one(portfolios, {
+      fields: [portfolioBenchmarkWeights.portfolioId],
+      references: [portfolios.id],
+    }),
+    instrument: one(instruments, {
+      fields: [portfolioBenchmarkWeights.instrumentId],
+      references: [instruments.id],
+    }),
+  }),
+);
 
 export const brokersRelations = relations(brokers, ({ many, one }) => ({
   user: one(users, {
@@ -468,6 +529,7 @@ export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
   compositeConstituentsAsParent: many(instrumentCompositeConstituents, {
     relationName: "compositeConstituentsParent",
   }),
+  portfolioBenchmarkWeights: many(portfolioBenchmarkWeights),
   transactions: many(transactions),
   distribution: one(distributions, {
     fields: [instruments.id],

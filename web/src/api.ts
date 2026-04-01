@@ -62,6 +62,19 @@ export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export async function apiPut(path: string, body?: unknown): Promise<void> {
+  const res = await fetch(`${base}${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(messageFromErrorResponse(res.status, text));
+  }
+}
+
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     method: "POST",
