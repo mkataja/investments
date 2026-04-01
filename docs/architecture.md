@@ -9,7 +9,7 @@ pnpm workspace — [`pnpm-workspace.yaml`](../pnpm-workspace.yaml):
 | [`db`](../db) | Drizzle [`schema.ts`](../db/src/schema.ts), migrations, `drizzle.config.ts` — database layer only |
 | [`lib`](../lib) | Shared domain and validation used by api + web: `USER_ID`, currencies, Yahoo/ISIN/holdings URL helpers, geo buckets, broker rules, `DistributionPayload` type, sector ids, composite pseudo-keys, UI-adjacent helpers (`instrumentSelectLabel`, etc.); not Drizzle DDL |
 | [`api`](../api) | Hono API, valuation, distribution fetch/normalize, cache refresh |
-| [`web`](../web) | Vite + React + Tailwind; `/`, `/brokers`, `/instruments`, `/instruments/new`, `/instruments/:id/edit`, `/import` (Degiro CSV, IBKR CSV, Seligson TSV). Home subcomponents (charts, holdings, transactions, modals) under `web/src/pages/home/` |
+| [`web`](../web) | Vite + React + Tailwind; `/`, `/brokers`, `/instruments`, `/instruments/new`, `/instruments/:id/edit`, `/portfolio/import` (Degiro CSV, IBKR CSV, Seligson TSV). Home subcomponents (charts, holdings, transactions, modals) under `web/src/pages/home/` |
 
 Scripts/versions: root [`package.json`](../package.json). Setup, ports, env: [`README.md`](../README.md), [`.env.example`](../.env.example).
 

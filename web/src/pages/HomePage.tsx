@@ -313,7 +313,7 @@ export function HomePage() {
             >
               Edit portfolio
             </Button>
-            <ButtonLink to="/import">Import transactions</ButtonLink>
+            <ButtonLink to="/portfolio/import">Import transactions</ButtonLink>
             <Button
               type="button"
               disabled={selectedPortfolioId == null}

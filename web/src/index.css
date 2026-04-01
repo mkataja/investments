@@ -102,7 +102,11 @@
 
   /** App shell top nav (`App.tsx`) */
   .nav-bar-link {
-    @apply text-base font-medium tracking-wider text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 rounded-sm;
+    @apply -mb-px inline-flex items-center border-b-2 border-transparent px-2 py-3 text-base font-medium tracking-wider text-slate-600 transition-colors duration-150 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 rounded-sm;
+  }
+
+  .nav-bar-link-active {
+    @apply border-emerald-600 text-slate-900;
   }
 
   /** Inline / nav links (Router `<Link>`, back links) */
