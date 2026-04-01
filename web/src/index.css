@@ -325,4 +325,45 @@
   .txn-side-sell {
     @apply text-red-700;
   }
+
+  /** External HTML tooltips (Chart.js `external` handler) — portfolio distribution + pie charts. */
+  .chart-tooltip {
+    @apply w-max rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700 shadow-lg;
+  }
+
+  .chart-tooltip__heading {
+    @apply mb-1.5 text-base font-semibold leading-snug text-slate-900;
+  }
+
+  .chart-tooltip__weights {
+    @apply m-0 list-none space-y-0.5 p-0;
+  }
+
+  .chart-tooltip__weight {
+    @apply flex items-start gap-2 leading-snug;
+  }
+
+  .chart-tooltip__swatch {
+    @apply mt-0.5 box-border h-3 w-3 shrink-0 rounded-sm border border-solid;
+  }
+
+  .chart-tooltip__holdings {
+    @apply m-0 list-decimal space-y-0.5 pl-5 leading-snug;
+  }
+
+  .chart-tooltip__section {
+    @apply mt-3 space-y-1;
+  }
+
+  .chart-tooltip__section-title {
+    @apply m-0 text-sm leading-snug text-slate-700;
+  }
+
+  .chart-tooltip__empty {
+    @apply m-0 mt-3 text-sm leading-snug text-slate-700;
+  }
+
+  .chart-tooltip__pie {
+    @apply m-0 leading-snug;
+  }
 }

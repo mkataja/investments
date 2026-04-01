@@ -1,12 +1,3 @@
-/**
- * Muted portfolio chart colors for Recharts pies and distribution bars.
- *
- * - Equities: ice / sky cyan #BCEDF6 (asset mix pie)
- * - Bonds: periwinkle ramp anchored at #6B7FD7
- * - Cash: soft mint anchored at #C2EABA
- * - Region / sector / country bars: blue pair (primary + compare)
- */
-
 export const PORTFOLIO_ASSET_MIX_COLORS = {
   equities: "#ACDDF6",
   bonds: "#6B7FD7",

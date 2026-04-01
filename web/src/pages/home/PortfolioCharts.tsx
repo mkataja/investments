@@ -1,22 +1,15 @@
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
+import type { ChartOptions } from "chart.js";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Bar, Pie } from "react-chartjs-2";
 import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Legend,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
-import {
-  DistributionBarChartTooltip,
-  createDistributionBarTooltipContent,
+  type DistributionBarChartRow,
+  distributionBarChartTooltipPlugin,
 } from "../../components/PortfolioChartTooltips";
+import "../../lib/chart/registerChartJs";
+import { CHART_TOOLTIP_BASE } from "../../lib/chart/chartTooltipTheme";
+import { pieChartLeftAlignPlugin } from "../../lib/chart/pieChartLeftAlignPlugin";
+import { adjustPieValuesForMinAngleDegrees } from "../../lib/chart/pieMinAngle";
 import {
   DEFAULT_DISTRIBUTION_BAR_Y_AXIS_TICK_COUNT,
   distributionBarYAxisFromMax,
@@ -41,73 +34,122 @@ import {
 import { DISTRIBUTION_SECTOR_TITLES } from "../../lib/sectorTitles";
 import type { PortfolioDistributions } from "./types";
 
-const chartAxisTickStyle = { fontSize: "0.9rem" };
-const chartLegendStyle = { fontSize: "0.8rem" };
 const distributionBarChartGridStroke = "#e2e8f0";
 
-function PieSideLegend({
-  items,
-}: {
-  items: readonly { name: string; fill: string }[];
-}) {
-  return (
-    <ul className="m-0 flex min-w-0 flex-1 flex-col list-none items-start gap-1.5 p-0 text-left">
-      {items.map((d) => (
-        <li key={d.name} className="flex w-full min-w-0 items-start gap-2">
-          <span
-            aria-hidden
-            className="mt-0.5 h-3 w-3 shrink-0 rounded-sm border border-white shadow-sm"
-            style={{ backgroundColor: d.fill }}
-          />
-          <span className="min-w-0 break-words text-base text-slate-700">
-            {d.name}
-          </span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+/** Minimum arc per non-zero pie slice (Chart.js has no built-in; see {@link adjustPieValuesForMinAngleDegrees}). */
+const PIE_MIN_SLICE_DEGREES = 6;
 
-// Recharts tickFormatter(value, index) — only pass the numeric value to formatToPercentage.
-function chartYAxisPercentTick(value: number) {
-  return formatToPercentage(value, { decimalPlaces: 0 });
-}
+/** Inset between canvas edge and pie arc (right is set by {@link pieChartLeftAlignPlugin}). */
+const pieChartLayoutPadding = {
+  top: 10,
+  right: 0,
+  bottom: 10,
+  left: 0,
+} as const;
 
-function CountryChartZoomActiveIcon() {
-  return (
-    <svg
-      className="h-8 w-8"
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.35-4.35" />
-    </svg>
-  );
-}
-
-function barChartMargin() {
-  return {
-    top: 6,
-    right: 6,
-    left: 36,
-    bottom: 48,
-  } as const;
-}
+/** Native Chart.js legend beside the pie (same point style as distribution bar charts). */
+const pieChartLegendOptions: NonNullable<
+  ChartOptions<"pie">["plugins"]
+>["legend"] = {
+  display: true,
+  position: "right",
+  labels: {
+    boxWidth: 12,
+    boxHeight: 12,
+    padding: 10,
+    font: { size: 14 },
+    usePointStyle: true,
+    pointStyle: "rectRounded",
+  },
+};
 
 /** Target horizontal space per country bar (matches resize-driven row cap). */
 const COUNTRY_BAR_CHART_PX_PER_ENTRY = 42;
-/** Comparison mode: primary/compare bars tight; more space between country buckets (Recharts defaults: 4, 10%). */
-const COUNTRY_COMPARE_BAR_GAP = 3;
-const COUNTRY_COMPARE_BAR_CATEGORY_GAP = "12%";
 /** Before the first `ResizeObserver` callback, approximate bar count for SSR/first paint. */
 const COUNTRY_BAR_CHART_WIDTH_FALLBACK_PX = 800;
+
+function yStepFromAxis(axis: { domain: [number, number]; ticks: number[] }) {
+  const t0 = axis.ticks[0];
+  const t1 = axis.ticks[1];
+  if (typeof t0 === "number" && typeof t1 === "number") {
+    return t1 - t0;
+  }
+  return axis.domain[1];
+}
+
+function distributionBarOptions(args: {
+  rows: DistributionBarChartRow[];
+  yAxis: { domain: [number, number]; ticks: number[] };
+  tooltip: {
+    showCompare: boolean;
+    primaryLabel: string;
+    compareLabel: string;
+  };
+  xLabels: "slanted" | "compact";
+  showLegend: boolean;
+  onClick?: ChartOptions<"bar">["onClick"];
+}): ChartOptions<"bar"> {
+  const step = yStepFromAxis(args.yAxis);
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: "index", intersect: false },
+    animation: { duration: 420 },
+    onClick: args.onClick,
+    datasets: {
+      bar: {
+        borderRadius: 2,
+        borderSkipped: false,
+      },
+    },
+    plugins: {
+      legend: {
+        display: args.showLegend,
+        position: "top",
+        align: "end",
+        labels: {
+          boxWidth: 12,
+          boxHeight: 12,
+          padding: 14,
+          font: { size: 14 },
+          usePointStyle: true,
+          pointStyle: "rectRounded",
+        },
+      },
+      ...distributionBarChartTooltipPlugin(args.rows, args.tooltip),
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: {
+          font: { size: 14 },
+          color: "#475569",
+          maxRotation: args.xLabels === "slanted" ? 40 : 0,
+          minRotation: args.xLabels === "slanted" ? 32 : 0,
+          autoSkip: true,
+        },
+      },
+      y: {
+        min: 0,
+        max: args.yAxis.domain[1],
+        ticks: {
+          stepSize: step,
+          callback: (tickValue) =>
+            formatToPercentage(
+              typeof tickValue === "number" ? tickValue : Number(tickValue),
+              { decimalPlaces: 0 },
+            ),
+        },
+        grid: {
+          color: distributionBarChartGridStroke,
+          lineWidth: 1,
+          drawTicks: false,
+        },
+        border: { display: false },
+      },
+    },
+  };
+}
 
 type PortfolioChartsProps = {
   portfolio: PortfolioDistributions;
@@ -127,13 +169,12 @@ export function PortfolioCharts({
   comparePortfolioLabel,
   distributionBarYAxisTickCount = DEFAULT_DISTRIBUTION_BAR_Y_AXIS_TICK_COUNT,
 }: PortfolioChartsProps) {
-  const distributionTooltipContent = useMemo(
-    () =>
-      createDistributionBarTooltipContent({
-        showCompare: showDistributionCompare,
-        primaryLabel: selectedPortfolioLabel,
-        compareLabel: comparePortfolioLabel,
-      }),
+  const tooltipMeta = useMemo(
+    () => ({
+      showCompare: showDistributionCompare,
+      primaryLabel: selectedPortfolioLabel,
+      compareLabel: comparePortfolioLabel,
+    }),
     [showDistributionCompare, selectedPortfolioLabel, comparePortfolioLabel],
   );
 
@@ -386,6 +427,250 @@ export function PortfolioCharts({
     [portfolio.bondMix],
   );
 
+  const regionBarData = useMemo(() => {
+    const labels = regionBarChartData.map((r) => r.name);
+    if (showDistributionCompare) {
+      const rows = regionBarChartData as Array<{
+        name: string;
+        primary: number;
+        compare: number;
+      }>;
+      return {
+        labels,
+        datasets: [
+          {
+            label: selectedPortfolioLabel,
+            data: rows.map((r) => r.primary ?? 0),
+            backgroundColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionPrimary,
+          },
+          {
+            label: comparePortfolioLabel,
+            data: rows.map((r) => r.compare ?? 0),
+            backgroundColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionCompare,
+          },
+        ],
+      };
+    }
+    const rows = regionBarChartData as Array<{ name: string; value: number }>;
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Weight",
+          data: rows.map((r) => r.value ?? 0),
+          backgroundColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionPrimary,
+        },
+      ],
+    };
+  }, [
+    regionBarChartData,
+    showDistributionCompare,
+    selectedPortfolioLabel,
+    comparePortfolioLabel,
+  ]);
+
+  const sectorBarData = useMemo(() => {
+    const labels = sectorBarChartData.map((r) => r.name);
+    if (showDistributionCompare) {
+      const rows = sectorBarChartData as Array<{
+        name: string;
+        primary: number;
+        compare: number;
+      }>;
+      return {
+        labels,
+        datasets: [
+          {
+            label: selectedPortfolioLabel,
+            data: rows.map((r) => r.primary ?? 0),
+            backgroundColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorPrimary,
+          },
+          {
+            label: comparePortfolioLabel,
+            data: rows.map((r) => r.compare ?? 0),
+            backgroundColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorCompare,
+          },
+        ],
+      };
+    }
+    const rows = sectorBarChartData as Array<{ name: string; value: number }>;
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Weight",
+          data: rows.map((r) => r.value ?? 0),
+          backgroundColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorPrimary,
+        },
+      ],
+    };
+  }, [
+    sectorBarChartData,
+    showDistributionCompare,
+    selectedPortfolioLabel,
+    comparePortfolioLabel,
+  ]);
+
+  const countryBarData = useMemo(() => {
+    const labels = countryBarChartData.map((r) => r.name);
+    if (showDistributionCompare) {
+      const rows = countryBarChartData as Array<{
+        name: string;
+        primary: number;
+        compare: number;
+      }>;
+      return {
+        labels,
+        datasets: [
+          {
+            label: selectedPortfolioLabel,
+            data: rows.map((r) => r.primary ?? 0),
+            backgroundColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryPrimary,
+          },
+          {
+            label: comparePortfolioLabel,
+            data: rows.map((r) => r.compare ?? 0),
+            backgroundColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryCompare,
+          },
+        ],
+      };
+    }
+    const rows = countryBarChartData as Array<{ name: string; value: number }>;
+    return {
+      labels,
+      datasets: [
+        {
+          label: "Weight",
+          data: rows.map((r) => r.value ?? 0),
+          backgroundColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryPrimary,
+        },
+      ],
+    };
+  }, [
+    countryBarChartData,
+    showDistributionCompare,
+    selectedPortfolioLabel,
+    comparePortfolioLabel,
+  ]);
+
+  const regionBarOptions = useMemo(
+    () =>
+      distributionBarOptions({
+        rows: regionBarChartData,
+        yAxis: regionYAxis,
+        tooltip: tooltipMeta,
+        xLabels: "slanted",
+        showLegend: showDistributionCompare,
+      }),
+    [regionBarChartData, regionYAxis, tooltipMeta, showDistributionCompare],
+  );
+
+  const sectorBarOptions = useMemo(
+    () =>
+      distributionBarOptions({
+        rows: sectorBarChartData,
+        yAxis: sectorYAxis,
+        tooltip: tooltipMeta,
+        xLabels: "slanted",
+        showLegend: showDistributionCompare,
+      }),
+    [sectorBarChartData, sectorYAxis, tooltipMeta, showDistributionCompare],
+  );
+
+  const countryBarOptions = useMemo(
+    () =>
+      distributionBarOptions({
+        rows: countryBarChartData,
+        yAxis: countryYAxis,
+        tooltip: tooltipMeta,
+        xLabels: "compact",
+        showLegend: showDistributionCompare,
+        onClick: () => setCountryChartYZoomed((z) => !z),
+      }),
+    [countryBarChartData, countryYAxis, tooltipMeta, showDistributionCompare],
+  );
+
+  const assetMixPieChartData = useMemo(() => {
+    const raw = assetMixPieData.map((d) => d.value);
+    const { display, original } = adjustPieValuesForMinAngleDegrees(
+      raw,
+      PIE_MIN_SLICE_DEGREES,
+    );
+    return {
+      labels: assetMixPieData.map((d) => d.name),
+      datasets: [
+        {
+          data: display,
+          originalData: original,
+          backgroundColor: assetMixPieData.map((d) => d.fill),
+          borderColor: "#ffffff",
+          borderWidth: 2,
+          hoverOffset: 6,
+        },
+      ],
+    };
+  }, [assetMixPieData]);
+
+  const assetMixPieOptions = useMemo(
+    (): ChartOptions<"pie"> => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 420 },
+      layout: { padding: pieChartLayoutPadding },
+      plugins: {
+        legend: pieChartLegendOptions,
+        investmentsPieTooltip: {
+          kind: "assetMix",
+          totalPortfolioEur: assetMixPieTotalEur,
+        },
+        tooltip: {
+          ...CHART_TOOLTIP_BASE,
+        },
+      },
+    }),
+    [assetMixPieTotalEur],
+  );
+
+  const bondPieChartData = useMemo(() => {
+    const raw = bondMixPieData.map((d) => d.value);
+    const { display, original } = adjustPieValuesForMinAngleDegrees(
+      raw,
+      PIE_MIN_SLICE_DEGREES,
+    );
+    return {
+      labels: bondMixPieData.map((d) => d.name),
+      datasets: [
+        {
+          data: display,
+          originalData: original,
+          backgroundColor: bondMixPieData.map((d) => d.fill),
+          borderColor: "#ffffff",
+          borderWidth: 2,
+          hoverOffset: 6,
+        },
+      ],
+    };
+  }, [bondMixPieData]);
+
+  const bondPieOptions = useMemo(
+    (): ChartOptions<"pie"> => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 420 },
+      layout: { padding: pieChartLayoutPadding },
+      plugins: {
+        legend: pieChartLegendOptions,
+        investmentsPieTooltip: {
+          kind: "bondMix",
+        },
+        tooltip: {
+          ...CHART_TOOLTIP_BASE,
+        },
+      },
+    }),
+    [],
+  );
+
   return (
     <section className="page-section w-full min-w-0">
       <div className="min-w-0">
@@ -424,67 +709,23 @@ export function PortfolioCharts({
           >
             <div className="min-w-0 subsection-stack w-full">
               <h3>Asset mix</h3>
-              <div className="flex w-full min-w-0 flex-row items-center justify-start gap-4">
-                <div className="h-48 w-48 shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        cx="50%"
-                        cy="50%"
-                        outerRadius="100%"
-                        data={assetMixPieData}
-                        dataKey="value"
-                        nameKey="name"
-                        allowReorder="yes"
-                        minAngle={5}
-                      >
-                        {assetMixPieData.map((d) => (
-                          <Cell key={d.name} fill={d.fill} stroke="#fff" />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        separator=": "
-                        formatter={(v: number) =>
-                          `${v.toFixed(0)} EUR (${formatToPercentage(v / assetMixPieTotalEur)})`
-                        }
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <PieSideLegend items={assetMixPieData} />
+              <div className="h-48 w-full min-w-0">
+                <Pie
+                  data={assetMixPieChartData}
+                  options={assetMixPieOptions}
+                  plugins={[pieChartLeftAlignPlugin]}
+                />
               </div>
             </div>
             {bondMixPieData.length > 0 ? (
               <div className="min-w-0 subsection-stack w-full">
                 <h3>Bond mix</h3>
-                <div className="flex w-full min-w-0 flex-row items-center justify-start gap-4">
-                  <div className="h-48 w-48 shrink-0">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          cx="50%"
-                          cy="50%"
-                          outerRadius="100%"
-                          data={bondMixPieData}
-                          dataKey="value"
-                          nameKey="name"
-                          allowReorder="yes"
-                          minAngle={5}
-                        >
-                          {bondMixPieData.map((d) => (
-                            <Cell key={d.name} fill={d.fill} stroke="#fff" />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          separator=": "
-                          formatter={(v: number) =>
-                            formatToPercentage(v, { decimalPlaces: 1 })
-                          }
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <PieSideLegend items={bondMixPieData} />
+                <div className="h-48 w-full min-w-0">
+                  <Pie
+                    data={bondPieChartData}
+                    options={bondPieOptions}
+                    plugins={[pieChartLeftAlignPlugin]}
+                  />
                 </div>
               </div>
             ) : null}
@@ -494,115 +735,13 @@ export function PortfolioCharts({
           <div className="min-w-0 subsection-stack">
             <h3 className="shrink-0">Regions</h3>
             <div className="w-full h-[540px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={regionBarChartData} margin={barChartMargin()}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke={distributionBarChartGridStroke}
-                  />
-                  <XAxis
-                    dataKey="name"
-                    angle={-35}
-                    textAnchor="end"
-                    height={72}
-                    tick={chartAxisTickStyle}
-                    tickMargin={4}
-                  />
-                  <YAxis
-                    tick={chartAxisTickStyle}
-                    width={8}
-                    domain={regionYAxis.domain}
-                    ticks={regionYAxis.ticks}
-                    tickFormatter={chartYAxisPercentTick}
-                  />
-                  <DistributionBarChartTooltip
-                    content={distributionTooltipContent}
-                  />
-                  {showDistributionCompare ? (
-                    <>
-                      <Bar
-                        dataKey="primary"
-                        fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionPrimary}
-                        name={selectedPortfolioLabel}
-                      />
-                      <Bar
-                        dataKey="compare"
-                        fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionCompare}
-                        name={comparePortfolioLabel}
-                      />
-                      <Legend
-                        verticalAlign="top"
-                        height={28}
-                        wrapperStyle={chartLegendStyle}
-                      />
-                    </>
-                  ) : (
-                    <Bar
-                      dataKey="value"
-                      fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionPrimary}
-                      name="Weight"
-                    />
-                  )}
-                </BarChart>
-              </ResponsiveContainer>
+              <Bar data={regionBarData} options={regionBarOptions} />
             </div>
           </div>
           <div className="min-w-0 subsection-stack">
             <h3 className="shrink-0">Sectors (equities)</h3>
             <div className="w-full h-[540px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={sectorBarChartData} margin={barChartMargin()}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke={distributionBarChartGridStroke}
-                  />
-                  <XAxis
-                    dataKey="name"
-                    angle={-35}
-                    textAnchor="end"
-                    height={72}
-                    tick={chartAxisTickStyle}
-                    tickMargin={4}
-                  />
-                  <YAxis
-                    tick={chartAxisTickStyle}
-                    width={8}
-                    domain={sectorYAxis.domain}
-                    ticks={sectorYAxis.ticks}
-                    tickFormatter={chartYAxisPercentTick}
-                  />
-                  <DistributionBarChartTooltip
-                    content={distributionTooltipContent}
-                  />
-                  {showDistributionCompare ? (
-                    <>
-                      <Bar
-                        dataKey="primary"
-                        fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorPrimary}
-                        name={selectedPortfolioLabel}
-                      />
-                      <Bar
-                        dataKey="compare"
-                        fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorCompare}
-                        name={comparePortfolioLabel}
-                      />
-                      <Legend
-                        verticalAlign="top"
-                        height={28}
-                        wrapperStyle={chartLegendStyle}
-                      />
-                    </>
-                  ) : (
-                    <Bar
-                      dataKey="value"
-                      fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorPrimary}
-                      name="Weight"
-                    />
-                  )}
-                </BarChart>
-              </ResponsiveContainer>
+              <Bar data={sectorBarData} options={sectorBarOptions} />
             </div>
           </div>
         </div>
@@ -610,77 +749,9 @@ export function PortfolioCharts({
           <h3 className="shrink-0">Countries</h3>
           <div
             ref={countryChartContainerRef}
-            className={`relative w-full h-[540px] ${countryChartYZoomed ? "cursor-zoom-out" : "cursor-zoom-in"}`}
+            className={`w-full h-[540px] ${countryChartYZoomed ? "cursor-zoom-out" : "cursor-zoom-in"}`}
           >
-            {countryChartYZoomed ? (
-              <div
-                className="pointer-events-none absolute right-2 top-2 z-10 text-slate-500"
-                aria-hidden
-              >
-                <CountryChartZoomActiveIcon />
-              </div>
-            ) : null}
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={countryBarChartData}
-                margin={barChartMargin()}
-                onClick={() => setCountryChartYZoomed((z) => !z)}
-                {...(showDistributionCompare
-                  ? {
-                      barGap: COUNTRY_COMPARE_BAR_GAP,
-                      barCategoryGap: COUNTRY_COMPARE_BAR_CATEGORY_GAP,
-                    }
-                  : {})}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke={distributionBarChartGridStroke}
-                />
-                <XAxis
-                  dataKey="name"
-                  height={1}
-                  tick={chartAxisTickStyle}
-                  tickMargin={4}
-                />
-                <YAxis
-                  tick={chartAxisTickStyle}
-                  width={8}
-                  domain={countryYAxis.domain}
-                  ticks={countryYAxis.ticks}
-                  tickFormatter={chartYAxisPercentTick}
-                  allowDataOverflow={countryChartYZoomed}
-                />
-                <DistributionBarChartTooltip
-                  content={distributionTooltipContent}
-                />
-                {showDistributionCompare ? (
-                  <>
-                    <Bar
-                      dataKey="primary"
-                      fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryPrimary}
-                      name={selectedPortfolioLabel}
-                    />
-                    <Bar
-                      dataKey="compare"
-                      fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryCompare}
-                      name={comparePortfolioLabel}
-                    />
-                    <Legend
-                      verticalAlign="top"
-                      height={28}
-                      wrapperStyle={chartLegendStyle}
-                    />
-                  </>
-                ) : (
-                  <Bar
-                    dataKey="value"
-                    fill={PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryPrimary}
-                    name="Weight"
-                  />
-                )}
-              </BarChart>
-            </ResponsiveContainer>
+            <Bar data={countryBarData} options={countryBarOptions} />
           </div>
         </div>
       </div>

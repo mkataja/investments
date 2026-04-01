@@ -39,6 +39,8 @@ Do not add extra UI copy unless the user asks. Minimum copy for usability.
 
 Shared UI patterns: **[`web/design-system.md`](web/design-system.md)**. Layout and action styles are **named classes** in **`web/src/index.css`** (`@layer base` + `@layer components`); **`web/tailwind.config.js`** only extends **`heading-1`**–**`heading-4`** font sizes (no custom color palette). Merge classes with **`classNames`** from **`web/src/lib/css.ts`** when a component accepts **`className`**. **`Modal`** (**`web/src/components/Modal.tsx`**): optional **`confirmBeforeClose`**.
 
+Portfolio distribution charts (**`web/src/pages/home/PortfolioCharts.tsx`**) use **Chart.js** via **`react-chartjs-2`**; register controllers/scales and tooltip plugins once in **`web/src/lib/chart/registerChartJs.ts`**. External HTML tooltips (**`web/src/lib/chart/externalTooltip.tsx`**) render **`DistributionChartTooltip`** and **`PortfolioPieTooltip`**; layout classes are **`chart-tooltip`** / **`chart-tooltip__*`** in **`web/src/index.css`**.
+
 ### Before commit or sign-off
 
 - **`pnpm lint`** (root **`biome check`**)
