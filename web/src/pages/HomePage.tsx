@@ -12,9 +12,9 @@ import { EditPortfolioModal } from "./home/EditPortfolioModal";
 import { HoldingsTable } from "./home/HoldingsTable";
 import { NewPortfolioModal } from "./home/NewPortfolioModal";
 import { NewTransactionModal } from "./home/NewTransactionModal";
-import { PortfolioCharts } from "./home/PortfolioCharts";
 import { TransactionsTable } from "./home/TransactionsTable";
 import { buildInstrumentTickerById } from "./home/instrumentTickerCell";
+import { PortfolioCharts } from "./home/portfolioCharts";
 import type {
   HomeInstrument,
   HomeTransaction,
