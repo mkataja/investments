@@ -152,7 +152,6 @@ export function EditInstrumentMode({
             ← Instruments
           </Link>
           <h1>Edit cash account</h1>
-          <p className="text-sm text-slate-600">Cash account</p>
           {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         </header>
 
