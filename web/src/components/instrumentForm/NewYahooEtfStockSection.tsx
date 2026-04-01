@@ -42,7 +42,7 @@ export function NewYahooEtfStockSection({
       </label>
       <button
         type="button"
-        className="action-primary"
+        className="action-primary self-start"
         onClick={() => void onPreviewYahoo()}
       >
         Preview from Yahoo
