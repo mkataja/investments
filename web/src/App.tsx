@@ -16,7 +16,7 @@ import {
   EditInstrumentPage,
   NewInstrumentPage,
 } from "./pages/InstrumentFormPage";
-import { InstrumentsPage } from "./pages/InstrumentsPage";
+import { InstrumentsPage } from "./pages/instruments";
 
 function navActiveIndex(pathname: string): number {
   if (pathname === "/" || pathname.startsWith("/portfolio")) {
