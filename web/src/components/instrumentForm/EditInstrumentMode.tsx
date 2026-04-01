@@ -1,11 +1,24 @@
-import type { CashCurrencyCode } from "@investments/lib";
+import type {
+  CashCurrencyCode,
+  CommoditySectorStorage,
+} from "@investments/lib";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
+import { sortedIsoCountryOptions } from "../../lib/isoCountrySelectOptions";
 import { ButtonLink } from "../Button";
 import { ErrorAlert } from "../ErrorAlert";
 import { CashAccountFormFields } from "./CashAccountFormFields";
 import { HoldingsBreakdownUrlFields } from "./HoldingsBreakdownUrlFields";
 import type { BrokerRow, InstrumentDetail } from "./types";
+
+const COMMODITY_SECTOR_EDIT: readonly {
+  value: CommoditySectorStorage;
+  label: string;
+}[] = [
+  { value: "gold", label: "Gold 🟨" },
+  { value: "silver", label: "Silver 🪙" },
+  { value: "other", label: "Other commodities 📦" },
+];
 
 export function EditInstrumentMode({
   initial,
@@ -15,6 +28,7 @@ export function EditInstrumentMode({
   providerBreakdownDataUrl,
   setProviderBreakdownDataUrl,
   submitEditEtfStock,
+  submitEditCommodity,
   submitEditCash,
   onClearUrlError,
   brokersLoading,
@@ -27,6 +41,10 @@ export function EditInstrumentMode({
   setCashCurrency,
   cashGeoKey,
   setCashGeoKey,
+  commoditySector,
+  setCommoditySector,
+  commodityCountryIso,
+  setCommodityCountryIso,
 }: {
   initial: InstrumentDetail | null;
   error: string | null;
@@ -35,6 +53,7 @@ export function EditInstrumentMode({
   providerBreakdownDataUrl: string;
   setProviderBreakdownDataUrl: (v: string) => void;
   submitEditEtfStock: (e: FormEvent) => void;
+  submitEditCommodity: (e: FormEvent) => void;
   submitEditCash: (e: FormEvent) => void;
   onClearUrlError: () => void;
   brokersLoading: boolean;
@@ -47,7 +66,12 @@ export function EditInstrumentMode({
   setCashCurrency: (v: CashCurrencyCode) => void;
   cashGeoKey: string;
   setCashGeoKey: (v: string) => void;
+  commoditySector: CommoditySectorStorage;
+  setCommoditySector: (v: CommoditySectorStorage) => void;
+  commodityCountryIso: string;
+  setCommodityCountryIso: (v: string) => void;
 }) {
+  const countryOptions = sortedIsoCountryOptions();
   if (!initial) {
     return (
       <div className="page-form-max page-section">
@@ -113,6 +137,83 @@ export function EditInstrumentMode({
               setProviderBreakdownDataUrl={setProviderBreakdownDataUrl}
               onClearError={onClearUrlError}
             />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <button type="submit" className="button-primary">
+              Save
+            </button>
+            <Link to="/instruments" className="button-cancel">
+              Cancel
+            </Link>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  if (initial.kind === "commodity") {
+    return (
+      <div className="page-form-max page-stack">
+        <header className="page-header-stack">
+          <Link to="/instruments" className="action-link">
+            ← Instruments
+          </Link>
+          <h1>Edit commodity</h1>
+          {error ? <ErrorAlert>{error}</ErrorAlert> : null}
+        </header>
+
+        <form
+          onSubmit={(e) => void submitEditCommodity(e)}
+          className="page-stack"
+        >
+          <div className="form-stack border border-slate-200 rounded-lg p-4 bg-white">
+            <label className="block text-sm">
+              Yahoo symbol
+              <input
+                readOnly
+                className="mt-1 block w-full border rounded px-2 py-1 bg-slate-50 text-slate-800 font-mono"
+                value={initial.yahooSymbol ?? ""}
+              />
+            </label>
+            <label className="block text-sm">
+              Name
+              <input
+                readOnly
+                className="mt-1 block w-full border rounded px-2 py-1 bg-slate-50 text-slate-800"
+                value={initial.displayName}
+              />
+            </label>
+            <label className="block text-sm">
+              Commodity sector
+              <select
+                className="mt-1 block w-full border rounded px-2 py-1 bg-white"
+                value={commoditySector}
+                onChange={(e) =>
+                  setCommoditySector(e.target.value as CommoditySectorStorage)
+                }
+              >
+                {COMMODITY_SECTOR_EDIT.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm">
+              Country (optional)
+              <select
+                className="mt-1 block w-full border rounded px-2 py-1 bg-white"
+                value={commodityCountryIso}
+                onChange={(e) => setCommodityCountryIso(e.target.value)}
+              >
+                <option value="">—</option>
+                {countryOptions.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
           <div className="flex flex-wrap gap-3">
             <button type="submit" className="button-primary">

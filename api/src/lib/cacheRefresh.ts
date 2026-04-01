@@ -9,8 +9,10 @@ import {
   yahooFinanceCache,
 } from "@investments/db";
 import {
+  type CommoditySectorStorage,
   type DistributionPayload,
   MIN_PORTFOLIO_ALLOCATION_FRACTION,
+  buildCommodityDistributionPayload,
   compositePseudoKeyToSyntheticPayload,
   isCompositePseudoKey,
   normLabel,
@@ -262,6 +264,86 @@ export async function upsertYahooPriceFromQuoteSummaryRaw(
         },
       });
   }
+  await maybeBackfillInstrumentIsinFromYahooRaw(
+    instrumentId,
+    raw,
+    existingInstrumentIsin,
+  );
+}
+
+/** Yahoo price + quote cache; distribution from manual commodity sleeve and optional ISO country. */
+export async function upsertCommodityCachesFromYahooRaw(
+  instrumentId: number,
+  raw: YahooQuoteSummaryRaw,
+  commoditySector: CommoditySectorStorage,
+  countryIso: string | null,
+  fetchedAt: Date = new Date(),
+  existingInstrumentIsin?: string | null,
+): Promise<void> {
+  const built = buildCommodityDistributionPayload(commoditySector, countryIso);
+  const payload = {
+    countries: roundWeights(built.countries),
+    sectors: roundWeights(built.sectors),
+  };
+  const rawJson = jsonCloneForStorage(raw);
+  const priceExtract = extractYahooPriceFromQuoteSummaryRaw(raw);
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(yahooFinanceCache)
+      .values({
+        instrumentId,
+        fetchedAt,
+        raw: rawJson,
+      })
+      .onConflictDoUpdate({
+        target: yahooFinanceCache.instrumentId,
+        set: {
+          fetchedAt,
+          raw: rawJson,
+        },
+      });
+    await tx
+      .delete(seligsonDistributionCache)
+      .where(eq(seligsonDistributionCache.instrumentId, instrumentId));
+    await tx
+      .insert(distributions)
+      .values({
+        instrumentId,
+        fetchedAt,
+        source: "yahoo_commodity_manual",
+        payload,
+      })
+      .onConflictDoUpdate({
+        target: distributions.instrumentId,
+        set: {
+          fetchedAt,
+          source: "yahoo_commodity_manual",
+          payload,
+        },
+      });
+    if (priceExtract) {
+      await tx
+        .insert(prices)
+        .values({
+          instrumentId,
+          quotedPrice: String(priceExtract.price),
+          currency: priceExtract.currency,
+          fetchedAt,
+          source: "yahoo_quote_summary",
+        })
+        .onConflictDoUpdate({
+          target: prices.instrumentId,
+          set: {
+            quotedPrice: String(priceExtract.price),
+            currency: priceExtract.currency,
+            fetchedAt,
+            source: "yahoo_quote_summary",
+          },
+        });
+    }
+  });
+
   await maybeBackfillInstrumentIsinFromYahooRaw(
     instrumentId,
     raw,
@@ -792,6 +874,29 @@ async function refreshDistributionCacheForInstrumentIdImpl(
           return { ok: true };
         }
 
+        if (inst.kind === "commodity") {
+          const sector = inst.commoditySector;
+          if (!inst.yahooSymbol || sector == null) {
+            return {
+              error: "Commodity instrument is missing Yahoo symbol or sector",
+              status: 502,
+            };
+          }
+          if (sector !== "gold" && sector !== "silver" && sector !== "other") {
+            return { error: "Invalid commodity sector", status: 502 };
+          }
+          const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
+          await upsertCommodityCachesFromYahooRaw(
+            inst.id,
+            raw,
+            sector,
+            inst.commodityCountryIso ?? null,
+            now,
+            inst.isin,
+          );
+          return { ok: true };
+        }
+
         if (inst.kind === "etf" || inst.kind === "stock") {
           const holdingsUrl = inst.holdingsDistributionUrl?.trim();
           if (holdingsUrl) {
@@ -909,6 +1014,30 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
           continue;
         }
         await writeSeligsonDistributionCache(inst.id, sf.fid, now);
+        continue;
+      }
+
+      if (inst.kind === "commodity") {
+        const sector = inst.commoditySector;
+        if (!inst.yahooSymbol || sector == null) {
+          continue;
+        }
+        if (sector !== "gold" && sector !== "silver" && sector !== "other") {
+          continue;
+        }
+        yahooRefreshIndex++;
+        if (yahooRefreshIndex > 1 && gapMs > 0) {
+          await sleep(gapMs);
+        }
+        const raw = await fetchYahooQuoteSummaryRaw(inst.yahooSymbol);
+        await upsertCommodityCachesFromYahooRaw(
+          inst.id,
+          raw,
+          sector,
+          inst.commodityCountryIso ?? null,
+          now,
+          inst.isin,
+        );
         continue;
       }
 

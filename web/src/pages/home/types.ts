@@ -74,6 +74,9 @@ export type PortfolioDistributions = {
   assetMix: {
     equitiesEur: number;
     bondsTotalEur: number;
+    commodityGoldEur: number;
+    commoditySilverEur: number;
+    commodityOtherEur: number;
     cashInFundsEur: number;
     cashExcessEur: number;
   };
@@ -86,7 +89,7 @@ export type PortfolioDistributions = {
     weight: number;
     valueEur: number;
     valuationSource: string;
-    assetClass: "equity" | "bond" | "cash_account";
+    assetClass: "equity" | "bond" | "commodity" | "cash_account";
   }>;
   bucketTopHoldings: {
     regions: Record<string, BucketTopHolding[]>;

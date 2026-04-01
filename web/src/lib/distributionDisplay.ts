@@ -1,6 +1,7 @@
 /** Compact display of cached distribution payloads (countries + sectors). */
 
 import {
+  COMMODITY_DISTRIBUTION_SECTOR_IDS,
   type DistributionSectorId,
   GEO_BUCKET_ORDER,
   type GeoBucketId,
@@ -41,8 +42,12 @@ export function isBondDistributionSectorId(id: string): boolean {
   return (BOND_DISTRIBUTION_SECTOR_IDS as readonly string[]).includes(id);
 }
 
+export function isCommodityDistributionSectorId(id: string): boolean {
+  return (COMMODITY_DISTRIBUTION_SECTOR_IDS as readonly string[]).includes(id);
+}
+
 /**
- * Strips bond sector keys and renormalizes remaining weights to sum to 1.
+ * Strips bond and commodity sector keys and renormalizes remaining weights to sum to 1.
  * Empty object if nothing remains.
  */
 export function equitySectorsForDisplay(
@@ -53,7 +58,7 @@ export function equitySectorsForDisplay(
     if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) {
       continue;
     }
-    if (isBondDistributionSectorId(k)) {
+    if (isBondDistributionSectorId(k) || isCommodityDistributionSectorId(k)) {
       continue;
     }
     out[k] = v;
@@ -575,6 +580,12 @@ export function sectorIcon(sectorId: string): string {
       return "▶️";
     case "ultrashort_bonds":
       return "⏩";
+    case "commodity_gold":
+      return "🟨";
+    case "commodity_silver":
+      return "🪙";
+    case "commodity_other":
+      return "📦";
     default:
       return "❓";
   }

@@ -1,5 +1,6 @@
 import { instruments } from "@investments/db";
 import {
+  type CommoditySectorStorage,
   normalizeIsinForStorage,
   normalizeYahooSymbolForStorage,
   validateHoldingsDistributionUrl,
@@ -13,6 +14,7 @@ import {
   fetchYahooQuoteSummaryRaw,
 } from "../distributions/yahoo.js";
 import {
+  upsertCommodityCachesFromYahooRaw,
   upsertYahooPriceFromQuoteSummaryRaw,
   writeProviderHoldingsDistributionCache,
   writeYahooDistributionCache,
@@ -109,6 +111,50 @@ export async function insertEtfStockFromYahoo(
         row.isin,
       );
     }
+  } catch (e) {
+    await db.delete(instruments).where(eq(instruments.id, row.id));
+    throw e;
+  }
+  return row;
+}
+
+/**
+ * Direct commodity (Yahoo symbol for pricing); sleeve and country are user-selected.
+ */
+export async function insertCommodityFromYahoo(
+  yahooSymbol: string,
+  commoditySector: CommoditySectorStorage,
+  countryIso: string | null,
+): Promise<InstrumentRow> {
+  const symbol = normalizeYahooSymbolForStorage(yahooSymbol);
+  const raw = await fetchYahooQuoteSummaryRaw(symbol);
+  const lookup = buildYahooInstrumentLookup(raw, symbol);
+  const displayName = displayNameFromYahooLookup(lookup, symbol);
+  const isin = normalizeIsinForStorage(lookup.isin ?? null);
+
+  const [row] = await db
+    .insert(instruments)
+    .values({
+      kind: "commodity",
+      displayName,
+      yahooSymbol: symbol,
+      isin: isin ?? undefined,
+      commoditySector,
+      commodityCountryIso: countryIso ?? undefined,
+    })
+    .returning();
+  if (!row) {
+    throw new Error("Failed to insert instrument");
+  }
+  try {
+    await upsertCommodityCachesFromYahooRaw(
+      row.id,
+      raw,
+      commoditySector,
+      countryIso,
+      new Date(),
+      row.isin,
+    );
   } catch (e) {
     await db.delete(instruments).where(eq(instruments.id, row.id));
     throw e;

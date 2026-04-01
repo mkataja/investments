@@ -21,6 +21,9 @@ export const DISTRIBUTION_SECTOR_IDS = [
   "long_corporate_bonds",
   "short_bonds",
   "ultrashort_bonds",
+  "commodity_gold",
+  "commodity_silver",
+  "commodity_other",
 ] as const;
 
 export type DistributionSectorId = (typeof DISTRIBUTION_SECTOR_IDS)[number];

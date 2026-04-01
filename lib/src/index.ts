@@ -1,4 +1,5 @@
 export * from "./appUser.js";
+export * from "./commodity.js";
 export * from "./brokerInstrumentRules.js";
 export * from "./brokerTypes.js";
 export * from "./currencies.js";

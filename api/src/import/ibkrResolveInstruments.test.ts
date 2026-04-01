@@ -21,6 +21,8 @@ function row(
     cashInterestType: null,
     holdingsDistributionUrl: null,
     providerBreakdownDataUrl: null,
+    commoditySector: null,
+    commodityCountryIso: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

@@ -10,7 +10,7 @@ export function transactionInstrumentSelectLabel(
   row: TransactionInstrumentSelectRow,
 ): string {
   const name = row.displayName.trim();
-  if (row.kind === "etf" || row.kind === "stock") {
+  if (row.kind === "etf" || row.kind === "stock" || row.kind === "commodity") {
     const t = row.yahooSymbol?.trim();
     if (t) {
       return `${t} - ${name}`;

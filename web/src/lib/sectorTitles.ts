@@ -19,4 +19,7 @@ export const DISTRIBUTION_SECTOR_TITLES: Record<DistributionSectorId, string> =
     long_corporate_bonds: "Long corporate bonds",
     short_bonds: "Short / money market bonds",
     ultrashort_bonds: "Ultrashort bonds",
+    commodity_gold: "Gold",
+    commodity_silver: "Silver",
+    commodity_other: "Other commodities",
   };

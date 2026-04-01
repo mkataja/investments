@@ -8,6 +8,37 @@ const BOND_DISTRIBUTION_SECTOR_IDS = [
   "ultrashort_bonds",
 ] as const;
 
+const COMMODITY_DISTRIBUTION_SECTOR_IDS = [
+  "commodity_gold",
+  "commodity_silver",
+  "commodity_other",
+] as const;
+
+function commodityPrincipalEurForMergedKey(
+  principalEur: number,
+  mergedSectors: Record<string, number>,
+  key: (typeof COMMODITY_DISTRIBUTION_SECTOR_IDS)[number],
+): number {
+  const v = mergedSectors[key];
+  if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) {
+    return 0;
+  }
+  return principalEur * v;
+}
+
+export function sumCommoditySectorWeights(
+  sectors: Record<string, number>,
+): number {
+  let s = 0;
+  for (const id of COMMODITY_DISTRIBUTION_SECTOR_IDS) {
+    const v = sectors[id];
+    if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+      s += v;
+    }
+  }
+  return s;
+}
+
 export function sumBondSectorWeights(sectors: Record<string, number>): number {
   let s = 0;
   for (const id of BOND_DISTRIBUTION_SECTOR_IDS) {
@@ -26,9 +57,19 @@ export function bondPrincipalShareFromMergedSectors(
   return Math.min(1, Math.max(0, w));
 }
 
+export function commodityPrincipalShareFromMergedSectors(
+  sectors: Record<string, number>,
+): number {
+  const w = sumCommoditySectorWeights(sectors);
+  return Math.min(1, Math.max(0, w));
+}
+
 export type AssetMixEur = {
   equitiesEur: number;
   bondsTotalEur: number;
+  commodityGoldEur: number;
+  commoditySilverEur: number;
+  commodityOtherEur: number;
   cashInFundsEur: number;
   cashExcessEur: number;
 };
@@ -44,10 +85,28 @@ export function computeAssetMixEur(input: {
   cashExcessEur: number;
 }): AssetMixEur {
   const bondW = bondPrincipalShareFromMergedSectors(input.mergedSectors);
+  const commodityW = commodityPrincipalShareFromMergedSectors(
+    input.mergedSectors,
+  );
   const p = input.nonCashPrincipalEur;
   return {
-    equitiesEur: p * (1 - bondW),
+    equitiesEur: p * Math.max(0, 1 - bondW - commodityW),
     bondsTotalEur: p * bondW,
+    commodityGoldEur: commodityPrincipalEurForMergedKey(
+      p,
+      input.mergedSectors,
+      "commodity_gold",
+    ),
+    commoditySilverEur: commodityPrincipalEurForMergedKey(
+      p,
+      input.mergedSectors,
+      "commodity_silver",
+    ),
+    commodityOtherEur: commodityPrincipalEurForMergedKey(
+      p,
+      input.mergedSectors,
+      "commodity_other",
+    ),
     cashInFundsEur: input.cashInFundsEur,
     cashExcessEur: input.cashExcessEur,
   };

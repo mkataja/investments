@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   bondPrincipalShareFromMergedSectors,
+  commodityPrincipalShareFromMergedSectors,
   computeAssetMixEur,
   computeBondMix,
   sumBondSectorWeights,
+  sumCommoditySectorWeights,
 } from "./portfolioAssetMix.js";
 
 describe("sumBondSectorWeights", () => {
@@ -58,6 +60,27 @@ describe("bondPrincipalShareFromMergedSectors", () => {
   });
 });
 
+describe("sumCommoditySectorWeights", () => {
+  it("sums commodity distribution keys", () => {
+    expect(
+      sumCommoditySectorWeights({
+        commodity_gold: 0.4,
+        technology: 0.6,
+      }),
+    ).toBeCloseTo(0.4);
+  });
+});
+
+describe("commodityPrincipalShareFromMergedSectors", () => {
+  it("matches bond-style share for commodity keys", () => {
+    const sectors = {
+      commodity_silver: 0.2,
+      technology: 0.8,
+    };
+    expect(commodityPrincipalShareFromMergedSectors(sectors)).toBeCloseTo(0.2);
+  });
+});
+
 describe("computeAssetMixEur", () => {
   it("splits principal into bonds and equities without loss", () => {
     const principalEur = 48_250.75;
@@ -70,7 +93,13 @@ describe("computeAssetMixEur", () => {
       cashInFundsEur: 0,
       cashExcessEur: 0,
     });
-    expect(mix.equitiesEur + mix.bondsTotalEur).toBeCloseTo(principalEur);
+    expect(
+      mix.equitiesEur +
+        mix.bondsTotalEur +
+        mix.commodityGoldEur +
+        mix.commoditySilverEur +
+        mix.commodityOtherEur,
+    ).toBeCloseTo(principalEur);
     expect(mix.bondsTotalEur / principalEur).toBeCloseTo(0.33);
   });
 
@@ -85,6 +114,46 @@ describe("computeAssetMixEur", () => {
     expect(mix.cashExcessEur).toBe(200);
     expect(mix.equitiesEur).toBe(1000);
     expect(mix.bondsTotalEur).toBe(0);
+    expect(mix.commodityGoldEur).toBe(0);
+    expect(mix.commoditySilverEur).toBe(0);
+    expect(mix.commodityOtherEur).toBe(0);
+  });
+
+  it("allocates commodity principal separately from equities", () => {
+    const principalEur = 10_000;
+    const mix = computeAssetMixEur({
+      nonCashPrincipalEur: principalEur,
+      mergedSectors: {
+        commodity_gold: 0.4,
+        technology: 0.6,
+      },
+      cashInFundsEur: 0,
+      cashExcessEur: 0,
+    });
+    expect(mix.commodityGoldEur).toBeCloseTo(4000);
+    expect(mix.commoditySilverEur).toBe(0);
+    expect(mix.commodityOtherEur).toBe(0);
+    expect(mix.equitiesEur).toBeCloseTo(6000);
+    expect(mix.bondsTotalEur).toBe(0);
+  });
+
+  it("splits commodity principal across gold, silver, and other", () => {
+    const principalEur = 10_000;
+    const mix = computeAssetMixEur({
+      nonCashPrincipalEur: principalEur,
+      mergedSectors: {
+        commodity_gold: 0.1,
+        commodity_silver: 0.05,
+        commodity_other: 0.05,
+        technology: 0.8,
+      },
+      cashInFundsEur: 0,
+      cashExcessEur: 0,
+    });
+    expect(mix.commodityGoldEur).toBeCloseTo(1000);
+    expect(mix.commoditySilverEur).toBeCloseTo(500);
+    expect(mix.commodityOtherEur).toBeCloseTo(500);
+    expect(mix.equitiesEur).toBeCloseTo(8000);
   });
 });
 

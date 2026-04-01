@@ -362,7 +362,8 @@ export function InstrumentsPage() {
                         <div className="flex flex-wrap justify-end gap-3">
                           {(i.kind === "cash_account" ||
                             i.kind === "etf" ||
-                            i.kind === "stock") && (
+                            i.kind === "stock" ||
+                            i.kind === "commodity") && (
                             <Link
                               to={`/instruments/${i.id}/edit`}
                               className="action-primary"

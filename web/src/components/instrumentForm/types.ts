@@ -1,6 +1,11 @@
 import type { BrokerType } from "@investments/lib";
 
-export type InstrumentKind = "etf" | "stock" | "custom" | "cash_account";
+export type InstrumentKind =
+  | "etf"
+  | "stock"
+  | "commodity"
+  | "custom"
+  | "cash_account";
 
 export type YahooLookupResponse = {
   lookup: {
@@ -32,6 +37,8 @@ export type InstrumentDetail = {
   cashCurrency: string | null;
   holdingsDistributionUrl: string | null;
   providerBreakdownDataUrl: string | null;
+  commoditySector: string | null;
+  commodityCountryIso: string | null;
 };
 
 export type BrokerRow = {

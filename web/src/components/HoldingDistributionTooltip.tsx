@@ -42,7 +42,8 @@ function HoldingDistributionTooltipBody(
 ): ReactNode {
   const name = inst?.displayName ?? displayNameFallback;
   const equityTicker =
-    inst != null && (inst.kind === "etf" || inst.kind === "stock")
+    inst != null &&
+    (inst.kind === "etf" || inst.kind === "stock" || inst.kind === "commodity")
       ? instrumentTickerDisplay(inst)
       : null;
   const tickerForParen =

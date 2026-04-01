@@ -18,7 +18,10 @@ import {
   loadBenchmarkValuedRows,
 } from "./benchmarkPortfolio.js";
 import { distributionGeoScaleForCountryMerge } from "./distributionGeoScale.js";
-import { classifyNonCashInstrument } from "./nonCashAssetClass.js";
+import {
+  type NonCashAssetClass,
+  classifyNonCashInstrument,
+} from "./nonCashAssetClass.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import { computeAssetMixEur, computeBondMix } from "./portfolioAssetMix.js";
 import { loadOpenPositionsForPortfolio } from "./positions.js";
@@ -203,6 +206,9 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   assetMix: {
     equitiesEur: number;
     bondsTotalEur: number;
+    commodityGoldEur: number;
+    commoditySilverEur: number;
+    commodityOtherEur: number;
     cashInFundsEur: number;
     cashExcessEur: number;
   };
@@ -218,7 +224,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     valueEur: number;
     valuationSource: string;
     /** UI grouping (Yahoo/Seligson heuristics); not used for merged distribution charts. */
-    assetClass: "equity" | "bond" | "cash_account";
+    assetClass: NonCashAssetClass | "cash_account";
   }>;
   /** Top holdings per distribution bucket (region / sector / country key). */
   bucketTopHoldings: {
@@ -337,7 +343,12 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   const yahooInstrumentIds = [
     ...new Set(
       valued
-        .filter((r) => r.inst.kind === "etf" || r.inst.kind === "stock")
+        .filter(
+          (r) =>
+            r.inst.kind === "etf" ||
+            r.inst.kind === "stock" ||
+            r.inst.kind === "commodity",
+        )
         .map((r) => r.inst.id),
     ),
   ];
@@ -414,39 +425,41 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     nonCashPrincipalEur += principalEur;
 
     const geoScale = distributionGeoScaleForCountryMerge(payload, cashFrac);
-    if (payload?.countries && Object.keys(payload.countries).length > 0) {
-      mergeWeighted(countryWeights, payload.countries, w * geoScale);
-      const scaledCountries = scaleCountryWeights(
-        payload.countries,
-        w * geoScale,
-      );
-      const regionalBuckets = aggregateRegionsToGeoBuckets(scaledCountries);
-      for (const [bucket, val] of Object.entries(regionalBuckets)) {
-        if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-          addContrib(regionContrib, bucket, inst.id, val);
+    if (inst.kind !== "commodity") {
+      if (payload?.countries && Object.keys(payload.countries).length > 0) {
+        mergeWeighted(countryWeights, payload.countries, w * geoScale);
+        const scaledCountries = scaleCountryWeights(
+          payload.countries,
+          w * geoScale,
+        );
+        const regionalBuckets = aggregateRegionsToGeoBuckets(scaledCountries);
+        for (const [bucket, val] of Object.entries(regionalBuckets)) {
+          if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
+            addContrib(regionContrib, bucket, inst.id, val);
+          }
         }
-      }
-      const isoNorm = normalizeCountryWeightsToIso(scaledCountries);
-      for (const [isoKey, val] of Object.entries(isoNorm)) {
-        if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-          addContrib(countryContrib, isoKey, inst.id, val);
+        const isoNorm = normalizeCountryWeightsToIso(scaledCountries);
+        for (const [isoKey, val] of Object.entries(isoNorm)) {
+          if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
+            addContrib(countryContrib, isoKey, inst.id, val);
+          }
         }
-      }
-    } else {
-      missingCountryW += w * geoScale;
-      const instUnknown: Record<string, number> = {
-        [PORTFOLIO_UNKNOWN_COUNTRY]: w * geoScale,
-      };
-      const regionalBuckets = aggregateRegionsToGeoBuckets(instUnknown);
-      for (const [bucket, val] of Object.entries(regionalBuckets)) {
-        if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-          addContrib(regionContrib, bucket, inst.id, val);
+      } else {
+        missingCountryW += w * geoScale;
+        const instUnknown: Record<string, number> = {
+          [PORTFOLIO_UNKNOWN_COUNTRY]: w * geoScale,
+        };
+        const regionalBuckets = aggregateRegionsToGeoBuckets(instUnknown);
+        for (const [bucket, val] of Object.entries(regionalBuckets)) {
+          if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
+            addContrib(regionContrib, bucket, inst.id, val);
+          }
         }
-      }
-      const isoNorm = normalizeCountryWeightsToIso(instUnknown);
-      for (const [isoKey, val] of Object.entries(isoNorm)) {
-        if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-          addContrib(countryContrib, isoKey, inst.id, val);
+        const isoNorm = normalizeCountryWeightsToIso(instUnknown);
+        for (const [isoKey, val] of Object.entries(isoNorm)) {
+          if (val >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
+            addContrib(countryContrib, isoKey, inst.id, val);
+          }
         }
       }
     }
@@ -497,7 +510,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       Math.abs(qty) > 1e-12 && Number.isFinite(valueEur)
         ? valueEur / qty
         : null;
-    const assetClass: "equity" | "bond" | "cash_account" =
+    const assetClass: NonCashAssetClass | "cash_account" =
       row.inst.kind === "cash_account"
         ? "cash_account"
         : classifyNonCashInstrument(

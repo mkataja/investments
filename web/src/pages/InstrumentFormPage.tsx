@@ -1,5 +1,6 @@
 import {
   type CashCurrencyCode,
+  type CommoditySectorStorage,
   DEFAULT_CASH_CURRENCY,
   isCompositePseudoKey,
   normalizeCashAccountIsoCountryCode,
@@ -14,6 +15,7 @@ import { ErrorAlert } from "../components/ErrorAlert";
 import { CashAccountFormFields } from "../components/instrumentForm/CashAccountFormFields";
 import { EditInstrumentMode } from "../components/instrumentForm/EditInstrumentMode";
 import { InstrumentKindPicker } from "../components/instrumentForm/InstrumentKindPicker";
+import { NewCommoditySection } from "../components/instrumentForm/NewCommoditySection";
 import { NewCustomSeligsonSection } from "../components/instrumentForm/NewCustomSeligsonSection";
 import { NewYahooEtfStockSection } from "../components/instrumentForm/NewYahooEtfStockSection";
 import type { CompositePreviewRow } from "../components/instrumentForm/SeligsonCompositeModal";
@@ -90,6 +92,10 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   );
   const [cashGeoKey, setCashGeoKey] = useState("");
 
+  const [commoditySector, setCommoditySector] =
+    useState<CommoditySectorStorage>("gold");
+  const [commodityCountryIso, setCommodityCountryIso] = useState("");
+
   useEffect(() => {
     setBrokersLoading(true);
     void apiGet<BrokerRow[]>("/brokers")
@@ -118,6 +124,13 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
           setHoldingsDistributionUrl(row.holdingsDistributionUrl ?? "");
           setProviderBreakdownDataUrl(row.providerBreakdownDataUrl ?? "");
         }
+        if (row.kind === "commodity") {
+          const s = row.commoditySector;
+          setCommoditySector(
+            s === "silver" || s === "other" || s === "gold" ? s : "gold",
+          );
+          setCommodityCountryIso(row.commodityCountryIso ?? "");
+        }
       })
       .catch((e) => setError(String(e)));
   }, [mode, editInstrumentId]);
@@ -134,6 +147,8 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
       } else {
         seligsonFidInputRef.current?.focus();
       }
+    } else if (kind === "commodity") {
+      yahooSymbolInputRef.current?.focus();
     } else if (kind === "cash_account") {
       cashDisplayNameInputRef.current?.focus();
     }
@@ -394,6 +409,27 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
             ? { providerBreakdownDataUrl: breakdownRaw }
             : {}),
         });
+      } else if (kind === "commodity") {
+        const s = yahooSymbol.trim();
+        if (!s) {
+          setYahooPreviewError("Enter a Yahoo symbol.");
+          return;
+        }
+        const countryRaw = commodityCountryIso.trim();
+        const countryIso =
+          countryRaw.length === 0
+            ? undefined
+            : normalizeCashAccountIsoCountryCode(countryRaw);
+        if (countryIso == null && countryRaw.length > 0) {
+          setError("Country must be a valid ISO code or blank.");
+          return;
+        }
+        await apiPost<InstrumentRow>("/instruments", {
+          kind: "commodity",
+          yahooSymbol: s,
+          commoditySector,
+          ...(countryIso != null ? { commodityCountryIso: countryIso } : {}),
+        });
       } else if (kind === "custom") {
         if (useCompositeAllocation) {
           setError(
@@ -449,7 +485,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
       }
       navigate("/instruments");
     } catch (err) {
-      if (kind === "etf" || kind === "stock") {
+      if (kind === "etf" || kind === "stock" || kind === "commodity") {
         setYahooPreviewError(mapYahooInstrumentFormError(err));
       } else {
         setError(mapYahooInstrumentFormError(err));
@@ -557,6 +593,44 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
     }
   }
 
+  async function submitEditCommodity(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!initial || initial.kind !== "commodity" || editInstrumentId == null) {
+      return;
+    }
+    const patch: Record<string, string | null> = {};
+    if (commoditySector !== initial.commoditySector) {
+      patch.commoditySector = commoditySector;
+    }
+    const nextCountry = commodityCountryIso.trim();
+    const prevCountry = (initial.commodityCountryIso ?? "").trim();
+    if (nextCountry !== prevCountry) {
+      patch.commodityCountryIso = nextCountry.length === 0 ? null : nextCountry;
+    }
+    if (Object.keys(patch).length === 0) {
+      navigate("/instruments");
+      return;
+    }
+    if (
+      patch.commodityCountryIso != null &&
+      patch.commodityCountryIso.length > 0
+    ) {
+      const iso = normalizeCashAccountIsoCountryCode(patch.commodityCountryIso);
+      if (iso == null) {
+        setError("Country must be a valid ISO code or blank.");
+        return;
+      }
+      patch.commodityCountryIso = iso;
+    }
+    try {
+      await apiPatch(`/instruments/${editInstrumentId}`, patch);
+      navigate("/instruments");
+    } catch (err) {
+      setError(String(err));
+    }
+  }
+
   const seligsonBrokers = brokers.filter((b) => b.brokerType === "seligson");
   const cashBrokers = brokers.filter((b) => b.brokerType === "cash_account");
 
@@ -570,6 +644,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
         providerBreakdownDataUrl={providerBreakdownDataUrl}
         setProviderBreakdownDataUrl={setProviderBreakdownDataUrl}
         submitEditEtfStock={submitEditEtfStock}
+        submitEditCommodity={submitEditCommodity}
         submitEditCash={submitEditCash}
         onClearUrlError={() => setError(null)}
         brokersLoading={brokersLoading}
@@ -582,6 +657,10 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
         setCashCurrency={setCashCurrency}
         cashGeoKey={cashGeoKey}
         setCashGeoKey={setCashGeoKey}
+        commoditySector={commoditySector}
+        setCommoditySector={setCommoditySector}
+        commodityCountryIso={commodityCountryIso}
+        setCommodityCountryIso={setCommodityCountryIso}
       />
     );
   }
@@ -620,6 +699,24 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
             setHoldingsDistributionUrl={setHoldingsDistributionUrl}
             providerBreakdownDataUrl={providerBreakdownDataUrl}
             setProviderBreakdownDataUrl={setProviderBreakdownDataUrl}
+            yahooPreview={yahooPreview}
+            yahooPreviewError={yahooPreviewError}
+          />
+        ) : null}
+
+        {kind === "commodity" ? (
+          <NewCommoditySection
+            yahooSymbol={yahooSymbol}
+            setYahooSymbol={(v) => {
+              setYahooSymbol(v);
+              setYahooPreviewError(null);
+            }}
+            yahooSymbolInputRef={yahooSymbolInputRef}
+            onPreviewYahoo={previewYahoo}
+            commoditySector={commoditySector}
+            setCommoditySector={setCommoditySector}
+            commodityCountryIso={commodityCountryIso}
+            setCommodityCountryIso={setCommodityCountryIso}
             yahooPreview={yahooPreview}
             yahooPreviewError={yahooPreviewError}
           />

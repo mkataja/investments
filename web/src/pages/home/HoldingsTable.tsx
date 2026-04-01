@@ -137,15 +137,18 @@ export function HoldingsTable({
   const [holdingTooltip, setHoldingTooltip] =
     useState<HoldingDistributionTooltipState | null>(null);
 
-  const { equities, bonds, cashAccounts } = useMemo(() => {
+  const { equities, bonds, commodities, cashAccounts } = useMemo(() => {
     const eq: PortfolioPosition[] = [];
     const bd: PortfolioPosition[] = [];
+    const cm: PortfolioPosition[] = [];
     const cash: PortfolioPosition[] = [];
     for (const p of portfolio.positions) {
       if (p.assetClass === "cash_account") {
         cash.push(p);
       } else if (p.assetClass === "bond") {
         bd.push(p);
+      } else if (p.assetClass === "commodity") {
+        cm.push(p);
       } else {
         eq.push(p);
       }
@@ -153,6 +156,7 @@ export function HoldingsTable({
     return {
       equities: sortByValueDesc(eq),
       bonds: sortByValueDesc(bd),
+      commodities: sortByValueDesc(cm),
       cashAccounts: sortByValueDesc(cash),
     };
   }, [portfolio.positions]);
@@ -171,6 +175,14 @@ export function HoldingsTable({
       <HoldingsSubtable
         title="Equities"
         rows={equities}
+        instrumentById={instrumentById}
+        instrumentTickerById={instrumentTickerById}
+        setHoldingTooltip={setHoldingTooltip}
+        hideQtyAndUnitEur={hideQtyAndUnitEur}
+      />
+      <HoldingsSubtable
+        title="Commodities"
+        rows={commodities}
         instrumentById={instrumentById}
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}

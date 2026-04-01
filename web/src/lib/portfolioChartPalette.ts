@@ -10,6 +10,9 @@
 export const PORTFOLIO_ASSET_MIX_COLORS = {
   equities: "#ACDDF6",
   bonds: "#6B7FD7",
+  commodityGold: "#D4A574",
+  commoditySilver: "#B0B8C8",
+  commodityOther: "#9A7B5C",
   cashInFunds: "#C2EABA",
   cashExcess: "#8BCB7A",
 } as const;

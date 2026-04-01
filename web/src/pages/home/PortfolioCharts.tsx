@@ -329,6 +329,21 @@ export function PortfolioCharts({
         fill: PORTFOLIO_ASSET_MIX_COLORS.bonds,
       },
       {
+        name: DISTRIBUTION_SECTOR_TITLES.commodity_gold,
+        value: m.commodityGoldEur,
+        fill: PORTFOLIO_ASSET_MIX_COLORS.commodityGold,
+      },
+      {
+        name: DISTRIBUTION_SECTOR_TITLES.commodity_silver,
+        value: m.commoditySilverEur,
+        fill: PORTFOLIO_ASSET_MIX_COLORS.commoditySilver,
+      },
+      {
+        name: DISTRIBUTION_SECTOR_TITLES.commodity_other,
+        value: m.commodityOtherEur,
+        fill: PORTFOLIO_ASSET_MIX_COLORS.commodityOther,
+      },
+      {
         name: "Cash (in funds)",
         value: m.cashInFundsEur,
         fill: PORTFOLIO_ASSET_MIX_COLORS.cashInFunds,

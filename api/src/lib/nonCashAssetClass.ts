@@ -1,6 +1,8 @@
 import type { InstrumentRow } from "./valuation.js";
 import { isBondLikeFromYahooQuoteSummaryRaw } from "./yahooAssetClass.js";
 
+export type NonCashAssetClass = "equity" | "bond" | "commodity";
+
 function isBondLikeSeligsonName(
   displayName: string,
   fundName: string | null,
@@ -14,14 +16,17 @@ function isBondLikeSeligsonName(
 }
 
 /**
- * Value-weighted split for portfolio asset-mix: bond ETFs/funds vs equities.
+ * Value-weighted split for portfolio asset-mix: bond ETFs/funds vs equities vs direct commodities.
  * Defaults to equity when classification data is missing.
  */
 export function classifyNonCashInstrument(
   inst: InstrumentRow,
   yahooRaw: unknown | null,
   seligsonFundName: string | null,
-): "equity" | "bond" {
+): NonCashAssetClass {
+  if (inst.kind === "commodity") {
+    return "commodity";
+  }
   if (inst.kind === "etf" || inst.kind === "stock") {
     if (yahooRaw != null && isBondLikeFromYahooQuoteSummaryRaw(yahooRaw)) {
       return "bond";

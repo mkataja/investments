@@ -10,7 +10,7 @@ export function isInstrumentKindAllowedForBrokerType(
 ): boolean {
   switch (brokerType) {
     case "exchange":
-      return kind === "etf" || kind === "stock";
+      return kind === "etf" || kind === "stock" || kind === "commodity";
     case "seligson":
       return kind === "custom";
     case "cash_account":

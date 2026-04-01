@@ -126,7 +126,7 @@ export const instruments = pgTable(
       () => seligsonFunds.id,
     ),
     /**
-     * Required for `custom` (e.g. Seligson) and `cash_account`; null for `etf`/`stock`.
+     * Required for `custom` (e.g. Seligson) and `cash_account`; null for `etf`/`stock`/`commodity`.
      * See `instruments_broker_id_kind_ck`.
      */
     brokerId: integer("broker_id").references(() => brokers.id),
@@ -145,6 +145,10 @@ export const instruments = pgTable(
      * when `holdings_distribution_url` is a JPM daily ETF holdings XLSX; geographic weights still come from the XLSX.
      */
     providerBreakdownDataUrl: text("provider_breakdown_data_url"),
+    /** When `kind` is `commodity`: manual sleeve (gold / silver / other). See `instruments_commodity_cols_ck`. */
+    commoditySector: text("commodity_sector"),
+    /** Optional ISO 3166-1 alpha-2 storage location / vault country for `commodity`. */
+    commodityCountryIso: text("commodity_country_iso"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -160,9 +164,18 @@ export const instruments = pgTable(
     check(
       "instruments_broker_id_kind_ck",
       sql`(
-        (${t.kind} IN ('etf', 'stock') AND ${t.brokerId} IS NULL)
+        (${t.kind} IN ('etf', 'stock', 'commodity') AND ${t.brokerId} IS NULL)
         OR
         (${t.kind} IN ('custom', 'cash_account') AND ${t.brokerId} IS NOT NULL)
+      )`,
+    ),
+    check(
+      "instruments_commodity_cols_ck",
+      sql`(
+        (${t.kind} = 'commodity' AND ${t.commoditySector} IN ('gold', 'silver', 'other')
+          AND ${t.commoditySector} IS NOT NULL)
+        OR
+        (${t.kind} <> 'commodity' AND ${t.commoditySector} IS NULL AND ${t.commodityCountryIso} IS NULL)
       )`,
     ),
     uniqueIndex("instruments_cash_account_display_name_uidx")

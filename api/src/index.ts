@@ -80,7 +80,10 @@ import {
   suggestBestInstrumentId,
   suggestPseudoKeyForLabel,
 } from "./lib/compositeInstrumentMatch.js";
-import { insertEtfStockFromYahoo } from "./lib/createYahooInstrument.js";
+import {
+  insertCommodityFromYahoo,
+  insertEtfStockFromYahoo,
+} from "./lib/createYahooInstrument.js";
 import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
 import {
@@ -1323,6 +1326,13 @@ const customInstrumentIn = z.object({
   constituents: z.array(compositeConstituentIn).optional(),
 });
 
+const commodityInstrumentIn = z.object({
+  kind: z.literal("commodity"),
+  yahooSymbol: z.string().min(1).transform(normalizeYahooSymbolForStorage),
+  commoditySector: z.enum(["gold", "silver", "other"]),
+  commodityCountryIso: z.string().optional(),
+});
+
 const instrumentIn = z.discriminatedUnion("kind", [
   z.object({
     kind: z.enum(["etf", "stock"]),
@@ -1330,6 +1340,7 @@ const instrumentIn = z.discriminatedUnion("kind", [
     holdingsDistributionUrl: z.string().optional(),
     providerBreakdownDataUrl: z.string().optional(),
   }),
+  commodityInstrumentIn,
   customInstrumentIn,
   z.object({
     kind: z.literal("cash_account"),
@@ -1360,7 +1371,18 @@ const etfStockInstrumentPatchIn = z
     { message: "At least one field is required" },
   );
 
-/** Cash accounts and ETF/stock accept PATCH. */
+const commodityInstrumentPatchIn = z
+  .object({
+    commoditySector: z.enum(["gold", "silver", "other"]).optional(),
+    commodityCountryIso: z.union([z.string(), z.null()]).optional(),
+  })
+  .refine(
+    (o) =>
+      o.commoditySector !== undefined || o.commodityCountryIso !== undefined,
+    { message: "At least one field is required" },
+  );
+
+/** Cash accounts, ETF/stock, and commodity accept PATCH. */
 const cashInstrumentPatchIn = z
   .object({
     displayName: z.string().trim().min(1).optional(),
@@ -1803,6 +1825,28 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
     }
   }
 
+  if (body.kind === "commodity") {
+    const countryRaw = body.commodityCountryIso?.trim() ?? "";
+    const countryIso =
+      countryRaw.length === 0
+        ? null
+        : normalizeCashAccountIsoCountryCode(countryRaw);
+    if (countryIso === null && countryRaw.length > 0) {
+      return c.json({ message: "Invalid ISO country code" }, 400);
+    }
+    try {
+      const row = await insertCommodityFromYahoo(
+        body.yahooSymbol,
+        body.commoditySector,
+        countryIso,
+      );
+      return c.json(row, 201);
+    } catch (e) {
+      const { message, status } = formatYahooUpstreamError(e);
+      return c.json({ message }, status);
+    }
+  }
+
   if (body.kind === "custom") {
     const hasComposite =
       body.constituents != null && body.constituents.length > 0;
@@ -2176,10 +2220,56 @@ app.patch("/instruments/:id", async (c) => {
     return c.json(payload);
   }
 
+  if (existing.kind === "commodity") {
+    const parsed = commodityInstrumentPatchIn.safeParse(rawBody);
+    if (!parsed.success) {
+      return c.json({ message: parsed.error.flatten() }, 400);
+    }
+    const body = parsed.data;
+    const updates: {
+      commoditySector?: string;
+      commodityCountryIso?: string | null;
+    } = {};
+    if (body.commoditySector !== undefined) {
+      updates.commoditySector = body.commoditySector;
+    }
+    if (body.commodityCountryIso !== undefined) {
+      const v = body.commodityCountryIso;
+      if (v === null) {
+        updates.commodityCountryIso = null;
+      } else {
+        const t = v.trim();
+        if (t.length === 0) {
+          updates.commodityCountryIso = null;
+        } else {
+          const iso = normalizeCashAccountIsoCountryCode(t);
+          if (iso === null) {
+            return c.json({ message: "Invalid ISO country code" }, 400);
+          }
+          updates.commodityCountryIso = iso;
+        }
+      }
+    }
+    await db.update(instruments).set(updates).where(eq(instruments.id, id));
+    const refresh = await refreshDistributionCacheForInstrumentId(id);
+    if ("skipped" in refresh) {
+      if (refresh.reason === "not_found") {
+        return c.json({ message: "Not found" }, 404);
+      }
+    } else if ("error" in refresh) {
+      return c.json({ message: refresh.error }, refresh.status);
+    }
+    const payload = await loadInstrumentPayloadById(id);
+    if (!payload) {
+      return c.json({ message: "Not found" }, 404);
+    }
+    return c.json(payload);
+  }
+
   return c.json(
     {
       message:
-        "Unsupported instrument kind for PATCH (only cash accounts and ETF/stock)",
+        "Unsupported instrument kind for PATCH (only cash accounts, ETF/stock, and commodity)",
     },
     400,
   );
