@@ -1,76 +1,20 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { HttpError, apiGet, apiPostFormData } from "../api";
-import { Button } from "../components/Button";
-import { ErrorAlert } from "../components/ErrorAlert";
-import { FileBrowseButton } from "../components/FileBrowseButton";
-import {
-  readStoredPortfolioId,
-  writeStoredPortfolioId,
-} from "../lib/portfolioSelection";
 import type { PortfolioEntity } from "./home/types";
-
-type DegiroOk = {
-  ok: true;
-  processed: number;
-  changed: number;
-  unchanged: number;
-  skippedRows?: number;
-};
-
-type DegiroProposalOk = {
-  isin: string;
-  product: string;
-  referenceExchange: string;
-  venue: string;
-  yahooSymbol: string;
-  displayName: string;
-  kind: "etf" | "stock";
-  quoteType: string | null;
-};
-
-type DegiroProposalErr = {
-  isin: string;
-  product: string;
-  referenceExchange: string;
-  venue: string;
-  error: string;
-};
-
-type DegiroProposal = DegiroProposalOk | DegiroProposalErr;
-
-type DegiroNeedsInstruments = {
-  ok: false;
-  needsInstruments: true;
-  proposals: DegiroProposal[];
-};
-
-function isProposalOk(p: DegiroProposal): p is DegiroProposalOk {
-  return "yahooSymbol" in p;
-}
-
-function tryParseImportErrorJson(msg: string): {
-  message?: string;
-  missingFundNames?: string[];
-  ambiguousFundNames?: string[];
-} | null {
-  const idx = msg.indexOf("{");
-  if (idx < 0) {
-    return null;
-  }
-  try {
-    const v = JSON.parse(msg.slice(idx)) as unknown;
-    if (v === null || typeof v !== "object") {
-      return null;
-    }
-    return v as {
-      message?: string;
-      missingFundNames?: string[];
-      ambiguousFundNames?: string[];
-    };
-  } catch {
-    return null;
-  }
-}
+import { ImportDegiroSection } from "./import/ImportDegiroSection";
+import { ImportIbkrSection } from "./import/ImportIbkrSection";
+import {
+  ImportPortfolioPicker,
+  pickInitialImportPortfolioId,
+} from "./import/ImportPortfolioPicker";
+import { ImportSeligsonSection } from "./import/ImportSeligsonSection";
+import {
+  type DegiroNeedsInstruments,
+  type DegiroOk,
+  type DegiroProposalOk,
+  isProposalOk,
+  tryParseImportErrorJson,
+} from "./import/types";
 
 export function ImportPage() {
   const [degiroFile, setDegiroFile] = useState<File | null>(null);
@@ -125,14 +69,7 @@ export function ImportPage() {
       try {
         const list = await apiGet<PortfolioEntity[]>("/portfolios");
         setPortfolios(list);
-        const stored = readStoredPortfolioId();
-        const storedRow = list.find((p) => p.id === stored);
-        const pick =
-          storedRow && (storedRow.kind ?? "live") !== "benchmark"
-            ? storedRow.id
-            : (list.find((p) => (p.kind ?? "live") !== "benchmark")?.id ??
-              null);
-        setImportPortfolioId(pick);
+        setImportPortfolioId(pickInitialImportPortfolioId(list));
       } catch {
         setPortfolios([]);
       }
@@ -446,437 +383,93 @@ export function ImportPage() {
         </p>
       </div>
 
-      {livePortfolios.length > 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-          <label className="block text-sm text-slate-700">
-            Import into portfolio
-            <select
-              className="mt-1 block w-full max-w-md border border-slate-300 rounded px-2 py-1.5 text-sm bg-white"
-              value={importPortfolioId ?? ""}
-              onChange={(e) => {
-                const v = e.target.value;
-                const id = v === "" ? null : Number.parseInt(v, 10);
-                if (id != null && Number.isFinite(id)) {
-                  setImportPortfolioId(id);
-                  writeStoredPortfolioId(id);
-                }
-              }}
-            >
-              {livePortfolios.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      ) : portfolios.length > 0 ? (
-        <p className="text-sm text-slate-600">
-          Add a live portfolio before importing (benchmark portfolios cannot
-          hold transactions).
-        </p>
-      ) : null}
+      <ImportPortfolioPicker
+        portfolios={portfolios}
+        livePortfolios={livePortfolios}
+        importPortfolioId={importPortfolioId}
+        onImportPortfolioIdChange={setImportPortfolioId}
+      />
 
-      <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <h2>Degiro</h2>
-        <div className="space-y-2 text-sm text-slate-600">
-          <p>
-            Export <strong className="font-medium">Transactions</strong> from
-            Degiro (CSV). Each row must resolve to exactly one instrument (etf,
-            stock, or Seligson fund): by{" "}
-            <strong className="font-medium">ISIN</strong> in the database, or -
-            if ISIN is missing on the instrument - via OpenFIGI to your{" "}
-            <strong className="font-medium">Yahoo symbol</strong>. If the CSV
-            contains unknown ISINs, we fetch Yahoo details and you can add them
-            in one step. Only EUR trades are imported.
-          </p>
-        </div>
-        <form
-          className="flex flex-col gap-3 sm:flex-row sm:items-end"
-          onSubmit={onSubmitDegiro}
-        >
-          <div className="min-w-0 flex-1">
-            <FileBrowseButton
-              id="degiro-csv"
-              ariaLabel="Degiro CSV file"
-              accept=".csv,text/csv"
-              file={degiroFile}
-              onChange={(ev) => {
-                const f = ev.target.files?.[0];
-                setDegiroFile(f ?? null);
-                setResult(null);
-                setPending(null);
-                setError(null);
-              }}
-            />
-          </div>
-          {degiroFile !== null ? (
-            <Button type="submit" disabled={busy}>
-              {busy ? "Working..." : "Import"}
-            </Button>
-          ) : null}
-        </form>
-        {error !== null ? (
-          <ErrorAlert>
-            <div className="whitespace-pre-wrap break-words">{error}</div>
-          </ErrorAlert>
-        ) : null}
-        {result !== null ? (
-          <p className="copy-success">
-            Processed {result.processed} transaction
-            {result.processed === 1 ? "" : "s"}: {result.changed} written to the
-            database
-            {result.unchanged > 0
-              ? `, ${result.unchanged} already up to date`
-              : ""}
-            .
-          </p>
-        ) : null}
+      <ImportDegiroSection
+        busy={busy}
+        error={error}
+        result={result}
+        pending={pending}
+        degiroFile={degiroFile}
+        setDegiroFile={setDegiroFile}
+        selectedIsin={selectedIsin}
+        setSelectedIsin={setSelectedIsin}
+        onSubmitDegiro={onSubmitDegiro}
+        onConfirmAddAndImport={onConfirmAddAndImport}
+        onDegiroFileChange={() => {
+          setResult(null);
+          setPending(null);
+          setError(null);
+        }}
+      />
 
-        {pending !== null ? (
-          <div className="page-section rounded-lg border border-amber-200 bg-amber-50/80 p-4 [&_h3]:font-semibold [&_h3]:text-amber-950">
-            <h3>Add missing instruments</h3>
-            <p className="text-sm text-amber-950/90">
-              These ISINs are not in your portfolio yet. We matched them to
-              Yahoo Finance. Select which to create, then import the same CSV
-              again with those instruments.
-            </p>
-            <ul className="list-stack">
-              {pending.proposals.map((p) => (
-                <li
-                  key={p.isin}
-                  className="rounded border border-amber-200/80 bg-white p-3 text-sm"
-                >
-                  {isProposalOk(p) ? (
-                    <label className="flex cursor-pointer gap-3">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300"
-                        checked={selectedIsin[p.isin] === true}
-                        onChange={(ev) => {
-                          setSelectedIsin((prev) => ({
-                            ...prev,
-                            [p.isin]: ev.target.checked,
-                          }));
-                        }}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="text-xs text-slate-600">{p.isin}</span>
-                        <span className="mt-0.5 block font-medium text-slate-900">
-                          {p.displayName}
-                        </span>
-                        <span className="mt-1 block text-xs text-slate-600">
-                          Yahoo: {p.yahooSymbol} · {p.kind}
-                          {p.quoteType ? ` · ${p.quoteType}` : ""}
-                        </span>
-                        {p.product ? (
-                          <span className="mt-1 block text-xs text-slate-500">
-                            Degiro: {p.product}
-                          </span>
-                        ) : null}
-                      </span>
-                    </label>
-                  ) : (
-                    <div>
-                      <span className="text-xs text-slate-600">{p.isin}</span>
-                      <p className="field-error">{p.error}</p>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-            <form onSubmit={onConfirmAddAndImport}>
-              <Button type="submit" disabled={busy}>
-                {busy ? "Working..." : "Add selected and import"}
-              </Button>
-            </form>
-          </div>
-        ) : null}
-      </section>
+      <ImportIbkrSection
+        busy={busy}
+        ibkrError={ibkrError}
+        ibkrResult={ibkrResult}
+        ibkrFile={ibkrFile}
+        setIbkrFile={setIbkrFile}
+        ibkrMissingSymbols={ibkrMissingSymbols}
+        ibkrAmbiguousSymbols={ibkrAmbiguousSymbols}
+        ibkrAmbiguousIsins={ibkrAmbiguousIsins}
+        ibkrMissingIsins={ibkrMissingIsins}
+        onSubmitIbkr={onSubmitIbkr}
+        onIbkrFileChange={() => {
+          setIbkrResult(null);
+          setIbkrError(null);
+          setIbkrMissingSymbols(null);
+          setIbkrAmbiguousSymbols(null);
+          setIbkrAmbiguousIsins(null);
+          setIbkrMissingIsins(null);
+        }}
+      />
 
-      <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <h2>Interactive Brokers</h2>
-        <div className="space-y-3 text-sm text-slate-600">
-          <p>
-            Upload a CSV from an IBKR{" "}
-            <strong className="font-medium">Flex Query</strong> (web client
-            portal → <em>Performance & Reports</em> → <em>Flex Queries</em>). A
-            plain transaction history CSV is not supported.
-          </p>
-          <div>
-            <p className="font-medium text-slate-800">Active Flex Query</p>
-            <p className="mt-1">
-              Use for importing all{" "}
-              <strong className="font-medium">past</strong> trades; does not
-              include same-day fills. Includes max 365 days per export — you can
-              import multiple exports to cover longer periods. Required columns:{" "}
-              <code>
-                ClientAccountID, DateTime, Symbol, ISIN, Exchange,
-                TransactionType, Quantity, TradePrice, CurrencyPrimary
-              </code>
-              .
-            </p>
-          </div>
-          <div>
-            <p className="font-medium text-slate-800">
-              Trade Confirmation Flex Query
-            </p>
-            <p className="mt-1">
-              Same-day fills only. Use to update{" "}
-              <strong className="font-medium">today&apos;s</strong> trades not
-              yet included in the above Active Flex Query. Required columns:{" "}
-              <code>
-                ClientAccountID, Date/Time, Symbol, ISIN, Exchange, Buy/Sell,
-                Quantity, Price, CurrencyPrimary
-              </code>
-              .
-            </p>
-          </div>
-          <p>
-            Broker name must be <strong className="font-medium">IBKR</strong>.
-            Instruments are matched by ISIN when present in the DB, otherwise
-            looked up by Yahoo symbol.
-          </p>
-        </div>
-        <form
-          className="flex flex-col gap-3 sm:flex-row sm:items-end"
-          onSubmit={onSubmitIbkr}
-        >
-          <div className="min-w-0 flex-1">
-            <FileBrowseButton
-              id="ibkr-csv"
-              ariaLabel="IBKR CSV file"
-              accept=".csv,text/csv"
-              file={ibkrFile}
-              onChange={(ev) => {
-                const f = ev.target.files?.[0];
-                setIbkrFile(f ?? null);
-                setIbkrResult(null);
-                setIbkrError(null);
-                setIbkrMissingSymbols(null);
-                setIbkrAmbiguousSymbols(null);
-                setIbkrAmbiguousIsins(null);
-                setIbkrMissingIsins(null);
-              }}
-            />
-          </div>
-          {ibkrFile !== null ? (
-            <Button type="submit" disabled={busy}>
-              {busy ? "Working..." : "Import"}
-            </Button>
-          ) : null}
-        </form>
-        {ibkrError !== null ? (
-          <ErrorAlert>
-            <div className="whitespace-pre-wrap break-words">{ibkrError}</div>
-            {ibkrMissingIsins !== null && ibkrMissingIsins.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5">
-                {ibkrMissingIsins.map((isin) => (
-                  <li key={isin} className="break-words font-mono text-sm">
-                    {isin}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {ibkrAmbiguousIsins !== null && ibkrAmbiguousIsins.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5">
-                {ibkrAmbiguousIsins.map((isin) => (
-                  <li key={isin} className="break-words font-mono text-sm">
-                    {isin}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {ibkrMissingSymbols !== null && ibkrMissingSymbols.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5">
-                {ibkrMissingSymbols.map((sym) => (
-                  <li key={sym} className="break-words font-mono text-sm">
-                    {sym}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {ibkrAmbiguousSymbols !== null &&
-            ibkrAmbiguousSymbols.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5">
-                {ibkrAmbiguousSymbols.map((sym) => (
-                  <li key={sym} className="break-words font-mono text-sm">
-                    {sym}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </ErrorAlert>
-        ) : null}
-        {ibkrResult !== null ? (
-          <p className="copy-success">
-            Processed {ibkrResult.processed} transaction
-            {ibkrResult.processed === 1 ? "" : "s"}: {ibkrResult.changed}{" "}
-            written to the database
-            {ibkrResult.unchanged > 0
-              ? `, ${ibkrResult.unchanged} already up to date`
-              : ""}
-            .
-          </p>
-        ) : null}
-      </section>
-
-      <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <h2>Seligson</h2>
-        <div className="space-y-2 text-sm text-slate-600">
-          <p>
-            On{" "}
-            <a
-              href="https://omasalkku.seligson.fi/portfolio/transactions?view=transactions"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-slate-700 underline underline-offset-2 hover:text-slate-900"
-            >
-              <em>Oma Salkku</em> → <em>Tapahtumat</em>
-            </a>
-            , copy the full table from the header row through the summary row.
-            If needed, change the page size from 25 to all items so nothing is
-            missing. Paste it into the field below via{" "}
-            <span className="font-medium">Paste here...</span>, or alternatively
-            save the same content as a{" "}
-            <span className="font-medium">text file</span> and upload it. No
-            extra formatting is required — paste as-is.
-          </p>
-          <p>The PDF report is not supported.</p>
-          <p>
-            The funds need to be added to the instruments list before importing.
-          </p>
-        </div>
-        <form className="flex flex-col gap-3" onSubmit={onSubmitSeligson}>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
-              <Button
-                type="button"
-                className="w-28"
-                onClick={() => {
-                  setSeligsonPasteOpen((o) => !o);
-                }}
-              >
-                {seligsonPasteOpen ? "Cancel" : "Paste here..."}
-              </Button>
-              <span className="shrink-0 text-sm font-medium text-slate-400 sm:px-0.5">
-                or
-              </span>
-              <div className="min-w-0 flex-1">
-                <FileBrowseButton
-                  id="seligson-tsv"
-                  ariaLabel="Seligson export file"
-                  inputRef={seligsonFileInputRef}
-                  file={seligsonFile}
-                  onChange={(ev) => {
-                    const f = ev.target.files?.[0];
-                    setSeligsonFile(f ?? null);
-                    if (f != null) {
-                      setSeligsonPasteText("");
-                      setSeligsonPasteOpen(false);
-                    }
-                    setSeligsonResult(null);
-                    setSeligsonError(null);
-                    setSeligsonMissingFunds(null);
-                    setSeligsonAmbiguousFunds(null);
-                  }}
-                />
-              </div>
-            </div>
-            {seligsonFile !== null ||
-            (seligsonPasteOpen && seligsonPasteText.trim().length > 0) ? (
-              <Button type="submit" disabled={busy}>
-                {busy ? "Working..." : "Import"}
-              </Button>
-            ) : null}
-          </div>
-          {seligsonPasteOpen ? (
-            <div>
-              <label htmlFor="seligson-paste" className="sr-only">
-                Paste Seligson export
-              </label>
-              <textarea
-                ref={seligsonPasteTextareaRef}
-                id="seligson-paste"
-                value={seligsonPasteText}
-                onChange={(ev) => {
-                  const v = ev.target.value;
-                  setSeligsonPasteText(v);
-                  if (v.length > 0) {
-                    setSeligsonFile(null);
-                    if (seligsonFileInputRef.current) {
-                      seligsonFileInputRef.current.value = "";
-                    }
-                  }
-                  setSeligsonResult(null);
-                  setSeligsonError(null);
-                  setSeligsonMissingFunds(null);
-                  setSeligsonAmbiguousFunds(null);
-                }}
-                rows={5}
-                className="my-2 max-h-32 w-full resize-y rounded border border-slate-300 px-2 py-1.5 font-mono text-xs text-slate-800"
-                spellCheck={false}
-              />
-            </div>
-          ) : null}
-        </form>
-        {seligsonError !== null ? (
-          <ErrorAlert>
-            <div className="whitespace-pre-wrap break-words">
-              {seligsonError}
-            </div>
-            {seligsonMissingFunds !== null &&
-            seligsonMissingFunds.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5">
-                {seligsonMissingFunds.map((name) => (
-                  <li key={name} className="break-words">
-                    {name}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {seligsonAmbiguousFunds !== null &&
-            seligsonAmbiguousFunds.length > 0 ? (
-              <ul className="mt-2 list-disc space-y-0.5 pl-5">
-                {seligsonAmbiguousFunds.map((name) => (
-                  <li key={name} className="break-words">
-                    {name}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            {seligsonMissingFunds !== null &&
-            seligsonMissingFunds.length > 0 ? (
-              <div className="mt-3">
-                <Button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    void submitSeligson(true);
-                  }}
-                >
-                  {busy ? "Working..." : "Import anyway"}
-                </Button>
-              </div>
-            ) : null}
-          </ErrorAlert>
-        ) : null}
-        {seligsonResult !== null ? (
-          <p className="copy-success">
-            Processed {seligsonResult.processed} transaction
-            {seligsonResult.processed === 1 ? "" : "s"}:{" "}
-            {seligsonResult.changed} written to the database
-            {seligsonResult.unchanged > 0
-              ? `, ${seligsonResult.unchanged} already up to date`
-              : ""}
-            {seligsonResult.skippedRows != null &&
-            seligsonResult.skippedRows > 0
-              ? `, ${seligsonResult.skippedRows} skipped (no matching instrument)`
-              : ""}
-            .
-          </p>
-        ) : null}
-      </section>
+      <ImportSeligsonSection
+        busy={busy}
+        seligsonError={seligsonError}
+        seligsonResult={seligsonResult}
+        seligsonFile={seligsonFile}
+        setSeligsonFile={setSeligsonFile}
+        seligsonPasteText={seligsonPasteText}
+        seligsonPasteOpen={seligsonPasteOpen}
+        setSeligsonPasteOpen={setSeligsonPasteOpen}
+        seligsonFileInputRef={seligsonFileInputRef}
+        seligsonPasteTextareaRef={seligsonPasteTextareaRef}
+        seligsonMissingFunds={seligsonMissingFunds}
+        seligsonAmbiguousFunds={seligsonAmbiguousFunds}
+        onSubmitSeligson={onSubmitSeligson}
+        onSeligsonFilePicked={(file) => {
+          if (file != null) {
+            setSeligsonPasteText("");
+            setSeligsonPasteOpen(false);
+          }
+          setSeligsonResult(null);
+          setSeligsonError(null);
+          setSeligsonMissingFunds(null);
+          setSeligsonAmbiguousFunds(null);
+        }}
+        onSeligsonPasteChange={(v) => {
+          setSeligsonPasteText(v);
+          if (v.length > 0) {
+            setSeligsonFile(null);
+            if (seligsonFileInputRef.current) {
+              seligsonFileInputRef.current.value = "";
+            }
+          }
+          setSeligsonResult(null);
+          setSeligsonError(null);
+          setSeligsonMissingFunds(null);
+          setSeligsonAmbiguousFunds(null);
+        }}
+        onImportAnyway={() => {
+          void submitSeligson(true);
+        }}
+      />
     </div>
   );
 }
