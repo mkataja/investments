@@ -16,7 +16,7 @@ pnpm install
 pnpm db:migrate
 ```
 
-Postgres is exposed on **host port 50500** (to avoid clashing with other local Postgres instances). Data lives in `.data/postgres` (gitignored).
+Postgres is exposed on host port 50500 (to avoid clashing with other local Postgres instances). Data lives in `.data/postgres` (gitignored).
 
 ## Packages
 
@@ -51,15 +51,17 @@ Set `VITE_API_URL` in `web` if the API is not on port 3001.
 
 ## Architecture (overview)
 
-- **Positions** are derived from **transactions** (net quantity per instrument); portfolio views aggregate by selected **`portfolio_id`**.
-- **Distributions** (country/sector weights per instrument) are **cached** in the DB; Yahoo `quoteSummary`, optional provider holdings files, and Seligson HTML each feed normalization in **`api`**. Portfolio-level charts merge weights by value.
-- **`USER_ID`** is a single hard-coded user in **`@investments/lib`** until auth exists.
+- **Positions** are derived from **transactions** (net quantity per instrument); portfolio views aggregate by selected `portfolio_id`.
+- **Distributions** (country/sector weights per instrument) are cached in the DB; Yahoo `quoteSummary`, optional provider holdings files, and Seligson HTML each feed normalization in `api`. Portfolio-level charts merge weights by value.
+- `USER_ID` is a single hard-coded user in `@investments/lib` until auth exists.
 
-**Reference:** [`docs/architecture.md`](docs/architecture.md) (packages, infra, tables, caching), [`docs/data-sources.md`](docs/data-sources.md) (pipelines), [`docs/api.md`](docs/api.md) (imports and core HTTP behavior).
+Reference: [`docs/architecture.md`](docs/architecture.md) (packages, infra, tables, caching), [`docs/data-sources.md`](docs/data-sources.md) (pipelines), [`docs/api.md`](docs/api.md) (imports and core HTTP behavior).
 
 ## API notes
 
-**[`docs/api.md`](docs/api.md)** describes imports, instruments, transactions, and portfolio responses—**not** every route; **`api/src/index.ts`** is the full list. **Caching / refresh:** **[`docs/architecture.md` — Caching and distribution refresh](docs/architecture.md#caching-and-distribution-refresh)**.
+[`docs/api.md`](docs/api.md) describes imports, instruments, transactions, and portfolio responses — **not** every route; `api/src/index.ts` is the full list.
 
-- Create brokers at `/brokers` (unique **name** per user). Imports match brokers by name: **Degiro**, **Seligson**, **IBKR**.
-- **`GET /instruments/lookup-yahoo?symbol=`** — Yahoo preview for the add-instrument form.
+Caching / refresh: [`docs/architecture.md` — Caching and distribution refresh](docs/architecture.md#caching-and-distribution-refresh).
+
+- Create brokers at `/brokers` (unique name per user). Imports match brokers by name: Degiro, Seligson, IBKR.
+- `GET /instruments/lookup-yahoo?symbol=` — Yahoo preview for the add-instrument form.

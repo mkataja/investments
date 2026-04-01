@@ -17,3 +17,7 @@ Some funds (e.g. Varainhoitorahasto Pharos) publish a **static HTML table** on s
 **Equity / mixed:** Scrape FundViewer holdings view=10; `fid` in URL must match `seligson_funds`. Users register via `/instruments/new` (FID + Seligson-type broker); rows are find-or-created by the API. Geo: each row’s Finnish `Maa` → ISO via `resolveRegionKeyToIso`. Sectors: line weights use Yahoo `quoteSummary` `assetProfile.sector` (fallback `industry`) via `mapSectorLabelToCanonicalId` when Yahoo/OpenFIGI resolution succeeds; else Finnish `Toimiala` → `SELIGSON_FINNISH_SECTOR_LABEL_MAP` (unknown → `sectors.other`). Resolution pipeline: `api/src/distributions/seligsonHoldingsResolve.ts` (search query expansion, legal-name normalization, `namesMatchSeligsonYahoo`, OpenFIGI + multiple Yahoo candidates, ISIN acceptance paths). Wrong ticker/name pairs are possible — manual validation of cached resolutions may be added later. Resolved lines cached in `seligson_holdings_resolution_cache` (normalized name + ISO, `ZZ` when Maa unmapped; Yahoo symbol/name when `source = yahoo`; no TTL). Cash / money-market lines (e.g. Käteinen, dash-only Maa/Toimiala) → `sectors.cash`, omitted from `countries`. Raw: `seligson_distribution_cache.holdings_html`. `YAHOO_MIN_INTERVAL_MS` spaces distinct unresolved lookup keys and OpenFIGI when ISIN fallback runs.
 
 Modules: `api/src/distributions/seligson.ts` (holdings + bond views), `api/src/distributions/seligsonHoldingsResolve.ts` (view=10 Yahoo line resolution).
+
+## HTML parsers
+
+Brittle; prefer tests or fallbacks.
