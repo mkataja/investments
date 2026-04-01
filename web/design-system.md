@@ -15,7 +15,7 @@ Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`headi
 
 | Class | For |
 | --- | --- |
-| `nav-bar-link` / `nav-bar-link-active` | Top shell nav only (`App.tsx`) |
+| `nav-bar-link` / `nav-bar-link-active` / `nav-bar-indicator` | Top shell nav only (`App.tsx`) |
 | `action-link` | In-page / back links (emerald text) |
 | `button-basic` | Outlined default control |
 | `button-cancel` | Outlined cancel (neutral) |

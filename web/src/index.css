@@ -100,13 +100,19 @@
 
   /* --- Actions (see web/design-system.md) --- */
 
-  /** App shell top nav (`App.tsx`) */
+  /** App shell top nav (`App.tsx`) — underline is `.nav-bar-indicator` */
   .nav-bar-link {
-    @apply -mb-px inline-flex items-center border-b-2 border-transparent px-2 py-3 text-base font-medium tracking-wider text-slate-600 transition-colors duration-150 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 rounded-sm;
+    @apply inline-flex items-center px-2 py-3 text-base font-medium tracking-wider text-slate-600 transition-colors duration-150 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 rounded-sm;
   }
 
   .nav-bar-link-active {
-    @apply border-emerald-600 text-slate-900;
+    @apply text-slate-900;
+  }
+
+  .nav-bar-indicator {
+    @apply pointer-events-none absolute bottom-0 h-0.5 rounded-full bg-emerald-600;
+    transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s
+      cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   /** Inline / nav links (Router `<Link>`, back links) */
