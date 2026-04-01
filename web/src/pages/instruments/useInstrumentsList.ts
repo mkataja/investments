@@ -6,6 +6,7 @@ import {
   interpretRefreshDistributionResponse,
   userMessageForSkippedRefresh,
 } from "../../api/instrumentRefreshDistribution";
+import { isSkippedByRefreshAllBackoff } from "./refreshAllBackoff";
 import type { InstrumentListItem, RefreshDistributionResponse } from "./types";
 
 export function useInstrumentsList() {
@@ -86,10 +87,15 @@ export function useInstrumentsList() {
     let ok = 0;
     let skippedManual = 0;
     let skippedOther = 0;
+    let skippedBackoff = 0;
     let failed = 0;
     let firstFailure: string | null = null;
     try {
       for (const i of targets) {
+        if (isSkippedByRefreshAllBackoff(i)) {
+          skippedBackoff += 1;
+          continue;
+        }
         try {
           const res = await apiPost<RefreshDistributionResponse>(
             `/instruments/${i.id}/refresh-distribution`,
@@ -115,6 +121,9 @@ export function useInstrumentsList() {
         parts.push(
           `${ok} ${ok === 1 ? "instrument" : "instruments"} refreshed`,
         );
+      }
+      if (skippedBackoff > 0) {
+        parts.push(`${skippedBackoff} skipped (recent)`);
       }
       if (skippedManual > 0) {
         parts.push(`${skippedManual} skipped (manual cache)`);
