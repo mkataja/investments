@@ -10,7 +10,18 @@ declare module "chart.js" {
       compareLabel: string;
     };
     investmentsPieTooltip?:
-      | { kind: "assetMix"; totalPortfolioEur: number }
-      | { kind: "bondMix" };
+      | {
+          kind: "assetMix";
+          totalPortfolioEur: number;
+          /** Inner ring (comparison) total EUR when showing dual-ring doughnut. */
+          compareTotalPortfolioEur?: number;
+          primaryLabel?: string;
+          compareLabel?: string;
+        }
+      | {
+          kind: "bondMix";
+          primaryLabel?: string;
+          compareLabel?: string;
+        };
   }
 }

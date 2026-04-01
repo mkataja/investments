@@ -9,9 +9,9 @@ const LEGEND_WIDTH_RESERVE_PX = 200;
  * sits in the horizontal middle. Extra right padding shrinks the chart area to ~square so the pie sits
  * left, with the legend immediately to its right.
  */
-export const pieChartLeftAlignPlugin: Plugin<"pie"> = {
+export const pieChartLeftAlignPlugin: Plugin<"pie" | "doughnut"> = {
   id: "pieChartLeftAlign",
-  beforeLayout(chart: Chart<"pie">) {
+  beforeLayout(chart: Chart<"pie" | "doughnut">) {
     const p = chart.options.layout?.padding;
     const pad = toPadding(
       p === undefined || typeof p === "number"

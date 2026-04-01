@@ -1,7 +1,7 @@
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
 import type { ChartOptions } from "chart.js";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Bar, Pie } from "react-chartjs-2";
+import { Bar, Doughnut, Pie } from "react-chartjs-2";
 import {
   type DistributionBarChartRow,
   distributionBarChartTooltipPlugin,
@@ -36,6 +36,49 @@ import {
 import { DISTRIBUTION_SECTOR_TITLES } from "../../lib/sectorTitles";
 import type { PortfolioDistributions } from "./types";
 
+function assetMixPieRowsFromAssetMix(
+  assetMix: PortfolioDistributions["assetMix"],
+) {
+  const m = assetMix;
+  return [
+    {
+      name: "Equities",
+      value: m.equitiesEur,
+      fill: PORTFOLIO_ASSET_MIX_COLORS.equities,
+    },
+    {
+      name: "Bonds (total)",
+      value: m.bondsTotalEur,
+      fill: PORTFOLIO_ASSET_MIX_COLORS.bonds,
+    },
+    {
+      name: DISTRIBUTION_SECTOR_TITLES.commodity_gold,
+      value: m.commodityGoldEur,
+      fill: PORTFOLIO_ASSET_MIX_COLORS.commodityGold,
+    },
+    {
+      name: DISTRIBUTION_SECTOR_TITLES.commodity_silver,
+      value: m.commoditySilverEur,
+      fill: PORTFOLIO_ASSET_MIX_COLORS.commoditySilver,
+    },
+    {
+      name: DISTRIBUTION_SECTOR_TITLES.commodity_other,
+      value: m.commodityOtherEur,
+      fill: PORTFOLIO_ASSET_MIX_COLORS.commodityOther,
+    },
+    {
+      name: "Cash (in funds)",
+      value: m.cashInFundsEur,
+      fill: PORTFOLIO_ASSET_MIX_COLORS.cashInFunds,
+    },
+    {
+      name: "Cash (in accounts - excluding emergency fund)",
+      value: m.cashExcessEur,
+      fill: PORTFOLIO_ASSET_MIX_COLORS.cashExcess,
+    },
+  ];
+}
+
 const distributionBarChartGridStroke = "#e2e8f0";
 
 /** Minimum arc per non-zero pie slice (Chart.js has no built-in; see {@link adjustPieValuesForMinAngleDegrees}). */
@@ -48,6 +91,13 @@ const pieChartLayoutPadding = {
   bottom: 10,
   left: 0,
 } as const;
+
+const COMPARE_DOUGHNUT_CUTOUT = "40%";
+
+const BOND_MIX_NO_BONDS_SECTOR_ID = "_no_bonds";
+const BOND_MIX_NO_BONDS_LABEL = "No bonds";
+/** slate-500 — synthetic slice when a portfolio has no bond sleeve (compare mode). */
+const BOND_MIX_NO_BONDS_FILL = "#64748b";
 
 /** Native Chart.js legend beside the pie (same point style as distribution bar charts). */
 const pieChartLegendOptions: NonNullable<
@@ -380,46 +430,18 @@ export function PortfolioCharts({
     countryChartYZoomed,
   ]);
 
-  const assetMixPieDataRaw = useMemo(() => {
-    const m = portfolio.assetMix;
-    return [
-      {
-        name: "Equities",
-        value: m.equitiesEur,
-        fill: PORTFOLIO_ASSET_MIX_COLORS.equities,
-      },
-      {
-        name: "Bonds (total)",
-        value: m.bondsTotalEur,
-        fill: PORTFOLIO_ASSET_MIX_COLORS.bonds,
-      },
-      {
-        name: DISTRIBUTION_SECTOR_TITLES.commodity_gold,
-        value: m.commodityGoldEur,
-        fill: PORTFOLIO_ASSET_MIX_COLORS.commodityGold,
-      },
-      {
-        name: DISTRIBUTION_SECTOR_TITLES.commodity_silver,
-        value: m.commoditySilverEur,
-        fill: PORTFOLIO_ASSET_MIX_COLORS.commoditySilver,
-      },
-      {
-        name: DISTRIBUTION_SECTOR_TITLES.commodity_other,
-        value: m.commodityOtherEur,
-        fill: PORTFOLIO_ASSET_MIX_COLORS.commodityOther,
-      },
-      {
-        name: "Cash (in funds)",
-        value: m.cashInFundsEur,
-        fill: PORTFOLIO_ASSET_MIX_COLORS.cashInFunds,
-      },
-      {
-        name: "Cash (in accounts - excluding emergency fund)",
-        value: m.cashExcessEur,
-        fill: PORTFOLIO_ASSET_MIX_COLORS.cashExcess,
-      },
-    ];
-  }, [portfolio.assetMix]);
+  const assetMixPieDataRaw = useMemo(
+    () => assetMixPieRowsFromAssetMix(portfolio.assetMix),
+    [portfolio.assetMix],
+  );
+
+  const compareAssetMixPieTotalEur = useMemo(() => {
+    if (!comparePortfolio) return 0;
+    return assetMixPieRowsFromAssetMix(comparePortfolio.assetMix).reduce(
+      (s, d) => s + d.value,
+      0,
+    );
+  }, [comparePortfolio]);
 
   const assetMixPieTotalEur = useMemo(
     () => assetMixPieDataRaw.reduce((s, d) => s + d.value, 0),
@@ -427,29 +449,147 @@ export function PortfolioCharts({
   );
 
   const assetMixPieData = useMemo(() => {
-    const t = assetMixPieTotalEur;
-    if (!(t > 0)) {
+    const primaryRaw = assetMixPieDataRaw;
+    const tp = assetMixPieTotalEur;
+
+    if (!showDistributionCompare || !comparePortfolio) {
+      if (!(tp > 0)) {
+        return [];
+      }
+      return primaryRaw.filter(
+        (d) => d.value / tp >= MIN_PORTFOLIO_ALLOCATION_FRACTION,
+      );
+    }
+
+    const compareRaw = assetMixPieRowsFromAssetMix(comparePortfolio.assetMix);
+    const tc = compareRaw.reduce((s, d) => s + d.value, 0);
+    if (!(tp > 0) && !(tc > 0)) {
       return [];
     }
-    return assetMixPieDataRaw.filter(
-      (d) => d.value / t >= MIN_PORTFOLIO_ALLOCATION_FRACTION,
-    );
-  }, [assetMixPieDataRaw, assetMixPieTotalEur]);
 
-  const bondMixPieData = useMemo(
-    () =>
-      portfolio.bondMix.map((s) => ({
-        name:
-          DISTRIBUTION_SECTOR_TITLES[
-            s.sectorId as keyof typeof DISTRIBUTION_SECTOR_TITLES
-          ] ?? s.sectorId,
-        value: s.weight,
-        fill:
-          PORTFOLIO_BOND_MIX_PIE_COLORS[s.sectorId] ??
-          PORTFOLIO_ASSET_MIX_COLORS.bonds,
-      })),
-    [portfolio.bondMix],
-  );
+    return primaryRaw.filter((d, i) => {
+      const pv = d.value;
+      const cv = compareRaw[i]?.value ?? 0;
+      return (
+        (tp > 0 && pv / tp >= MIN_PORTFOLIO_ALLOCATION_FRACTION) ||
+        (tc > 0 && cv / tc >= MIN_PORTFOLIO_ALLOCATION_FRACTION)
+      );
+    });
+  }, [
+    assetMixPieDataRaw,
+    assetMixPieTotalEur,
+    showDistributionCompare,
+    comparePortfolio,
+  ]);
+
+  const showBondMixSection = useMemo(() => {
+    if (!showDistributionCompare || !comparePortfolio) {
+      return portfolio.bondMix.length > 0;
+    }
+    return (
+      portfolio.bondMix.length > 0 ||
+      (comparePortfolio.bondMix?.length ?? 0) > 0
+    );
+  }, [
+    showDistributionCompare,
+    comparePortfolio,
+    portfolio.bondMix,
+    comparePortfolio?.bondMix,
+  ]);
+
+  const bondMixPieData = useMemo(() => {
+    const mapSlice = (s: { sectorId: string; weight: number }) => ({
+      sectorId: s.sectorId,
+      name:
+        DISTRIBUTION_SECTOR_TITLES[
+          s.sectorId as keyof typeof DISTRIBUTION_SECTOR_TITLES
+        ] ?? s.sectorId,
+      value: s.weight,
+      fill:
+        PORTFOLIO_BOND_MIX_PIE_COLORS[s.sectorId] ??
+        PORTFOLIO_ASSET_MIX_COLORS.bonds,
+    });
+
+    if (!showDistributionCompare || !comparePortfolio) {
+      return portfolio.bondMix.map(mapSlice);
+    }
+
+    const pList = portfolio.bondMix;
+    const cList = comparePortfolio.bondMix ?? [];
+    const pHas = pList.length > 0;
+    const cHas = cList.length > 0;
+    const pMap = new Map(pList.map((s) => [s.sectorId, s.weight]));
+    const cMap = new Map(cList.map((s) => [s.sectorId, s.weight]));
+
+    const sectorTitle = (sectorId: string) =>
+      DISTRIBUTION_SECTOR_TITLES[
+        sectorId as keyof typeof DISTRIBUTION_SECTOR_TITLES
+      ] ?? sectorId;
+
+    const sectorFill = (sectorId: string) =>
+      PORTFOLIO_BOND_MIX_PIE_COLORS[sectorId] ??
+      PORTFOLIO_ASSET_MIX_COLORS.bonds;
+
+    const noBondsRow = (primaryWeight: number) => ({
+      sectorId: BOND_MIX_NO_BONDS_SECTOR_ID,
+      name: BOND_MIX_NO_BONDS_LABEL,
+      value: primaryWeight,
+      fill: BOND_MIX_NO_BONDS_FILL,
+    });
+
+    if (pHas && cHas) {
+      const sectorIds = [...new Set([...pMap.keys(), ...cMap.keys()])].filter(
+        (id) =>
+          (pMap.get(id) ?? 0) >= MIN_PORTFOLIO_ALLOCATION_FRACTION ||
+          (cMap.get(id) ?? 0) >= MIN_PORTFOLIO_ALLOCATION_FRACTION,
+      );
+      sectorIds.sort((a, b) => {
+        const ma = Math.max(pMap.get(a) ?? 0, cMap.get(a) ?? 0);
+        const mb = Math.max(pMap.get(b) ?? 0, cMap.get(b) ?? 0);
+        return mb - ma;
+      });
+      return sectorIds.map((sectorId) => ({
+        sectorId,
+        name: sectorTitle(sectorId),
+        value: pMap.get(sectorId) ?? 0,
+        fill: sectorFill(sectorId),
+      }));
+    }
+
+    if (pHas && !cHas) {
+      const sectorIds = [...pMap.keys()].filter(
+        (id) => (pMap.get(id) ?? 0) >= MIN_PORTFOLIO_ALLOCATION_FRACTION,
+      );
+      sectorIds.sort((a, b) => (pMap.get(b) ?? 0) - (pMap.get(a) ?? 0));
+      return [
+        ...sectorIds.map((sectorId) => ({
+          sectorId,
+          name: sectorTitle(sectorId),
+          value: pMap.get(sectorId) ?? 0,
+          fill: sectorFill(sectorId),
+        })),
+        noBondsRow(0),
+      ];
+    }
+
+    if (!pHas && cHas) {
+      const sectorIds = [...cMap.keys()].filter(
+        (id) => (cMap.get(id) ?? 0) >= MIN_PORTFOLIO_ALLOCATION_FRACTION,
+      );
+      sectorIds.sort((a, b) => (cMap.get(b) ?? 0) - (cMap.get(a) ?? 0));
+      return [
+        ...sectorIds.map((sectorId) => ({
+          sectorId,
+          name: sectorTitle(sectorId),
+          value: 0,
+          fill: sectorFill(sectorId),
+        })),
+        noBondsRow(1),
+      ];
+    }
+
+    return [];
+  }, [portfolio.bondMix, showDistributionCompare, comparePortfolio]);
 
   const regionBarData = useMemo(() => {
     const labels = regionBarChartData.map((r) => r.name);
@@ -615,6 +755,52 @@ export function PortfolioCharts({
   );
 
   const assetMixPieChartData = useMemo(() => {
+    const buildDataset = (raw: number[]) => {
+      const { display, original } = adjustPieValuesForMinAngleDegrees(
+        raw,
+        PIE_MIN_SLICE_DEGREES,
+      );
+      return { display, original };
+    };
+
+    if (showDistributionCompare && comparePortfolio) {
+      const compareByName = new Map(
+        assetMixPieRowsFromAssetMix(comparePortfolio.assetMix).map((d) => [
+          d.name,
+          d,
+        ]),
+      );
+      const primaryRaw = assetMixPieData.map((d) => d.value);
+      const compareRaw = assetMixPieData.map(
+        (d) => compareByName.get(d.name)?.value ?? 0,
+      );
+      const outer = buildDataset(primaryRaw);
+      const inner = buildDataset(compareRaw);
+      return {
+        labels: assetMixPieData.map((d) => d.name),
+        datasets: [
+          {
+            label: selectedPortfolioLabel,
+            data: outer.display,
+            originalData: outer.original,
+            backgroundColor: assetMixPieData.map((d) => d.fill),
+            borderColor: "#ffffff",
+            borderWidth: 2,
+            hoverOffset: 6,
+          },
+          {
+            label: comparePortfolioLabel,
+            data: inner.display,
+            originalData: inner.original,
+            backgroundColor: assetMixPieData.map((d) => d.fill),
+            borderColor: "#ffffff",
+            borderWidth: 2,
+            hoverOffset: 6,
+          },
+        ],
+      };
+    }
+
     const raw = assetMixPieData.map((d) => d.value);
     const { display, original } = adjustPieValuesForMinAngleDegrees(
       raw,
@@ -633,10 +819,16 @@ export function PortfolioCharts({
         },
       ],
     };
-  }, [assetMixPieData]);
+  }, [
+    assetMixPieData,
+    showDistributionCompare,
+    comparePortfolio,
+    selectedPortfolioLabel,
+    comparePortfolioLabel,
+  ]);
 
-  const assetMixPieOptions = useMemo(
-    (): ChartOptions<"pie"> => ({
+  const assetMixPieOptions = useMemo((): ChartOptions<"pie" | "doughnut"> => {
+    const base: ChartOptions<"pie" | "doughnut"> = {
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 420 },
@@ -646,16 +838,75 @@ export function PortfolioCharts({
         investmentsPieTooltip: {
           kind: "assetMix",
           totalPortfolioEur: assetMixPieTotalEur,
+          ...(showDistributionCompare && comparePortfolio
+            ? { compareTotalPortfolioEur: compareAssetMixPieTotalEur }
+            : {}),
         },
         tooltip: {
           ...CHART_TOOLTIP_BASE,
         },
       },
-    }),
-    [assetMixPieTotalEur],
-  );
+    };
+    if (showDistributionCompare && comparePortfolio) {
+      base.cutout = COMPARE_DOUGHNUT_CUTOUT;
+    }
+    return base;
+  }, [
+    assetMixPieTotalEur,
+    compareAssetMixPieTotalEur,
+    showDistributionCompare,
+    comparePortfolio,
+  ]);
 
   const bondPieChartData = useMemo(() => {
+    const buildDataset = (raw: number[]) => {
+      const { display, original } = adjustPieValuesForMinAngleDegrees(
+        raw,
+        PIE_MIN_SLICE_DEGREES,
+      );
+      return { display, original };
+    };
+
+    if (showDistributionCompare && comparePortfolio) {
+      const primaryRaw = bondMixPieData.map((d) => d.value);
+      const compareRaw = bondMixPieData.map((d) => {
+        if (d.sectorId === BOND_MIX_NO_BONDS_SECTOR_ID) {
+          return (comparePortfolio.bondMix?.length ?? 0) === 0 ? 1 : 0;
+        }
+        return (
+          comparePortfolio.bondMix?.find((s) => s.sectorId === d.sectorId)
+            ?.weight ?? 0
+        );
+      });
+      const outer = buildDataset(primaryRaw);
+      const inner = buildDataset(compareRaw);
+      return {
+        labels: bondMixPieData.map((d) => d.name),
+        datasets: [
+          {
+            label: selectedPortfolioLabel,
+            data: outer.display,
+            originalData: outer.original,
+            backgroundColor: bondMixPieData.map((d) => d.fill),
+            borderColor: "#ffffff",
+            borderWidth: 2,
+            hoverOffset: 6,
+            weight: 1.15,
+          },
+          {
+            label: comparePortfolioLabel,
+            data: inner.display,
+            originalData: inner.original,
+            backgroundColor: bondMixPieData.map((d) => d.fill),
+            borderColor: "#ffffff",
+            borderWidth: 2,
+            hoverOffset: 6,
+            weight: 1,
+          },
+        ],
+      };
+    }
+
     const raw = bondMixPieData.map((d) => d.value);
     const { display, original } = adjustPieValuesForMinAngleDegrees(
       raw,
@@ -674,10 +925,16 @@ export function PortfolioCharts({
         },
       ],
     };
-  }, [bondMixPieData]);
+  }, [
+    bondMixPieData,
+    showDistributionCompare,
+    comparePortfolio,
+    selectedPortfolioLabel,
+    comparePortfolioLabel,
+  ]);
 
-  const bondPieOptions = useMemo(
-    (): ChartOptions<"pie"> => ({
+  const bondPieOptions = useMemo((): ChartOptions<"pie" | "doughnut"> => {
+    const base: ChartOptions<"pie" | "doughnut"> = {
       responsive: true,
       maintainAspectRatio: false,
       animation: { duration: 420 },
@@ -691,9 +948,12 @@ export function PortfolioCharts({
           ...CHART_TOOLTIP_BASE,
         },
       },
-    }),
-    [],
-  );
+    };
+    if (showDistributionCompare && comparePortfolio) {
+      base.cutout = COMPARE_DOUGHNUT_CUTOUT;
+    }
+    return base;
+  }, [showDistributionCompare, comparePortfolio]);
 
   return (
     <section className="page-section w-full min-w-0">
@@ -729,27 +989,43 @@ export function PortfolioCharts({
       <div className="w-full min-w-0 flex flex-col gap-6">
         {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
           <div
-            className={`w-full min-w-0 grid gap-4 justify-items-start ${bondMixPieData.length > 0 ? "grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "max-w-xl"}`}
+            className={`w-full min-w-0 grid gap-4 justify-items-start ${showBondMixSection ? "grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "max-w-xl"}`}
           >
             <div className="min-w-0 subsection-stack w-full">
               <h3>Asset mix</h3>
               <div className="h-48 w-full min-w-0">
-                <Pie
-                  data={assetMixPieChartData}
-                  options={assetMixPieOptions}
-                  plugins={[pieChartLeftAlignPlugin]}
-                />
+                {showDistributionCompare && comparePortfolio ? (
+                  <Doughnut
+                    data={assetMixPieChartData}
+                    options={assetMixPieOptions}
+                    plugins={[pieChartLeftAlignPlugin]}
+                  />
+                ) : (
+                  <Pie
+                    data={assetMixPieChartData}
+                    options={assetMixPieOptions}
+                    plugins={[pieChartLeftAlignPlugin]}
+                  />
+                )}
               </div>
             </div>
-            {bondMixPieData.length > 0 ? (
+            {showBondMixSection ? (
               <div className="min-w-0 subsection-stack w-full">
                 <h3>Bond mix</h3>
                 <div className="h-48 w-full min-w-0">
-                  <Pie
-                    data={bondPieChartData}
-                    options={bondPieOptions}
-                    plugins={[pieChartLeftAlignPlugin]}
-                  />
+                  {showDistributionCompare && comparePortfolio ? (
+                    <Doughnut
+                      data={bondPieChartData}
+                      options={bondPieOptions}
+                      plugins={[pieChartLeftAlignPlugin]}
+                    />
+                  ) : (
+                    <Pie
+                      data={bondPieChartData}
+                      options={bondPieOptions}
+                      plugins={[pieChartLeftAlignPlugin]}
+                    />
+                  )}
                 </div>
               </div>
             ) : null}
