@@ -12,7 +12,6 @@ import type { PortfolioChartsProps } from "./portfolioChartsTypes";
 import {
   PORTFOLIO_COMPARE_DOUGHNUT_CUTOUT,
   PORTFOLIO_PIE_MIN_SLICE_DEGREES,
-  portfolioPieChartLayoutPadding,
   portfolioPieChartLegendOptions,
 } from "./portfolioPieChartStyle";
 
@@ -177,8 +176,7 @@ export function usePortfolioPieCharts({
     const base: ChartOptions<"pie" | "doughnut"> = {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 420 },
-      layout: { padding: portfolioPieChartLayoutPadding },
+      animation: { duration: 320 },
       plugins: {
         legend: portfolioPieChartLegendOptions,
         investmentsPieTooltip: {
@@ -283,8 +281,7 @@ export function usePortfolioPieCharts({
     const base: ChartOptions<"pie" | "doughnut"> = {
       responsive: true,
       maintainAspectRatio: false,
-      animation: { duration: 420 },
-      layout: { padding: portfolioPieChartLayoutPadding },
+      animation: { duration: 320 },
       plugins: {
         legend: portfolioPieChartLegendOptions,
         investmentsPieTooltip: {

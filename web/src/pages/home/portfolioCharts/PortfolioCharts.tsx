@@ -1,4 +1,5 @@
 import { Bar, Doughnut, Pie } from "react-chartjs-2";
+import { classNames } from "../../../lib/css";
 import {
   type PortfolioChartsProps,
   usePortfolioCharts,
@@ -59,11 +60,14 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
       <div className="w-full min-w-0 flex flex-col gap-6">
         {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
           <div
-            className={`w-full min-w-0 grid gap-4 justify-items-start ${showBondMixSection ? "grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : "max-w-xl"}`}
+            className={classNames(
+              "w-full min-w-0 grid gap-4 justify-items-start",
+              showBondMixSection && "grid-cols-1 md:grid-cols-2",
+            )}
           >
-            <div className="min-w-0 subsection-stack w-full">
+            <div className="subsection-stack w-full">
               <h3>Asset mix</h3>
-              <div className="h-48 w-full min-w-0">
+              <div className="h-48">
                 {showDistributionCompare && comparePortfolio ? (
                   <Doughnut
                     data={assetMixPieChartData}
@@ -78,19 +82,16 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
               </div>
             </div>
             {showBondMixSection ? (
-              <div className="min-w-0 subsection-stack w-full">
+              <div className="subsection-stack w-full">
                 <h3>Bond mix</h3>
-                <div className="h-48 w-full min-w-0">
+                <div className="h-48">
                   {showDistributionCompare && comparePortfolio ? (
                     <Doughnut
                       data={bondPieChartData}
                       options={bondPieOptions}
                     />
                   ) : (
-                    <Pie
-                      data={bondPieChartData}
-                      options={bondPieOptions}
-                    />
+                    <Pie data={bondPieChartData} options={bondPieOptions} />
                   )}
                 </div>
               </div>

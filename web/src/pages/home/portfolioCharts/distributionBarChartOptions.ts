@@ -33,7 +33,7 @@ export function distributionBarOptions(args: {
     responsive: true,
     maintainAspectRatio: false,
     interaction: { mode: "index", intersect: false },
-    animation: { duration: 420 },
+    animation: { duration: 320 },
     onClick: args.onClick,
     datasets: {
       bar: {
