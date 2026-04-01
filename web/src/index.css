@@ -151,6 +151,19 @@
       gap-1;
   }
 
+  /** Default text inputs and selects — neutral disabled native styling. */
+  .form-control {
+    @apply mt-1
+      block
+      w-full
+      border
+      rounded
+      px-2
+      py-1
+      bg-white
+      disabled:text-slate-800;
+  }
+
   /* Vertical list of blocks (e.g. proposal cards). */
   .list-stack {
     @apply flex

@@ -42,6 +42,7 @@ Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`headi
 | `modal-title` | Modal `h2` |
 | `form-stack` | Compact stacked form |
 | `field-note-stack` | Control + helper line |
+| `form-control` | Default text inputs and selects in forms (neutral disabled styling) |
 | `list-stack` | Stacked list blocks |
 
 ## Headings
