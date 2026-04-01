@@ -227,7 +227,9 @@ export function HomePage() {
       />
 
       <EditPortfolioModal
-        key={editPortfolioOpen ? `p-${selectedPortfolioId ?? "x"}` : "closed"}
+        key={
+          editPortfolioOpen ? `p-${selectedPortfolioId ?? "x"}` : "edit-closed"
+        }
         open={editPortfolioOpen}
         onClose={() => setEditPortfolioOpen(false)}
         portfolio={selectedPortfolioEntity}
@@ -237,7 +239,9 @@ export function HomePage() {
       />
 
       <NewTransactionModal
-        key={txnModalOpen ? (editingTransaction?.id ?? "new") : "closed"}
+        key={
+          txnModalOpen ? (editingTransaction?.id ?? "new") : "txn-closed"
+        }
         open={txnModalOpen}
         onClose={() => {
           setTxnModalOpen(false);
