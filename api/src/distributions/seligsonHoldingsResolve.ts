@@ -69,7 +69,7 @@ function stripSeligsonRegionSuffix(s: string): string {
     .trim();
 }
 
-/** Truncated English cell (e.g. "… group co of" missing "China"). */
+/** Truncated English cell (e.g. "... group co of" missing "China"). */
 function stripTrailingIncompleteOf(s: string): string {
   return s.replace(/\s+of\s*$/i, "").trim();
 }
@@ -84,7 +84,7 @@ function stripFinnishOyjSearchSuffix(s: string): string {
   return s.replace(/\s+oyj\s*$/i, "").trim();
 }
 
-/** Yahoo `search` often returns nothing for `… kk` (kabushiki kaisha); try without the tail (e.g. `nippon yusen`). */
+/** Yahoo `search` often returns nothing for `... kk` (kabushiki kaisha); try without the tail (e.g. `nippon yusen`). */
 function stripJapaneseKkSearchSuffix(s: string): string {
   return s.replace(/\s+kk\s*$/i, "").trim();
 }
@@ -92,7 +92,7 @@ function stripJapaneseKkSearchSuffix(s: string): string {
 /**
  * Seligson often uses `... cos inc/the`, `... co/the`, `bank ... /the`, `inc/md`, etc. Yahoo `search`
  * frequently returns **no** or **wrong** hits for those literals; emit cleaned phrases that match
- * issuer names (US/CA/… — not only FI).
+ * issuer names (US/CA/... — not only FI).
  */
 export function expandCoTheStyleSearchQueries(trimmed: string): string[] {
   const original = trimmed.trim();
@@ -327,7 +327,7 @@ function collapseSplitLegalAbbrevs(normalized: string): string {
       /** Toronto listing often uses “Mining”; Seligson still says “Gold”. */
       .replace(/\bbarrick mining\b/g, "barrick gold")
       /**
-       * German Seligson ASCII (ue) vs Yahoo umlauts stripped by NFKD (ü→u): Münchener, Rück…
+       * German Seligson ASCII (ue) vs Yahoo umlauts stripped by NFKD (ü→u): Münchener, Rück...
        */
       .replace(/\bmuenchener\b/g, "munchener")
       .replace(/\bmuenchen\b/g, "munchen")
@@ -438,7 +438,7 @@ const NAME_INITIALS_STOPWORDS = new Set([
 ]);
 
 /**
- * First letters of significant words (e.g. Australia + New + Zealand + Banking → "anzb…").
+ * First letters of significant words (e.g. Australia + New + Zealand + Banking → "anzb...").
  * Used to match Seligson's short first token ("anz") to Yahoo's spelled-out name.
  */
 function yahooNameInitialsString(yahooComparable: string): string {

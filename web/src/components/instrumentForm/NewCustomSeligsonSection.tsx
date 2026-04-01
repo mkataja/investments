@@ -104,7 +104,7 @@ export function NewCustomSeligsonSection({
             className="mt-1 block w-full border rounded px-2 py-1"
             value={seligsonFid}
             onChange={(e) => setSeligsonFid(e.target.value)}
-            placeholder="FundViewer fid=…"
+            placeholder="FundViewer fid=..."
           />
         </label>
       ) : null}
@@ -126,7 +126,7 @@ export function NewCustomSeligsonSection({
               className="mt-1 block w-full border rounded px-2 py-1"
               value={compositeTableUrl}
               onChange={(e) => setCompositeTableUrl(e.target.value)}
-              placeholder="https://www.seligson.fi/…/…-taulukko/"
+              placeholder="https://www.seligson.fi/.../...-taulukko/"
             />
           </label>
           <button
@@ -135,7 +135,7 @@ export function NewCustomSeligsonSection({
             disabled={compositionLoading}
             onClick={onLoadComposition}
           >
-            {compositionLoading ? "Loading…" : "Load composition"}
+            {compositionLoading ? "Loading..." : "Load composition"}
           </button>
           {compositePreview != null ? (
             <SeligsonCompositeAllocationPanel

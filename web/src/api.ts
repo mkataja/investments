@@ -13,7 +13,7 @@ export class HttpError extends Error {
   }
 }
 
-/** Prefer API JSON `{ "message": "…" }` for display; otherwise status + body text. */
+/** Prefer API JSON `{ "message": "..." }` for display; otherwise status + body text. */
 function messageFromErrorResponse(status: number, text: string): string {
   const trimmed = text.trim();
   if (trimmed.length === 0) {

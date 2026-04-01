@@ -116,7 +116,7 @@ export function validateHoldingsDistributionUrl(
     return {
       ok: false,
       message:
-        "Unsupported holdings URL host. Use iShares (ishares.com), SPDR / SSGA (ssga.com), Xtrackers / DWS (dws.com), J.P. Morgan (am.jpmorgan.com), SEC EDGAR 13F information table XML (sec.gov …/Archives/edgar/data/…/*.xml), or a Vanguard UK Professional fund page (https://www.vanguard.co.uk/professional/product/…).",
+        "Unsupported holdings URL host. Use iShares (ishares.com), SPDR / SSGA (ssga.com), Xtrackers / DWS (dws.com), J.P. Morgan (am.jpmorgan.com), SEC EDGAR 13F information table XML (sec.gov .../Archives/edgar/data/.../*.xml), or a Vanguard UK Professional fund page (https://www.vanguard.co.uk/professional/product/...).",
     };
   }
   return { ok: true, normalized: u.toString(), provider };
@@ -129,7 +129,7 @@ export type ValidateProviderBreakdownUrlResult =
   | { ok: false; message: string };
 
 /**
- * Empty/null clears. Non-empty must be HTTPS `am.jpmorgan.com` … `/FundsMarketingHandler/product-data` (JSON).
+ * Empty/null clears. Non-empty must be HTTPS `am.jpmorgan.com` ... `/FundsMarketingHandler/product-data` (JSON).
  */
 export function validateProviderBreakdownDataUrl(
   raw: string | null | undefined,
@@ -157,7 +157,7 @@ export function validateProviderBreakdownDataUrl(
     return {
       ok: false,
       message:
-        "Unsupported provider breakdown URL. Use J.P. Morgan AM JSON: https://am.jpmorgan.com/FundsMarketingHandler/product-data?… (see AGENTS.md).",
+        "Unsupported provider breakdown URL. Use J.P. Morgan AM JSON: https://am.jpmorgan.com/FundsMarketingHandler/product-data?... (see AGENTS.md).",
     };
   }
   const pathLower = u.pathname.toLowerCase();

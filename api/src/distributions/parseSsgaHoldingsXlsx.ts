@@ -34,7 +34,7 @@ function findHeaderRow(data: unknown[][]): {
     }
   }
   throw new Error(
-    "Could not find SSGA holdings header row (ISIN, Percent of Fund, …)",
+    "Could not find SSGA holdings header row (ISIN, Percent of Fund, ...)",
   );
 }
 

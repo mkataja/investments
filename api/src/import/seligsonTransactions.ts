@@ -210,7 +210,7 @@ function isSeligsonSummaryFooterLine(line: string): boolean {
   return false;
 }
 
-/** Four consecutive non-empty tab cells that parse as European decimals (Osuuden arvo … Summa €). */
+/** Four consecutive non-empty tab cells that parse as European decimals (Osuuden arvo ... Summa €). */
 function parseFourNumericCellsFromLine(line: string): string[] | null {
   const parts = line.split("\t").map((c) => normalizeCell(c));
   const raw: string[] = [];
@@ -412,7 +412,7 @@ function parseOneMessySeligsonTransaction(
   const four = parseFourNumericCellsFromLine(numLine);
   if (four === null) {
     return {
-      error: `${lineRef}: expected a row with four amounts (Osuuden arvo € … Summa €) after "${fundName.slice(0, 48)}${fundName.length > 48 ? "…" : ""}"`,
+      error: `${lineRef}: expected a row with four amounts (Osuuden arvo € ... Summa €) after "${fundName.slice(0, 48)}${fundName.length > 48 ? "..." : ""}"`,
     };
   }
 

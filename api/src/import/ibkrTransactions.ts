@@ -494,11 +494,11 @@ function parseIbkrFlatTradesCsv(records: string[][]): ParseIbkrCsvResult {
 }
 
 const IBKR_UNSUPPORTED_CSV_MESSAGE =
-  "IBKR CSV must be a flat Activity export (ClientAccountID, DateTime, TransactionType, TradePrice, …) or a flat trades export (ClientAccountID, Date/Time, Buy/Sell, Price, …). Statement-style Transaction History exports are not supported.";
+  "IBKR CSV must be a flat Activity export (ClientAccountID, DateTime, TransactionType, TradePrice, ...) or a flat trades export (ClientAccountID, Date/Time, Buy/Sell, Price, ...). Statement-style Transaction History exports are not supported.";
 
 /**
- * Interactive Brokers CSV: **flat Activity** export (**`ClientAccountID`**, **`DateTime`**, **`ExchTrade`**, …)
- * or **flat trades** (**`Date/Time`**, **`Buy/Sell`**, **`Price`**, **`CurrencyPrimary`**, …).
+ * Interactive Brokers CSV: **flat Activity** export (**`ClientAccountID`**, **`DateTime`**, **`ExchTrade`**, ...)
+ * or **flat trades** (**`Date/Time`**, **`Buy/Sell`**, **`Price`**, **`CurrencyPrimary`**, ...).
  * Forex (**`IDEALFX`**, `AAA.BBB` symbols) is skipped.
  */
 export function parseIbkrTransactionsCsv(csvText: string): ParseIbkrCsvResult {

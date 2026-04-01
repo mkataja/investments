@@ -51,7 +51,7 @@ export function secondLargestMainPortfolioBarValue(
 }
 
 /**
- * Domain [0, d] and `tickCount` ticks at i·d/(tickCount−1), i = 0…tickCount−1,
+ * Domain [0, d] and `tickCount` ticks at i·d/(tickCount−1), i = 0...tickCount−1,
  * with d = (tickCount−1)·k/100 for integer k ≥ 1, choosing the smallest d that is ≥ `maxData01`
  * (weights in 0–1). `tickCount` is the number of labeled ticks (including 0), minimum 2.
  */

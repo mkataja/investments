@@ -69,7 +69,7 @@ Portfolio distribution charts (**`web/src/pages/home/PortfolioCharts.tsx`**) use
 ### Git commits
 
 - Normal one-line titles
-- No conventional prefixes (`feat:`, `chore:`, …)
+- No conventional prefixes (`feat:`, `chore:`, ...)
 - No long bodies unless useful
 - Prefer small, scoped commits
 

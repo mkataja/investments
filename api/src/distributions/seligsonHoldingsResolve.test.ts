@@ -196,7 +196,7 @@ describe("namesMatchSeligsonYahoo", () => {
     expect(namesMatchSeligsonYahoo("prada spa", "Prada S.p.A.")).toBe(true);
   });
 
-  it("matches US co/the and The … Company with Yahoo", () => {
+  it("matches US co/the and The ... Company with Yahoo", () => {
     expect(
       namesMatchSeligsonYahoo("coca-cola co/the", "The Coca-Cola Company"),
     ).toBe(true);

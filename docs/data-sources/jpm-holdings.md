@@ -1,6 +1,6 @@
 # J.P. Morgan daily ETF holdings XLSX
 
-HTTPS on `am.jpmorgan.com`, e.g. `FundsMarketingHandler/excel?type=dailyETFHoldings&…`. Source key `jpm_holdings_xlsx`. Parser `api/src/distributions/parseJpmHoldingsXlsx.ts`.
+HTTPS on `am.jpmorgan.com`, e.g. `FundsMarketingHandler/excel?type=dailyETFHoldings&...`. Source key `jpm_holdings_xlsx`. Parser `api/src/distributions/parseJpmHoldingsXlsx.ts`.
 
 Cash rows (Asset class) → `sectors.cash`, omitted from `countries`.
 

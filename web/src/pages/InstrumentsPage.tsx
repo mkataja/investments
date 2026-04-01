@@ -203,7 +203,7 @@ export function InstrumentsPage() {
       }
       if (failed > 0) {
         parts.push(
-          `${failed} failed${firstFailure ? ` (${firstFailure.length > 120 ? `${firstFailure.slice(0, 117)}…` : firstFailure})` : ""}`,
+          `${failed} failed${firstFailure ? ` (${firstFailure.length > 120 ? `${firstFailure.slice(0, 117)}...` : firstFailure})` : ""}`,
         );
       }
       if (parts.length > 0) {
@@ -278,7 +278,7 @@ export function InstrumentsPage() {
             }
             onClick={() => void refreshAllDistributions()}
           >
-            {refreshingAll ? "Refreshing all…" : "Refresh all"}
+            {refreshingAll ? "Refreshing all..." : "Refresh all"}
           </Button>
           <ButtonLink to="/instruments/new">New instrument</ButtonLink>
         </div>
@@ -402,7 +402,7 @@ export function InstrumentsPage() {
                             {rowRefreshing ? (
                               <>
                                 <RowRefreshSpinner />
-                                <span>Refreshing…</span>
+                                <span>Refreshing...</span>
                               </>
                             ) : (
                               "Refresh"

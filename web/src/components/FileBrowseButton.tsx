@@ -33,7 +33,7 @@ export function FileBrowseButton({
         htmlFor={id}
         className="button-basic inline-flex shrink-0 cursor-pointer"
       >
-        Browse…
+        Browse...
       </label>
       <span
         className="min-w-0 flex-1 truncate text-sm text-slate-600"

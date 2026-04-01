@@ -10,7 +10,7 @@ import {
 import { isCashAssetLabel } from "./providerHoldingsCash.js";
 
 /**
- * J.P. Morgan AM daily ETF holdings XLSX (`FundsMarketingHandler/excel?type=dailyETFHoldings&…`).
+ * J.P. Morgan AM daily ETF holdings XLSX (`FundsMarketingHandler/excel?type=dailyETFHoldings&...`).
  * Sheet `Holdings`: Name, ISIN, Asset class, Country, Currency, Weight (fraction, may be negative for futures).
  */
 function findHeaderRow(data: unknown[][]): {
@@ -38,7 +38,7 @@ function findHeaderRow(data: unknown[][]): {
     }
   }
   throw new Error(
-    "Could not find JPMorgan holdings header row (Name, ISIN, Asset class, Country, Weight, …)",
+    "Could not find JPMorgan holdings header row (Name, ISIN, Asset class, Country, Weight, ...)",
   );
 }
 

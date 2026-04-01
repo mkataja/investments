@@ -305,7 +305,7 @@ export function NewTransactionModal({
             }}
           >
             {txnInstrumentsLoading ? (
-              <option value="">Loading instruments…</option>
+              <option value="">Loading instruments...</option>
             ) : txnInstruments.length === 0 ? (
               <option value="">No instruments for this broker</option>
             ) : (

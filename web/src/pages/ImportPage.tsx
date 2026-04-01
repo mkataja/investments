@@ -512,7 +512,7 @@ export function ImportPage() {
           </div>
           {degiroFile !== null ? (
             <Button type="submit" disabled={busy}>
-              {busy ? "Working…" : "Import"}
+              {busy ? "Working..." : "Import"}
             </Button>
           ) : null}
         </form>
@@ -587,7 +587,7 @@ export function ImportPage() {
             </ul>
             <form onSubmit={onConfirmAddAndImport}>
               <Button type="submit" disabled={busy}>
-                {busy ? "Working…" : "Add selected and import"}
+                {busy ? "Working..." : "Add selected and import"}
               </Button>
             </form>
           </div>
@@ -662,7 +662,7 @@ export function ImportPage() {
           </div>
           {ibkrFile !== null ? (
             <Button type="submit" disabled={busy}>
-              {busy ? "Working…" : "Import"}
+              {busy ? "Working..." : "Import"}
             </Button>
           ) : null}
         </form>
@@ -786,7 +786,7 @@ export function ImportPage() {
             {seligsonFile !== null ||
             (seligsonPasteOpen && seligsonPasteText.trim().length > 0) ? (
               <Button type="submit" disabled={busy}>
-                {busy ? "Working…" : "Import"}
+                {busy ? "Working..." : "Import"}
               </Button>
             ) : null}
           </div>
@@ -855,7 +855,7 @@ export function ImportPage() {
                     void submitSeligson(true);
                   }}
                 >
-                  {busy ? "Working…" : "Import anyway"}
+                  {busy ? "Working..." : "Import anyway"}
                 </Button>
               </div>
             ) : null}

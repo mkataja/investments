@@ -7,7 +7,7 @@ import {
 import { isCashAssetLabel } from "./providerHoldingsCash.js";
 
 /**
- * Xtrackers / DWS constituent export (`etf.dws.com` … `/excel/product/constituent/…`).
+ * Xtrackers / DWS constituent export (`etf.dws.com` ... `/excel/product/constituent/...`).
  * Sheet name is a snapshot date; header row includes ISIN, Country, Weighting (fraction 0–1).
  */
 function findHeaderRow(data: unknown[][]): {
@@ -32,7 +32,7 @@ function findHeaderRow(data: unknown[][]): {
     }
   }
   throw new Error(
-    "Could not find Xtrackers holdings header row (ISIN, Country, Weighting, …)",
+    "Could not find Xtrackers holdings header row (ISIN, Country, Weighting, ...)",
   );
 }
 

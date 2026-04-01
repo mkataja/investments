@@ -70,7 +70,7 @@ export function stripSeligsonFundViewerTitleSuffix(raw: string): string {
 
 /**
  * Parses fund display name from FundViewer intro HTML.
- * Strips view-specific suffixes (e.g. **Salkun …**, **Arvopaperien listaus** on holdings view=10).
+ * Strips view-specific suffixes (e.g. **Salkun ...**, **Arvopaperien listaus** on holdings view=10).
  */
 export function parseSeligsonFundName(html: string): string | null {
   const $ = cheerio.load(html);
