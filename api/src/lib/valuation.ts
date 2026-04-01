@@ -1,9 +1,11 @@
-import { type instruments, prices } from "@investments/db";
+import type { instruments } from "@investments/db";
 import { DEFAULT_CASH_CURRENCY } from "@investments/lib";
 import type { InferSelectModel } from "drizzle-orm";
-import { and, desc, eq, lte } from "drizzle-orm";
 import { db } from "../db.js";
-import { loadLatestPriceRowsByInstrumentIds } from "./latestPriceDistribution.js";
+import {
+  loadLatestPriceRowsByInstrumentIds,
+  loadLatestPriceRowsByInstrumentIdsAsOf,
+} from "./latestPriceDistribution.js";
 
 export type InstrumentRow = InferSelectModel<typeof instruments>;
 
@@ -45,18 +47,11 @@ export async function valuePortfolioRowsEurAsOf(
       rows.filter((r) => r.inst.kind !== "cash_account").map((r) => r.inst.id),
     ),
   ];
-  const priceByInstrument = new Map<number, InferSelectModel<typeof prices>>();
-  for (const id of nonCashIds) {
-    const [p] = await db
-      .select()
-      .from(prices)
-      .where(and(eq(prices.instrumentId, id), lte(prices.priceDate, asOfDate)))
-      .orderBy(desc(prices.priceDate))
-      .limit(1);
-    if (p) {
-      priceByInstrument.set(id, p);
-    }
-  }
+  const priceByInstrument = await loadLatestPriceRowsByInstrumentIdsAsOf(
+    db,
+    nonCashIds,
+    asOfDate,
+  );
 
   return rows.map(({ inst, qty }) => {
     if (inst.kind === "cash_account") {
