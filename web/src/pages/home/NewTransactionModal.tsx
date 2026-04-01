@@ -3,7 +3,12 @@ import {
   sortByTransactionInstrumentSelectLabel,
 } from "@investments/lib";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { apiGet, apiPatch, apiPost } from "../../api";
+import {
+  apiGet,
+  apiPatch,
+  apiPost,
+  buildTransactionMutationBody,
+} from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { classNames } from "../../lib/css";
@@ -204,26 +209,18 @@ export function NewTransactionModal({
       return;
     }
     try {
-      const body: Record<string, unknown> = {
+      const body = buildTransactionMutationBody({
         portfolioId: effectivePortfolioId,
         brokerId: txnForm.brokerId,
-        tradeDate: tradeDateParsed.toISOString(),
+        tradeDateIso: tradeDateParsed.toISOString(),
         instrumentId: txnForm.instrumentId,
-        currency: txnForm.currency.trim().toUpperCase(),
-      };
-      if (isCashTxn) {
-        const sum = Number.parseFloat(txnForm.quantity.replace(",", "."));
-        body.side = txnForm.side;
-        body.quantity = String(sum);
-        body.unitPrice = "1";
-      } else {
-        body.side = txnForm.side;
-        body.quantity = txnForm.quantity;
-        body.unitPrice = txnForm.unitPrice;
-        if (txnForm.unitPriceEur) {
-          body.unitPriceEur = txnForm.unitPriceEur;
-        }
-      }
+        currency: txnForm.currency,
+        isCashAccount: isCashTxn,
+        side: txnForm.side,
+        quantity: txnForm.quantity,
+        unitPrice: txnForm.unitPrice,
+        unitPriceEur: txnForm.unitPriceEur,
+      });
       if (editTransaction) {
         await apiPatch(`/transactions/${editTransaction.id}`, body);
       } else {

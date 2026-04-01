@@ -9,7 +9,17 @@ import {
 } from "@investments/lib";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiGet, apiPatch, apiPost } from "../../api";
+import {
+  apiGet,
+  apiPatch,
+  apiPost,
+  buildCreateCashAccountBody,
+  buildCreateCommodityBody,
+  buildCreateCustomCompositeBody,
+  buildCreateCustomSeligsonBody,
+  buildCreateEtfStockBody,
+  buildPatchEtfStockUrlsBody,
+} from "../../api";
 import { mapYahooInstrumentFormError } from "../../lib/yahooInstrumentFormError";
 import type { CompositePreviewRow } from "./SeligsonCompositeModal";
 import type {
@@ -345,12 +355,14 @@ export function useInstrumentFormPage(props: InstrumentFormPageProps) {
       }
     }
     try {
-      await apiPost<InstrumentRow>("/instruments", {
-        kind: "custom",
-        brokerId: customBrokerId,
-        displayName,
-        constituents,
-      });
+      await apiPost<InstrumentRow>(
+        "/instruments",
+        buildCreateCustomCompositeBody({
+          brokerId: customBrokerId,
+          displayName,
+          constituents,
+        }),
+      );
       navigate("/instruments");
     } catch (e) {
       setError(mapYahooInstrumentFormError(e));
@@ -393,14 +405,15 @@ export function useInstrumentFormPage(props: InstrumentFormPageProps) {
           );
           return;
         }
-        await apiPost<InstrumentRow>("/instruments", {
-          kind,
-          yahooSymbol: s,
-          ...(urlRaw.length > 0 ? { holdingsDistributionUrl: urlRaw } : {}),
-          ...(breakdownRaw.length > 0
-            ? { providerBreakdownDataUrl: breakdownRaw }
-            : {}),
-        });
+        await apiPost<InstrumentRow>(
+          "/instruments",
+          buildCreateEtfStockBody({
+            kind,
+            yahooSymbol: s,
+            holdingsDistributionUrl: urlRaw,
+            providerBreakdownDataUrl: breakdownRaw,
+          }),
+        );
       } else if (kind === "commodity") {
         const s = yahooSymbol.trim();
         if (!s) {
@@ -416,12 +429,14 @@ export function useInstrumentFormPage(props: InstrumentFormPageProps) {
           setError("Country must be a valid ISO code or blank.");
           return;
         }
-        await apiPost<InstrumentRow>("/instruments", {
-          kind: "commodity",
-          yahooSymbol: s,
-          commoditySector,
-          ...(countryIso != null ? { commodityCountryIso: countryIso } : {}),
-        });
+        await apiPost<InstrumentRow>(
+          "/instruments",
+          buildCreateCommodityBody({
+            yahooSymbol: s,
+            commoditySector,
+            ...(countryIso != null ? { commodityCountryIso: countryIso } : {}),
+          }),
+        );
       } else if (kind === "custom") {
         if (useCompositeAllocation) {
           setError(
@@ -440,11 +455,13 @@ export function useInstrumentFormPage(props: InstrumentFormPageProps) {
           );
           return;
         }
-        await apiPost<InstrumentRow>("/instruments", {
-          kind: "custom",
-          brokerId: customBrokerId,
-          seligsonFid: fid,
-        });
+        await apiPost<InstrumentRow>(
+          "/instruments",
+          buildCreateCustomSeligsonBody({
+            brokerId: customBrokerId,
+            seligsonFid: fid,
+          }),
+        );
       } else if (kind === "cash_account") {
         const name = cashDisplayName.trim();
         if (!name) {
@@ -464,13 +481,15 @@ export function useInstrumentFormPage(props: InstrumentFormPageProps) {
           );
           return;
         }
-        await apiPost<InstrumentRow>("/instruments", {
-          kind: "cash_account",
-          brokerId: cashBrokerId,
-          displayName: name,
-          currency: cashCurrency,
-          cashGeoKey: geoIso,
-        });
+        await apiPost<InstrumentRow>(
+          "/instruments",
+          buildCreateCashAccountBody({
+            brokerId: cashBrokerId,
+            displayName: name,
+            currency: cashCurrency,
+            cashGeoKey: geoIso,
+          }),
+        );
       } else {
         setError("Choose an instrument type.");
         return;
@@ -575,10 +594,13 @@ export function useInstrumentFormPage(props: InstrumentFormPageProps) {
       return;
     }
     try {
-      await apiPatch(`/instruments/${editInstrumentId}`, {
-        holdingsDistributionUrl: nextH,
-        providerBreakdownDataUrl: nextB,
-      });
+      await apiPatch(
+        `/instruments/${editInstrumentId}`,
+        buildPatchEtfStockUrlsBody({
+          holdingsDistributionUrl: nextH,
+          providerBreakdownDataUrl: nextB,
+        }),
+      );
       navigate("/instruments");
     } catch (err) {
       setError(String(err));
