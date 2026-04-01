@@ -1,5 +1,12 @@
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { HttpError, apiGet, apiPostFormData } from "../api";
+import {
+  apiGet,
+  apiPostFormData,
+  classifyIbkrImportHttpError,
+  classifySeligsonImportHttpError,
+  parseDegiroImportResponse,
+  parseImportOkResponse,
+} from "../api";
 import type { PortfolioEntity } from "./home/types";
 import { ImportDegiroSection } from "./import/ImportDegiroSection";
 import { ImportIbkrSection } from "./import/ImportIbkrSection";
@@ -114,28 +121,13 @@ export function ImportPage() {
       const data = await apiPostFormData<
         DegiroOk | DegiroNeedsInstruments | { message?: string }
       >("/import/degiro", form);
-      if (
-        data &&
-        typeof data === "object" &&
-        "ok" in data &&
-        data.ok === false &&
-        "needsInstruments" in data &&
-        data.needsInstruments === true &&
-        "proposals" in data
-      ) {
-        setPending(data as DegiroNeedsInstruments);
+      const parsed = parseDegiroImportResponse(data);
+      if (parsed.outcome === "needsInstruments") {
+        setPending(parsed.value);
         return;
       }
-      if (
-        data &&
-        typeof data === "object" &&
-        "ok" in data &&
-        data.ok === true &&
-        "processed" in data &&
-        "changed" in data &&
-        "unchanged" in data
-      ) {
-        setResult(data as DegiroOk);
+      if (parsed.outcome === "ok") {
+        setResult(parsed.value);
         return;
       }
       setError("Unexpected response from server.");
@@ -185,28 +177,14 @@ export function ImportPage() {
         "/import/degiro",
         form,
       );
-      if (
-        data &&
-        typeof data === "object" &&
-        "ok" in data &&
-        data.ok === false &&
-        "needsInstruments" in data &&
-        data.needsInstruments === true
-      ) {
-        setPending(data as DegiroNeedsInstruments);
+      const parsed = parseDegiroImportResponse(data);
+      if (parsed.outcome === "needsInstruments") {
+        setPending(parsed.value);
         return;
       }
-      if (
-        data &&
-        typeof data === "object" &&
-        "ok" in data &&
-        data.ok === true &&
-        "processed" in data &&
-        "changed" in data &&
-        "unchanged" in data
-      ) {
+      if (parsed.outcome === "ok") {
         setPending(null);
-        setResult(data as DegiroOk);
+        setResult(parsed.value);
         return;
       }
       setError("Import did not complete. Check the API response.");
@@ -237,46 +215,29 @@ export function ImportPage() {
         form.append("portfolioId", String(importPortfolioId));
       }
       const data = await apiPostFormData<DegiroOk>("/import/ibkr", form);
-      if (
-        data &&
-        typeof data === "object" &&
-        "ok" in data &&
-        data.ok === true &&
-        "processed" in data &&
-        "changed" in data &&
-        "unchanged" in data
-      ) {
-        setIbkrResult(data as DegiroOk);
+      const ok = parseImportOkResponse(data);
+      if (ok != null) {
+        setIbkrResult(ok);
         return;
       }
       setIbkrError("Unexpected response from server.");
     } catch (err) {
-      if (
-        err instanceof HttpError &&
-        err.body !== null &&
-        typeof err.body === "object"
-      ) {
-        const o = err.body as {
-          message?: string;
-          missingSymbols?: string[];
-          ambiguousSymbols?: string[];
-          ambiguousIsins?: string[];
-          missingIsins?: string[];
-        };
-        if (o.ambiguousIsins && o.ambiguousIsins.length > 0) {
-          setIbkrAmbiguousIsins(o.ambiguousIsins);
-          setIbkrError(o.message ?? err.message);
-        } else if (o.missingSymbols && o.missingSymbols.length > 0) {
-          setIbkrMissingSymbols(o.missingSymbols);
-          if (o.missingIsins && o.missingIsins.length > 0) {
-            setIbkrMissingIsins(o.missingIsins);
+      const classified = classifyIbkrImportHttpError(err);
+      if (classified != null) {
+        if (classified.kind === "ambiguousIsins") {
+          setIbkrAmbiguousIsins(classified.isins);
+          setIbkrError(classified.message);
+        } else if (classified.kind === "missingSymbols") {
+          setIbkrMissingSymbols(classified.symbols);
+          if (classified.missingIsins != null) {
+            setIbkrMissingIsins(classified.missingIsins);
           }
-          setIbkrError(o.message ?? err.message);
-        } else if (o.ambiguousSymbols && o.ambiguousSymbols.length > 0) {
-          setIbkrAmbiguousSymbols(o.ambiguousSymbols);
-          setIbkrError(o.message ?? err.message);
+          setIbkrError(classified.message);
+        } else if (classified.kind === "ambiguousSymbols") {
+          setIbkrAmbiguousSymbols(classified.symbols);
+          setIbkrError(classified.message);
         } else {
-          setIbkrError(o.message ?? err.message);
+          setIbkrError(classified.message);
         }
       } else {
         setIbkrError(err instanceof Error ? err.message : String(err));
@@ -313,40 +274,25 @@ export function ImportPage() {
         form.append("skipMissingInstruments", "true");
       }
       const data = await apiPostFormData<DegiroOk>("/import/seligson", form);
-      if (
-        data &&
-        typeof data === "object" &&
-        "ok" in data &&
-        data.ok === true &&
-        "processed" in data &&
-        "changed" in data &&
-        "unchanged" in data
-      ) {
-        setSeligsonResult(data as DegiroOk);
+      const ok = parseImportOkResponse(data);
+      if (ok != null) {
+        setSeligsonResult(ok);
         setSeligsonPasteText("");
         setSeligsonPasteOpen(false);
         return;
       }
       setSeligsonError("Unexpected response from server.");
     } catch (err) {
-      if (
-        err instanceof HttpError &&
-        err.body !== null &&
-        typeof err.body === "object"
-      ) {
-        const o = err.body as {
-          message?: string;
-          missingFundNames?: string[];
-          ambiguousFundNames?: string[];
-        };
-        if (o.missingFundNames && o.missingFundNames.length > 0) {
-          setSeligsonMissingFunds(o.missingFundNames);
-          setSeligsonError(o.message ?? err.message);
-        } else if (o.ambiguousFundNames && o.ambiguousFundNames.length > 0) {
-          setSeligsonAmbiguousFunds(o.ambiguousFundNames);
-          setSeligsonError(o.message ?? err.message);
+      const classified = classifySeligsonImportHttpError(err);
+      if (classified != null) {
+        if (classified.kind === "missingFunds") {
+          setSeligsonMissingFunds(classified.names);
+          setSeligsonError(classified.message);
+        } else if (classified.kind === "ambiguousFunds") {
+          setSeligsonAmbiguousFunds(classified.names);
+          setSeligsonError(classified.message);
         } else {
-          setSeligsonError(o.message ?? err.message);
+          setSeligsonError(classified.message);
         }
       } else {
         const msg = err instanceof Error ? err.message : String(err);
