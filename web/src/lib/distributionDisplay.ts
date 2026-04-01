@@ -134,7 +134,7 @@ function isoAlpha2ToEnglishCountryName(iso: string): string {
 /** Tooltip heading for country bars: flag emoji + full English name (`Intl.DisplayNames`). */
 export function countryBarTooltipHeading(bucketKey: string): string {
   if (bucketKey === "rest") {
-    return `${REST_ICON} Other`;
+    return `${REST_ICON} Rest`;
   }
   if (bucketKey === UNMAPPED_COUNTRY_KEY) {
     return `⚠️ ${CHART_UNKNOWN_LABEL}`;
@@ -143,7 +143,7 @@ export function countryBarTooltipHeading(bucketKey: string): string {
   return `${countryIsoToFlagEmoji(bucketKey)} ${isoAlpha2ToEnglishCountryName(bucketKey)} (${iso})`;
 }
 
-/** Top `topN` ISO countries by weight, then one "Other" row for the remainder (if any). */
+/** Top `topN` ISO countries by weight, then one "Rest" row for the remainder (if any). */
 export function topCountriesSegmentsForDisplay(
   countries: Record<string, number>,
   topN: number,
@@ -162,7 +162,7 @@ export function topCountriesSegmentsForDisplay(
   if (restW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
     segments.push({
       key: "rest",
-      label: "Other",
+      label: "Rest",
       icon: REST_ICON,
       pctLabel: formatPercentWidth4From01(restW),
       weight: restW,
@@ -364,9 +364,9 @@ export function allCountriesChartDataDual(
   ];
 }
 
-const COUNTRY_BAR_CHART_OTHER_ROW_LABEL = "Other";
+const COUNTRY_BAR_CHART_REST_ROW_LABEL = "Rest";
 
-/** Same order as {@link allCountriesChartData}; caps row count and merges the tail into one "Other" bar. */
+/** Same order as {@link allCountriesChartData}; caps row count and merges the tail into one "Rest" bar. */
 export function topCountriesChartData(
   countries: Record<string, number>,
   topN: number,
@@ -385,7 +385,7 @@ export function topCountriesChartData(
   return [
     ...head,
     {
-      name: COUNTRY_BAR_CHART_OTHER_ROW_LABEL,
+      name: COUNTRY_BAR_CHART_REST_ROW_LABEL,
       value: rest,
       bucketKey: "rest",
       tooltipHeading: countryBarTooltipHeading("rest"),
@@ -393,7 +393,7 @@ export function topCountriesChartData(
   ];
 }
 
-/** Same order as {@link allCountriesChartDataDual}; caps row count and merges the tail into one "Other" bar. */
+/** Same order as {@link allCountriesChartDataDual}; caps row count and merges the tail into one "Rest" bar. */
 export function topCountriesChartDataDual(
   primary: Record<string, number>,
   compare: Record<string, number>,
@@ -416,7 +416,7 @@ export function topCountriesChartDataDual(
   return [
     ...head,
     {
-      name: COUNTRY_BAR_CHART_OTHER_ROW_LABEL,
+      name: COUNTRY_BAR_CHART_REST_ROW_LABEL,
       primary: primaryRest,
       compare: compareRest,
       bucketKey: "rest",
