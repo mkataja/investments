@@ -51,7 +51,7 @@ export type PortfolioEntity = {
 /** POC weekly series from `GET /portfolio/asset-mix-history`. */
 export type AssetMixHistoryPoint = {
   date: string;
-  /** Estimated EUR for non–`cash_account` positions. */
+  /** Estimated EUR for non–`cash_account` positions (not only listed equities). */
   equitiesEur: number;
   /** Estimated EUR for `cash_account` positions. */
   cashEur: number;

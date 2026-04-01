@@ -13,7 +13,7 @@ export function useAssetMixHistoryLine(points: AssetMixHistoryPoint[]) {
       labels: points.map((p) => p.date),
       datasets: [
         {
-          label: "Equities",
+          label: "Non-cash",
           data: points.map((p) => p.equitiesEur),
           borderColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.regionPrimary,
           backgroundColor: `rgba(${equitiesRgb} / 0.12)`,
