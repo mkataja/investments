@@ -2,7 +2,12 @@ import { instruments, type portfolios, transactions } from "@investments/db";
 import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../db.js";
 import { calendarDateUtcFromInstant } from "./calendarDateUtc.js";
+import { loadLatestDistributionRowsByInstrumentIdsAsOf } from "./latestPriceDistribution.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
+import {
+  buildMergedSectorsForAssetMix,
+  computeAssetMixEur,
+} from "./portfolioAssetMix.js";
 import { valuePortfolioRowsEurAsOf } from "./valuation.js";
 import type { InstrumentRow } from "./valuation.js";
 
@@ -83,12 +88,11 @@ async function assetMixPointForDate(
   if (rows.length === 0) {
     return { kind: "empty" };
   }
-  const valued = await valuePortfolioRowsEurAsOf(rows, asOfDate);
+  const valuedResults = await valuePortfolioRowsEurAsOf(rows, asOfDate);
   let cashEur = 0;
-  let equitiesEur = 0;
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
-    const v = valued[i];
+    const v = valuedResults[i];
     if (!row || !v) {
       continue;
     }
@@ -99,15 +103,38 @@ async function assetMixPointForDate(
     if (v.source === "none") {
       return { kind: "stop" };
     }
-    equitiesEur += v.valueEur;
   }
-  return { kind: "ok", equitiesEur, cashEur };
+  const valuedFull = rows.map((row, i) => ({
+    inst: row.inst,
+    valueEur: valuedResults[i]?.valueEur ?? 0,
+  }));
+  const nonCashIds = [
+    ...new Set(
+      rows.filter((r) => r.inst.kind !== "cash_account").map((r) => r.inst.id),
+    ),
+  ];
+  const distMap = await loadLatestDistributionRowsByInstrumentIdsAsOf(
+    db,
+    nonCashIds,
+    asOfDate,
+  );
+  const { mergedSectors, nonCashPrincipalEur, cashInFundsEur } =
+    buildMergedSectorsForAssetMix(valuedFull, distMap);
+  const mix = computeAssetMixEur({
+    nonCashPrincipalEur,
+    mergedSectors,
+    cashInFundsEur,
+    cashExcessEur: 0,
+  });
+  return { kind: "ok", equitiesEur: mix.equitiesEur, cashEur };
 }
 
 /**
  * POC: weekly samples from first portfolio trade, plus a trailing point for **today** (UTC calendar)
- * when the weekly grid does not land on today. **equitiesEur** = all non–`cash_account` holdings;
- * **cashEur** = `cash_account` instruments. Stops when any non-cash position lacks a price on or before the date.
+ * when the weekly grid does not land on today. **equitiesEur** matches the asset mix pie (bonds and
+ * commodity sleeves excluded from principal). **cashEur** = `cash_account` instruments only. Stops when
+ * any non-cash position lacks a price on or before the date. Uses distribution snapshots with
+ * `snapshot_date <= asOf` (same idea as latest price as-of).
  */
 export async function getPortfolioAssetMixHistory(
   portfolioId: number,

@@ -51,7 +51,7 @@ export type PortfolioEntity = {
 /** POC weekly series from `GET /portfolio/asset-mix-history`. */
 export type AssetMixHistoryPoint = {
   date: string;
-  /** Estimated EUR for non–`cash_account` positions (not only listed equities). */
+  /** Same equities sleeve as asset mix pie (excludes bonds and commodity sleeves from non-cash principal). */
   equitiesEur: number;
   /** Estimated EUR for `cash_account` positions. */
   cashEur: number;
