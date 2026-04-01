@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractYahooPriceFromQuoteSummaryRaw,
   yahooPriceTypeFromMarketState,
+  yahooQuoteCalendarDateUtc,
 } from "./yahoo.js";
 
 describe("yahooPriceTypeFromMarketState", () => {
@@ -45,5 +46,41 @@ describe("extractYahooPriceFromQuoteSummaryRaw", () => {
       },
     } as never);
     expect(out?.priceType).toBe("close");
+  });
+});
+
+describe("yahooQuoteCalendarDateUtc", () => {
+  const fetchApr2Utc = new Date(Date.UTC(2026, 3, 2, 8, 0, 0));
+
+  it("uses regularMarketTime for UTC calendar date (pre-market fetch still buckets prior close)", () => {
+    const closeApr1 = new Date(Date.UTC(2026, 3, 1, 21, 0, 0));
+    expect(
+      yahooQuoteCalendarDateUtc(
+        {
+          price: {
+            regularMarketPrice: 100,
+            currency: "USD",
+            regularMarketTime: closeApr1,
+          },
+        } as never,
+        fetchApr2Utc,
+      ),
+    ).toBe("2026-04-01");
+  });
+
+  it("accepts Unix seconds in regularMarketTime", () => {
+    const sec = Math.floor(Date.UTC(2026, 3, 1, 21, 0, 0) / 1000);
+    expect(
+      yahooQuoteCalendarDateUtc(
+        { price: { regularMarketTime: sec } } as never,
+        fetchApr2Utc,
+      ),
+    ).toBe("2026-04-01");
+  });
+
+  it("falls back to fetchedAt when regularMarketTime is missing", () => {
+    expect(
+      yahooQuoteCalendarDateUtc({ price: {} } as never, fetchApr2Utc),
+    ).toBe("2026-04-02");
   });
 });

@@ -59,12 +59,13 @@ import {
 } from "../distributions/seligson.js";
 import { upsertSeligsonFundValuesFromPage } from "../distributions/seligsonFundValues.js";
 import { buildResolvedSeligsonHoldingsPayload } from "../distributions/seligsonHoldingsResolve.js";
-import type { YahooQuoteSummaryRaw } from "../distributions/yahoo.js";
 import {
+  type YahooQuoteSummaryRaw,
   extractIsinFromQuoteSummaryRaw,
   extractYahooPriceFromQuoteSummaryRaw,
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
+  yahooQuoteCalendarDateUtc,
 } from "../distributions/yahoo.js";
 import { calendarDateUtcFromInstant } from "./calendarDateUtc.js";
 import { mergeCompositeDistributionPayload } from "./compositeDistribution.js";
@@ -198,7 +199,7 @@ export async function writeYahooDistributionCache(
     await tx
       .delete(seligsonDistributionCache)
       .where(eq(seligsonDistributionCache.instrumentId, instrumentId));
-    const snapshotDate = calendarDateUtcFromInstant(fetchedAt);
+    const snapshotDate = yahooQuoteCalendarDateUtc(raw, fetchedAt);
     await upsertDistributionSnapshot(tx, {
       instrumentId,
       snapshotDate,
@@ -236,7 +237,7 @@ export async function upsertYahooPriceFromQuoteSummaryRaw(
   if (priceExtract) {
     await upsertPriceForDate(db, {
       instrumentId,
-      priceDate: calendarDateUtcFromInstant(fetchedAt),
+      priceDate: yahooQuoteCalendarDateUtc(raw, fetchedAt),
       quotedPrice: String(priceExtract.price),
       currency: priceExtract.currency,
       fetchedAt,
@@ -286,7 +287,7 @@ export async function upsertCommodityCachesFromYahooRaw(
     await tx
       .delete(seligsonDistributionCache)
       .where(eq(seligsonDistributionCache.instrumentId, instrumentId));
-    const snapshotDate = calendarDateUtcFromInstant(fetchedAt);
+    const snapshotDate = yahooQuoteCalendarDateUtc(raw, fetchedAt);
     await upsertDistributionSnapshot(tx, {
       instrumentId,
       snapshotDate,

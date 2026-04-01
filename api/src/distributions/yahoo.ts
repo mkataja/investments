@@ -1,6 +1,7 @@
 import type { DistributionPayload } from "@investments/lib";
 import { normalizeIsinForStorage } from "@investments/lib";
 import type { QuoteSummaryResult } from "yahoo-finance2/modules/quoteSummary-iface";
+import { calendarDateUtcFromInstant } from "../lib/calendarDateUtc.js";
 import { yahooFinance } from "../lib/yahooClient.js";
 import { withYahooRetries } from "../lib/yahooUpstream.js";
 import {
@@ -124,6 +125,43 @@ export function yahooPriceTypeFromMarketState(
     return "close";
   }
   return marketState.trim().toUpperCase() === "REGULAR" ? "intraday" : "close";
+}
+
+/** Parse Yahoo `regularMarketTime` (Date, epoch sec/ms, ISO string, or `{ raw }`). */
+function parseYahooRegularMarketTimeValue(v: unknown): Date | null {
+  if (v instanceof Date && !Number.isNaN(v.getTime())) {
+    return v;
+  }
+  if (typeof v === "number" && Number.isFinite(v)) {
+    const ms = v > 1e12 ? v : v * 1000;
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof v === "string" && v.trim() !== "") {
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (v && typeof v === "object" && "raw" in v) {
+    return parseYahooRegularMarketTimeValue((v as { raw: unknown }).raw);
+  }
+  return null;
+}
+
+/**
+ * UTC `YYYY-MM-DD` for the quote: from `price.regularMarketTime` when present so
+ * pre-market fetches (still showing prior session close) do not use the fetch
+ * day. Falls back to `fetchedAt` if the time is missing.
+ */
+export function yahooQuoteCalendarDateUtc(
+  raw: YahooQuoteSummaryRaw,
+  fetchedAt: Date,
+): string {
+  const p = raw.price as Record<string, unknown> | undefined;
+  const t = p ? parseYahooRegularMarketTimeValue(p.regularMarketTime) : null;
+  if (t !== null) {
+    return calendarDateUtcFromInstant(t);
+  }
+  return calendarDateUtcFromInstant(fetchedAt);
 }
 
 /** `quoteSummary` `price` module — used for `prices` upsert (no `quote()` call). */
