@@ -26,3 +26,25 @@ export function transactionInstrumentSelectLabel(
   }
   return name;
 }
+
+const TRANSACTION_INSTRUMENT_SELECT_SORT_OPTIONS: Intl.CollatorOptions = {
+  sensitivity: "base",
+};
+
+export function compareTransactionInstrumentSelectLabel(
+  a: TransactionInstrumentSelectRow,
+  b: TransactionInstrumentSelectRow,
+): number {
+  return transactionInstrumentSelectLabel(a).localeCompare(
+    transactionInstrumentSelectLabel(b),
+    undefined,
+    TRANSACTION_INSTRUMENT_SELECT_SORT_OPTIONS,
+  );
+}
+
+/** Same ordering as the add-transaction instrument dropdown. */
+export function sortByTransactionInstrumentSelectLabel<
+  T extends TransactionInstrumentSelectRow,
+>(items: readonly T[]): T[] {
+  return [...items].sort(compareTransactionInstrumentSelectLabel);
+}

@@ -1,3 +1,4 @@
+import { sortByTransactionInstrumentSelectLabel } from "@investments/lib";
 import {
   type FormEvent,
   useEffect,
@@ -10,6 +11,7 @@ import { apiGet, apiPatch, apiPut } from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
+import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
 import {
   PortfolioFormBenchmarkTotalField,
   PortfolioFormDivider,
@@ -100,10 +102,7 @@ export function EditPortfolioModal({
   const isBenchmark = kind === "benchmark";
 
   const instrumentsSorted = useMemo(
-    () =>
-      [...instruments].sort((a, b) =>
-        a.displayName.localeCompare(b.displayName),
-      ),
+    () => sortByTransactionInstrumentSelectLabel(instruments),
     [instruments],
   );
 
@@ -316,10 +315,10 @@ export function EditPortfolioModal({
                           });
                         }}
                       >
-                        <option value="">Select…</option>
+                        <option value="" />
                         {instrumentsSorted.map((i) => (
                           <option key={i.id} value={i.id}>
-                            {i.displayName}
+                            {instrumentSelectUiLabel(i)}
                           </option>
                         ))}
                       </select>

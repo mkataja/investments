@@ -1,7 +1,7 @@
 import {
   DEFAULT_CASH_CURRENCY,
   SUPPORTED_CASH_CURRENCY_CODES,
-  transactionInstrumentSelectLabel,
+  sortByTransactionInstrumentSelectLabel,
 } from "@investments/lib";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPatch, apiPost } from "../../api";
@@ -11,6 +11,7 @@ import {
   formatLocalDateTimeYmdHm,
   parseLocalDateTimeYmdHm,
 } from "../../lib/dateTimeFormat";
+import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
 
 type Broker = {
   id: number;
@@ -79,15 +80,6 @@ function buildTxnForm(
   };
 }
 
-function transactionModalInstrumentLabel(i: Instrument): string {
-  return transactionInstrumentSelectLabel({
-    kind: i.kind,
-    displayName: i.displayName,
-    yahooSymbol: i.yahooSymbol,
-    seligsonFund: i.seligsonFund ? { name: i.seligsonFund.name } : null,
-  });
-}
-
 export type NewTransactionModalProps = {
   open: boolean;
   onClose: () => void;
@@ -145,13 +137,7 @@ export function NewTransactionModal({
         if (cancelled) {
           return;
         }
-        const sorted = [...list].sort((a, b) =>
-          transactionModalInstrumentLabel(a).localeCompare(
-            transactionModalInstrumentLabel(b),
-            undefined,
-            { sensitivity: "base" },
-          ),
-        );
+        const sorted = sortByTransactionInstrumentSelectLabel(list);
         setTxnInstruments(sorted);
         if (isInitialEditSync) {
           onError(null);
@@ -334,7 +320,7 @@ export function NewTransactionModal({
             ) : (
               txnInstruments.map((i) => (
                 <option key={i.id} value={i.id}>
-                  {transactionModalInstrumentLabel(i)}
+                  {instrumentSelectUiLabel(i)}
                 </option>
               ))
             )}
