@@ -68,19 +68,15 @@ async function loadPositionRowsAtDate(
   return out;
 }
 
-export type AssetMixHistoryPoint = {
-  date: string;
-  equitiesPct: number;
-  cashPct: number;
-};
-
 /**
  * POC: weekly points from first portfolio trade through today; **equities** = all non–cash-account
  * holdings; **cash** = `cash_account` instruments. Stops when any non-cash position lacks a price on or before the date.
  */
 export async function getPortfolioAssetMixHistory(
   portfolioId: number,
-): Promise<{ points: AssetMixHistoryPoint[] }> {
+): Promise<{
+  points: Array<{ date: string; equitiesPct: number; cashPct: number }>;
+}> {
   const pf = await loadPortfolioOwnedByUser(portfolioId);
   if (!pf) {
     return { points: [] };
@@ -102,7 +98,8 @@ export async function getPortfolioAssetMixHistory(
   const startDate = calendarDateUtcFromInstant(new Date(firstTxn.tradeDate));
 
   const today = new Date().toISOString().slice(0, 10);
-  const points: AssetMixHistoryPoint[] = [];
+  const points: Array<{ date: string; equitiesPct: number; cashPct: number }> =
+    [];
 
   for (let d = startDate; d <= today; d = addDaysUtc(d, STEP_DAYS)) {
     const rows = await loadPositionRowsAtDate(portfolioId, d);

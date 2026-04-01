@@ -29,7 +29,7 @@ function noQuoteResult(): ValuationResult {
   };
 }
 
-export type ValuationResult = {
+type ValuationResult = {
   valueEur: number;
   source: "cached_price" | "cash" | "none";
   detail: string;

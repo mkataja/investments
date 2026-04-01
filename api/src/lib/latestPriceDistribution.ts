@@ -3,9 +3,6 @@ import type { InferSelectModel } from "drizzle-orm";
 import { desc, inArray } from "drizzle-orm";
 import type { DbClient } from "../db.js";
 
-export type PriceRow = InferSelectModel<typeof prices>;
-export type DistributionRow = InferSelectModel<typeof distributions>;
-
 /**
  * Latest row per instrument by `price_date` (first row wins after sorting desc).
  * Zero or one row per id in the result map.
@@ -13,7 +10,7 @@ export type DistributionRow = InferSelectModel<typeof distributions>;
 export async function loadLatestPriceRowsByInstrumentIds(
   d: DbClient,
   instrumentIds: number[],
-): Promise<Map<number, PriceRow>> {
+): Promise<Map<number, InferSelectModel<typeof prices>>> {
   if (instrumentIds.length === 0) {
     return new Map();
   }
@@ -23,7 +20,7 @@ export async function loadLatestPriceRowsByInstrumentIds(
     .from(prices)
     .where(inArray(prices.instrumentId, uniq))
     .orderBy(desc(prices.priceDate), desc(prices.fetchedAt));
-  const m = new Map<number, PriceRow>();
+  const m = new Map<number, InferSelectModel<typeof prices>>();
   for (const r of rows) {
     if (!m.has(r.instrumentId)) {
       m.set(r.instrumentId, r);
@@ -38,7 +35,7 @@ export async function loadLatestPriceRowsByInstrumentIds(
 export async function loadLatestDistributionRowsByInstrumentIds(
   d: DbClient,
   instrumentIds: number[],
-): Promise<Map<number, DistributionRow>> {
+): Promise<Map<number, InferSelectModel<typeof distributions>>> {
   if (instrumentIds.length === 0) {
     return new Map();
   }
@@ -48,7 +45,7 @@ export async function loadLatestDistributionRowsByInstrumentIds(
     .from(distributions)
     .where(inArray(distributions.instrumentId, uniq))
     .orderBy(desc(distributions.snapshotDate), desc(distributions.fetchedAt));
-  const m = new Map<number, DistributionRow>();
+  const m = new Map<number, InferSelectModel<typeof distributions>>();
   for (const r of rows) {
     if (!m.has(r.instrumentId)) {
       m.set(r.instrumentId, r);

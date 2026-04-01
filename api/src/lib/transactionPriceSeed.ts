@@ -11,7 +11,7 @@ type TxnRow = {
 };
 
 /** If there is no `prices` row for the trade’s UTC calendar day, insert `intraday` from the trade. */
-export async function seedIntradayPriceFromTransactionIfMissing(
+async function seedIntradayPriceFromTransactionIfMissing(
   d: DbOrTx,
   txn: TxnRow,
   instrumentKind: string,

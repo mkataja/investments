@@ -3,11 +3,11 @@ import type { DistributionPayload } from "@investments/lib";
 import { and, eq } from "drizzle-orm";
 import type { DbOrTx } from "../db.js";
 
-export type PriceType = "intraday" | "close";
+type PriceType = "intraday" | "close";
 
 const ISSUER_SCRAPE_SOURCES = new Set<string>(["seligson_scrape"]);
 
-export function isIssuerScrapeSource(source: string): boolean {
+function isIssuerScrapeSource(source: string): boolean {
   return ISSUER_SCRAPE_SOURCES.has(source);
 }
 
