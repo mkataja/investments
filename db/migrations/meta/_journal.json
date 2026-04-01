@@ -253,6 +253,13 @@
       "when": 1774999190612,
       "tag": "0035_brave_stark_industries",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1775000000000,
+      "tag": "0036_prices_distributions_time_series",
+      "breakpoints": true
     }
   ]
 }

@@ -3,10 +3,12 @@ import { relations, sql } from "drizzle-orm";
 import {
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
   numeric,
+  pgEnum,
   pgTable,
   primaryKey,
   text,
@@ -436,36 +438,50 @@ export const seligsonHoldingsResolutionCache = pgTable(
   ],
 );
 
-export const distributions = pgTable("distributions", {
-  instrumentId: integer("instrument_id")
-    .primaryKey()
-    .references(() => instruments.id, { onDelete: "cascade" }),
-  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
-  source: text("source").notNull(),
-  payload: jsonb("payload").$type<DistributionPayload>().notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const priceTypeEnum = pgEnum("price_type", ["intraday", "close"]);
 
-export const prices = pgTable("prices", {
-  instrumentId: integer("instrument_id")
-    .primaryKey()
-    .references(() => instruments.id, { onDelete: "cascade" }),
-  quotedPrice: numeric("quoted_price", { precision: 24, scale: 8 }).notNull(),
-  currency: text("currency").notNull(),
-  fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
-  source: text("source").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow(),
-});
+export const distributions = pgTable(
+  "distributions",
+  {
+    instrumentId: integer("instrument_id")
+      .notNull()
+      .references(() => instruments.id, { onDelete: "cascade" }),
+    /** Calendar day (UTC) for this snapshot; at most one row per instrument per day. */
+    snapshotDate: date("snapshot_date").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+    source: text("source").notNull(),
+    payload: jsonb("payload").$type<DistributionPayload>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.instrumentId, t.snapshotDate] })],
+);
+
+export const prices = pgTable(
+  "prices",
+  {
+    instrumentId: integer("instrument_id")
+      .notNull()
+      .references(() => instruments.id, { onDelete: "cascade" }),
+    priceDate: date("price_date").notNull(),
+    quotedPrice: numeric("quoted_price", { precision: 24, scale: 8 }).notNull(),
+    currency: text("currency").notNull(),
+    priceType: priceTypeEnum("price_type").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+    source: text("source").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.instrumentId, t.priceDate] })],
+);
 
 export const seligsonFundValueCache = pgTable("seligson_fund_value_cache", {
   seligsonFundId: integer("seligson_fund_id")
@@ -544,10 +560,6 @@ export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
   }),
   portfolioBenchmarkWeights: many(portfolioBenchmarkWeights),
   transactions: many(transactions),
-  distribution: one(distributions, {
-    fields: [instruments.id],
-    references: [distributions.instrumentId],
-  }),
   yahooFinanceCache: one(yahooFinanceCache, {
     fields: [instruments.id],
     references: [yahooFinanceCache.instrumentId],
@@ -559,10 +571,6 @@ export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
   providerHoldingsCache: one(providerHoldingsCache, {
     fields: [instruments.id],
     references: [providerHoldingsCache.instrumentId],
-  }),
-  price: one(prices, {
-    fields: [instruments.id],
-    references: [prices.instrumentId],
   }),
 }));
 
