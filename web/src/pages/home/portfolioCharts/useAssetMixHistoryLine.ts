@@ -9,7 +9,7 @@ export function useAssetMixHistoryLine(points: AssetMixHistoryPoint[]) {
       datasets: [
         {
           label: "Equities",
-          data: points.map((p) => p.equitiesPct * 100),
+          data: points.map((p) => p.equitiesEur),
           borderColor: "rgb(30 64 175)",
           backgroundColor: "rgba(30, 64, 175, 0.15)",
           tension: 0.15,
@@ -17,7 +17,7 @@ export function useAssetMixHistoryLine(points: AssetMixHistoryPoint[]) {
         },
         {
           label: "Cash",
-          data: points.map((p) => p.cashPct * 100),
+          data: points.map((p) => p.cashEur),
           borderColor: "rgb(21 128 61)",
           backgroundColor: "rgba(21, 128, 61, 0.12)",
           tension: 0.15,
@@ -25,6 +25,8 @@ export function useAssetMixHistoryLine(points: AssetMixHistoryPoint[]) {
         },
       ],
     };
+    const formatEur = (n: number) =>
+      `${n.toLocaleString("en-US", { maximumFractionDigits: 0 })} EUR`;
     const options: ChartOptions<"line"> = {
       responsive: true,
       maintainAspectRatio: false,
@@ -34,9 +36,21 @@ export function useAssetMixHistoryLine(points: AssetMixHistoryPoint[]) {
         },
         y: {
           min: 0,
-          max: 100,
           ticks: {
-            callback: (v) => `${v}%`,
+            callback: (tickValue) => {
+              const v =
+                typeof tickValue === "number" ? tickValue : Number(tickValue);
+              if (!Number.isFinite(v)) {
+                return "";
+              }
+              if (v >= 1_000_000) {
+                return `${(v / 1_000_000).toFixed(1)}M`;
+              }
+              if (v >= 1000) {
+                return `${(v / 1000).toFixed(0)}k`;
+              }
+              return String(v);
+            },
           },
         },
       },
@@ -49,7 +63,7 @@ export function useAssetMixHistoryLine(points: AssetMixHistoryPoint[]) {
               if (typeof n !== "number" || !Number.isFinite(n)) {
                 return ctx.dataset.label ?? "";
               }
-              return `${ctx.dataset.label ?? ""}: ${n.toFixed(1)}%`;
+              return `${ctx.dataset.label ?? ""}: ${formatEur(n)}`;
             },
           },
         },

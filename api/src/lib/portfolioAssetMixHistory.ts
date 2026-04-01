@@ -75,7 +75,7 @@ async function loadPositionRowsAtDate(
 export async function getPortfolioAssetMixHistory(
   portfolioId: number,
 ): Promise<{
-  points: Array<{ date: string; equitiesPct: number; cashPct: number }>;
+  points: Array<{ date: string; equitiesEur: number; cashEur: number }>;
 }> {
   const pf = await loadPortfolioOwnedByUser(portfolioId);
   if (!pf) {
@@ -98,13 +98,13 @@ export async function getPortfolioAssetMixHistory(
   const startDate = calendarDateUtcFromInstant(new Date(firstTxn.tradeDate));
 
   const today = new Date().toISOString().slice(0, 10);
-  const points: Array<{ date: string; equitiesPct: number; cashPct: number }> =
+  const points: Array<{ date: string; equitiesEur: number; cashEur: number }> =
     [];
 
   for (let d = startDate; d <= today; d = addDaysUtc(d, STEP_DAYS)) {
     const rows = await loadPositionRowsAtDate(portfolioId, d);
     if (rows.length === 0) {
-      points.push({ date: d, equitiesPct: 0, cashPct: 0 });
+      points.push({ date: d, equitiesEur: 0, cashEur: 0 });
       if (d >= today) {
         break;
       }
@@ -134,16 +134,11 @@ export async function getPortfolioAssetMixHistory(
     if (stop) {
       break;
     }
-    const total = cashEur + equitiesEur;
-    if (total <= 0) {
-      points.push({ date: d, equitiesPct: 0, cashPct: 0 });
-    } else {
-      points.push({
-        date: d,
-        equitiesPct: equitiesEur / total,
-        cashPct: cashEur / total,
-      });
-    }
+    points.push({
+      date: d,
+      equitiesEur,
+      cashEur,
+    });
     if (d >= today) {
       break;
     }

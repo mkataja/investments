@@ -49,4 +49,4 @@ Conceptually:
 
 Positions: net quantity from transactions; `GET /instruments` `netQuantity` sums all user transactions or only `portfolioId` when that query is set.
 
-`GET /portfolio/asset-mix-history?portfolioId=` (POC): weekly estimated **equities** vs **cash** shares (non–`cash_account` vs `cash_account` positions), using `valuePortfolioRowsEurAsOf`; series stops when a held non-cash position has no price on or before that date.
+`GET /portfolio/asset-mix-history?portfolioId=` (POC): weekly estimated **equities** vs **cash** EUR (non–`cash_account` vs `cash_account` positions), using `valuePortfolioRowsEurAsOf`; series stops when a held non-cash position has no price on or before that date.

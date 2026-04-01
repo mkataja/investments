@@ -51,10 +51,10 @@ export type PortfolioEntity = {
 /** POC weekly series from `GET /portfolio/asset-mix-history`. */
 export type AssetMixHistoryPoint = {
   date: string;
-  /** 0–1 share of portfolio (non–cash-account instruments). */
-  equitiesPct: number;
-  /** 0–1 share (`cash_account` holdings). */
-  cashPct: number;
+  /** Estimated EUR for non–`cash_account` positions. */
+  equitiesEur: number;
+  /** Estimated EUR for `cash_account` positions. */
+  cashEur: number;
 };
 
 export type BucketTopHolding = {

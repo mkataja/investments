@@ -60,18 +60,6 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
       </div>
 
       <div className="w-full min-w-0 flex flex-col gap-6">
-        {props.assetMixHistoryPoints.length > 0 ? (
-          <div className="subsection-stack w-full min-w-0">
-            <h3>Asset mix over time (POC)</h3>
-            <p className="text-slate-600 text-sm mb-2">
-              Weekly equities vs cash (non–cash-account vs cash positions).
-              Series stops when a price is missing for a held instrument.
-            </p>
-            <div className="w-full h-56 min-w-0">
-              <Line data={assetMixLineData} options={assetMixLineOptions} />
-            </div>
-          </div>
-        ) : null}
         {portfolio.totalValueEur > 0 && assetMixPieData.length > 0 ? (
           <div
             className={classNames(
@@ -135,6 +123,19 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
             <Bar data={countryBarData} options={countryBarOptions} />
           </div>
         </div>
+        {props.assetMixHistoryPoints.length > 0 ? (
+          <div className="subsection-stack w-full min-w-0">
+            <h3>Asset mix over time (POC)</h3>
+            <p className="text-slate-600 text-sm mb-2">
+              Weekly equities vs cash in EUR (non–cash-account vs cash
+              positions). Series stops when a price is missing for a held
+              instrument.
+            </p>
+            <div className="w-full h-56 min-w-0">
+              <Line data={assetMixLineData} options={assetMixLineOptions} />
+            </div>
+          </div>
+        ) : null}
       </div>
     </section>
   );
