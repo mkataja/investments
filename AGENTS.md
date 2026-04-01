@@ -25,10 +25,21 @@ HTTP behavior lives in **`api`** only; routes are not duplicated here. Data mode
 
 ## Practical instructions
 
+### No copy-paste duplication — extract shared code (required)
+
+**Do not** "copy-paste" code or write identical chunks in multiple places. If the same (or nearly the same) logic, markup, or validation is needed in more than one place, **extract** it before landing the change:
+
+- **Shared UI** → a **component** (or hook) in the right place depending on if it's a local or a global shared component
+- **Shared logic or validation** → **functions or modules** in **`lib/`** - package-local **`api/src/lib`**, **`web/src/lib`**, or **`@investments/lib`** when **`api`** and **`web`** both need it (not Drizzle DDL).
+- Be also mindful of not repeating CSS - extract common styles instead.
+
+Duplicating code is a maintenance nightmare, makes files larger than necessary, and causes drift and bugs.
+
 ### Code style
 
 - Small reusable helpers belong in **`lib/`** (e.g. **`api/src/lib`**, **`web/src/lib`**) rather than inlined in handlers or pages. Code shared **only** between **`api`** and **`web`** (not Drizzle DDL) lives in **`@investments/lib`** (`lib/`).
-- No copy-paste duplication: extract shared UI, validation, or logic.
+- Obey **No copy-paste duplication** above: never paste big repeated blocks; extract components and functions instead.
+- If a file starts to exceed 300-500 lines, take a careful look if some of the components in it should be separated into new modules/files.
 - Web dates/times: **`web/src/lib/dateTimeFormat.ts`** — **`YYYY-MM-DD`**; with time **`YYYY-MM-DD HH:mm`** (local 24h).
 
 ### Web UI polish
