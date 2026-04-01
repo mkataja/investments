@@ -6,7 +6,6 @@ import {
   type DistributionBarChartRow,
   distributionBarChartTooltipPlugin,
 } from "../../components/PortfolioChartTooltips";
-import "../../lib/chart/registerChartJs";
 import { CHART_TOOLTIP_BASE } from "../../lib/chart/chartTooltipTheme";
 import { pieChartLeftAlignPlugin } from "../../lib/chart/pieChartLeftAlignPlugin";
 import { adjustPieValuesForMinAngleDegrees } from "../../lib/chart/pieMinAngle";
