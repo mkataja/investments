@@ -13,54 +13,17 @@ import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
 import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
 import {
+  type BenchmarkWeightFormRow,
+  normalizeWeightRowsForApi,
+  weightRowsEqual,
+} from "../../lib/portfolioBenchmarkWeights";
+import {
   PortfolioFormBenchmarkTotalField,
   PortfolioFormDivider,
   PortfolioFormEmergencyFundBlock,
   PortfolioFormNameField,
 } from "./PortfolioFormFields";
 import type { HomeInstrument, PortfolioEntity } from "./types";
-
-type WeightRow = { instrumentId: number | ""; weightStr: string };
-
-function normalizeWeightRowsForApi(rows: WeightRow[]): Array<{
-  instrumentId: number;
-  weight: number;
-}> {
-  const out: Array<{ instrumentId: number; weight: number }> = [];
-  const seen = new Set<number>();
-  for (const r of rows) {
-    if (r.instrumentId === "") {
-      continue;
-    }
-    const w = Number.parseFloat(r.weightStr.trim().replace(",", "."));
-    if (!Number.isFinite(w) || w <= 0) {
-      continue;
-    }
-    if (seen.has(r.instrumentId)) {
-      throw new Error("Each instrument can only appear once.");
-    }
-    seen.add(r.instrumentId);
-    out.push({ instrumentId: r.instrumentId, weight: w });
-  }
-  return out;
-}
-
-function weightRowsEqual(a: WeightRow[], b: WeightRow[]): boolean {
-  if (a.length !== b.length) {
-    return false;
-  }
-  for (let i = 0; i < a.length; i++) {
-    const x = a[i];
-    const y = b[i];
-    if (x === undefined || y === undefined) {
-      return false;
-    }
-    if (x.instrumentId !== y.instrumentId || x.weightStr !== y.weightStr) {
-      return false;
-    }
-  }
-  return true;
-}
 
 type EditPortfolioModalProps = {
   open: boolean;
@@ -90,10 +53,12 @@ export function EditPortfolioModal({
       ? String(portfolio.benchmarkTotalEur)
       : "10000",
   );
-  const [weightRows, setWeightRows] = useState<WeightRow[]>([
+  const [weightRows, setWeightRows] = useState<BenchmarkWeightFormRow[]>([
     { instrumentId: "", weightStr: "" },
   ]);
-  const [initialWeightRows, setInitialWeightRows] = useState<WeightRow[]>([]);
+  const [initialWeightRows, setInitialWeightRows] = useState<
+    BenchmarkWeightFormRow[]
+  >([]);
   const [weightsLoadToken, setWeightsLoadToken] = useState(0);
   const [busy, setBusy] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -144,7 +109,7 @@ export function EditPortfolioModal({
         if (cancelled || token !== weightsLoadToken) {
           return;
         }
-        const next: WeightRow[] =
+        const next: BenchmarkWeightFormRow[] =
           res.weights.length > 0
             ? res.weights.map((w) => ({
                 instrumentId: w.instrumentId,
