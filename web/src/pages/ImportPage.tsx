@@ -479,16 +479,18 @@ export function ImportPage() {
 
       <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2>Degiro</h2>
-        <p className="text-sm text-slate-600">
-          Export <strong className="font-medium">Transactions</strong> from
-          Degiro (CSV). Each row must resolve to exactly one instrument (etf,
-          stock, or Seligson fund): by{" "}
-          <strong className="font-medium">ISIN</strong> in the database, or - if
-          ISIN is missing on the instrument - via OpenFIGI to your{" "}
-          <strong className="font-medium">Yahoo symbol</strong>. If the CSV
-          contains unknown ISINs, we fetch Yahoo details and you can add them in
-          one step. Only EUR trades are imported.
-        </p>
+        <div className="space-y-2 text-sm text-slate-600">
+          <p>
+            Export <strong className="font-medium">Transactions</strong> from
+            Degiro (CSV). Each row must resolve to exactly one instrument (etf,
+            stock, or Seligson fund): by{" "}
+            <strong className="font-medium">ISIN</strong> in the database, or -
+            if ISIN is missing on the instrument - via OpenFIGI to your{" "}
+            <strong className="font-medium">Yahoo symbol</strong>. If the CSV
+            contains unknown ISINs, we fetch Yahoo details and you can add them
+            in one step. Only EUR trades are imported.
+          </p>
+        </div>
         <form
           className="flex flex-col gap-3 sm:flex-row sm:items-end"
           onSubmit={onSubmitDegiro}
@@ -594,7 +596,7 @@ export function ImportPage() {
 
       <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
         <h2>Interactive Brokers</h2>
-        <div className="mb-3 space-y-3 text-sm text-slate-600">
+        <div className="space-y-3 text-sm text-slate-600">
           <p>
             Upload a CSV from an IBKR{" "}
             <strong className="font-medium">Flex Query</strong> (web client
