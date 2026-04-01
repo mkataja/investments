@@ -97,10 +97,12 @@ export type VanguardUkGpxFetchSnapshot = {
 export async function fetchVanguardUkGpxHoldings(portId: string): Promise<{
   items: VanguardGpxHoldingItem[];
   snapshot: VanguardUkGpxFetchSnapshot;
+  fundFullName: string | null;
 }> {
   const pages: unknown[] = [];
   const items: VanguardGpxHoldingItem[] = [];
   let lastItemKey: string | null | undefined;
+  let fundFullName: string | null = null;
 
   for (let i = 0; i < 64; i++) {
     const body = {
@@ -129,6 +131,11 @@ export async function fetchVanguardUkGpxHoldings(portId: string): Promise<{
 
     const json = (await res.json()) as GpxHoldingsResponse;
     pages.push(json);
+
+    const fn = json.data?.funds?.[0]?.profile?.fundFullName?.trim();
+    if (fn && !fundFullName) {
+      fundFullName = fn;
+    }
 
     if (json.errors?.length) {
       const msg =
@@ -159,5 +166,6 @@ export async function fetchVanguardUkGpxHoldings(portId: string): Promise<{
   return {
     items,
     snapshot: { portId, pages },
+    fundFullName,
   };
 }

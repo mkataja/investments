@@ -35,6 +35,16 @@ import { parseJpmProductDataSectorBreakdown } from "../distributions/parseJpmPro
 import { parseSsgaHoldingsXlsx } from "../distributions/parseSsgaHoldingsXlsx.js";
 import { parseVanguardUkGpxHoldingsJson } from "../distributions/parseVanguardUkGpxHoldings.js";
 import { parseXtrackersHoldingsXlsx } from "../distributions/parseXtrackersHoldingsXlsx.js";
+import {
+  assertProviderDocumentMatchesInstrument,
+  extractHoldingsUrlIdentifiers,
+  extractJpmProductDataUrlIdentifiers,
+  extractJpmXlsxMetadataIdentifiers,
+  extractSsgaXlsxMetadataIdentifiers,
+  extractXtrackersXlsxMetadataIdentifiers,
+  mergeProviderDocumentIdentifiers,
+  vanguardIdentifiersFromFundName,
+} from "../distributions/providerDocumentIdentity.js";
 import { roundWeights } from "../distributions/roundWeights.js";
 import {
   SELIGSON_BOND_ALLOCATION_VIEW,
@@ -270,6 +280,25 @@ export async function writeProviderHoldingsDistributionCache(
   if (!v.ok || !v.normalized || !v.provider) {
     throw new Error(v.ok ? "Holdings URL is missing or invalid" : v.message);
   }
+
+  const [instrumentRow] = await db
+    .select({
+      displayName: instruments.displayName,
+      yahooSymbol: instruments.yahooSymbol,
+      isin: instruments.isin,
+    })
+    .from(instruments)
+    .where(eq(instruments.id, instrumentId))
+    .limit(1);
+  if (!instrumentRow) {
+    throw new Error("Instrument not found");
+  }
+  const matchFields = {
+    displayName: instrumentRow.displayName,
+    yahooSymbol: instrumentRow.yahooSymbol,
+    isin: instrumentRow.isin,
+  };
+
   let payload: {
     countries: Record<string, number>;
     sectors: Record<string, number>;
@@ -282,7 +311,15 @@ export async function writeProviderHoldingsDistributionCache(
     if (!portId) {
       throw new Error("Invalid Vanguard UK professional product URL");
     }
-    const { items, snapshot } = await fetchVanguardUkGpxHoldings(portId);
+    const { items, snapshot, fundFullName } =
+      await fetchVanguardUkGpxHoldings(portId);
+    assertProviderDocumentMatchesInstrument(
+      matchFields,
+      mergeProviderDocumentIdentifiers(
+        extractHoldingsUrlIdentifiers(v.normalized, "vanguard_uk_gpx"),
+        vanguardIdentifiersFromFundName(fundFullName),
+      ),
+    );
     payload = parseVanguardUkGpxHoldingsJson(items);
     source = "vanguard_uk_gpx";
     raw = JSON.stringify(snapshot);
@@ -296,16 +333,30 @@ export async function writeProviderHoldingsDistributionCache(
       raw = text;
     } else if (v.provider === "sec_13f_xml") {
       const text = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
+      assertProviderDocumentMatchesInstrument(
+        matchFields,
+        mergeProviderDocumentIdentifiers(
+          extractHoldingsUrlIdentifiers(v.normalized, "sec_13f_xml"),
+        ),
+      );
       payload = await buildDistributionFromSec13FInfoTableXml(text);
       source = "sec_13f_infotable_xml";
       raw = text;
     } else if (v.provider === "xtrackers_xlsx") {
+      assertProviderDocumentMatchesInstrument(
+        matchFields,
+        mergeProviderDocumentIdentifiers(
+          extractHoldingsUrlIdentifiers(v.normalized, "xtrackers_xlsx"),
+          extractXtrackersXlsxMetadataIdentifiers(bytes),
+        ),
+      );
       payload = parseXtrackersHoldingsXlsx(bytes);
       source = "xtrackers_holdings_xlsx";
       raw = Buffer.from(bytes).toString("base64");
     } else if (v.provider === "jpm_xlsx") {
       raw = Buffer.from(bytes).toString("base64");
       const breakdownRaw = options?.providerBreakdownDataUrl?.trim();
+      let breakdownNormalized: string | null = null;
       if (breakdownRaw) {
         const bv = validateProviderBreakdownDataUrl(breakdownRaw);
         if (!bv.ok || !bv.normalized) {
@@ -313,7 +364,23 @@ export async function writeProviderHoldingsDistributionCache(
             bv.ok ? "Invalid provider breakdown URL" : bv.message,
           );
         }
-        const json = await fetchJpmProductDataJson(bv.normalized);
+        breakdownNormalized = bv.normalized;
+      }
+      const jpmIdParts = [
+        extractHoldingsUrlIdentifiers(v.normalized, "jpm_xlsx"),
+        extractJpmXlsxMetadataIdentifiers(bytes),
+      ];
+      if (breakdownNormalized) {
+        jpmIdParts.push(
+          extractJpmProductDataUrlIdentifiers(breakdownNormalized),
+        );
+      }
+      assertProviderDocumentMatchesInstrument(
+        matchFields,
+        mergeProviderDocumentIdentifiers(...jpmIdParts),
+      );
+      if (breakdownNormalized) {
+        const json = await fetchJpmProductDataJson(breakdownNormalized);
         const sectorsFromApi = parseJpmProductDataSectorBreakdown(json);
         const { countries, cashWeight: cashW } =
           parseJpmHoldingsXlsxCountriesAndCashWeight(bytes);
@@ -328,6 +395,13 @@ export async function writeProviderHoldingsDistributionCache(
         source = "jpm_holdings_xlsx";
       }
     } else {
+      assertProviderDocumentMatchesInstrument(
+        matchFields,
+        mergeProviderDocumentIdentifiers(
+          extractHoldingsUrlIdentifiers(v.normalized, "ssga_xlsx"),
+          extractSsgaXlsxMetadataIdentifiers(bytes),
+        ),
+      );
       payload = parseSsgaHoldingsXlsx(bytes);
       source = "ssga_holdings_xlsx";
       raw = Buffer.from(bytes).toString("base64");

@@ -13,10 +13,37 @@ export class HttpError extends Error {
   }
 }
 
+/** Prefer API JSON `{ "message": "…" }` for display; otherwise status + body text. */
+function messageFromErrorResponse(status: number, text: string): string {
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    return `Request failed (${status})`;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(trimmed) as unknown;
+  } catch {
+    return `${status} ${trimmed}`;
+  }
+  if (
+    typeof parsed === "object" &&
+    parsed !== null &&
+    "message" in parsed &&
+    typeof (parsed as { message: unknown }).message === "string"
+  ) {
+    const m = (parsed as { message: string }).message.trim();
+    if (m.length > 0) {
+      return m;
+    }
+  }
+  return `${status} ${trimmed}`;
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${base}${path}`, { cache: "no-store" });
   if (!res.ok) {
-    throw new Error(`${res.status} ${await res.text()}`);
+    const text = await res.text();
+    throw new Error(messageFromErrorResponse(res.status, text));
   }
   return res.json() as Promise<T>;
 }
@@ -29,7 +56,8 @@ export async function apiPatch<T>(path: string, body?: unknown): Promise<T> {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!res.ok) {
-    throw new Error(`${res.status} ${await res.text()}`);
+    const text = await res.text();
+    throw new Error(messageFromErrorResponse(res.status, text));
   }
   return res.json() as Promise<T>;
 }
@@ -42,7 +70,8 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!res.ok) {
-    throw new Error(`${res.status} ${await res.text()}`);
+    const text = await res.text();
+    throw new Error(messageFromErrorResponse(res.status, text));
   }
   return res.json() as Promise<T>;
 }
@@ -64,7 +93,11 @@ export async function apiPostFormData<T>(
     } catch {
       body = undefined;
     }
-    throw new HttpError(`${res.status} ${text}`, res.status, body);
+    throw new HttpError(
+      messageFromErrorResponse(res.status, text),
+      res.status,
+      body,
+    );
   }
   return res.json() as Promise<T>;
 }
@@ -75,7 +108,8 @@ export async function apiDelete(path: string): Promise<void> {
     cache: "no-store",
   });
   if (!res.ok) {
-    throw new Error(`${res.status} ${await res.text()}`);
+    const text = await res.text();
+    throw new Error(messageFromErrorResponse(res.status, text));
   }
 }
 
