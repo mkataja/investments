@@ -10,10 +10,13 @@ import { apiGet, apiPatch, apiPut } from "../../api";
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
+import {
+  PortfolioFormBenchmarkTotalField,
+  PortfolioFormDivider,
+  PortfolioFormEmergencyFundBlock,
+  PortfolioFormNameField,
+} from "./PortfolioFormFields";
 import type { HomeInstrument, PortfolioEntity } from "./types";
-
-export const PORTFOLIO_EMERGENCY_FUND_NOTE =
-  "Emergency fund is the part of your savings you treat as reserved — not as portfolio investments. The asset mix considers only the cash above the emergency fund buffer as cash assets.";
 
 type WeightRow = { instrumentId: number | ""; weightStr: string };
 
@@ -264,34 +267,20 @@ export function EditPortfolioModal({
       dialogClassName={isBenchmark ? "max-w-3xl" : undefined}
     >
       <form onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-5">
-        <div className="flex flex-col gap-2">
-          <label className="block text-sm">
-            Name
-            <input
-              ref={nameInputRef}
-              className="mt-1 block w-full border border-slate-300 rounded px-2 py-1"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoComplete="off"
-            />
-          </label>
-        </div>
+        <PortfolioFormNameField
+          name={name}
+          onNameChange={setName}
+          inputRef={nameInputRef}
+        />
 
         {isBenchmark ? (
           <>
-            <hr className="border-slate-200 w-full" />
+            <PortfolioFormDivider />
             <div className="flex flex-col gap-4">
-              <label className="block text-sm max-w-xs">
-                Synthetic portfolio value total value (EUR)
-                <input
-                  className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={benchmarkTotal}
-                  onChange={(e) => setBenchmarkTotal(e.target.value)}
-                />
-              </label>
+              <PortfolioFormBenchmarkTotalField
+                value={benchmarkTotal}
+                onChange={setBenchmarkTotal}
+              />
               <hr />
               <p className="text-sm text-slate-600 leading-relaxed">
                 Target weights for comparison charts. Use any positive numbers;
@@ -385,28 +374,13 @@ export function EditPortfolioModal({
             </div>
           </>
         ) : (
-          <>
-            <hr className="border-slate-200 w-full" />
-            <div className="field-note-stack gap-2">
-              <label className="block text-sm">
-                Emergency fund (EUR)
-                <input
-                  className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={emergencyFund}
-                  onChange={(e) => setEmergencyFund(e.target.value)}
-                />
-              </label>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                {PORTFOLIO_EMERGENCY_FUND_NOTE}
-              </p>
-            </div>
-          </>
+          <PortfolioFormEmergencyFundBlock
+            value={emergencyFund}
+            onChange={setEmergencyFund}
+          />
         )}
 
-        <hr className="border-slate-200 w-full" />
+        <PortfolioFormDivider />
         <div>
           <Button type="submit" disabled={busy}>
             Save
