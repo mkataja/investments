@@ -1,6 +1,6 @@
 import { distributions, prices } from "@investments/db";
 import type { DistributionPayload } from "@investments/lib";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { DbOrTx } from "../db.js";
 
 type PriceType = "intraday" | "close";
@@ -52,18 +52,9 @@ export async function upsertPriceForDate(
     priceType: PriceType;
   },
 ): Promise<void> {
-  const [existing] = await d
-    .select()
-    .from(prices)
-    .where(
-      and(
-        eq(prices.instrumentId, input.instrumentId),
-        eq(prices.priceDate, input.priceDate),
-      ),
-    )
-    .limit(1);
-  if (!existing) {
-    await d.insert(prices).values({
+  await d
+    .insert(prices)
+    .values({
       instrumentId: input.instrumentId,
       priceDate: input.priceDate,
       quotedPrice: input.quotedPrice,
@@ -71,28 +62,19 @@ export async function upsertPriceForDate(
       priceType: input.priceType,
       fetchedAt: input.fetchedAt,
       source: input.source,
-    });
-    return;
-  }
-  if (existing.priceType === "close" && input.priceType === "intraday") {
-    return;
-  }
-  await d
-    .update(prices)
-    .set({
-      quotedPrice: input.quotedPrice,
-      currency: input.currency,
-      priceType: input.priceType,
-      fetchedAt: input.fetchedAt,
-      source: input.source,
-      updatedAt: new Date(),
     })
-    .where(
-      and(
-        eq(prices.instrumentId, input.instrumentId),
-        eq(prices.priceDate, input.priceDate),
-      ),
-    );
+    .onConflictDoUpdate({
+      target: [prices.instrumentId, prices.priceDate],
+      set: {
+        quotedPrice: sql`excluded.quoted_price`,
+        currency: sql`excluded.currency`,
+        priceType: sql`excluded.price_type`,
+        fetchedAt: sql`excluded.fetched_at`,
+        source: sql`excluded.source`,
+        updatedAt: new Date(),
+      },
+      setWhere: sql`NOT (${prices.priceType} = 'close' AND excluded.price_type = 'intraday'::price_type)`,
+    });
 }
 
 export async function upsertDistributionSnapshot(
