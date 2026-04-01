@@ -147,12 +147,11 @@ export function NewTransactionModal({
           onError(null);
           return;
         }
-        const first = sorted[0];
         setTxnForm((f) => {
           const keepSelection = sorted.some((i) => i.id === f.instrumentId);
           return {
             ...f,
-            instrumentId: keepSelection ? f.instrumentId : (first?.id ?? 0),
+            instrumentId: keepSelection ? f.instrumentId : 0,
           };
         });
         onError(null);
@@ -304,7 +303,8 @@ export function NewTransactionModal({
                 : ""
             }
             onChange={(e) => {
-              const id = Number.parseInt(e.target.value, 10);
+              const v = e.target.value;
+              const id = v === "" ? 0 : Number.parseInt(v, 10);
               setTxnForm((f) => ({ ...f, instrumentId: id }));
             }}
           >
@@ -313,11 +313,14 @@ export function NewTransactionModal({
             ) : txnInstruments.length === 0 ? (
               <option value="">No instruments for this broker</option>
             ) : (
-              txnInstruments.map((i) => (
-                <option key={i.id} value={i.id}>
-                  {instrumentSelectUiLabel(i)}
-                </option>
-              ))
+              <>
+                <option value="">Select instrument…</option>
+                {txnInstruments.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {instrumentSelectUiLabel(i)}
+                  </option>
+                ))}
+              </>
             )}
           </select>
         </label>
