@@ -1,5 +1,4 @@
 import { Bar, Doughnut, Pie } from "react-chartjs-2";
-import { pieChartLeftAlignPlugin } from "../../../lib/chart/pieChartLeftAlignPlugin";
 import {
   type PortfolioChartsProps,
   usePortfolioCharts,
@@ -69,13 +68,11 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
                   <Doughnut
                     data={assetMixPieChartData}
                     options={assetMixPieOptions}
-                    plugins={[pieChartLeftAlignPlugin]}
                   />
                 ) : (
                   <Pie
                     data={assetMixPieChartData}
                     options={assetMixPieOptions}
-                    plugins={[pieChartLeftAlignPlugin]}
                   />
                 )}
               </div>
@@ -88,13 +85,11 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
                     <Doughnut
                       data={bondPieChartData}
                       options={bondPieOptions}
-                      plugins={[pieChartLeftAlignPlugin]}
                     />
                   ) : (
                     <Pie
                       data={bondPieChartData}
                       options={bondPieOptions}
-                      plugins={[pieChartLeftAlignPlugin]}
                     />
                   )}
                 </div>
