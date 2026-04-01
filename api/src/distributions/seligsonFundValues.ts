@@ -1,6 +1,5 @@
 import {
   instruments,
-  prices,
   seligsonFundValueCache,
   seligsonFunds,
 } from "@investments/db";
@@ -8,6 +7,8 @@ import * as cheerio from "cheerio";
 import { eq } from "drizzle-orm";
 import type { DbClient } from "../db.js";
 import { normalizeSeligsonFundNameForMatch } from "../import/seligsonTransactions.js";
+import { calendarDateUtcFromInstant } from "../lib/calendarDateUtc.js";
+import { upsertPriceForDate } from "../lib/priceDistributionWrite.js";
 
 const FUND_VALUES_URL =
   "https://www.seligson.fi/suomi/rahastot/FundValues_FI.html";
@@ -185,25 +186,17 @@ export async function upsertSeligsonFundValuesFromPage(
       .select()
       .from(instruments)
       .where(eq(instruments.seligsonFundId, sf.id));
+    const priceDate = calendarDateUtcFromInstant(fetchedAt);
     for (const inst of insts) {
-      await d
-        .insert(prices)
-        .values({
-          instrumentId: inst.id,
-          quotedPrice: String(row.value),
-          currency: row.currency,
-          fetchedAt,
-          source: "seligson_fund_values",
-        })
-        .onConflictDoUpdate({
-          target: prices.instrumentId,
-          set: {
-            quotedPrice: String(row.value),
-            currency: row.currency,
-            fetchedAt,
-            source: "seligson_fund_values",
-          },
-        });
+      await upsertPriceForDate(d, {
+        instrumentId: inst.id,
+        priceDate,
+        quotedPrice: String(row.value),
+        currency: row.currency,
+        fetchedAt,
+        source: "seligson_fund_values",
+        priceType: "close",
+      });
     }
   }
 }

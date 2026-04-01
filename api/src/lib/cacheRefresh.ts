@@ -2,7 +2,6 @@ import {
   distributions,
   instrumentCompositeConstituents,
   instruments,
-  prices,
   providerHoldingsCache,
   seligsonDistributionCache,
   seligsonFunds,
@@ -22,7 +21,7 @@ import {
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
 } from "@investments/lib";
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { buildDistributionFromSec13FInfoTableXml } from "../distributions/buildSec13fDistribution.js";
 import { fetchJpmProductDataJson } from "../distributions/fetchJpmProductData.js";
@@ -67,8 +66,13 @@ import {
   fetchYahooQuoteSummaryRaw,
   normalizeYahooDistribution,
 } from "../distributions/yahoo.js";
+import { calendarDateUtcFromInstant } from "./calendarDateUtc.js";
 import { mergeCompositeDistributionPayload } from "./compositeDistribution.js";
 import { loadOpenPositionsAggregateForUser } from "./positions.js";
+import {
+  upsertDistributionSnapshot,
+  upsertPriceForDate,
+} from "./priceDistributionWrite.js";
 import { sectorRefreshStorage } from "./sectorRefreshContext.js";
 import { formatYahooUpstreamError } from "./yahooUpstream.js";
 
@@ -125,7 +129,9 @@ async function warnIfRefreshedDistributionHasUnknownCountry(
   const [row] = await db
     .select({ payload: distributions.payload })
     .from(distributions)
-    .where(eq(distributions.instrumentId, instrumentId));
+    .where(eq(distributions.instrumentId, instrumentId))
+    .orderBy(desc(distributions.snapshotDate))
+    .limit(1);
   const countries = row?.payload?.countries;
   const detailParts = collectUnknownCountryIssueParts(countries);
   if (detailParts.length === 0) {
@@ -192,41 +198,24 @@ export async function writeYahooDistributionCache(
     await tx
       .delete(seligsonDistributionCache)
       .where(eq(seligsonDistributionCache.instrumentId, instrumentId));
-    await tx
-      .insert(distributions)
-      .values({
-        instrumentId,
-        fetchedAt,
-        source: "yahoo",
-        payload,
-      })
-      .onConflictDoUpdate({
-        target: distributions.instrumentId,
-        set: {
-          fetchedAt,
-          source: "yahoo",
-          payload,
-        },
-      });
+    const snapshotDate = calendarDateUtcFromInstant(fetchedAt);
+    await upsertDistributionSnapshot(tx, {
+      instrumentId,
+      snapshotDate,
+      fetchedAt,
+      source: "yahoo",
+      payload,
+    });
     if (priceExtract) {
-      await tx
-        .insert(prices)
-        .values({
-          instrumentId,
-          quotedPrice: String(priceExtract.price),
-          currency: priceExtract.currency,
-          fetchedAt,
-          source: "yahoo_quote_summary",
-        })
-        .onConflictDoUpdate({
-          target: prices.instrumentId,
-          set: {
-            quotedPrice: String(priceExtract.price),
-            currency: priceExtract.currency,
-            fetchedAt,
-            source: "yahoo_quote_summary",
-          },
-        });
+      await upsertPriceForDate(tx, {
+        instrumentId,
+        priceDate: snapshotDate,
+        quotedPrice: String(priceExtract.price),
+        currency: priceExtract.currency,
+        fetchedAt,
+        source: "yahoo_quote_summary",
+        priceType: "close",
+      });
     }
   });
 
@@ -245,24 +234,15 @@ export async function upsertYahooPriceFromQuoteSummaryRaw(
 ): Promise<void> {
   const priceExtract = extractYahooPriceFromQuoteSummaryRaw(raw);
   if (priceExtract) {
-    await db
-      .insert(prices)
-      .values({
-        instrumentId,
-        quotedPrice: String(priceExtract.price),
-        currency: priceExtract.currency,
-        fetchedAt,
-        source: "yahoo_quote_summary",
-      })
-      .onConflictDoUpdate({
-        target: prices.instrumentId,
-        set: {
-          quotedPrice: String(priceExtract.price),
-          currency: priceExtract.currency,
-          fetchedAt,
-          source: "yahoo_quote_summary",
-        },
-      });
+    await upsertPriceForDate(db, {
+      instrumentId,
+      priceDate: calendarDateUtcFromInstant(fetchedAt),
+      quotedPrice: String(priceExtract.price),
+      currency: priceExtract.currency,
+      fetchedAt,
+      source: "yahoo_quote_summary",
+      priceType: "close",
+    });
   }
   await maybeBackfillInstrumentIsinFromYahooRaw(
     instrumentId,
@@ -306,41 +286,24 @@ export async function upsertCommodityCachesFromYahooRaw(
     await tx
       .delete(seligsonDistributionCache)
       .where(eq(seligsonDistributionCache.instrumentId, instrumentId));
-    await tx
-      .insert(distributions)
-      .values({
-        instrumentId,
-        fetchedAt,
-        source: "yahoo_commodity_manual",
-        payload,
-      })
-      .onConflictDoUpdate({
-        target: distributions.instrumentId,
-        set: {
-          fetchedAt,
-          source: "yahoo_commodity_manual",
-          payload,
-        },
-      });
+    const snapshotDate = calendarDateUtcFromInstant(fetchedAt);
+    await upsertDistributionSnapshot(tx, {
+      instrumentId,
+      snapshotDate,
+      fetchedAt,
+      source: "yahoo_commodity_manual",
+      payload,
+    });
     if (priceExtract) {
-      await tx
-        .insert(prices)
-        .values({
-          instrumentId,
-          quotedPrice: String(priceExtract.price),
-          currency: priceExtract.currency,
-          fetchedAt,
-          source: "yahoo_quote_summary",
-        })
-        .onConflictDoUpdate({
-          target: prices.instrumentId,
-          set: {
-            quotedPrice: String(priceExtract.price),
-            currency: priceExtract.currency,
-            fetchedAt,
-            source: "yahoo_quote_summary",
-          },
-        });
+      await upsertPriceForDate(tx, {
+        instrumentId,
+        priceDate: snapshotDate,
+        quotedPrice: String(priceExtract.price),
+        currency: priceExtract.currency,
+        fetchedAt,
+        source: "yahoo_quote_summary",
+        priceType: "close",
+      });
     }
   });
 
@@ -507,22 +470,13 @@ export async function writeProviderHoldingsDistributionCache(
     await tx
       .delete(yahooFinanceCache)
       .where(eq(yahooFinanceCache.instrumentId, instrumentId));
-    await tx
-      .insert(distributions)
-      .values({
-        instrumentId,
-        fetchedAt,
-        source,
-        payload: rounded,
-      })
-      .onConflictDoUpdate({
-        target: distributions.instrumentId,
-        set: {
-          fetchedAt,
-          source,
-          payload: rounded,
-        },
-      });
+    await upsertDistributionSnapshot(tx, {
+      instrumentId,
+      snapshotDate: calendarDateUtcFromInstant(fetchedAt),
+      fetchedAt,
+      source,
+      payload: rounded,
+    });
   });
 }
 
@@ -623,7 +577,9 @@ export async function writeCompositeDistributionCache(
       const [dist] = await db
         .select()
         .from(distributions)
-        .where(eq(distributions.instrumentId, row.targetInstrumentId));
+        .where(eq(distributions.instrumentId, row.targetInstrumentId))
+        .orderBy(desc(distributions.snapshotDate))
+        .limit(1);
       const payload = (dist?.payload as DistributionPayload | undefined) ?? {
         countries: {},
         sectors: {},
@@ -652,22 +608,13 @@ export async function writeCompositeDistributionCache(
     await tx
       .delete(yahooFinanceCache)
       .where(eq(yahooFinanceCache.instrumentId, instrumentId));
-    await tx
-      .insert(distributions)
-      .values({
-        instrumentId,
-        fetchedAt,
-        source: "composite",
-        payload,
-      })
-      .onConflictDoUpdate({
-        target: distributions.instrumentId,
-        set: {
-          fetchedAt,
-          source: "composite",
-          payload,
-        },
-      });
+    await upsertDistributionSnapshot(tx, {
+      instrumentId,
+      snapshotDate: calendarDateUtcFromInstant(fetchedAt),
+      fetchedAt,
+      source: "composite",
+      payload,
+    });
   });
 }
 
@@ -720,22 +667,13 @@ export async function writeSeligsonDistributionCache(
       await tx
         .delete(yahooFinanceCache)
         .where(eq(yahooFinanceCache.instrumentId, instrumentId));
-      await tx
-        .insert(distributions)
-        .values({
-          instrumentId,
-          fetchedAt,
-          source: "seligson_scrape",
-          payload,
-        })
-        .onConflictDoUpdate({
-          target: distributions.instrumentId,
-          set: {
-            fetchedAt,
-            source: "seligson_scrape",
-            payload,
-          },
-        });
+      await upsertDistributionSnapshot(tx, {
+        instrumentId,
+        snapshotDate: calendarDateUtcFromInstant(fetchedAt),
+        fetchedAt,
+        source: "seligson_scrape",
+        payload,
+      });
     });
     await updateSeligsonFundNameFromViewerHtml(
       fid,
@@ -778,22 +716,13 @@ export async function writeSeligsonDistributionCache(
     await tx
       .delete(yahooFinanceCache)
       .where(eq(yahooFinanceCache.instrumentId, instrumentId));
-    await tx
-      .insert(distributions)
-      .values({
-        instrumentId,
-        fetchedAt,
-        source: "seligson_scrape",
-        payload,
-      })
-      .onConflictDoUpdate({
-        target: distributions.instrumentId,
-        set: {
-          fetchedAt,
-          source: "seligson_scrape",
-          payload,
-        },
-      });
+    await upsertDistributionSnapshot(tx, {
+      instrumentId,
+      snapshotDate: calendarDateUtcFromInstant(fetchedAt),
+      fetchedAt,
+      source: "seligson_scrape",
+      payload,
+    });
   });
 
   await updateSeligsonFundNameFromViewerHtml(fid, holdingsHtml);
@@ -838,7 +767,9 @@ async function refreshDistributionCacheForInstrumentIdImpl(
   const [distRow] = await db
     .select()
     .from(distributions)
-    .where(eq(distributions.instrumentId, instrumentId));
+    .where(eq(distributions.instrumentId, instrumentId))
+    .orderBy(desc(distributions.snapshotDate))
+    .limit(1);
   if (distRow?.source === "manual") {
     return { skipped: true, reason: "manual" };
   }
@@ -987,7 +918,9 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
     const [cached] = await db
       .select()
       .from(distributions)
-      .where(eq(distributions.instrumentId, inst.id));
+      .where(eq(distributions.instrumentId, inst.id))
+      .orderBy(desc(distributions.snapshotDate))
+      .limit(1);
 
     if (cached?.source === "manual") {
       continue;

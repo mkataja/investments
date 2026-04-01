@@ -2,7 +2,7 @@ import { serve } from "@hono/node-server";
 import { zValidator } from "@hono/zod-validator";
 import {
   brokers,
-  distributions,
+  type distributions,
   instrumentCompositeConstituents,
   instruments,
   portfolioBenchmarkWeights,
@@ -84,13 +84,16 @@ import {
   insertCommodityFromYahoo,
   insertEtfStockFromYahoo,
 } from "./lib/createYahooInstrument.js";
+import { loadLatestDistributionRowsByInstrumentIds } from "./lib/latestPriceDistribution.js";
 import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
 import {
   loadPortfolioOwnedByUser,
   resolvePortfolioIdFromImportBody,
 } from "./lib/portfolioAccess.js";
+import { getPortfolioAssetMixHistory } from "./lib/portfolioAssetMixHistory.js";
 import { loadOpenPositionsForPortfolio } from "./lib/positions.js";
+import { seedIntradayPriceForInstrumentIfMissing } from "./lib/transactionPriceSeed.js";
 import { formatYahooUpstreamError } from "./lib/yahooUpstream.js";
 import { runDevMigrations } from "./runDevMigrations.js";
 
@@ -591,6 +594,14 @@ app.post("/transactions", zValidator("json", transactionIn), async (c) => {
         body.unitPriceEur != null ? String(body.unitPriceEur) : undefined,
     })
     .returning();
+  if (row) {
+    await seedIntradayPriceForInstrumentIfMissing(db, row.instrumentId, {
+      instrumentId: row.instrumentId,
+      tradeDate: row.tradeDate,
+      unitPrice: row.unitPrice,
+      currency: row.currency,
+    });
+  }
   return c.json(row, 201);
 });
 
@@ -683,6 +694,14 @@ app.patch("/transactions/:id", zValidator("json", transactionIn), async (c) => {
     })
     .where(eq(transactions.id, id))
     .returning();
+  if (row) {
+    await seedIntradayPriceForInstrumentIfMissing(db, row.instrumentId, {
+      instrumentId: row.instrumentId,
+      tradeDate: row.tradeDate,
+      unitPrice: row.unitPrice,
+      currency: row.currency,
+    });
+  }
   return c.json(row);
 });
 
@@ -917,6 +936,15 @@ app.post("/import/degiro", async (c) => {
   const changed = written.length;
   const unchanged = processed - changed;
 
+  for (const v of values) {
+    await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
+      instrumentId: v.instrumentId,
+      tradeDate: v.tradeDate,
+      unitPrice: v.unitPrice,
+      currency: v.currency,
+    });
+  }
+
   return c.json({ ok: true, processed, changed, unchanged });
 });
 
@@ -1055,6 +1083,15 @@ app.post("/import/ibkr", async (c) => {
   const processed = values.length;
   const changed = written.length;
   const unchanged = processed - changed;
+
+  for (const v of values) {
+    await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
+      instrumentId: v.instrumentId,
+      tradeDate: v.tradeDate,
+      unitPrice: v.unitPrice,
+      currency: v.currency,
+    });
+  }
 
   return c.json({ ok: true, processed, changed, unchanged });
 });
@@ -1261,6 +1298,15 @@ app.post("/import/seligson", async (c) => {
   const processed = values.length;
   const changed = written.length;
   const unchanged = processed - changed;
+
+  for (const v of values) {
+    await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
+      instrumentId: v.instrumentId,
+      tradeDate: v.tradeDate,
+      unitPrice: v.unitPrice,
+      currency: v.currency,
+    });
+  }
 
   return c.json({
     ok: true,
@@ -1478,7 +1524,6 @@ async function loadInstrumentPayloadById(
   const joined = await db
     .select({
       instrument: instruments,
-      distribution: distributions,
       yahooFinanceCache: yahooFinanceCache,
       seligsonDistributionCache: seligsonDistributionCache,
       providerHoldingsCache: providerHoldingsCache,
@@ -1486,7 +1531,6 @@ async function loadInstrumentPayloadById(
       broker: brokers,
     })
     .from(instruments)
-    .leftJoin(distributions, eq(instruments.id, distributions.instrumentId))
     .leftJoin(
       yahooFinanceCache,
       eq(instruments.id, yahooFinanceCache.instrumentId),
@@ -1510,6 +1554,11 @@ async function loadInstrumentPayloadById(
   if (!row) {
     return null;
   }
+  const distMap = await loadLatestDistributionRowsByInstrumentIds(db, [id]);
+  const rowWithDist = {
+    ...row,
+    distribution: distMap.get(id) ?? null,
+  };
   const netWhere =
     netQtyScope.kind === "portfolio"
       ? and(
@@ -1531,7 +1580,7 @@ async function loadInstrumentPayloadById(
       ? Number.parseFloat(qtyRow.qty)
       : 0;
   const netQuantity = Number.isFinite(q) ? q : 0;
-  return mapJoinedRowToInstrumentPayload(row, netQuantity);
+  return mapJoinedRowToInstrumentPayload(rowWithDist, netQuantity);
 }
 
 async function loadInstrumentMatchCandidates(): Promise<
@@ -1643,7 +1692,6 @@ app.get("/instruments", async (c) => {
   const joined = await db
     .select({
       instrument: instruments,
-      distribution: distributions,
       yahooFinanceCache: yahooFinanceCache,
       seligsonDistributionCache: seligsonDistributionCache,
       providerHoldingsCache: providerHoldingsCache,
@@ -1651,7 +1699,6 @@ app.get("/instruments", async (c) => {
       broker: brokers,
     })
     .from(instruments)
-    .leftJoin(distributions, eq(instruments.id, distributions.instrumentId))
     .leftJoin(
       yahooFinanceCache,
       eq(instruments.id, yahooFinanceCache.instrumentId),
@@ -1667,6 +1714,11 @@ app.get("/instruments", async (c) => {
     .leftJoin(seligsonFunds, eq(instruments.seligsonFundId, seligsonFunds.id))
     .leftJoin(brokers, eq(instruments.brokerId, brokers.id))
     .orderBy(asc(instruments.id));
+
+  const distMap = await loadLatestDistributionRowsByInstrumentIds(
+    db,
+    joined.map((j) => j.instrument.id),
+  );
 
   const qtyRows = await db
     .select({
@@ -1691,7 +1743,10 @@ app.get("/instruments", async (c) => {
 
   let payload = joined.map((row) =>
     mapJoinedRowToInstrumentPayload(
-      row,
+      {
+        ...row,
+        distribution: distMap.get(row.instrument.id) ?? null,
+      },
       netQtyByInstrument.get(row.instrument.id) ?? 0,
     ),
   );
@@ -2366,6 +2421,23 @@ app.get("/portfolio/distributions", async (c) => {
     return c.json({ message: "Portfolio not found" }, 404);
   }
   const data = await getPortfolioDistributions(portfolioId);
+  return c.json(data);
+});
+
+app.get("/portfolio/asset-mix-history", async (c) => {
+  const raw = c.req.query("portfolioId")?.trim();
+  if (!raw) {
+    return c.json({ message: "portfolioId query required" }, 400);
+  }
+  const portfolioId = Number.parseInt(raw, 10);
+  if (!Number.isFinite(portfolioId) || portfolioId < 1) {
+    return c.json({ message: "Invalid portfolioId" }, 400);
+  }
+  const pf = await loadPortfolioOwnedByUser(portfolioId);
+  if (!pf) {
+    return c.json({ message: "Portfolio not found" }, 404);
+  }
+  const data = await getPortfolioAssetMixHistory(portfolioId);
   return c.json(data);
 });
 

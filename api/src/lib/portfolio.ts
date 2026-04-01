@@ -1,9 +1,4 @@
-import {
-  distributions,
-  instruments,
-  seligsonFunds,
-  yahooFinanceCache,
-} from "@investments/db";
+import { instruments, seligsonFunds, yahooFinanceCache } from "@investments/db";
 import {
   type DistributionPayload,
   MIN_PORTFOLIO_ALLOCATION_FRACTION,
@@ -11,13 +6,14 @@ import {
   instrumentTickerDisplay,
   resolveRegionKeyToIso,
 } from "@investments/lib";
-import { type InferSelectModel, eq, inArray } from "drizzle-orm";
+import { type InferSelectModel, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import {
   BENCHMARK_TOTAL_EUR_DEFAULT,
   loadBenchmarkValuedRows,
 } from "./benchmarkPortfolio.js";
 import { distributionGeoScaleForCountryMerge } from "./distributionGeoScale.js";
+import { loadLatestDistributionRowsByInstrumentIds } from "./latestPriceDistribution.js";
 import {
   type NonCashAssetClass,
   classifyNonCashInstrument,
@@ -397,6 +393,18 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   let cashTotalEur = 0;
   let cashInFundsEur = 0;
 
+  const nonCashInstIdsForDist = [
+    ...new Set(
+      valued
+        .filter((r) => r.inst.kind !== "cash_account")
+        .map((r) => r.inst.id),
+    ),
+  ];
+  const distMap = await loadLatestDistributionRowsByInstrumentIds(
+    db,
+    nonCashInstIdsForDist,
+  );
+
   for (const row of valued) {
     const { inst } = row;
 
@@ -407,11 +415,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
 
     const w = nonCashValueEur > 0 ? row.valueEur / nonCashValueEur : 0;
 
-    const [cached] = await db
-      .select()
-      .from(distributions)
-      .where(eq(distributions.instrumentId, inst.id));
-
+    const cached = distMap.get(inst.id);
     const payload = cached?.payload as DistributionPayload | undefined;
     const cashFracRaw =
       payload?.sectors && typeof payload.sectors.cash === "number"

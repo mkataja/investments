@@ -14,4 +14,8 @@ const pool = new pg.Pool({
 
 export const db = drizzle(pool, { schema });
 export type DbClient = typeof db;
+/** `db` or a `db.transaction` callback argument (for upserts inside transactions). */
+export type DbOrTx =
+  | DbClient
+  | Parameters<Parameters<typeof db.transaction>[0]>[0];
 export { pool };

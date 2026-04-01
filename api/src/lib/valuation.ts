@@ -1,8 +1,9 @@
 import { type instruments, prices } from "@investments/db";
 import { DEFAULT_CASH_CURRENCY } from "@investments/lib";
 import type { InferSelectModel } from "drizzle-orm";
-import { inArray } from "drizzle-orm";
+import { and, desc, eq, lte } from "drizzle-orm";
 import { db } from "../db.js";
+import { loadLatestPriceRowsByInstrumentIds } from "./latestPriceDistribution.js";
 
 export type InstrumentRow = InferSelectModel<typeof instruments>;
 
@@ -28,11 +29,63 @@ function noQuoteResult(): ValuationResult {
   };
 }
 
-type ValuationResult = {
+export type ValuationResult = {
   valueEur: number;
   source: "cached_price" | "cash" | "none";
   detail: string;
 };
+
+/** Latest `prices` row with `price_date <= asOfDate` (UTC calendar date string). */
+export async function valuePortfolioRowsEurAsOf(
+  rows: Array<{ inst: InstrumentRow; qty: number }>,
+  asOfDate: string,
+): Promise<ValuationResult[]> {
+  const nonCashIds = [
+    ...new Set(
+      rows.filter((r) => r.inst.kind !== "cash_account").map((r) => r.inst.id),
+    ),
+  ];
+  const priceByInstrument = new Map<number, InferSelectModel<typeof prices>>();
+  for (const id of nonCashIds) {
+    const [p] = await db
+      .select()
+      .from(prices)
+      .where(and(eq(prices.instrumentId, id), lte(prices.priceDate, asOfDate)))
+      .orderBy(desc(prices.priceDate))
+      .limit(1);
+    if (p) {
+      priceByInstrument.set(id, p);
+    }
+  }
+
+  return rows.map(({ inst, qty }) => {
+    if (inst.kind === "cash_account") {
+      const cur =
+        inst.cashCurrency?.trim().toUpperCase() ?? DEFAULT_CASH_CURRENCY;
+      const valueEur = nativeToEurStub(qty, cur);
+      return {
+        valueEur,
+        source: "cash",
+        detail: `Cash ${qty} ${cur}`,
+      };
+    }
+    const p = priceByInstrument.get(inst.id);
+    if (!p) {
+      return noQuoteResult();
+    }
+    const qp = Number.parseFloat(String(p.quotedPrice));
+    if (!Number.isFinite(qp)) {
+      return noQuoteResult();
+    }
+    const native = qty * qp;
+    const valueEur = nativeToEurStub(native, p.currency);
+    return {
+      valueEur,
+      source: "cached_price",
+      detail: `${inst.displayName} @ ${qp} ${p.currency}`,
+    };
+  });
+}
 
 export async function valuePortfolioRowsEur(
   rows: Array<{ inst: InstrumentRow; qty: number }>,
@@ -42,15 +95,9 @@ export async function valuePortfolioRowsEur(
       rows.filter((r) => r.inst.kind !== "cash_account").map((r) => r.inst.id),
     ),
   ];
-  const priceRows =
-    nonCashIds.length === 0
-      ? []
-      : await db
-          .select()
-          .from(prices)
-          .where(inArray(prices.instrumentId, nonCashIds));
-  const priceByInstrument = new Map(
-    priceRows.map((p) => [p.instrumentId, p] as const),
+  const priceByInstrument = await loadLatestPriceRowsByInstrumentIds(
+    db,
+    nonCashIds,
   );
 
   return rows.map(({ inst, qty }) => {
