@@ -87,12 +87,8 @@
           "name": "brokers_user_id_users_id_fk",
           "tableFrom": "brokers",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -157,12 +153,8 @@
           "name": "distributions_instrument_id_instruments_id_fk",
           "tableFrom": "distributions",
           "tableTo": "instruments",
-          "columnsFrom": [
-            "instrument_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["instrument_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -303,12 +295,8 @@
           "name": "instrument_composite_constituents_parent_instrument_id_instruments_id_fk",
           "tableFrom": "instrument_composite_constituents",
           "tableTo": "instruments",
-          "columnsFrom": [
-            "parent_instrument_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["parent_instrument_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -316,12 +304,8 @@
           "name": "instrument_composite_constituents_target_instrument_id_instruments_id_fk",
           "tableFrom": "instrument_composite_constituents",
           "tableTo": "instruments",
-          "columnsFrom": [
-            "target_instrument_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["target_instrument_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -523,12 +507,8 @@
           "name": "instruments_seligson_fund_id_seligson_funds_id_fk",
           "tableFrom": "instruments",
           "tableTo": "seligson_funds",
-          "columnsFrom": [
-            "seligson_fund_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["seligson_fund_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -536,12 +516,8 @@
           "name": "instruments_broker_id_brokers_id_fk",
           "tableFrom": "instruments",
           "tableTo": "brokers",
-          "columnsFrom": [
-            "broker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["broker_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -683,12 +659,8 @@
           "name": "portfolio_benchmark_weights_portfolio_id_portfolios_id_fk",
           "tableFrom": "portfolio_benchmark_weights",
           "tableTo": "portfolios",
-          "columnsFrom": [
-            "portfolio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["portfolio_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -696,12 +668,8 @@
           "name": "portfolio_benchmark_weights_instrument_id_instruments_id_fk",
           "tableFrom": "portfolio_benchmark_weights",
           "tableTo": "instruments",
-          "columnsFrom": [
-            "instrument_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["instrument_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         }
@@ -809,12 +777,8 @@
           "name": "portfolios_user_id_users_id_fk",
           "tableFrom": "portfolios",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -885,12 +849,8 @@
           "name": "prices_instrument_id_instruments_id_fk",
           "tableFrom": "prices",
           "tableTo": "instruments",
-          "columnsFrom": [
-            "instrument_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["instrument_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -950,12 +910,8 @@
           "name": "provider_holdings_cache_instrument_id_instruments_id_fk",
           "tableFrom": "provider_holdings_cache",
           "tableTo": "instruments",
-          "columnsFrom": [
-            "instrument_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["instrument_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1021,12 +977,8 @@
           "name": "seligson_distribution_cache_instrument_id_instruments_id_fk",
           "tableFrom": "seligson_distribution_cache",
           "tableTo": "instruments",
-          "columnsFrom": [
-            "instrument_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["instrument_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1085,12 +1037,8 @@
           "name": "seligson_fund_value_cache_seligson_fund_id_seligson_funds_id_fk",
           "tableFrom": "seligson_fund_value_cache",
           "tableTo": "seligson_funds",
-          "columnsFrom": [
-            "seligson_fund_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["seligson_fund_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1274,10 +1222,7 @@
       "compositePrimaryKeys": {
         "seligson_holdings_resolution_cache_seligson_company_name_country_iso_pk": {
           "name": "seligson_holdings_resolution_cache_seligson_company_name_country_iso_pk",
-          "columns": [
-            "seligson_company_name",
-            "country_iso"
-          ]
+          "columns": ["seligson_company_name", "country_iso"]
         }
       },
       "uniqueConstraints": {},
@@ -1483,12 +1428,8 @@
           "name": "transactions_user_id_users_id_fk",
           "tableFrom": "transactions",
           "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "no action"
         },
@@ -1496,12 +1437,8 @@
           "name": "transactions_portfolio_id_portfolios_id_fk",
           "tableFrom": "transactions",
           "tableTo": "portfolios",
-          "columnsFrom": [
-            "portfolio_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["portfolio_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1509,12 +1446,8 @@
           "name": "transactions_broker_id_brokers_id_fk",
           "tableFrom": "transactions",
           "tableTo": "brokers",
-          "columnsFrom": [
-            "broker_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["broker_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1522,12 +1455,8 @@
           "name": "transactions_instrument_id_instruments_id_fk",
           "tableFrom": "transactions",
           "tableTo": "instruments",
-          "columnsFrom": [
-            "instrument_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["instrument_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1631,12 +1560,8 @@
           "name": "yahoo_finance_cache_instrument_id_instruments_id_fk",
           "tableFrom": "yahoo_finance_cache",
           "tableTo": "instruments",
-          "columnsFrom": [
-            "instrument_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["instrument_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
