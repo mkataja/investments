@@ -13,6 +13,7 @@ import {
   DistributionSummary,
 } from "../components/InstrumentDistributionSummary";
 import { InstrumentsTableSkeleton } from "../components/listPageSkeletons";
+import { classNames } from "../lib/css";
 import { formatInstantForDisplay } from "../lib/dateTimeFormat";
 
 type SeligsonFundSummary = {
@@ -351,7 +352,31 @@ export function InstrumentsPage() {
                       )}
                     </td>
                     <td className="p-2 text-right">
-                      <div className="flex flex-col items-end gap-1 sm:flex-row sm:justify-end sm:gap-3">
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex flex-wrap justify-end gap-3">
+                          {(i.kind === "cash_account" ||
+                            i.kind === "etf" ||
+                            i.kind === "stock") && (
+                            <Link
+                              to={`/instruments/${i.id}/edit`}
+                              className="action-primary"
+                            >
+                              Edit
+                            </Link>
+                          )}
+                          <button
+                            type="button"
+                            disabled={
+                              deletingId === i.id ||
+                              refreshingId === i.id ||
+                              refreshingAll
+                            }
+                            onClick={() => void removeInstrument(i)}
+                            className="action-delete"
+                          >
+                            {deletingId === i.id ? "Deleting..." : "Delete"}
+                          </button>
+                        </div>
                         {i.kind !== "cash_account" && (
                           <button
                             type="button"
@@ -362,7 +387,10 @@ export function InstrumentsPage() {
                             }
                             onClick={() => void refreshDistribution(i)}
                             aria-busy={rowRefreshing}
-                            className="action-primary"
+                            className={classNames(
+                              "action-primary inline-flex items-center gap-1.5 whitespace-nowrap",
+                              rowRefreshing && "no-underline",
+                            )}
                           >
                             {rowRefreshing ? (
                               <>
@@ -374,28 +402,6 @@ export function InstrumentsPage() {
                             )}
                           </button>
                         )}
-                        {(i.kind === "cash_account" ||
-                          i.kind === "etf" ||
-                          i.kind === "stock") && (
-                          <Link
-                            to={`/instruments/${i.id}/edit`}
-                            className="action-primary"
-                          >
-                            Edit
-                          </Link>
-                        )}
-                        <button
-                          type="button"
-                          disabled={
-                            deletingId === i.id ||
-                            refreshingId === i.id ||
-                            refreshingAll
-                          }
-                          onClick={() => void removeInstrument(i)}
-                          className="action-delete"
-                        >
-                          {deletingId === i.id ? "Deleting..." : "Delete"}
-                        </button>
                       </div>
                     </td>
                   </tr>
