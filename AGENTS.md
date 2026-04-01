@@ -55,6 +55,12 @@ Duplicating code is a maintenance nightmare, makes files larger than necessary, 
 - It's important to consider maintainability
 
 
+### Code style and performance
+
+- Prefer map/reduce over for-loops, unless there's a very clear usecase
+- Avoid N+1 DB query pattern
+
+
 ### General bits
 
 - Web date/time formatting: `web/src/lib/dateTimeFormat.ts` (`YYYY-MM-DD`, or with time `YYYY-MM-DD HH:mm` local 24h)
