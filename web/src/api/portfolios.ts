@@ -1,5 +1,35 @@
 import type { BenchmarkWeightFormRow } from "../lib/portfolioBenchmarkWeights";
 
+export function buildCreatePortfolioBody(args: {
+  name: string;
+  kind: "live" | "benchmark";
+  emergencyFundEur: number;
+  benchmarkTotalEur?: number;
+}): Record<string, unknown> {
+  return {
+    name: args.name,
+    kind: args.kind,
+    emergencyFundEur: args.emergencyFundEur,
+    ...(args.benchmarkTotalEur != null
+      ? { benchmarkTotalEur: args.benchmarkTotalEur }
+      : {}),
+  };
+}
+
+export function buildPatchPortfolioBody(args: {
+  name: string;
+  emergencyFundEur: number;
+  benchmarkTotalEur?: number;
+}): Record<string, unknown> {
+  return {
+    name: args.name,
+    emergencyFundEur: args.emergencyFundEur,
+    ...(args.benchmarkTotalEur != null
+      ? { benchmarkTotalEur: args.benchmarkTotalEur }
+      : {}),
+  };
+}
+
 /**
  * Turns form rows into the payload for PUT benchmark weights. Skips blank
  * instrument lines and non-positive weights; parses localized decimals; rejects

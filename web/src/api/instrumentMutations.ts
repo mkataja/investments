@@ -1,4 +1,9 @@
-import type { CommoditySectorStorage } from "@investments/lib";
+import {
+  type CommoditySectorStorage,
+  DEFAULT_CASH_CURRENCY,
+  normalizeCashAccountIsoCountryCode,
+} from "@investments/lib";
+import type { InstrumentDetail } from "../components/instrumentForm/types";
 
 export type CustomCompositeConstituent = {
   rawLabel: string;
@@ -87,4 +92,79 @@ export function buildPatchEtfStockUrlsBody(args: {
     holdingsDistributionUrl: args.holdingsDistributionUrl,
     providerBreakdownDataUrl: args.providerBreakdownDataUrl,
   };
+}
+
+export type InstrumentPatchResult<T extends Record<string, unknown>> =
+  | { ok: true; patch: T }
+  | { ok: false; error: string };
+
+export function computeCashAccountInstrumentPatch(args: {
+  initial: Pick<
+    InstrumentDetail,
+    "displayName" | "brokerId" | "cashCurrency" | "cashGeoKey"
+  >;
+  cashDisplayName: string;
+  cashBrokerId: number | "";
+  cashCurrency: string;
+  cashGeoKey: string;
+}): InstrumentPatchResult<Record<string, string | number>> {
+  const patch: Record<string, string | number> = {};
+  const { initial } = args;
+  if (args.cashDisplayName.trim() !== initial.displayName) {
+    patch.displayName = args.cashDisplayName.trim();
+  }
+  if (
+    args.cashBrokerId !== "" &&
+    typeof args.cashBrokerId === "number" &&
+    args.cashBrokerId !== initial.brokerId
+  ) {
+    patch.brokerId = args.cashBrokerId;
+  }
+  if (args.cashCurrency !== (initial.cashCurrency ?? DEFAULT_CASH_CURRENCY)) {
+    patch.cashCurrency = args.cashCurrency;
+  }
+  const geoIso = normalizeCashAccountIsoCountryCode(args.cashGeoKey);
+  if (geoIso == null) {
+    return {
+      ok: false,
+      error: "Enter a valid ISO 3166-1 alpha-2 country code (e.g. FI, US).",
+    };
+  }
+  if (geoIso !== (initial.cashGeoKey ?? "")) {
+    patch.cashGeoKey = geoIso;
+  }
+  return { ok: true, patch };
+}
+
+export function computeCommodityInstrumentPatch(args: {
+  initial: Pick<InstrumentDetail, "commoditySector" | "commodityCountryIso">;
+  commoditySector: CommoditySectorStorage;
+  commodityCountryIso: string;
+}): InstrumentPatchResult<Record<string, string | null>> {
+  const patch: Record<string, string | null> = {};
+  if (args.commoditySector !== args.initial.commoditySector) {
+    patch.commoditySector = args.commoditySector;
+  }
+  const nextCountry = args.commodityCountryIso.trim();
+  const prevCountry = (args.initial.commodityCountryIso ?? "").trim();
+  if (nextCountry !== prevCountry) {
+    patch.commodityCountryIso = nextCountry.length === 0 ? null : nextCountry;
+  }
+  if (Object.keys(patch).length === 0) {
+    return { ok: true, patch };
+  }
+  if (
+    patch.commodityCountryIso != null &&
+    patch.commodityCountryIso.length > 0
+  ) {
+    const iso = normalizeCashAccountIsoCountryCode(patch.commodityCountryIso);
+    if (iso == null) {
+      return {
+        ok: false,
+        error: "Country must be a valid ISO code or blank.",
+      };
+    }
+    patch.commodityCountryIso = iso;
+  }
+  return { ok: true, patch };
 }
