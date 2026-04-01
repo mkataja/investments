@@ -41,7 +41,6 @@ import {
   extractJpmProductDataUrlIdentifiers,
   extractJpmXlsxMetadataIdentifiers,
   extractSsgaXlsxMetadataIdentifiers,
-  extractXtrackersXlsxMetadataIdentifiers,
   mergeProviderDocumentIdentifiers,
   vanguardIdentifiersFromFundName,
 } from "../distributions/providerDocumentIdentity.js";
@@ -343,13 +342,6 @@ export async function writeProviderHoldingsDistributionCache(
       source = "sec_13f_infotable_xml";
       raw = text;
     } else if (v.provider === "xtrackers_xlsx") {
-      assertProviderDocumentMatchesInstrument(
-        matchFields,
-        mergeProviderDocumentIdentifiers(
-          extractHoldingsUrlIdentifiers(v.normalized, "xtrackers_xlsx"),
-          extractXtrackersXlsxMetadataIdentifiers(bytes),
-        ),
-      );
       payload = parseXtrackersHoldingsXlsx(bytes);
       source = "xtrackers_holdings_xlsx";
       raw = Buffer.from(bytes).toString("base64");

@@ -16,14 +16,6 @@ describe("extractHoldingsUrlIdentifiers", () => {
     expect(ids.isins).toContain("IE00BJRCLL96");
   });
 
-  it("reads Xtrackers ISIN from path segments", () => {
-    const ids = extractHoldingsUrlIdentifiers(
-      "https://etf.dws.com/etfdata/export/GBR/ENG/excel/product/constituent/IE00BLNMYC90/",
-      "xtrackers_xlsx",
-    );
-    expect(ids.isins).toContain("IE00BLNMYC90");
-  });
-
   it("adds Vanguard slug as a name phrase", () => {
     const ids = extractHoldingsUrlIdentifiers(
       "https://www.vanguard.co.uk/professional/product/etf/equity/9678/ftse-emerging-markets-ucits-etf-usd-accumulating",

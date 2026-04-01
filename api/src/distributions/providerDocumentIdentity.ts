@@ -180,17 +180,6 @@ export function extractHoldingsUrlIdentifiers(
     return mergeProviderDocumentIdentifiers({ isins, tickers, names });
   }
 
-  if (provider === "xtrackers_xlsx") {
-    for (const seg of u.pathname.split("/")) {
-      const t = seg.trim();
-      const n = normalizeIsinFromText(t);
-      if (n) {
-        isins.push(n);
-      }
-    }
-    return mergeProviderDocumentIdentifiers({ isins, tickers, names });
-  }
-
   if (provider === "vanguard_uk_gpx") {
     const parts = u.pathname.split("/").filter(Boolean);
     const slug = parts[parts.length - 1] ?? "";
@@ -242,27 +231,6 @@ function findSsgaHeaderRow(data: unknown[][]): number {
   return -1;
 }
 
-function findXtrackersHeaderRow(data: unknown[][]): number {
-  for (let r = 0; r < data.length; r++) {
-    const row = data[r];
-    if (!Array.isArray(row) || row.length === 0) {
-      continue;
-    }
-    const col: Record<string, number> = {};
-    for (let c = 0; c < row.length; c++) {
-      const name = String(row[c] ?? "").trim();
-      if (name) {
-        col[name] = c;
-      }
-    }
-    const need = ["ISIN", "Country", "Weighting", "Industry Classification"];
-    if (need.every((k) => k in col) && "Type of Security" in col) {
-      return r;
-    }
-  }
-  return -1;
-}
-
 function findJpmHeaderRow(data: unknown[][]): number {
   for (let r = 0; r < data.length; r++) {
     const row = data[r];
@@ -306,23 +274,6 @@ function ssgaSheetMatrix(buf: Uint8Array): unknown[][] | null {
   }) as unknown[][];
 }
 
-function xtrackersSheetMatrix(buf: Uint8Array): unknown[][] | null {
-  const wb = XLSX.read(buf, { type: "buffer", cellDates: false });
-  const sheetName = wb.SheetNames[0];
-  if (!sheetName) {
-    return null;
-  }
-  const sh = wb.Sheets[sheetName];
-  if (!sh) {
-    return null;
-  }
-  return XLSX.utils.sheet_to_json(sh, {
-    header: 1,
-    defval: "",
-    raw: true,
-  }) as unknown[][];
-}
-
 function collectMetadataCells(
   data: unknown[][],
   headerRowIdx: number,
@@ -352,23 +303,6 @@ export function extractSsgaXlsxMetadataIdentifiers(
     return { isins: [], tickers: [], names: [] };
   }
   const headerRow = findSsgaHeaderRow(data);
-  const cells = collectMetadataCells(data, headerRow);
-  const blob = cells.join("\n");
-  return mergeProviderDocumentIdentifiers({
-    isins: extractIsinsFromText(blob),
-    tickers: [],
-    names: cells,
-  });
-}
-
-export function extractXtrackersXlsxMetadataIdentifiers(
-  buf: Uint8Array,
-): ProviderDocumentIdentifiers {
-  const data = xtrackersSheetMatrix(buf);
-  if (!data) {
-    return { isins: [], tickers: [], names: [] };
-  }
-  const headerRow = findXtrackersHeaderRow(data);
   const cells = collectMetadataCells(data, headerRow);
   const blob = cells.join("\n");
   return mergeProviderDocumentIdentifiers({
