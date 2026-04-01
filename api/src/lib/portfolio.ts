@@ -8,6 +8,7 @@ import {
   type DistributionPayload,
   MIN_PORTFOLIO_ALLOCATION_FRACTION,
   aggregateRegionsToGeoBuckets,
+  instrumentTickerDisplay,
   resolveRegionKeyToIso,
 } from "@investments/lib";
 import { eq, inArray } from "drizzle-orm";
@@ -27,9 +28,23 @@ const UNMAPPED_COUNTRY_ISO = "__unmapped__";
 type TopHoldingRow = {
   instrumentId: number;
   displayName: string;
+  /** Yahoo symbol for ETF/stock; null when not applicable (same rules as list ticker column). */
+  tickerSymbol: string | null;
   /** Share of this bucket (0–1) from this holding. */
   pctOfBucket: number;
 };
+
+function tickerSymbolForTopHolding(inst: {
+  kind: string;
+  yahooSymbol: string | null;
+  seligsonFundId: number | null;
+}): string | null {
+  return instrumentTickerDisplay({
+    kind: inst.kind,
+    yahooSymbol: inst.yahooSymbol,
+    seligsonFund: inst.seligsonFundId != null ? { fid: 0 } : null,
+  });
+}
 
 type ContribMap = Map<string, Map<number, number>>;
 
@@ -104,6 +119,7 @@ function addContrib(
 function top5FromContribMap(
   inner: Map<number, number> | undefined,
   idToName: Map<number, string>,
+  idToTicker: Map<number, string | null>,
 ): TopHoldingRow[] {
   if (!inner || inner.size === 0) {
     return [];
@@ -112,6 +128,7 @@ function top5FromContribMap(
   const rows = [...inner.entries()].map(([instrumentId, amt]) => ({
     instrumentId,
     displayName: idToName.get(instrumentId) ?? "?",
+    tickerSymbol: idToTicker.get(instrumentId) ?? null,
     pctOfBucket: total >= MIN_PORTFOLIO_ALLOCATION_FRACTION ? amt / total : 0,
   }));
   rows.sort((a, b) => b.pctOfBucket - a.pctOfBucket);
@@ -121,10 +138,11 @@ function top5FromContribMap(
 function contribMapToTopRecord(
   map: ContribMap,
   idToName: Map<number, string>,
+  idToTicker: Map<number, string | null>,
 ): Record<string, TopHoldingRow[]> {
   const out: Record<string, TopHoldingRow[]> = {};
   for (const [bucketKey, inner] of map.entries()) {
-    const top = top5FromContribMap(inner, idToName);
+    const top = top5FromContribMap(inner, idToName, idToTicker);
     if (top.length > 0) {
       out[bucketKey] = top;
     }
@@ -478,6 +496,9 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   const idToName = new Map<number, string>(
     valued.map((r) => [r.inst.id, r.inst.displayName] as const),
   );
+  const idToTicker = new Map<number, string | null>(
+    valued.map((r) => [r.inst.id, tickerSymbolForTopHolding(r.inst)] as const),
+  );
 
   const countriesForResponse = filterWeightsByMinFraction(countryWeights);
   const sectorsForResponse = filterWeightsByMinFraction(sectors);
@@ -504,9 +525,9 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     bondMix: computeBondMix(sectorsForResponse),
     positions,
     bucketTopHoldings: {
-      regions: contribMapToTopRecord(regionContrib, idToName),
-      sectors: contribMapToTopRecord(sectorContrib, idToName),
-      countries: contribMapToTopRecord(countryContrib, idToName),
+      regions: contribMapToTopRecord(regionContrib, idToName, idToTicker),
+      sectors: contribMapToTopRecord(sectorContrib, idToName, idToTicker),
+      countries: contribMapToTopRecord(countryContrib, idToName, idToTicker),
     },
   };
 }

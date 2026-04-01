@@ -34,6 +34,14 @@ import type {
 import { formatToPercentage } from "../lib/numberFormat";
 import type { BucketTopHolding } from "../pages/home/types";
 
+function bucketHoldingLabel(h: BucketTopHolding): string {
+  const t = h.tickerSymbol?.trim();
+  if (t != null && t.length > 0 && t !== "-") {
+    return `${h.displayName} (${t})`;
+  }
+  return h.displayName;
+}
+
 type DistributionBarChartTooltipProps = ComponentProps<typeof Tooltip>;
 
 /** Tweak bar-chart tooltip appearance here (merged with props from callers). */
@@ -162,7 +170,7 @@ export function createDistributionBarTooltipContent(options: {
             {topHoldings.map((h) => (
               <li key={h.instrumentId} className="tabular-nums">
                 <span className="font-medium text-slate-700">
-                  {h.displayName}
+                  {bucketHoldingLabel(h)}
                 </span>{" "}
                 {formatToPercentage(h.pctOfBucket)}
               </li>
@@ -197,7 +205,7 @@ export function createDistributionBarTooltipContent(options: {
                 {(topPrimary ?? []).map((h) => (
                   <li key={h.instrumentId} className="tabular-nums">
                     <span className="font-medium text-slate-700">
-                      {h.displayName}
+                      {bucketHoldingLabel(h)}
                     </span>{" "}
                     {formatToPercentage(h.pctOfBucket)}
                   </li>
@@ -224,7 +232,7 @@ export function createDistributionBarTooltipContent(options: {
                 {(topCompare ?? []).map((h) => (
                   <li key={h.instrumentId} className="tabular-nums">
                     <span className="font-medium text-slate-700">
-                      {h.displayName}
+                      {bucketHoldingLabel(h)}
                     </span>{" "}
                     {formatToPercentage(h.pctOfBucket)}
                   </li>

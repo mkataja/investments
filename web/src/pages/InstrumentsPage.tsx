@@ -312,8 +312,7 @@ export function InstrumentsPage() {
             </thead>
             <tbody>
               {sortedRows.map((i) => {
-                const rowRefreshing =
-                  refreshingIds.has(i.id) || refreshingAll;
+                const rowRefreshing = refreshingIds.has(i.id) || refreshingAll;
                 const ticker = instrumentTickerDisplay(i);
                 return (
                   <tr

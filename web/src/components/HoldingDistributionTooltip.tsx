@@ -45,17 +45,17 @@ function HoldingDistributionTooltipBody(
     inst != null && (inst.kind === "etf" || inst.kind === "stock")
       ? instrumentTickerDisplay(inst)
       : null;
-  const showEquityTicker =
-    typeof equityTicker === "string" && equityTicker.trim().length > 0;
+  const tickerForParen =
+    typeof equityTicker === "string" &&
+    equityTicker.trim().length > 0 &&
+    equityTicker !== "-"
+      ? equityTicker.trim()
+      : null;
+  const title = tickerForParen != null ? `${name} (${tickerForParen})` : name;
 
   const heading = (
     <div className="mb-2 border-b border-slate-200 pb-2 font-sans">
-      <p className="font-bold text-slate-900 text-md leading-snug">{name}</p>
-      {showEquityTicker ? (
-        <p className="text-xs text-slate-600 tabular-nums mt-0.5">
-          {equityTicker}
-        </p>
-      ) : null}
+      <p className="font-bold text-slate-900 text-md leading-snug">{title}</p>
     </div>
   );
 

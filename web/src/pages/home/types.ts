@@ -46,6 +46,8 @@ export type PortfolioEntity = {
 export type BucketTopHolding = {
   instrumentId: number;
   displayName: string;
+  /** Yahoo symbol for ETF/stock when applicable; null otherwise. */
+  tickerSymbol: string | null;
   /** Share of this bucket (0–1) from this holding. */
   pctOfBucket: number;
 };
