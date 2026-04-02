@@ -7,7 +7,7 @@
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "lint": "biome check .",
-    "ts-prune": "ts-prune --error -p api/tsconfig.json && ts-prune --error -p web/tsconfig.json",
+    "ts-prune": "ts-prune --error -p api/tsconfig.json && ts-prune --error -p web/tsconfig.json && ts-prune --error -p tsconfig.lib-prune.json -i '^(api|web|db)/'",
     "lint:fix": "biome check --write --unsafe .",
     "format": "biome check --write .",
     "dev": "concurrently -n api,web -c blue,green \"pnpm --filter @investments/api dev\" \"pnpm --filter @investments/web dev\"",
