@@ -1,7 +1,7 @@
 import type { ChartOptions } from "chart.js";
 
 /** Minimum arc per non-zero pie slice (Chart.js has no built-in; see adjustPieValuesForMinAngleDegrees). */
-export const PORTFOLIO_PIE_MIN_SLICE_DEGREES = 6;
+export const PORTFOLIO_PIE_MIN_SLICE_DEGREES = 3;
 
 export const PORTFOLIO_COMPARE_DOUGHNUT_CUTOUT = "40%";
 
