@@ -5,6 +5,7 @@ export const INSTRUMENT_KINDS = [
   "etf",
   "stock",
   "commodity",
+  "fx",
   "custom",
   "cash_account",
 ] as const;
@@ -15,6 +16,7 @@ export const INSTRUMENT_KIND_DISPLAY: Record<InstrumentKind, string> = {
   etf: "ETF",
   stock: "Stock",
   commodity: "Commodity",
+  fx: "FX",
   custom: "Seligson",
   cash_account: "Cash",
 };
@@ -57,7 +59,12 @@ export function instrumentTickerDisplay(row: {
   yahooSymbol: string | null;
   seligsonFund: { fid: number } | null;
 }): string | null {
-  if (row.kind === "etf" || row.kind === "stock" || row.kind === "commodity") {
+  if (
+    row.kind === "etf" ||
+    row.kind === "stock" ||
+    row.kind === "commodity" ||
+    row.kind === "fx"
+  ) {
     return row.yahooSymbol;
   }
   if (row.kind === "custom" && row.seligsonFund) {

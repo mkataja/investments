@@ -3,6 +3,7 @@ export * from "./commodity.js";
 export * from "./brokerInstrumentRules.js";
 export * from "./brokerTypes.js";
 export * from "./currencies.js";
+export * from "./fxYahooEurLeg.js";
 export * from "./distribution/sectorIds.js";
 export * from "./distributionPayload.js";
 export * from "./geo/index.js";
