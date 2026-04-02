@@ -497,7 +497,6 @@ const transactionIn = z.object({
   quantity: z.string().or(z.number()),
   unitPrice: z.string().or(z.number()),
   currency: z.string().min(3).max(3),
-  unitPriceEur: z.string().or(z.number()).optional(),
 });
 
 app.get("/transactions", async (c) => {
@@ -590,8 +589,6 @@ app.post("/transactions", zValidator("json", transactionIn), async (c) => {
       quantity: String(body.quantity),
       unitPrice: String(body.unitPrice),
       currency: body.currency.toUpperCase(),
-      unitPriceEur:
-        body.unitPriceEur != null ? String(body.unitPriceEur) : undefined,
     })
     .returning();
   if (row) {
@@ -675,10 +672,6 @@ app.patch("/transactions/:id", zValidator("json", transactionIn), async (c) => {
       400,
     );
   }
-  const unitPriceEurValue =
-    body.unitPriceEur != null && String(body.unitPriceEur).trim() !== ""
-      ? String(body.unitPriceEur)
-      : null;
   const [row] = await db
     .update(transactions)
     .set({
@@ -690,7 +683,6 @@ app.patch("/transactions/:id", zValidator("json", transactionIn), async (c) => {
       quantity: String(body.quantity),
       unitPrice: String(body.unitPrice),
       currency: body.currency.toUpperCase(),
-      unitPriceEur: unitPriceEurValue,
     })
     .where(eq(transactions.id, id))
     .returning();
@@ -893,7 +885,6 @@ app.post("/import/degiro", async (c) => {
       quantity: r.quantity,
       unitPrice: r.unitPrice,
       currency: r.currency,
-      unitPriceEur: r.unitPriceEur,
       externalSource: DEGIRO_CSV_EXTERNAL_SOURCE,
       externalId: r.externalId,
     };
@@ -917,7 +908,6 @@ app.post("/import/degiro", async (c) => {
         quantity: sql`excluded.quantity`,
         unitPrice: sql`excluded.unit_price`,
         currency: sql`excluded.currency`,
-        unitPriceEur: sql`excluded.unit_price_eur`,
       },
       setWhere: sql`(
         ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
@@ -926,7 +916,6 @@ app.post("/import/degiro", async (c) => {
         OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
         OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
         OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
-        OR ${transactions.unitPriceEur} IS DISTINCT FROM ${sql.raw("excluded.unit_price_eur")}
         OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
       )`,
     })
@@ -1041,7 +1030,6 @@ app.post("/import/ibkr", async (c) => {
       quantity: r.quantity,
       unitPrice: r.unitPrice,
       currency: r.currency,
-      unitPriceEur: r.unitPriceEur,
       externalSource: IBKR_CSV_EXTERNAL_SOURCE,
       externalId: r.externalId,
     };
@@ -1065,7 +1053,6 @@ app.post("/import/ibkr", async (c) => {
         quantity: sql`excluded.quantity`,
         unitPrice: sql`excluded.unit_price`,
         currency: sql`excluded.currency`,
-        unitPriceEur: sql`excluded.unit_price_eur`,
       },
       setWhere: sql`(
         ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
@@ -1074,7 +1061,6 @@ app.post("/import/ibkr", async (c) => {
         OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
         OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
         OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
-        OR ${transactions.unitPriceEur} IS DISTINCT FROM ${sql.raw("excluded.unit_price_eur")}
         OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
       )`,
     })
@@ -1256,7 +1242,6 @@ app.post("/import/seligson", async (c) => {
       quantity: r.quantity,
       unitPrice: r.unitPrice,
       currency: r.currency,
-      unitPriceEur: r.unitPriceEur,
       externalSource: SELIGSON_TSV_EXTERNAL_SOURCE,
       externalId: r.externalId,
     };
@@ -1280,7 +1265,6 @@ app.post("/import/seligson", async (c) => {
         quantity: sql`excluded.quantity`,
         unitPrice: sql`excluded.unit_price`,
         currency: sql`excluded.currency`,
-        unitPriceEur: sql`excluded.unit_price_eur`,
       },
       setWhere: sql`(
         ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
@@ -1289,7 +1273,6 @@ app.post("/import/seligson", async (c) => {
         OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
         OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
         OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
-        OR ${transactions.unitPriceEur} IS DISTINCT FROM ${sql.raw("excluded.unit_price_eur")}
         OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
       )`,
     })

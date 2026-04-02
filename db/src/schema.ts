@@ -301,7 +301,6 @@ export const transactions = pgTable(
     quantity: numeric("quantity", { precision: 24, scale: 8 }).notNull(),
     unitPrice: numeric("unit_price", { precision: 24, scale: 8 }).notNull(),
     currency: text("currency").notNull(),
-    unitPriceEur: numeric("unit_price_eur", { precision: 24, scale: 8 }),
     /** Import source label, e.g. `degiro_csv`. Null for manually entered rows. */
     externalSource: text("external_source"),
     /** Stable id within `external_source` (e.g. row fingerprint). Null for manual rows. */

@@ -11,9 +11,6 @@ import {
 
 export const IBKR_CSV_EXTERNAL_SOURCE = "ibkr_csv" as const;
 
-/** Matches `api/src/lib/valuation.ts` stub for non-EUR until persisted FX. */
-const STUB_EUR_PER_USD = 0.92;
-
 type IbkrParsedRow = {
   tradeDate: string;
   /** IBKR ticker as in the CSV (before Yahoo normalization). */
@@ -24,7 +21,6 @@ type IbkrParsedRow = {
   quantity: string;
   unitPrice: string;
   currency: string;
-  unitPriceEur: string;
   /** Stable upsert key: sha256 of canonical fields (see builders below). */
   externalId: string;
 };
@@ -68,20 +64,6 @@ function formatPlainDecimal(n: number): string {
   let out = n.toFixed(12);
   out = out.replace(/\.?0+$/, "");
   return out === "" ? "0" : out;
-}
-
-function ibkrUnitPriceToEurStub(
-  unitPriceNum: number,
-  currency: string,
-): string {
-  const c = currency.toUpperCase();
-  if (c === "EUR") {
-    return formatPlainDecimal(unitPriceNum);
-  }
-  if (c === "USD") {
-    return formatPlainDecimal(unitPriceNum * STUB_EUR_PER_USD);
-  }
-  return formatPlainDecimal(unitPriceNum);
 }
 
 /** `2026-03-27 11:51:58 EDT` → calendar ISO (time zone name is ignored). */
@@ -311,10 +293,6 @@ function parseIbkrFlatActivityCsv(records: string[][]): ParseIbkrCsvResult {
     const quantityAbs = Math.abs(qtyNum);
     const quantity = formatPlainDecimal(quantityAbs);
     const unitPrice = formatPlainDecimal(Math.abs(priceNum));
-    const unitPriceEur = ibkrUnitPriceToEurStub(
-      Number.parseFloat(unitPrice),
-      currency,
-    );
 
     const isin = normalizeIbkrIsin(isinRaw);
 
@@ -334,7 +312,6 @@ function parseIbkrFlatActivityCsv(records: string[][]): ParseIbkrCsvResult {
       quantity,
       unitPrice,
       currency,
-      unitPriceEur,
       externalId,
     });
   }
@@ -450,10 +427,6 @@ function parseIbkrFlatTradesCsv(records: string[][]): ParseIbkrCsvResult {
     const quantityAbs = Math.abs(qtyNum);
     const quantity = formatPlainDecimal(quantityAbs);
     const unitPrice = formatPlainDecimal(Math.abs(priceNum));
-    const unitPriceEur = ibkrUnitPriceToEurStub(
-      Number.parseFloat(unitPrice),
-      currency,
-    );
 
     const isin = normalizeIbkrIsin(isinRaw);
 
@@ -473,7 +446,6 @@ function parseIbkrFlatTradesCsv(records: string[][]): ParseIbkrCsvResult {
       quantity,
       unitPrice,
       currency,
-      unitPriceEur,
       externalId,
     });
   }

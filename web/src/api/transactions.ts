@@ -12,7 +12,6 @@ type TransactionMutationInput = {
   side: "buy" | "sell";
   quantity: string;
   unitPrice: string;
-  unitPriceEur: string;
 };
 
 export function buildTransactionMutationBody(
@@ -35,9 +34,6 @@ export function buildTransactionMutationBody(
     body.side = input.side;
     body.quantity = input.quantity;
     body.unitPrice = input.unitPrice;
-    if (input.unitPriceEur) {
-      body.unitPriceEur = input.unitPriceEur;
-    }
   }
   return body;
 }

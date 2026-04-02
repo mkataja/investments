@@ -186,7 +186,6 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   regions: Record<string, number>;
   sectors: Record<string, number>;
   totalValueEur: number;
-  mixedCurrencyWarning: boolean;
   /** Sum of (position EUR − embedded fund cash) for non–`cash_account` holdings. */
   nonCashPrincipalEur: number;
   /** Embedded cash from ETF/fund sector weights (`sectors.cash` × position value). */
@@ -277,7 +276,6 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
         regions: {},
         sectors: {},
         totalValueEur: 0,
-        mixedCurrencyWarning: false,
         ...emptyDistributions(),
         positions: [],
         bucketTopHoldings: { regions: {}, sectors: {}, countries: {} },
@@ -292,7 +290,6 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
         regions: {},
         sectors: {},
         totalValueEur: 0,
-        mixedCurrencyWarning: false,
         ...emptyDistributions(),
         positions: [],
         bucketTopHoldings: { regions: {}, sectors: {}, countries: {} },
@@ -334,7 +331,6 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   }
 
   const totalValueEur = valued.reduce((s, x) => s + x.valueEur, 0);
-  const mixedCurrencyWarning = false;
 
   const yahooInstrumentIds = [
     ...new Set(
@@ -559,7 +555,6 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     regions: regionsBucketed,
     sectors: sectorsForResponse,
     totalValueEur,
-    mixedCurrencyWarning,
     nonCashPrincipalEur,
     cashInFundsEur,
     cashExcessEur,

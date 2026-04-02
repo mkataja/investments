@@ -39,7 +39,6 @@ type EditTransactionSource = {
   quantity: string;
   unitPrice: string;
   currency: string;
-  unitPriceEur?: string | null;
 };
 
 type TxnFormState = {
@@ -50,7 +49,6 @@ type TxnFormState = {
   quantity: string;
   unitPrice: string;
   currency: string;
-  unitPriceEur: string;
 };
 
 function buildTxnForm(
@@ -66,7 +64,6 @@ function buildTxnForm(
       quantity: edit.quantity,
       unitPrice: edit.unitPrice,
       currency: edit.currency.trim().toUpperCase(),
-      unitPriceEur: edit.unitPriceEur?.trim() ?? "",
     };
   }
   return {
@@ -77,7 +74,6 @@ function buildTxnForm(
     quantity: "1",
     unitPrice: "0",
     currency: "EUR",
-    unitPriceEur: "",
   };
 }
 
@@ -215,7 +211,6 @@ export function NewTransactionModal({
         side: txnForm.side,
         quantity: txnForm.quantity,
         unitPrice: txnForm.unitPrice,
-        unitPriceEur: txnForm.unitPriceEur,
       });
       if (editTransaction) {
         await apiPatch(`/transactions/${editTransaction.id}`, body);
@@ -411,16 +406,6 @@ export function NewTransactionModal({
                 value={txnForm.currency}
                 onChange={(e) =>
                   setTxnForm({ ...txnForm, currency: e.target.value })
-                }
-              />
-            </label>
-            <label className="block text-sm">
-              Unit price EUR (optional)
-              <input
-                className="form-control"
-                value={txnForm.unitPriceEur}
-                onChange={(e) =>
-                  setTxnForm({ ...txnForm, unitPriceEur: e.target.value })
                 }
               />
             </label>

@@ -86,7 +86,6 @@ describe("parseIbkrTransactionsCsv", () => {
     expect(spyi.quantity).toBe("50");
     expect(spyi.unitPrice).toBe("9.76");
     expect(spyi.currency).toBe("EUR");
-    expect(spyi.unitPriceEur).toBe("9.76");
   });
 });
 

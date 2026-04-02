@@ -176,7 +176,6 @@ type SeligsonParsedRow = {
   quantity: string;
   unitPrice: string;
   currency: string;
-  unitPriceEur: string;
   externalId: string;
 };
 
@@ -296,7 +295,6 @@ function tryParseSeligsonDataCells(
     quantity,
     unitPrice: unitPriceStr,
     currency: "EUR",
-    unitPriceEur: unitPriceStr,
     externalId,
   };
 }

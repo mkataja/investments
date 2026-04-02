@@ -31,7 +31,6 @@ export type HomeTransaction = {
   quantity: string;
   unitPrice: string;
   currency: string;
-  unitPriceEur?: string | null;
 };
 
 type PortfolioKind = "live" | "benchmark";
@@ -71,7 +70,6 @@ export type PortfolioDistributions = {
   regions: Record<string, number>;
   sectors: Record<string, number>;
   totalValueEur: number;
-  mixedCurrencyWarning: boolean;
   /** Sum of (position EUR − embedded fund cash) for non–cash-account holdings. */
   nonCashPrincipalEur: number;
   cashInFundsEur: number;

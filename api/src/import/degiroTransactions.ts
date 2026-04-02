@@ -89,7 +89,6 @@ export type DegiroParsedRow = {
   quantity: string;
   unitPrice: string;
   currency: string;
-  unitPriceEur: string;
   /**
    * Upsert key: Degiro Order ID (lowercase UUID) when present; otherwise full-row sha256.
    */
@@ -360,7 +359,6 @@ function validateAndAggregateDegiroFills(
       quantity,
       unitPrice,
       currency: "EUR",
-      unitPriceEur: unitPrice,
       externalId,
     },
   };

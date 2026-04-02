@@ -51,11 +51,6 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
               EUR emergency fund)
             </>
           ) : null}
-          {portfolio.mixedCurrencyWarning && (
-            <span className="text-amber-700 ml-2">
-              Mixed-currency warning (see API).
-            </span>
-          )}
         </p>
       </div>
 
