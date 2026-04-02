@@ -19,6 +19,9 @@ export function useInstrumentsList() {
     () => new Set(),
   );
   const [refreshingAll, setRefreshingAll] = useState(false);
+  const [refreshingInstrumentId, setRefreshingInstrumentId] = useState<
+    number | null
+  >(null);
   const [refreshAllProgress, setRefreshAllProgress] = useState<{
     done: number;
     total: number;
@@ -89,7 +92,9 @@ export function useInstrumentsList() {
   );
 
   const refreshAllDistributions = useCallback(async () => {
-    const targets = rows.filter((r) => r.kind !== "cash_account");
+    const targets = rows.filter(
+      (r) => r.kind !== "cash_account" && r.kind !== "fx",
+    );
     if (targets.length === 0) {
       return;
     }
@@ -102,9 +107,11 @@ export function useInstrumentsList() {
     let skippedOther = 0;
     let skippedBackoff = 0;
     let failed = 0;
+    const failedDisplayNames: string[] = [];
     let firstFailure: string | null = null;
     try {
       for (const [idx, i] of targets.entries()) {
+        setRefreshingInstrumentId(i.id);
         if (isSkippedByRefreshAllBackoff(i)) {
           skippedBackoff += 1;
           setRefreshAllProgress({ done: idx + 1, total: targets.length });
@@ -124,6 +131,7 @@ export function useInstrumentsList() {
           }
         } catch (e) {
           failed += 1;
+          failedDisplayNames.push(i.displayName);
           if (firstFailure == null) {
             firstFailure = e instanceof Error ? e.message : String(e);
           }
@@ -147,8 +155,20 @@ export function useInstrumentsList() {
         parts.push(`${skippedOther} skipped`);
       }
       if (failed > 0) {
+        const maxNames = 12;
+        const shown = failedDisplayNames.slice(0, maxNames);
+        const nameSuffix =
+          failedDisplayNames.length > maxNames
+            ? `${shown.join(", ")} and ${failedDisplayNames.length - maxNames} more`
+            : shown.join(", ");
+        const errBit =
+          firstFailure != null
+            ? firstFailure.length > 120
+              ? `${firstFailure.slice(0, 117)}...`
+              : firstFailure
+            : "";
         parts.push(
-          `${failed} failed${firstFailure ? ` (${firstFailure.length > 120 ? `${firstFailure.slice(0, 117)}...` : firstFailure})` : ""}`,
+          `${failed} failed: ${nameSuffix}${errBit !== "" ? ` — ${errBit}` : ""}`,
         );
       }
       if (parts.length > 0) {
@@ -159,6 +179,7 @@ export function useInstrumentsList() {
     } finally {
       setRefreshingAll(false);
       setRefreshAllProgress(null);
+      setRefreshingInstrumentId(null);
     }
   }, [rows, load]);
 
@@ -248,7 +269,9 @@ export function useInstrumentsList() {
     }
   }, []);
 
-  const refreshableCount = rows.filter((r) => r.kind !== "cash_account").length;
+  const refreshableCount = rows.filter(
+    (r) => r.kind !== "cash_account" && r.kind !== "fx",
+  ).length;
 
   const yahooBackfillableCount = rows.filter(
     (r) =>
@@ -290,6 +313,7 @@ export function useInstrumentsList() {
     refreshingIds,
     refreshingAll,
     refreshAllProgress,
+    refreshingInstrumentId,
     backfillAllProgress,
     backfillingInstrumentId,
     deletingId,

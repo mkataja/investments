@@ -44,6 +44,8 @@ type InstrumentsTableProps = {
   error: string | null;
   refreshingIds: ReadonlySet<number>;
   refreshingAll: boolean;
+  /** Row currently receiving refresh-all distribution fetch (`null` when not running or between rows). */
+  refreshingInstrumentId: number | null;
   backfillingAll: boolean;
   /** Row currently receiving Yahoo chart backfill (`null` when not backfilling or between rows). */
   backfillingInstrumentId: number | null;
@@ -57,6 +59,7 @@ export function InstrumentsTable({
   error,
   refreshingIds,
   refreshingAll,
+  refreshingInstrumentId,
   backfillingAll,
   backfillingInstrumentId,
   deletingId,
@@ -85,7 +88,8 @@ export function InstrumentsTable({
         </thead>
         <tbody>
           {sortedRows.map((i) => {
-            const rowRefreshing = refreshingIds.has(i.id) || refreshingAll;
+            const rowRefreshing =
+              refreshingIds.has(i.id) || refreshingInstrumentId === i.id;
             const rowBackfilling = backfillingInstrumentId === i.id;
             const ticker = instrumentTickerDisplay(i);
             return (

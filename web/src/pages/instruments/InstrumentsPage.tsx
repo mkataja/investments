@@ -13,6 +13,7 @@ export function InstrumentsPage() {
     refreshingIds,
     refreshingAll,
     refreshAllProgress,
+    refreshingInstrumentId,
     backfillAllProgress,
     deletingId,
     refreshableCount,
@@ -76,6 +77,7 @@ export function InstrumentsPage() {
           error={error}
           refreshingIds={refreshingIds}
           refreshingAll={refreshingAll}
+          refreshingInstrumentId={refreshingInstrumentId}
           backfillingAll={backfillingAll}
           backfillingInstrumentId={backfillingInstrumentId}
           deletingId={deletingId}
