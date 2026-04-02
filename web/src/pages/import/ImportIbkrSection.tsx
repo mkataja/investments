@@ -47,7 +47,8 @@ export function ImportIbkrSection({
             Use for importing all <strong className="font-medium">past</strong>{" "}
             trades; does not include same-day fills. Includes max 365 days per
             export — you can import multiple exports to cover longer periods.
-            Required columns:{" "}
+            Create an Active Flex Query with a <code>Trades</code> section and
+            the following columns in it:{" "}
             <code>
               ClientAccountID, DateTime, Symbol, ISIN, Exchange,
               TransactionType, Quantity, TradePrice, CurrencyPrimary
@@ -62,10 +63,11 @@ export function ImportIbkrSection({
           <p className="mt-1">
             Same-day fills only. Use to update{" "}
             <strong className="font-medium">today&apos;s</strong> trades not yet
-            included in the above Active Flex Query. Required columns:{" "}
+            included in the above Active Flex Query. Create a Trade Confirmation
+            Flex Query with the following columns:{" "}
             <code>
               ClientAccountID, Date/Time, Symbol, ISIN, Exchange, Buy/Sell,
-              Quantity, Price, CurrencyPrimary
+              Quantity, Price, Currency
             </code>
             .
           </p>
