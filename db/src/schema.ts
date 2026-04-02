@@ -128,7 +128,7 @@ export const instruments = pgTable(
       () => seligsonFunds.id,
     ),
     /**
-     * Required for `custom` (e.g. Seligson) and `cash_account`; null for `etf`/`stock`/`commodity`.
+     * Required for `custom` (e.g. Seligson) and `cash_account`; null for `etf`/`stock`/`commodity`/`fx`.
      * See `instruments_broker_id_kind_ck`.
      */
     brokerId: integer("broker_id").references(() => brokers.id),
@@ -151,6 +151,10 @@ export const instruments = pgTable(
     commoditySector: text("commodity_sector"),
     /** Optional ISO 3166-1 alpha-2 storage location / vault country for `commodity`. */
     commodityCountryIso: text("commodity_country_iso"),
+    /**
+     * ISO 4217 code of the non-EUR leg when `kind` is `fx` (Yahoo cross to EUR). See `instruments_fx_cols_ck`.
+     */
+    fxForeignCurrency: text("fx_foreign_currency"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -166,9 +170,17 @@ export const instruments = pgTable(
     check(
       "instruments_broker_id_kind_ck",
       sql`(
-        (${t.kind} IN ('etf', 'stock', 'commodity') AND ${t.brokerId} IS NULL)
+        (${t.kind} IN ('etf', 'stock', 'commodity', 'fx') AND ${t.brokerId} IS NULL)
         OR
         (${t.kind} IN ('custom', 'cash_account') AND ${t.brokerId} IS NOT NULL)
+      )`,
+    ),
+    check(
+      "instruments_fx_cols_ck",
+      sql`(
+        (${t.kind} = 'fx' AND ${t.fxForeignCurrency} IS NOT NULL AND length(trim(${t.fxForeignCurrency})) > 0)
+        OR
+        (${t.kind} <> 'fx' AND ${t.fxForeignCurrency} IS NULL)
       )`,
     ),
     check(
@@ -183,6 +195,9 @@ export const instruments = pgTable(
     uniqueIndex("instruments_cash_account_display_name_uidx")
       .on(sql`lower(trim(${t.displayName}))`)
       .where(sql`${t.kind} = 'cash_account'`),
+    uniqueIndex("instruments_fx_foreign_currency_uidx")
+      .on(sql`upper(trim(${t.fxForeignCurrency}))`)
+      .where(sql`${t.kind} = 'fx'`),
     index("instruments_seligson_fund_id_idx").on(t.seligsonFundId),
     index("instruments_broker_id_idx").on(t.brokerId),
     index("instruments_isin_idx").on(t.isin),
@@ -480,6 +495,24 @@ export const prices = pgTable(
       .defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.instrumentId, t.priceDate] })],
+);
+
+/**
+ * Pending EUR cross fetches for non-EUR asset prices. Deduped by `(foreign_currency, price_date)`.
+ * Enqueued in the same transaction as the triggering `prices` row; drained after commit.
+ */
+export const fxBackfillQueue = pgTable(
+  "fx_backfill_queue",
+  {
+    foreignCurrency: text("foreign_currency").notNull(),
+    priceDate: date("price_date").notNull(),
+    priceType: priceTypeEnum("price_type").notNull(),
+    triggerFetchedAt: timestamp("trigger_fetched_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.foreignCurrency, t.priceDate] })],
 );
 
 export const seligsonFundValueCache = pgTable("seligson_fund_value_cache", {
