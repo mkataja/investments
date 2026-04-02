@@ -1,4 +1,4 @@
-import { Bar, Doughnut, Line, Pie } from "react-chartjs-2";
+import { Bar, Doughnut, Line } from "react-chartjs-2";
 import { classNames } from "../../../lib/css";
 import {
   type PortfolioChartsProps,
@@ -8,8 +8,6 @@ import {
 export function PortfolioCharts(props: PortfolioChartsProps) {
   const {
     portfolio,
-    comparePortfolio,
-    showDistributionCompare,
     countryChartContainerRef,
     countryChartYZoomed,
     assetMixPieData,
@@ -65,31 +63,17 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
             <div className="subsection-stack w-full">
               <h3>Asset mix</h3>
               <div className="h-48">
-                {showDistributionCompare && comparePortfolio ? (
-                  <Doughnut
-                    data={assetMixPieChartData}
-                    options={assetMixPieOptions}
-                  />
-                ) : (
-                  <Pie
-                    data={assetMixPieChartData}
-                    options={assetMixPieOptions}
-                  />
-                )}
+                <Doughnut
+                  data={assetMixPieChartData}
+                  options={assetMixPieOptions}
+                />
               </div>
             </div>
             {showBondMixSection ? (
               <div className="subsection-stack w-full">
                 <h3>Bond mix</h3>
                 <div className="h-48">
-                  {showDistributionCompare && comparePortfolio ? (
-                    <Doughnut
-                      data={bondPieChartData}
-                      options={bondPieOptions}
-                    />
-                  ) : (
-                    <Pie data={bondPieChartData} options={bondPieOptions} />
-                  )}
+                  <Doughnut data={bondPieChartData} options={bondPieOptions} />
                 </div>
               </div>
             ) : null}

@@ -191,9 +191,7 @@ export function usePortfolioPieCharts({
         },
       },
     };
-    if (showDistributionCompare && comparePortfolio) {
-      base.cutout = PORTFOLIO_COMPARE_DOUGHNUT_CUTOUT;
-    }
+    base.cutout = PORTFOLIO_COMPARE_DOUGHNUT_CUTOUT;
     return base;
   }, [
     assetMixPieTotalEur,
@@ -292,11 +290,9 @@ export function usePortfolioPieCharts({
         },
       },
     };
-    if (showDistributionCompare && comparePortfolio) {
-      base.cutout = PORTFOLIO_COMPARE_DOUGHNUT_CUTOUT;
-    }
+    base.cutout = PORTFOLIO_COMPARE_DOUGHNUT_CUTOUT;
     return base;
-  }, [showDistributionCompare, comparePortfolio]);
+  }, []);
 
   return {
     assetMixPieData,
