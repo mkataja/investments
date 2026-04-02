@@ -314,7 +314,7 @@ export async function postImportIbkr(c: Context) {
   const instRows = await db
     .select()
     .from(instruments)
-    .where(inArray(instruments.kind, ["etf", "stock", "custom"]));
+    .where(inArray(instruments.kind, ["etf", "stock", "custom", "commodity"]));
 
   const resolved = resolveIbkrInstrumentRows(
     parsed.rows.map((r) => ({ symbolRaw: r.symbolRaw, isin: r.isin })),

@@ -4,10 +4,11 @@ import { resolveIbkrInstrumentRows } from "./ibkrResolveInstruments.js";
 
 function row(
   id: number,
-  kind: "etf" | "stock",
+  kind: "etf" | "stock" | "commodity",
   yahooSymbol: string | null,
   isin: string | null,
 ): InstrumentRow {
+  const isCommodity = kind === "commodity";
   return {
     id,
     kind,
@@ -21,8 +22,8 @@ function row(
     cashInterestType: null,
     holdingsDistributionUrl: null,
     providerBreakdownDataUrl: null,
-    commoditySector: null,
-    commodityCountryIso: null,
+    commoditySector: isCommodity ? "gold" : null,
+    commodityCountryIso: isCommodity ? "DE" : null,
     fxForeignCurrency: null,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -83,6 +84,29 @@ describe("resolveIbkrInstrumentRows", () => {
       return;
     }
     expect(r.instrumentIds).toEqual([1]);
+  });
+
+  it("resolves commodity instruments (e.g. gold ETC) by ISIN or Yahoo listing", () => {
+    const instRows = [row(1, "commodity", "4GLD.DE", "DE000A0S9GB0")];
+    const byIsin = resolveIbkrInstrumentRows(
+      [{ symbolRaw: "4GLD", isin: "DE000A0S9GB0" }],
+      instRows,
+    );
+    expect(byIsin.ok).toBe(true);
+    if (!byIsin.ok) {
+      return;
+    }
+    expect(byIsin.instrumentIds).toEqual([1]);
+
+    const byPrefix = resolveIbkrInstrumentRows(
+      [{ symbolRaw: "4GLD", isin: null }],
+      instRows,
+    );
+    expect(byPrefix.ok).toBe(true);
+    if (!byPrefix.ok) {
+      return;
+    }
+    expect(byPrefix.instrumentIds).toEqual([1]);
   });
 
   it("reports ambiguous ISIN", () => {
