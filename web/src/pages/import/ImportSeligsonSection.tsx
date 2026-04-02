@@ -55,11 +55,11 @@ export function ImportSeligsonSection({
           >
             <em>Oma Salkku</em> → <em>Tapahtumat</em>
           </a>
-          , copy the full table from the header row through the summary row. If
-          needed, change the page size from 25 to all items so nothing is
-          missing. Paste it into the field below via{" "}
-          <span className="font-medium">Paste here...</span>, or alternatively
-          save the same content as a{" "}
+          , pick the dates you want to import, and copy the full table from the
+          header row through the summary row. If needed, change the page size
+          from 25 to all items so nothing is missing. Paste it into the field
+          below via <span className="font-medium">Paste here...</span>, or
+          alternatively save the same content as a{" "}
           <span className="font-medium">text file</span> and upload it. No extra
           formatting is required — paste as-is.
         </p>
