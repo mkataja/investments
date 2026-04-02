@@ -84,7 +84,7 @@ function AppShell() {
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <nav
         ref={navRef}
-        className="relative flex gap-2 border-b border-slate-200 bg-white px-4 sm:px-6"
+        className="sticky top-0 z-20 flex gap-2 border-b border-slate-200 bg-white px-4 sm:px-6"
       >
         {indicator != null && indicator.width > 0 && (
           <div

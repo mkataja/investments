@@ -44,9 +44,10 @@
   }
 
   /* Sticky page title bar (combine with `page-header-stack` or a flex title row). */
+  /* top-12: below app shell nav (sticky `App.tsx`). */
   .page-header-sticky {
     @apply sticky
-      top-0
+      top-12
       z-10
       border-b
       border-slate-200
