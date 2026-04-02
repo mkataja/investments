@@ -6,7 +6,7 @@ export type PortfolioChartsProps = {
   showDistributionCompare: boolean;
   selectedPortfolioLabel: string;
   comparePortfolioLabel: string;
-  /** Weekly POC series from `GET /portfolio/asset-mix-history`. */
+  /** Weekly series from `GET /portfolio/asset-mix-history`. */
   assetMixHistoryPoints: AssetMixHistoryPoint[];
   /** Labeled Y-axis ticks per distribution bar chart (including 0). Default 5. */
   distributionBarYAxisTickCount?: number;

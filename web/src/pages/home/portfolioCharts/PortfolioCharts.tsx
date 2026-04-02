@@ -104,10 +104,10 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
         </div>
         {props.assetMixHistoryPoints.length > 0 ? (
           <div className="subsection-stack w-full min-w-0">
-            <h3>Asset mix over time (POC)</h3>
+            <h3>Asset mix over time</h3>
             <p className="text-slate-600 text-sm mb-2">
-              Weekly equities vs cash in EUR (non–cash-account vs cash
-              positions). Series stops when a price is missing for a held
+              Weekly estimated EUR by sleeve (same breakdown as the asset mix
+              chart). Series stops when a price is missing for a held non-cash
               instrument.
             </p>
             <div className="w-full h-[448px] min-w-0">

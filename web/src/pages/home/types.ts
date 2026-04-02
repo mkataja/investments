@@ -47,14 +47,10 @@ export type PortfolioEntity = {
   updatedAt: string;
 };
 
-/** POC weekly series from `GET /portfolio/asset-mix-history`. */
+/** Weekly series from `GET /portfolio/asset-mix-history` (same sleeves as `assetMix`). */
 export type AssetMixHistoryPoint = {
   date: string;
-  /** Same equities sleeve as asset mix pie (excludes bonds and commodity sleeves from non-cash principal). */
-  equitiesEur: number;
-  /** Estimated EUR for `cash_account` positions. */
-  cashEur: number;
-};
+} & PortfolioDistributions["assetMix"];
 
 export type BucketTopHolding = {
   instrumentId: number;

@@ -154,11 +154,11 @@ function distributionMapForDate(
 type PortfolioRow = typeof portfolios.$inferSelect;
 
 /**
- * POC: weekly samples from first portfolio trade, plus a trailing point for **today** (UTC calendar)
- * when the weekly grid does not land on today. **equitiesEur** matches the asset mix pie (bonds and
- * commodity sleeves excluded from principal). **cashEur** = `cash_account` instruments only. Stops when
- * any non-cash position lacks a price on or before the date. Uses distribution snapshots with
- * `snapshot_date <= asOf` (same idea as latest price as-of).
+ * Weekly samples from first portfolio trade, plus a trailing point for **today** (UTC calendar)
+ * when the weekly grid does not land on today. Each point matches **asset mix** slices from
+ * `computeAssetMixEur` (same sleeves as the asset mix pie), including emergency fund split for cash
+ * in accounts. Stops when any non-cash position lacks a price on or before the date. Uses distribution
+ * snapshots with `snapshot_date <= asOf` (same idea as latest price as-of).
  *
  * Loads transactions once, walks dates in memory, and batches price and distribution queries.
  */
@@ -166,7 +166,16 @@ export async function getPortfolioAssetMixHistory(
   portfolioId: number,
   options?: { portfolio: PortfolioRow },
 ): Promise<{
-  points: Array<{ date: string; equitiesEur: number; cashEur: number }>;
+  points: Array<{
+    date: string;
+    equitiesEur: number;
+    bondsTotalEur: number;
+    commodityGoldEur: number;
+    commoditySilverEur: number;
+    commodityOtherEur: number;
+    cashInFundsEur: number;
+    cashExcessEur: number;
+  }>;
 }> {
   const pf =
     options?.portfolio ?? (await loadPortfolioOwnedByUser(portfolioId));
@@ -176,6 +185,11 @@ export async function getPortfolioAssetMixHistory(
   if (pf.kind === "benchmark") {
     return { points: [] };
   }
+
+  const emergencyFundTargetEurRaw = Number(pf.emergencyFundEur);
+  const emergencyFundTargetEur = Number.isFinite(emergencyFundTargetEurRaw)
+    ? emergencyFundTargetEurRaw
+    : 0;
 
   const txRows = await db
     .select({
@@ -235,8 +249,23 @@ export async function getPortfolioAssetMixHistory(
     ),
   ]);
 
-  const points: Array<{ date: string; equitiesEur: number; cashEur: number }> =
-    [];
+  const emptyMix = computeAssetMixEur({
+    nonCashPrincipalEur: 0,
+    mergedSectors: {},
+    cashInFundsEur: 0,
+    cashExcessEur: 0,
+  });
+
+  const points: Array<{
+    date: string;
+    equitiesEur: number;
+    bondsTotalEur: number;
+    commodityGoldEur: number;
+    commoditySilverEur: number;
+    commodityOtherEur: number;
+    cashInFundsEur: number;
+    cashExcessEur: number;
+  }> = [];
   const qty = new Map<number, number>();
   const txState = { i: 0 };
 
@@ -244,7 +273,7 @@ export async function getPortfolioAssetMixHistory(
     applyTransactionsUpTo(txRows, txState, qty, endOfUtcDay(d));
     const rows = positionRowsFromQty(qty, instrumentsById);
     if (rows.length === 0) {
-      points.push({ date: d, equitiesEur: 0, cashEur: 0 });
+      points.push({ date: d, ...emptyMix });
       continue;
     }
 
@@ -288,16 +317,16 @@ export async function getPortfolioAssetMixHistory(
     const distMap = distributionMapForDate(rows, distByInstrument, d);
     const { mergedSectors, nonCashPrincipalEur, cashInFundsEur } =
       buildMergedSectorsForAssetMix(valuedFull, distMap);
+    const cashExcessEur = Math.max(0, cashEur - emergencyFundTargetEur);
     const mix = computeAssetMixEur({
       nonCashPrincipalEur,
       mergedSectors,
       cashInFundsEur,
-      cashExcessEur: 0,
+      cashExcessEur,
     });
     points.push({
       date: d,
-      equitiesEur: mix.equitiesEur,
-      cashEur,
+      ...mix,
     });
   }
 
