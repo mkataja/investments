@@ -3,7 +3,10 @@ import { normalizeIsinForStorage } from "@investments/lib";
 import type { QuoteSummaryResult } from "yahoo-finance2/modules/quoteSummary-iface";
 import { calendarDateUtcFromInstant } from "../lib/calendarDateUtc.js";
 import { yahooFinance } from "../lib/yahooClient.js";
-import { withYahooRetries } from "../lib/yahooUpstream.js";
+import {
+  acquireYahooIntervalSlot,
+  withYahooRetries,
+} from "../lib/yahooUpstream.js";
 import {
   mapSectorLabelToCanonicalIdWithWarn,
   normalizeRegionWeightsToIsoKeys,
@@ -35,6 +38,7 @@ export type YahooQuoteSummaryRaw = QuoteSummaryResult;
 export async function fetchYahooQuoteSummaryRaw(
   symbol: string,
 ): Promise<YahooQuoteSummaryRaw> {
+  await acquireYahooIntervalSlot();
   return withYahooRetries(() =>
     yahooFinance.quoteSummary(symbol, { modules: [...MODULES] }),
   );

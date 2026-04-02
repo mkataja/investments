@@ -2,6 +2,8 @@ import { instruments, prices } from "@investments/db";
 import { and, eq } from "drizzle-orm";
 import type { DbOrTx } from "../db.js";
 import { calendarDateUtcFromInstant } from "./calendarDateUtc.js";
+import { processFxBackfillQueue } from "./fxEurPriceBackfill.js";
+import { upsertPriceForDate } from "./priceDistributionWrite.js";
 
 type TxnRow = {
   instrumentId: number;
@@ -33,7 +35,7 @@ async function seedIntradayPriceFromTransactionIfMissing(
   if (existing) {
     return;
   }
-  await d.insert(prices).values({
+  await upsertPriceForDate(d, {
     instrumentId: txn.instrumentId,
     priceDate,
     quotedPrice: String(txn.unitPrice),
@@ -58,4 +60,5 @@ export async function seedIntradayPriceForInstrumentIfMissing(
     return;
   }
   await seedIntradayPriceFromTransactionIfMissing(d, txn, inst.kind);
+  await processFxBackfillQueue();
 }

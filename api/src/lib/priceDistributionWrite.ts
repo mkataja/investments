@@ -1,5 +1,11 @@
-import { distributions, prices } from "@investments/db";
+import {
+  distributions,
+  fxBackfillQueue,
+  instruments,
+  prices,
+} from "@investments/db";
 import type { DistributionPayload } from "@investments/lib";
+import { fxYahooPairConfigForForeign } from "@investments/lib";
 import { and, eq, sql } from "drizzle-orm";
 import type { DbOrTx } from "../db.js";
 
@@ -50,6 +56,8 @@ export async function upsertPriceForDate(
     fetchedAt: Date;
     source: string;
     priceType: PriceType;
+    /** When true, do not enqueue `fx_backfill_queue` (fx EUR legs and internal writes). */
+    skipFxEnqueue?: boolean;
   },
 ): Promise<void> {
   await d
@@ -74,6 +82,36 @@ export async function upsertPriceForDate(
         updatedAt: new Date(),
       },
       setWhere: sql`NOT (${prices.priceType} = 'close' AND excluded.price_type = 'intraday'::price_type)`,
+    });
+
+  if (input.skipFxEnqueue) {
+    return;
+  }
+  const foreign = input.currency.trim().toUpperCase();
+  if (foreign === "EUR") {
+    return;
+  }
+  if (!fxYahooPairConfigForForeign(foreign)) {
+    return;
+  }
+  const [inst] = await d
+    .select({ kind: instruments.kind })
+    .from(instruments)
+    .where(eq(instruments.id, input.instrumentId))
+    .limit(1);
+  if (!inst || inst.kind === "fx") {
+    return;
+  }
+  await d
+    .insert(fxBackfillQueue)
+    .values({
+      foreignCurrency: foreign,
+      priceDate: input.priceDate,
+      priceType: input.priceType,
+      triggerFetchedAt: input.fetchedAt,
+    })
+    .onConflictDoNothing({
+      target: [fxBackfillQueue.foreignCurrency, fxBackfillQueue.priceDate],
     });
 }
 

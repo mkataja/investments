@@ -10,6 +10,7 @@ import {
   normalizeSeligsonFundNameForMatch,
   parseSeligsonTradeDateDMY,
 } from "../import/seligsonTransactions.js";
+import { processFxBackfillQueue } from "../lib/fxEurPriceBackfill.js";
 import { upsertPriceForDate } from "../lib/priceDistributionWrite.js";
 
 const FUND_VALUES_URL =
@@ -208,4 +209,5 @@ export async function upsertSeligsonFundValuesFromPage(
       });
     }
   }
+  await processFxBackfillQueue();
 }

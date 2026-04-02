@@ -22,6 +22,7 @@ import {
 } from "./portfolioAssetMix.js";
 import {
   type InstrumentRow,
+  buildFxEurPerUnitMapAsOf,
   valuePortfolioRowsFromPriceMap,
 } from "./valuation.js";
 
@@ -202,6 +203,16 @@ export async function getPortfolioAssetMixHistory(
 
   const maxDate = candidateDates.reduce((a, b) => (a > b ? a : b));
 
+  const fxInstRows = await db
+    .select()
+    .from(instruments)
+    .where(eq(instruments.kind, "fx"));
+  const fxIds = fxInstRows.map((i) => i.id);
+  const fxPricesByInstrument =
+    fxIds.length > 0
+      ? await loadPriceRowsByInstrumentIdsUpToDate(db, fxIds, maxDate)
+      : new Map<number, InferSelectModel<typeof prices>[]>();
+
   const instrumentIds = [...new Set(txRows.map((t) => t.instrumentId))];
   const instRows = await db
     .select()
@@ -238,7 +249,16 @@ export async function getPortfolioAssetMixHistory(
     }
 
     const priceMap = priceMapForDate(rows, pricesByInstrument, d);
-    const valuedResults = valuePortfolioRowsFromPriceMap(rows, priceMap);
+    const eurPerUnit = buildFxEurPerUnitMapAsOf(
+      fxInstRows,
+      fxPricesByInstrument,
+      d,
+    );
+    const valuedResults = valuePortfolioRowsFromPriceMap(
+      rows,
+      priceMap,
+      eurPerUnit,
+    );
 
     let cashEur = 0;
     let stop = false;

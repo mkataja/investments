@@ -47,6 +47,33 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Same default as `YAHOO_MIN_INTERVAL_MS` in `cacheRefresh` (ms between Yahoo calls). */
+export function yahooRefreshGapMs(): number {
+  const n = Number.parseInt(process.env.YAHOO_MIN_INTERVAL_MS ?? "900", 10);
+  return Number.isFinite(n) && n >= 0 ? n : 900;
+}
+
+let yahooIntervalChain: Promise<void> = Promise.resolve();
+let lastYahooCallMs = 0;
+
+/**
+ * Serializes Yahoo `quoteSummary` traffic and enforces a minimum gap between calls (equity + FX).
+ */
+export async function acquireYahooIntervalSlot(): Promise<void> {
+  const gap = yahooRefreshGapMs();
+  const run = async (): Promise<void> => {
+    const now = Date.now();
+    const wait = Math.max(0, lastYahooCallMs + gap - now);
+    if (wait > 0) {
+      await sleep(wait);
+    }
+    lastYahooCallMs = Date.now();
+  };
+  const next = yahooIntervalChain.then(run, run);
+  yahooIntervalChain = next.catch(() => {});
+  await next;
+}
+
 export async function withYahooRetries<T>(
   fn: () => Promise<T>,
   options?: { maxAttempts?: number },

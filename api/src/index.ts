@@ -35,6 +35,7 @@ import {
   lt,
   min,
   ne,
+  notInArray,
   sql,
 } from "drizzle-orm";
 import { Hono } from "hono";
@@ -84,6 +85,7 @@ import {
   insertCommodityFromYahoo,
   insertEtfStockFromYahoo,
 } from "./lib/createYahooInstrument.js";
+import { processFxBackfillQueue } from "./lib/fxEurPriceBackfill.js";
 import { loadLatestDistributionRowsByInstrumentIds } from "./lib/latestPriceDistribution.js";
 import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
@@ -1578,7 +1580,7 @@ async function loadInstrumentMatchCandidates(): Promise<
     })
     .from(instruments)
     .leftJoin(seligsonFunds, eq(instruments.seligsonFundId, seligsonFunds.id))
-    .where(ne(instruments.kind, "cash_account"));
+    .where(notInArray(instruments.kind, ["cash_account", "fx"]));
 
   return joined.map((r) => ({
     id: r.id,
@@ -2430,6 +2432,10 @@ const port = Number.parseInt(process.env.PORT ?? "3001", 10);
 
 async function start(): Promise<void> {
   await runDevMigrations();
+
+  void processFxBackfillQueue().catch((e) => {
+    console.error("fx_backfill_queue drain on startup", e);
+  });
 
   setImmediate(() => {
     void refreshStaleDistributionCaches();

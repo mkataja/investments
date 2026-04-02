@@ -23,6 +23,7 @@ function row(
     providerBreakdownDataUrl: null,
     commoditySector: null,
     commodityCountryIso: null,
+    fxForeignCurrency: null,
     createdAt: new Date(),
     updatedAt: new Date(),
   };

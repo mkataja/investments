@@ -69,20 +69,19 @@ import {
 } from "../distributions/yahoo.js";
 import { calendarDateUtcFromInstant } from "./calendarDateUtc.js";
 import { mergeCompositeDistributionPayload } from "./compositeDistribution.js";
+import { processFxBackfillQueue } from "./fxEurPriceBackfill.js";
 import { loadOpenPositionsAggregateForUser } from "./positions.js";
 import {
   upsertDistributionSnapshot,
   upsertPriceForDate,
 } from "./priceDistributionWrite.js";
 import { sectorRefreshStorage } from "./sectorRefreshContext.js";
-import { formatYahooUpstreamError } from "./yahooUpstream.js";
+import {
+  formatYahooUpstreamError,
+  yahooRefreshGapMs,
+} from "./yahooUpstream.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-function yahooRefreshGapMs(): number {
-  const n = Number.parseInt(process.env.YAHOO_MIN_INTERVAL_MS ?? "900", 10);
-  return Number.isFinite(n) && n >= 0 ? n : 900;
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -225,6 +224,7 @@ export async function writeYahooDistributionCache(
     raw,
     existingInstrumentIsin,
   );
+  await processFxBackfillQueue();
 }
 
 export async function upsertYahooPriceFromQuoteSummaryRaw(
@@ -250,6 +250,7 @@ export async function upsertYahooPriceFromQuoteSummaryRaw(
     raw,
     existingInstrumentIsin,
   );
+  await processFxBackfillQueue();
 }
 
 /** Yahoo price + quote cache; distribution from manual commodity sleeve and optional ISO country. */
@@ -313,6 +314,7 @@ export async function upsertCommodityCachesFromYahooRaw(
     raw,
     existingInstrumentIsin,
   );
+  await processFxBackfillQueue();
 }
 
 export async function writeProviderHoldingsDistributionCache(
@@ -1022,4 +1024,5 @@ export async function refreshStaleDistributionCaches(): Promise<void> {
       console.error(`distribution refresh failed for instrument ${inst.id}`, e);
     }
   }
+  await processFxBackfillQueue();
 }
