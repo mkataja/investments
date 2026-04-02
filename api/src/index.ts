@@ -109,6 +109,10 @@ import {
 import { formatYahooUpstreamError } from "./lib/yahooUpstream.js";
 import { runDevMigrations } from "./runDevMigrations.js";
 
+/**
+ * HTTP surface for this app: all routes register on `app` below.
+ * Document non-obvious request/response contracts in JSDoc on each handler (or the lib it delegates to), not in `docs/api.md`.
+ */
 const app = new Hono();
 
 const createDegiroInstrumentsSchema = z.array(

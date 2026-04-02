@@ -16,10 +16,10 @@ Multi-broker portfolio tracker: transactions per broker; positions from buy/sell
 | --- | --- |
 | Data pipelines (Yahoo, providers, Seligson, JPM, geo, cash in charts) | [`docs/data-sources.md`](docs/data-sources.md), [`docs/data-sources/`](docs/data-sources/) |
 | Packages, DB, caching, positions, benchmark portfolios | [`docs/architecture.md`](docs/architecture.md) |
-| Routes, imports, API shapes | [`docs/api.md`](docs/api.md) |
+| HTTP API entrypoint and where to document contracts | [`docs/api.md`](docs/api.md) |
 | Known gaps and "lightweight project management" | [`docs/TODO.md`](docs/TODO.md) |
 
-HTTP routes live in `api` only - they are not duplicated in any documentation.
+HTTP routes live in `api` code only. They are not to be listed in documentation; use JSDoc on handlers for documenting APIs if necessary.
 
 Data model lives in `db/src/schema.ts` (and migrations).
 

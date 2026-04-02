@@ -55,11 +55,11 @@ Set `VITE_API_URL` in `web` if the API is not on port 3001.
 - **Distributions** (country/sector weights per instrument) are cached in the DB; Yahoo `quoteSummary`, optional provider holdings files, and Seligson HTML each feed normalization in `api`. Portfolio-level charts merge weights by value.
 - `USER_ID` is a single hard-coded user in `@investments/lib` until auth exists.
 
-Reference: [`docs/architecture.md`](docs/architecture.md) (packages, infra, tables, caching), [`docs/data-sources.md`](docs/data-sources.md) (pipelines), [`docs/api.md`](docs/api.md) (imports and core HTTP behavior).
+Reference: [`docs/architecture.md`](docs/architecture.md) (packages, infra, tables, caching), [`docs/data-sources.md`](docs/data-sources.md) (pipelines), [`docs/api.md`](docs/api.md) (HTTP API — routes in code, contracts in JSDoc).
 
 ## API notes
 
-[`docs/api.md`](docs/api.md) describes imports, instruments, transactions, and portfolio responses — **not** every route; `api/src/index.ts` is the full list.
+Routes: [`api/src/index.ts`](api/src/index.ts). Prefer JSDoc on handlers for request/response detail; see [`docs/api.md`](docs/api.md).
 
 Caching / refresh: [`docs/architecture.md` — Caching and distribution refresh](docs/architecture.md#caching-and-distribution-refresh).
 
