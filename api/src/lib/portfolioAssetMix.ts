@@ -1,9 +1,12 @@
-import type { distributions } from "@investments/db";
 import type { DistributionPayload } from "@investments/lib";
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
 import type { InferSelectModel } from "drizzle-orm";
 
-/** Same unknown sector bucket as `getPortfolioDistributions` sector merge. */
+type DistributionRow = InferSelectModel<
+  typeof import("@investments/db").distributions
+>;
+
+/** Unknown sector bucket for value-weighted portfolio sector merge. */
 const PORTFOLIO_UNKNOWN_SECTOR = "__portfolio_unknown__";
 
 function stripCashFromSectorWeights(
@@ -52,6 +55,84 @@ function mergeWeighted(
   for (const [k, v] of Object.entries(weights)) {
     acc[k] = (acc[k] ?? 0) + w * v;
   }
+}
+
+/**
+ * Embedded fund cash fraction and principal (non-cash position value minus embedded cash).
+ */
+export function embeddedCashAndPrincipalEur(
+  valueEur: number,
+  payload: DistributionPayload | undefined,
+): { cashFrac: number; embeddedCashEur: number; principalEur: number } {
+  const cashFracRaw =
+    payload?.sectors && typeof payload.sectors.cash === "number"
+      ? payload.sectors.cash
+      : 0;
+  const cashFrac = Math.min(1, Math.max(0, cashFracRaw));
+  const embeddedCashEur = valueEur * cashFrac;
+  const principalEur = Math.max(0, valueEur - embeddedCashEur);
+  return { cashFrac, embeddedCashEur, principalEur };
+}
+
+/**
+ * One non-cash position's value-weighted contribution to merged sector weights (cash stripped).
+ * Mutates `sectors`. Returns updated `missingSectorW` (unknown sector mass before normalization).
+ */
+export function applyValuedRowToMergedSectors(
+  sectors: Record<string, number>,
+  missingSectorW: number,
+  w: number,
+  instrumentId: number,
+  payload: DistributionPayload | undefined,
+  onSectorContrib?: (
+    sectorKey: string,
+    instrumentId: number,
+    delta: number,
+  ) => void,
+): number {
+  const nonCashSectors = stripCashFromSectorWeights(payload?.sectors);
+  const nonCashSectorSum = sumSectorWeights(nonCashSectors);
+  if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
+    if (nonCashSectorSum >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
+      mergeWeighted(sectors, nonCashSectors, w);
+      if (onSectorContrib) {
+        for (const [s, v] of Object.entries(nonCashSectors)) {
+          onSectorContrib(s, instrumentId, w * v);
+        }
+      }
+    }
+  } else {
+    if (onSectorContrib) {
+      onSectorContrib(PORTFOLIO_UNKNOWN_SECTOR, instrumentId, w);
+    }
+    return missingSectorW + w;
+  }
+  return missingSectorW;
+}
+
+/**
+ * Renormalize merged sector weights to sum to 1 including unknown-sector mass, then drop tiny slices.
+ */
+export function finalizeMergedSectorWeights(
+  sectors: Record<string, number>,
+  missingSectorW: number,
+): Record<string, number> {
+  const sectorMassRaw =
+    Object.values(sectors).reduce((a, b) => a + b, 0) + missingSectorW;
+  let unknownMass = missingSectorW;
+  if (sectorMassRaw >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
+    for (const k of Object.keys(sectors)) {
+      const v = sectors[k];
+      if (v !== undefined) {
+        sectors[k] = v / sectorMassRaw;
+      }
+    }
+    unknownMass /= sectorMassRaw;
+  }
+  if (unknownMass >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
+    sectors[PORTFOLIO_UNKNOWN_SECTOR] = unknownMass;
+  }
+  return filterWeightsByMinFraction(sectors);
 }
 
 /** Bond sector keys on merged portfolio `sectors` (same semantics as web `distributionDisplay`). */
@@ -129,16 +210,12 @@ type AssetMixEur = {
 };
 
 /**
- * EUR slices for the portfolio asset mix pie from merged sectors + principal/cash inputs
- * (`GET /portfolio/distributions`).
- */
-/**
  * Value-weighted merged sector weights and non-cash principal (same merge as
  * `getPortfolioDistributions`), for a fixed set of position values and distribution snapshots.
  */
 export function buildMergedSectorsForAssetMix(
   valued: Array<{ inst: { kind: string; id: number }; valueEur: number }>,
-  distMap: Map<number, InferSelectModel<typeof distributions>>,
+  distMap: Map<number, DistributionRow>,
 ): {
   mergedSectors: Record<string, number>;
   nonCashPrincipalEur: number;
@@ -162,43 +239,23 @@ export function buildMergedSectorsForAssetMix(
     const w = nonCashValueEur > 0 ? row.valueEur / nonCashValueEur : 0;
     const cached = distMap.get(inst.id);
     const payload = cached?.payload as DistributionPayload | undefined;
-    const cashFracRaw =
-      payload?.sectors && typeof payload.sectors.cash === "number"
-        ? payload.sectors.cash
-        : 0;
-    const cashFrac = Math.min(1, Math.max(0, cashFracRaw));
-    const embeddedCashEur = row.valueEur * cashFrac;
+    const { embeddedCashEur, principalEur } = embeddedCashAndPrincipalEur(
+      row.valueEur,
+      payload,
+    );
     cashInFundsEur += embeddedCashEur;
-    const principalEur = Math.max(0, row.valueEur - embeddedCashEur);
     nonCashPrincipalEur += principalEur;
 
-    const nonCashSectors = stripCashFromSectorWeights(payload?.sectors);
-    const nonCashSectorSum = sumSectorWeights(nonCashSectors);
-    if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
-      if (nonCashSectorSum >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-        mergeWeighted(sectors, nonCashSectors, w);
-      }
-    } else {
-      missingSectorW += w;
-    }
+    missingSectorW = applyValuedRowToMergedSectors(
+      sectors,
+      missingSectorW,
+      w,
+      inst.id,
+      payload,
+    );
   }
 
-  const sectorMassRaw =
-    Object.values(sectors).reduce((a, b) => a + b, 0) + missingSectorW;
-  if (sectorMassRaw >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-    for (const k of Object.keys(sectors)) {
-      const v = sectors[k];
-      if (v !== undefined) {
-        sectors[k] = v / sectorMassRaw;
-      }
-    }
-    missingSectorW /= sectorMassRaw;
-  }
-  if (missingSectorW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-    sectors[PORTFOLIO_UNKNOWN_SECTOR] = missingSectorW;
-  }
-
-  const mergedSectors = filterWeightsByMinFraction(sectors);
+  const mergedSectors = finalizeMergedSectorWeights(sectors, missingSectorW);
   return {
     mergedSectors,
     nonCashPrincipalEur,

@@ -19,12 +19,17 @@ import {
   classifyNonCashInstrument,
 } from "./nonCashAssetClass.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
-import { computeAssetMixEur, computeBondMix } from "./portfolioAssetMix.js";
+import {
+  applyValuedRowToMergedSectors,
+  computeAssetMixEur,
+  computeBondMix,
+  embeddedCashAndPrincipalEur,
+  finalizeMergedSectorWeights,
+} from "./portfolioAssetMix.js";
 import { loadOpenPositionsForPortfolio } from "./positions.js";
 import { valuePortfolioRowsEur } from "./valuation.js";
 
 const PORTFOLIO_UNKNOWN_COUNTRY = "__portfolio_unknown__";
-const PORTFOLIO_UNKNOWN_SECTOR = "__portfolio_unknown__";
 /** Matches `UNMAPPED_COUNTRY_KEY` in web `distributionDisplay` after ISO normalization. */
 const UNMAPPED_COUNTRY_ISO = "__unmapped__";
 
@@ -151,33 +156,6 @@ function contribMapToTopRecord(
     }
   }
   return out;
-}
-
-/** Sector weights without `cash` (embedded fund cash is shown in asset mix instead). */
-function stripCashFromSectorWeights(
-  sectors: Record<string, number> | undefined,
-): Record<string, number> {
-  if (!sectors) {
-    return {};
-  }
-  const out: Record<string, number> = {};
-  for (const [k, v] of Object.entries(sectors)) {
-    if (k === "cash") {
-      continue;
-    }
-    if (typeof v === "number" && Number.isFinite(v)) {
-      out[k] = v;
-    }
-  }
-  return out;
-}
-
-function sumSectorWeights(sectors: Record<string, number>): number {
-  let s = 0;
-  for (const v of Object.values(sectors)) {
-    s += v;
-  }
-  return s;
 }
 
 export async function getPortfolioDistributions(portfolioId: number): Promise<{
@@ -413,15 +391,9 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
 
     const cached = distMap.get(inst.id);
     const payload = cached?.payload as DistributionPayload | undefined;
-    const cashFracRaw =
-      payload?.sectors && typeof payload.sectors.cash === "number"
-        ? payload.sectors.cash
-        : 0;
-    const cashFrac = Math.min(1, Math.max(0, cashFracRaw));
-    const embeddedCashEur = row.valueEur * cashFrac;
+    const { cashFrac, embeddedCashEur, principalEur } =
+      embeddedCashAndPrincipalEur(row.valueEur, payload);
     cashInFundsEur += embeddedCashEur;
-
-    const principalEur = Math.max(0, row.valueEur - embeddedCashEur);
     nonCashPrincipalEur += principalEur;
 
     const geoScale = distributionGeoScaleForCountryMerge(payload, cashFrac);
@@ -464,19 +436,15 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       }
     }
 
-    const nonCashSectors = stripCashFromSectorWeights(payload?.sectors);
-    const nonCashSectorSum = sumSectorWeights(nonCashSectors);
-    if (payload?.sectors && Object.keys(payload.sectors).length > 0) {
-      if (nonCashSectorSum >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-        mergeWeighted(sectors, nonCashSectors, w);
-        for (const [s, v] of Object.entries(nonCashSectors)) {
-          addContrib(sectorContrib, s, inst.id, w * v);
-        }
-      }
-    } else {
-      missingSectorW += w;
-      addContrib(sectorContrib, PORTFOLIO_UNKNOWN_SECTOR, inst.id, w);
-    }
+    missingSectorW = applyValuedRowToMergedSectors(
+      sectors,
+      missingSectorW,
+      w,
+      inst.id,
+      payload,
+      (sectorKey, instrumentId, delta) =>
+        addContrib(sectorContrib, sectorKey, instrumentId, delta),
+    );
   }
 
   const cashExcessEur = Math.max(0, cashTotalEur - emergencyFundTargetEur);
@@ -488,20 +456,10 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     countryWeights[PORTFOLIO_UNKNOWN_COUNTRY] = missingCountryW;
   }
 
-  const sectorMassRaw =
-    Object.values(sectors).reduce((a, b) => a + b, 0) + missingSectorW;
-  if (sectorMassRaw >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-    for (const k of Object.keys(sectors)) {
-      const v = sectors[k];
-      if (v !== undefined) {
-        sectors[k] = v / sectorMassRaw;
-      }
-    }
-    missingSectorW /= sectorMassRaw;
-  }
-  if (missingSectorW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-    sectors[PORTFOLIO_UNKNOWN_SECTOR] = missingSectorW;
-  }
+  const sectorsForResponse = finalizeMergedSectorWeights(
+    sectors,
+    missingSectorW,
+  );
 
   const positions = valued.map((row) => {
     const qty = row.qty;
@@ -548,7 +506,6 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   );
 
   const countriesForResponse = filterWeightsByMinFraction(countryWeights);
-  const sectorsForResponse = filterWeightsByMinFraction(sectors);
 
   return {
     countries: countriesForResponse,
