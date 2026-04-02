@@ -72,6 +72,7 @@ import {
   insertCommodityFromYahoo,
   insertEtfStockFromYahoo,
 } from "./lib/createYahooInstrument.js";
+import { deleteInstrumentWithLinkedSeligsonFund } from "./lib/deleteInstrumentWithLinkedSeligsonFund.js";
 import { processFxBackfillQueue } from "./lib/fxEurPriceBackfill.js";
 import { loadLatestDistributionRowsByInstrumentIds } from "./lib/latestPriceDistribution.js";
 import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
@@ -2252,7 +2253,11 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
         await upsertSeligsonFundValuesFromPage(db, now);
         await backfillSeligsonCsvIfConfigured(row.id, fund.priceHistoryCsvUrl);
       } catch (e) {
-        await db.delete(instruments).where(eq(instruments.id, row.id));
+        await deleteInstrumentWithLinkedSeligsonFund(
+          db,
+          row.id,
+          row.seligsonFundId ?? null,
+        );
         const message =
           userFacingMessageFromDbError(e) ??
           (e instanceof Error ? e.message : String(e));
@@ -2265,7 +2270,11 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
       await writeSeligsonDistributionCache(row.id, fund.fid);
       await backfillSeligsonCsvIfConfigured(row.id, fund.priceHistoryCsvUrl);
     } catch (e) {
-      await db.delete(instruments).where(eq(instruments.id, row.id));
+      await deleteInstrumentWithLinkedSeligsonFund(
+        db,
+        row.id,
+        row.seligsonFundId ?? null,
+      );
       const message =
         userFacingMessageFromDbError(e) ??
         (e instanceof Error ? e.message : String(e));
@@ -2573,21 +2582,28 @@ app.post("/instruments/:id/refresh-distribution", async (c) => {
   return c.json({ ok: true, instrument: payload }, 200);
 });
 
+/** Also removes the linked Seligson fund row when `instruments.seligson_fund_id` is set. */
 app.delete("/instruments/:id", async (c) => {
   const id = Number.parseInt(c.req.param("id"), 10);
   if (!Number.isFinite(id) || id < 1) {
     return c.json({ message: "Invalid id" }, 400);
   }
   const [existing] = await db
-    .select({ id: instruments.id })
+    .select({
+      id: instruments.id,
+      seligsonFundId: instruments.seligsonFundId,
+    })
     .from(instruments)
     .where(eq(instruments.id, id));
   if (!existing) {
     return c.json({ message: "Not found" }, 404);
   }
   await db.transaction(async (tx) => {
-    await tx.delete(transactions).where(eq(transactions.instrumentId, id));
-    await tx.delete(instruments).where(eq(instruments.id, id));
+    await deleteInstrumentWithLinkedSeligsonFund(
+      tx,
+      id,
+      existing.seligsonFundId,
+    );
   });
   return c.body(null, 204);
 });
