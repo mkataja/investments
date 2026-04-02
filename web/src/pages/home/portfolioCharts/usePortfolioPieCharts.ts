@@ -3,6 +3,7 @@ import type { ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { CHART_TOOLTIP_BASE } from "../../../lib/chart/chartTooltipTheme";
 import { adjustPieValuesForMinAngleDegrees } from "../../../lib/chart/pieMinAngle";
+import { lightenPortfolioHex } from "../../../lib/portfolioChartPalette";
 import { assetMixPieRowsFromAssetMix } from "./assetMixPieRows";
 import {
   BOND_MIX_NO_BONDS_SECTOR_ID,
@@ -14,6 +15,9 @@ import {
   PORTFOLIO_PIE_MIN_SLICE_DEGREES,
   portfolioPieChartLegendOptions,
 } from "./portfolioPieChartStyle";
+
+/** Compare ring slice fills — slightly lighter than primary for the same sleeve. */
+const COMPARE_PIE_LIGHTEN = 0.4;
 
 export function usePortfolioPieCharts({
   portfolio,
@@ -137,7 +141,9 @@ export function usePortfolioPieCharts({
             label: comparePortfolioLabel,
             data: inner.display,
             originalData: inner.original,
-            backgroundColor: assetMixPieData.map((d) => d.fill),
+            backgroundColor: assetMixPieData.map((d) =>
+              lightenPortfolioHex(d.fill, COMPARE_PIE_LIGHTEN),
+            ),
             borderColor: "#ffffff",
             borderWidth: 2,
             hoverOffset: 6,
@@ -239,7 +245,9 @@ export function usePortfolioPieCharts({
             label: comparePortfolioLabel,
             data: inner.display,
             originalData: inner.original,
-            backgroundColor: bondMixPieData.map((d) => d.fill),
+            backgroundColor: bondMixPieData.map((d) =>
+              lightenPortfolioHex(d.fill, COMPARE_PIE_LIGHTEN),
+            ),
             borderColor: "#ffffff",
             borderWidth: 2,
             hoverOffset: 6,

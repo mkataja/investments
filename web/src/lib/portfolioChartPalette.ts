@@ -25,3 +25,27 @@ export const PORTFOLIO_DISTRIBUTION_BAR_COLORS = {
   countryPrimary: "#3B7FD4",
   countryCompare: "#8EC0F2",
 } as const;
+
+/** Blend `#RRGGBB` toward white for compare portfolio doughnut rings. */
+export function lightenPortfolioHex(hex: string, amount: number): string {
+  const t = Math.min(1, Math.max(0, amount));
+  const h = hex.replace("#", "").trim();
+  const full =
+    h.length === 3
+      ? h
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : h;
+  const n = Number.parseInt(full, 16);
+  if (!Number.isFinite(n)) {
+    return hex;
+  }
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  const mix = (c: number) => Math.round(c + (255 - c) * t);
+  return `#${[mix(r), mix(g), mix(b)]
+    .map((x) => x.toString(16).padStart(2, "0"))
+    .join("")}`;
+}
