@@ -1,4 +1,5 @@
-import type { BrokerType, CompositePseudoKey } from "@investments/lib";
+import type { BrokerType } from "@investments/lib/brokerTypes";
+import type { CompositePseudoKey } from "@investments/lib/instrumentComposite";
 
 export type InstrumentKind =
   | "etf"

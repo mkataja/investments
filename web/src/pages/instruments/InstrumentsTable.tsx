@@ -1,7 +1,7 @@
 import {
   instrumentKindColumnLabel,
   instrumentTickerDisplay,
-} from "@investments/lib";
+} from "@investments/lib/instrumentKind";
 import { Link } from "react-router-dom";
 import {
   CashAccountDistributionSummary,

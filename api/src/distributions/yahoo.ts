@@ -1,5 +1,5 @@
-import type { DistributionPayload } from "@investments/lib";
-import { normalizeIsinForStorage } from "@investments/lib";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import { normalizeIsinForStorage } from "@investments/lib/isin";
 import type { QuoteSummaryResult } from "yahoo-finance2/modules/quoteSummary-iface";
 import { calendarDateUtcFromInstant } from "../lib/calendarDateUtc.js";
 import { yahooFinance } from "../lib/yahooClient.js";

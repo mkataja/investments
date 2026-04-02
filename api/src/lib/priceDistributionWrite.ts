@@ -4,8 +4,8 @@ import {
   instruments,
   prices,
 } from "@investments/db";
-import type { DistributionPayload } from "@investments/lib";
-import { fxYahooPairConfigForForeign } from "@investments/lib";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import { fxYahooPairConfigForForeign } from "@investments/lib/fxYahooEurLeg";
 import { and, eq, sql } from "drizzle-orm";
 import type { DbOrTx } from "../db.js";
 

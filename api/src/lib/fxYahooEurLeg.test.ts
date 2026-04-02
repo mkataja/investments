@@ -1,7 +1,7 @@
 import {
   eurPerUnitOfForeignFromYahooPrice,
   fxYahooPairConfigForForeign,
-} from "@investments/lib";
+} from "@investments/lib/fxYahooEurLeg";
 import { describe, expect, it } from "vitest";
 
 describe("fxYahooPairConfigForForeign", () => {

@@ -2,7 +2,7 @@ import { fxBackfillQueue, instruments, prices } from "@investments/db";
 import {
   eurPerUnitOfForeignFromYahooPrice,
   fxYahooPairConfigForForeign,
-} from "@investments/lib";
+} from "@investments/lib/fxYahooEurLeg";
 import { and, asc, eq } from "drizzle-orm";
 import type { InferSelectModel } from "drizzle-orm";
 import { db } from "../db.js";

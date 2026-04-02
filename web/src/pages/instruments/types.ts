@@ -1,4 +1,4 @@
-import type { DistributionPayload } from "@investments/lib";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
 
 type SeligsonFundSummary = {
   id: number;

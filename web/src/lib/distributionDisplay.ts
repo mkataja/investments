@@ -1,14 +1,14 @@
 /** Compact display of cached distribution payloads (countries + sectors). */
 
+import { COMMODITY_DISTRIBUTION_SECTOR_IDS } from "@investments/lib/commodity";
+import type { DistributionSectorId } from "@investments/lib/distribution/sectorIds";
+import { resolveRegionKeyToIso } from "@investments/lib/geo/countryIso";
 import {
-  COMMODITY_DISTRIBUTION_SECTOR_IDS,
-  type DistributionSectorId,
   type GeoBucketId,
-  MIN_PORTFOLIO_ALLOCATION_FRACTION,
   countryIsoToFlagEmoji,
   geoBucketDisplayTitle,
-  resolveRegionKeyToIso,
-} from "@investments/lib";
+} from "@investments/lib/geo/geoBuckets";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import { formatToPercentage } from "./numberFormat.js";
 import { DISTRIBUTION_SECTOR_TITLES } from "./sectorTitles.js";
 

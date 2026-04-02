@@ -2,7 +2,7 @@ import {
   BROKER_TYPES,
   BROKER_TYPE_DISPLAY,
   type BrokerType,
-} from "@investments/lib";
+} from "@investments/lib/brokerTypes";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiDelete, apiGet, apiPatch, apiPost } from "../api/client";
 import { Button } from "../components/Button";

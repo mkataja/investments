@@ -1,4 +1,4 @@
-import { aggregateRegionsToGeoBuckets } from "@investments/lib";
+import { aggregateRegionsToGeoBuckets } from "@investments/lib/geo/geoBuckets";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { sectorRefreshStorage } from "../lib/sectorRefreshContext.js";
 import {

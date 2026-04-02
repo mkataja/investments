@@ -1,12 +1,10 @@
-import type {
-  DistributionPayload,
-  DistributionSectorId,
-} from "@investments/lib";
+import type { DistributionSectorId } from "@investments/lib/distribution/sectorIds";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
 import {
   normLabel,
-  normalizeIsinForStorage,
   resolveRegionKeyToIso,
-} from "@investments/lib";
+} from "@investments/lib/geo/countryIso";
+import { normalizeIsinForStorage } from "@investments/lib/isin";
 import * as cheerio from "cheerio";
 import { SELIGSON_FINNISH_SECTOR_LABEL_MAP } from "./sectorMapping.js";
 

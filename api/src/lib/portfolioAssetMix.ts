@@ -1,5 +1,5 @@
-import type { DistributionPayload } from "@investments/lib";
-import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import type { InferSelectModel } from "drizzle-orm";
 
 type DistributionRow = InferSelectModel<

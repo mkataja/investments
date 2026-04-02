@@ -1,4 +1,4 @@
-import { transactionInstrumentSelectLabel } from "@investments/lib";
+import { transactionInstrumentSelectLabel } from "@investments/lib/instrumentSelectLabel";
 
 /** Same label as the add-transaction instrument dropdown. */
 export function instrumentSelectUiLabel(i: {

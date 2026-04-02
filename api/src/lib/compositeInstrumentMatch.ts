@@ -1,4 +1,4 @@
-import { normLabel } from "@investments/lib";
+import { normLabel } from "@investments/lib/geo/countryIso";
 
 export type InstrumentMatchCandidate = {
   id: number;

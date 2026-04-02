@@ -1,7 +1,5 @@
-import type {
-  DistributionPayload,
-  DistributionSectorId,
-} from "@investments/lib";
+import type { DistributionSectorId } from "@investments/lib/distribution/sectorIds";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
 import * as XLSX from "xlsx";
 import {
   mapSectorLabelToCanonicalIdWithWarn,

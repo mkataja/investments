@@ -9,18 +9,24 @@ import {
 } from "@investments/db";
 import {
   type CommoditySectorStorage,
-  type DistributionPayload,
-  MIN_PORTFOLIO_ALLOCATION_FRACTION,
   buildCommodityDistributionPayload,
-  compositePseudoKeyToSyntheticPayload,
-  isCompositePseudoKey,
+} from "@investments/lib/commodity";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import {
   normLabel,
-  normalizeIsinForStorage,
-  parseVanguardUkProfessionalHoldingsPortId,
   resolveRegionKeyToIso,
+} from "@investments/lib/geo/countryIso";
+import {
+  parseVanguardUkProfessionalHoldingsPortId,
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
-} from "@investments/lib";
+} from "@investments/lib/holdingsUrl";
+import {
+  compositePseudoKeyToSyntheticPayload,
+  isCompositePseudoKey,
+} from "@investments/lib/instrumentComposite";
+import { normalizeIsinForStorage } from "@investments/lib/isin";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { buildDistributionFromSec13FInfoTableXml } from "../distributions/buildSec13fDistribution.js";

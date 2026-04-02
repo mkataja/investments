@@ -1,4 +1,4 @@
-import { ISO_3166_1_ALPHA2_CODES } from "@investments/lib";
+import { ISO_3166_1_ALPHA2_CODES } from "@investments/lib/geo/iso3166Alpha2CountryCodes";
 
 const dn = new Intl.DisplayNames(["en"], { type: "region" });
 

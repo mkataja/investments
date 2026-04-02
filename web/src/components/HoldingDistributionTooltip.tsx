@@ -1,7 +1,5 @@
-import {
-  type DistributionPayload,
-  instrumentTickerDisplay,
-} from "@investments/lib";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import { instrumentTickerDisplay } from "@investments/lib/instrumentKind";
 import {
   type Dispatch,
   type ReactNode,

@@ -1,5 +1,5 @@
 import { instruments, portfolioBenchmarkWeights } from "@investments/db";
-import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import type { InstrumentRow } from "./valuation.js";

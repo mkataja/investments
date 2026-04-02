@@ -1,8 +1,6 @@
-import type { HoldingsProviderKind } from "@investments/lib";
-import {
-  normalizeIsinForStorage,
-  normalizeYahooSymbolForStorage,
-} from "@investments/lib";
+import type { HoldingsProviderKind } from "@investments/lib/holdingsUrl";
+import { normalizeIsinForStorage } from "@investments/lib/isin";
+import { normalizeYahooSymbolForStorage } from "@investments/lib/yahooSymbol";
 import * as XLSX from "xlsx";
 
 type ProviderDocumentIdentifiers = {

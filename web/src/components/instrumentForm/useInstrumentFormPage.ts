@@ -1,12 +1,14 @@
+import type { CommoditySectorStorage } from "@investments/lib/commodity";
 import {
   type CashCurrencyCode,
-  type CommoditySectorStorage,
   DEFAULT_CASH_CURRENCY,
-  isCompositePseudoKey,
-  normalizeCashAccountIsoCountryCode,
+} from "@investments/lib/currencies";
+import { normalizeCashAccountIsoCountryCode } from "@investments/lib/geo/iso3166Alpha2CountryCodes";
+import {
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
-} from "@investments/lib";
+} from "@investments/lib/holdingsUrl";
+import { isCompositePseudoKey } from "@investments/lib/instrumentComposite";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiGet, apiPatch, apiPost } from "../../api/client";

@@ -1,4 +1,4 @@
-import { sortByTransactionInstrumentSelectLabel } from "@investments/lib";
+import { sortByTransactionInstrumentSelectLabel } from "@investments/lib/instrumentSelectLabel";
 import {
   type FormEvent,
   useEffect,

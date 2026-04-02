@@ -1,4 +1,4 @@
-import { instrumentTickerDisplay } from "@investments/lib";
+import { instrumentTickerDisplay } from "@investments/lib/instrumentKind";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiDelete, apiGet, apiPost } from "../../api/client";
 import {

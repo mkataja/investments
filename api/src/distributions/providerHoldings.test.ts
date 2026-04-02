@@ -5,7 +5,7 @@ import {
   parseVanguardUkProfessionalHoldingsPortId,
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
-} from "@investments/lib";
+} from "@investments/lib/holdingsUrl";
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
 import { parseIsharesHoldingsCsv } from "./parseIsharesHoldingsCsv.js";

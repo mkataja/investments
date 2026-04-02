@@ -1,11 +1,9 @@
 import { instruments, seligsonFunds, yahooFinanceCache } from "@investments/db";
-import {
-  type DistributionPayload,
-  MIN_PORTFOLIO_ALLOCATION_FRACTION,
-  aggregateRegionsToGeoBuckets,
-  instrumentTickerDisplay,
-  resolveRegionKeyToIso,
-} from "@investments/lib";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import { resolveRegionKeyToIso } from "@investments/lib/geo/countryIso";
+import { aggregateRegionsToGeoBuckets } from "@investments/lib/geo/geoBuckets";
+import { instrumentTickerDisplay } from "@investments/lib/instrumentKind";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import { type InferSelectModel, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import {

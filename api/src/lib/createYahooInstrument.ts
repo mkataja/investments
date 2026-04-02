@@ -1,11 +1,11 @@
 import { instruments } from "@investments/db";
+import type { CommoditySectorStorage } from "@investments/lib/commodity";
 import {
-  type CommoditySectorStorage,
-  normalizeIsinForStorage,
-  normalizeYahooSymbolForStorage,
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
-} from "@investments/lib";
+} from "@investments/lib/holdingsUrl";
+import { normalizeIsinForStorage } from "@investments/lib/isin";
+import { normalizeYahooSymbolForStorage } from "@investments/lib/yahooSymbol";
 import { eq } from "drizzle-orm";
 import { db } from "../db.js";
 import {

@@ -1,5 +1,5 @@
 import { instruments, type prices } from "@investments/db";
-import { DEFAULT_CASH_CURRENCY } from "@investments/lib";
+import { DEFAULT_CASH_CURRENCY } from "@investments/lib/currencies";
 import type { InferSelectModel } from "drizzle-orm";
 import { eq } from "drizzle-orm";
 import type { DbClient } from "../db.js";

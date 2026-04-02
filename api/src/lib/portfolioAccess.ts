@@ -1,5 +1,5 @@
 import { portfolios } from "@investments/db";
-import { USER_ID } from "@investments/lib";
+import { USER_ID } from "@investments/lib/appUser";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "../db.js";
 

@@ -1,8 +1,6 @@
-import {
-  type CommoditySectorStorage,
-  DEFAULT_CASH_CURRENCY,
-  normalizeCashAccountIsoCountryCode,
-} from "@investments/lib";
+import type { CommoditySectorStorage } from "@investments/lib/commodity";
+import { DEFAULT_CASH_CURRENCY } from "@investments/lib/currencies";
+import { normalizeCashAccountIsoCountryCode } from "@investments/lib/geo/iso3166Alpha2CountryCodes";
 import type { InstrumentDetail } from "../components/instrumentForm/types";
 
 type CustomCompositeConstituent = {

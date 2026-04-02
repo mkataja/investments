@@ -1,4 +1,4 @@
-import type { CommoditySectorStorage } from "@investments/lib";
+import type { CommoditySectorStorage } from "@investments/lib/commodity";
 import type { RefObject } from "react";
 import { sortedIsoCountryOptions } from "../../lib/isoCountrySelectOptions";
 import { ErrorAlert } from "../ErrorAlert";

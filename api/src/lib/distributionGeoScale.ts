@@ -1,5 +1,5 @@
-import type { DistributionPayload } from "@investments/lib";
-import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 
 /**
  * Scale factor for merging `payload.countries` into portfolio weights.

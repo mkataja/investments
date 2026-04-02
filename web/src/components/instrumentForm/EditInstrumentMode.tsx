@@ -1,7 +1,5 @@
-import type {
-  CashCurrencyCode,
-  CommoditySectorStorage,
-} from "@investments/lib";
+import type { CommoditySectorStorage } from "@investments/lib/commodity";
+import type { CashCurrencyCode } from "@investments/lib/currencies";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { sortedIsoCountryOptions } from "../../lib/isoCountrySelectOptions";

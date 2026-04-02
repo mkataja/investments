@@ -1,4 +1,4 @@
-import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import type { ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { CHART_TOOLTIP_BASE } from "../../../lib/chart/chartTooltipTheme";

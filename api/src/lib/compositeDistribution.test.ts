@@ -1,4 +1,4 @@
-import { compositePseudoKeyToSyntheticPayload } from "@investments/lib";
+import { compositePseudoKeyToSyntheticPayload } from "@investments/lib/instrumentComposite";
 import { describe, expect, it } from "vitest";
 import { mergeCompositeDistributionPayload } from "./compositeDistribution.js";
 

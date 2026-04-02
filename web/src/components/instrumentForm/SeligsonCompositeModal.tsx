@@ -1,8 +1,8 @@
 import {
   COMPOSITE_PSEUDO_KEYS,
   type CompositePseudoKey,
-  transactionInstrumentSelectLabel,
-} from "@investments/lib";
+} from "@investments/lib/instrumentComposite";
+import { transactionInstrumentSelectLabel } from "@investments/lib/instrumentSelectLabel";
 import type { CompositePreviewRow } from "./types";
 
 const PSEUDO_LABEL: Record<CompositePseudoKey, string> = {

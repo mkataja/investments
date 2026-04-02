@@ -1,8 +1,6 @@
 import { createHash } from "node:crypto";
-import {
-  normalizeIsinForStorage,
-  normalizeYahooSymbolForStorage,
-} from "@investments/lib";
+import { normalizeIsinForStorage } from "@investments/lib/isin";
+import { normalizeYahooSymbolForStorage } from "@investments/lib/yahooSymbol";
 import { parse } from "csv-parse/sync";
 import {
   normalizeUnicodeMinus,

@@ -1,4 +1,4 @@
-import { normalizeIsinForStorage } from "@investments/lib";
+import { normalizeIsinForStorage } from "@investments/lib/isin";
 
 /** Expand ISIN body (letters A–Z → two-digit values 10–35) per ISO 6166. */
 function expandIsinBodyToDigitString(body11: string): string {

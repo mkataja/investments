@@ -1,7 +1,5 @@
-import {
-  normalizeIsinForStorage,
-  normalizeYahooSymbolForStorage,
-} from "@investments/lib";
+import { normalizeIsinForStorage } from "@investments/lib/isin";
+import { normalizeYahooSymbolForStorage } from "@investments/lib/yahooSymbol";
 import type { InstrumentRow } from "../lib/valuation.js";
 
 function isTradableKind(k: string): k is "etf" | "stock" | "custom" {

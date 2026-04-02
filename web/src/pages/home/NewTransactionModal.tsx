@@ -1,7 +1,5 @@
-import {
-  SUPPORTED_CASH_CURRENCY_CODES,
-  sortByTransactionInstrumentSelectLabel,
-} from "@investments/lib";
+import { SUPPORTED_CASH_CURRENCY_CODES } from "@investments/lib/currencies";
+import { sortByTransactionInstrumentSelectLabel } from "@investments/lib/instrumentSelectLabel";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiPatch, apiPost } from "../../api/client";
 import { buildTransactionMutationBody } from "../../api/transactions";

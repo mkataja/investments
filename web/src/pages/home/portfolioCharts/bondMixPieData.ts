@@ -1,4 +1,4 @@
-import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib";
+import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import {
   PORTFOLIO_ASSET_MIX_COLORS,
   PORTFOLIO_BOND_MIX_PIE_COLORS,
