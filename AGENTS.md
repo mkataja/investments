@@ -77,11 +77,13 @@ CSS/Tailwind patterns: [`web/design-system.md`](web/design-system.md).
 
 ### Before committing or signing off work
 
-Consider as necessary:
+- `pnpm run ci` — run *all* CI checks *in parallel*
+
+If necessary, you can run individual CI checks for faster output:
 - `pnpm lint`
-- `pnpm --filter @investments/web build` and `pnpm --filter @investments/api build` when those packages change (lint may miss `tsc` errors)
-- `pnpm test` when relevant
-- `pnpm run ci` — run all above CI checks *in parallel*
+- `pnpm --filter @investments/web build` and `pnpm --filter @investments/api build`
+- `pnpm test`
+- `pnpm ts-prune`
 
 
 ### Git commits
