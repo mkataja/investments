@@ -74,6 +74,7 @@ import {
 } from "./lib/createYahooInstrument.js";
 import { deleteInstrumentWithLinkedSeligsonFund } from "./lib/deleteInstrumentWithLinkedSeligsonFund.js";
 import { processFxBackfillQueue } from "./lib/fxEurPriceBackfill.js";
+import { loadInstrumentPriceActivityByInstrumentIds } from "./lib/instrumentPriceActivity.js";
 import { loadLatestDistributionRowsByInstrumentIds } from "./lib/latestPriceDistribution.js";
 import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
@@ -101,7 +102,6 @@ import {
   instrumentHasYahooFetchedPrice,
   loadInstrumentIdsWithYahooFetchedPrices,
 } from "./lib/yahooFetchedPriceSources.js";
-import { loadYahooPriceActivityByInstrumentIds } from "./lib/yahooPriceActivity.js";
 import {
   backfillAllYahooPricesFromHistory,
   backfillYahooPricesForInstrument,
@@ -1605,7 +1605,9 @@ async function loadInstrumentPayloadById(
       : 0;
   const netQuantity = Number.isFinite(q) ? q : 0;
   const hasYahooFetchedPrice = await instrumentHasYahooFetchedPrice(db, id);
-  const activityMap = await loadYahooPriceActivityByInstrumentIds(db, [id]);
+  const activityMap = await loadInstrumentPriceActivityByInstrumentIds(db, [
+    id,
+  ]);
   const activity = activityMap.get(id) ?? {
     yahooPricesLastFetchedAt: null,
     yahooChartBackfillLastFetchedAt: null,
@@ -1793,10 +1795,8 @@ app.get("/instruments", async (c) => {
   const yahooFetchedIdSet = await loadInstrumentIdsWithYahooFetchedPrices(db);
 
   const instrumentIds = joined.map((j) => j.instrument.id);
-  const yahooPriceActivityMap = await loadYahooPriceActivityByInstrumentIds(
-    db,
-    instrumentIds,
-  );
+  const instrumentPriceActivityMap =
+    await loadInstrumentPriceActivityByInstrumentIds(db, instrumentIds);
 
   const qtyRows = await db
     .select({
@@ -1820,7 +1820,7 @@ app.get("/instruments", async (c) => {
   }
 
   let payload = joined.map((row) => {
-    const act = yahooPriceActivityMap.get(row.instrument.id) ?? {
+    const act = instrumentPriceActivityMap.get(row.instrument.id) ?? {
       yahooPricesLastFetchedAt: null,
       yahooChartBackfillLastFetchedAt: null,
       pricesLastFetchedAt: null,

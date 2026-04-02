@@ -3,7 +3,8 @@ import { parseEuropeanDecimalString } from "../import/degiroTransactions.js";
 import { parseSeligsonTradeDateDMY } from "../import/seligsonTransactions.js";
 import { upsertPriceForDate } from "./priceDistributionWrite.js";
 
-const SELIGSON_ARVOHISTORIA_CSV_PRICE_SOURCE = "seligson_csv_backfill";
+/** `prices.source` for Arvohistoria CSV bulk import; must match `instrumentPriceActivity` label query. */
+export const SELIGSON_ARVOHISTORIA_CSV_PRICE_SOURCE = "seligson_csv_backfill";
 
 const USER_AGENT = "InvestmentsTracker/0.1 (personal)";
 

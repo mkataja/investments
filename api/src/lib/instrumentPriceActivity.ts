@@ -1,15 +1,24 @@
 import { prices } from "@investments/db";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { DbClient } from "../db.js";
+import { SELIGSON_ARVOHISTORIA_CSV_PRICE_SOURCE } from "./seligsonArvohistoriaCsv.js";
 import { YAHOO_FETCHED_PRICE_SOURCES } from "./yahooFetchedPriceSources.js";
 import { YAHOO_CHART_BACKFILL_PRICE_SOURCE } from "./yahooPriceHistoryBackfill.js";
 
-type YahooPriceActivity = {
+type InstrumentPriceActivity = {
   yahooPricesLastFetchedAt: string | null;
   yahooChartBackfillLastFetchedAt: string | null;
-  /** Latest `fetched_at` among all `prices` rows (Seligson, Yahoo, seed, etc.). */
+  /**
+   * Instruments list "Prices": latest `fetched_at` among bulk history imports only
+   * (`seligson_csv_backfill`, `yahoo_chart_backfill`).
+   */
   pricesLastFetchedAt: string | null;
 };
+
+const PRICES_LABEL_SOURCES = [
+  SELIGSON_ARVOHISTORIA_CSV_PRICE_SOURCE,
+  YAHOO_CHART_BACKFILL_PRICE_SOURCE,
+] as const;
 
 /** pg/node may return `timestamp` as `Date` or ISO `string` depending on driver/settings. */
 function fetchedAtToIso(v: unknown): string | null {
@@ -27,18 +36,18 @@ function fetchedAtToIso(v: unknown): string | null {
 }
 
 /**
- * Latest Yahoo price activity per instrument: any Yahoo `prices.source`, chart backfill only
- * (for bulk backfill 3h backoff), and max `fetched_at` over all `prices` rows (instruments list UI).
+ * Per-instrument `prices` timestamps: Yahoo quote/FX rows, chart backfill (backoff), and
+ * CSV/chart bulk history for the instruments list "Prices" line.
  */
-export async function loadYahooPriceActivityByInstrumentIds(
+export async function loadInstrumentPriceActivityByInstrumentIds(
   d: DbClient,
   instrumentIds: number[],
-): Promise<Map<number, YahooPriceActivity>> {
+): Promise<Map<number, InstrumentPriceActivity>> {
   if (instrumentIds.length === 0) {
     return new Map();
   }
 
-  const [anyRows, chartRows, allRows] = await Promise.all([
+  const [anyRows, chartRows, pricesLabelRows] = await Promise.all([
     d
       .select({
         instrumentId: prices.instrumentId,
@@ -71,11 +80,16 @@ export async function loadYahooPriceActivityByInstrumentIds(
         lastAt: sql<unknown>`max(${prices.fetchedAt})`,
       })
       .from(prices)
-      .where(inArray(prices.instrumentId, instrumentIds))
+      .where(
+        and(
+          inArray(prices.instrumentId, instrumentIds),
+          inArray(prices.source, [...PRICES_LABEL_SOURCES]),
+        ),
+      )
       .groupBy(prices.instrumentId),
   ]);
 
-  const out = new Map<number, YahooPriceActivity>();
+  const out = new Map<number, InstrumentPriceActivity>();
   for (const r of anyRows) {
     out.set(r.instrumentId, {
       yahooPricesLastFetchedAt: fetchedAtToIso(r.lastAt),
@@ -96,7 +110,7 @@ export async function loadYahooPriceActivityByInstrumentIds(
       });
     }
   }
-  for (const r of allRows) {
+  for (const r of pricesLabelRows) {
     const iso = fetchedAtToIso(r.lastAt);
     const existing = out.get(r.instrumentId);
     if (existing) {
