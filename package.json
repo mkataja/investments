@@ -17,11 +17,13 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "test": "pnpm --filter @investments/api test && pnpm --filter @investments/web test",
-    "ci": "concurrently -n lint,ts-prune,test,web,api -c cyan,magenta,yellow,blue,green \"pnpm lint\" \"pnpm ts-prune\" \"pnpm test\" \"pnpm --filter @investments/web build\" \"pnpm --filter @investments/api build\""
+    "ci": "concurrently -n lint,ts-prune,test,web,api -c cyan,magenta,yellow,blue,green \"pnpm lint\" \"pnpm ts-prune\" \"pnpm test\" \"pnpm --filter @investments/web build\" \"pnpm --filter @investments/api build\"",
+    "loc": "sloc api db lib web -e \"(node_modules|dist|\\\\.turbo|\\\\.data|coverage)\""
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "concurrently": "^9.1.2",
+    "sloc": "^0.3.2",
     "ts-prune": "^0.10.3",
     "typescript": "^5.7.3"
   }
