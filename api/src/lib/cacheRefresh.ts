@@ -66,6 +66,10 @@ import {
 import { upsertSeligsonFundValuesFromPage } from "../distributions/seligsonFundValues.js";
 import { buildResolvedSeligsonHoldingsPayload } from "../distributions/seligsonHoldingsResolve.js";
 import {
+  fetchSeligsonPublicPageHtml,
+  parseSeligsonPharosAllocationTable,
+} from "../distributions/seligsonPharosAllocationTable.js";
+import {
   type YahooQuoteSummaryRaw,
   extractIsinFromQuoteSummaryRaw,
   extractYahooPriceFromQuoteSummaryRaw,
@@ -75,13 +79,21 @@ import {
 } from "../distributions/yahoo.js";
 import { calendarDateUtcFromInstant } from "./calendarDateUtc.js";
 import { mergeCompositeDistributionPayload } from "./compositeDistribution.js";
+import {
+  suggestBestInstrumentId,
+  suggestPseudoKeyForLabel,
+} from "./compositeInstrumentMatch.js";
 import { processFxBackfillQueue } from "./fxEurPriceBackfill.js";
+import { loadInstrumentMatchCandidates } from "./instrumentMatchCandidates.js";
+import { loadLatestDistributionPayloadsByInstrumentIds } from "./latestPriceDistribution.js";
 import { loadOpenPositionsAggregateForUser } from "./positions.js";
+import { userFacingMessageFromDbError } from "./postgresUserMessage.js";
 import {
   upsertDistributionSnapshot,
   upsertPriceForDate,
 } from "./priceDistributionWrite.js";
 import { sectorRefreshStorage } from "./sectorRefreshContext.js";
+import { isSeligsonFundViewerUrl } from "./seligsonFundIntroPage.js";
 import {
   formatYahooUpstreamError,
   yahooRefreshGapMs,
@@ -536,6 +548,109 @@ async function updateSeligsonFundNameFromViewerHtml(
   }
 }
 
+/**
+ * Funds with a stored public allocation table URL (resolved once at create from “Rahaston sijoitukset”):
+ * fetch that page, parse Pharos-style rows, and merge child instrument distributions. Returns
+ * `false` if the page is missing or not parseable as that format (caller falls back to FundViewer
+ * bond / holdings).
+ */
+async function tryWriteSeligsonAllocationFromPublicTablePage(
+  instrumentId: number,
+  fid: number,
+  publicAllocationPageUrl: string,
+  fetchedAt: Date,
+): Promise<boolean> {
+  if (isSeligsonFundViewerUrl(publicAllocationPageUrl)) {
+    return false;
+  }
+  let tableHtml: string;
+  try {
+    tableHtml = await fetchSeligsonPublicPageHtml(publicAllocationPageUrl);
+  } catch {
+    return false;
+  }
+  const parsed = parseSeligsonPharosAllocationTable(tableHtml);
+  if (parsed.rows.length === 0) {
+    return false;
+  }
+  const candidates = await loadInstrumentMatchCandidates();
+  type RowResolution =
+    | { weight: number; kind: "ready"; payload: DistributionPayload }
+    | { weight: number; kind: "child"; childId: number };
+  const resolutions: RowResolution[] = [];
+  for (const r of parsed.rows) {
+    const pseudo = suggestPseudoKeyForLabel(r.rawLabel);
+    if (pseudo) {
+      resolutions.push({
+        weight: r.pctOfFund,
+        kind: "ready",
+        payload: compositePseudoKeyToSyntheticPayload(pseudo),
+      });
+      continue;
+    }
+    const childId = suggestBestInstrumentId(r.rawLabel, candidates);
+    if (childId == null) {
+      resolutions.push({
+        weight: r.pctOfFund,
+        kind: "ready",
+        payload: { countries: {}, sectors: { other: 1 } },
+      });
+      continue;
+    }
+    resolutions.push({ weight: r.pctOfFund, kind: "child", childId });
+  }
+  const childIds = resolutions
+    .filter(
+      (x): x is { weight: number; kind: "child"; childId: number } =>
+        x.kind === "child",
+    )
+    .map((x) => x.childId);
+  const distById = await loadLatestDistributionPayloadsByInstrumentIds(
+    db,
+    childIds,
+  );
+  const items: Array<{ weight: number; payload: DistributionPayload | null }> =
+    resolutions.map((x) =>
+      x.kind === "ready"
+        ? { weight: x.weight, payload: x.payload }
+        : { weight: x.weight, payload: distById.get(x.childId) ?? null },
+    );
+  const payload = mergeCompositeDistributionPayload(items);
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(seligsonDistributionCache)
+      .values({
+        instrumentId,
+        fetchedAt,
+        holdingsHtml: null,
+        allocationHtml: tableHtml,
+        countryHtml: null,
+      })
+      .onConflictDoUpdate({
+        target: seligsonDistributionCache.instrumentId,
+        set: {
+          fetchedAt,
+          holdingsHtml: null,
+          allocationHtml: tableHtml,
+          countryHtml: null,
+        },
+      });
+    await tx
+      .delete(yahooFinanceCache)
+      .where(eq(yahooFinanceCache.instrumentId, instrumentId));
+    await upsertDistributionSnapshot(tx, {
+      instrumentId,
+      snapshotDate: calendarDateUtcFromInstant(fetchedAt),
+      fetchedAt,
+      source: "seligson_scrape",
+      payload,
+    });
+  });
+  await updateSeligsonFundNameFromViewerHtml(fid, tableHtml);
+  await upsertSeligsonFundValuesFromPage(db, fetchedAt);
+  return true;
+}
+
 async function instrumentHasCompositeConstituents(
   instrumentId: number,
 ): Promise<boolean> {
@@ -632,6 +747,24 @@ export async function writeSeligsonDistributionCache(
   fid: number,
   fetchedAt: Date = new Date(),
 ): Promise<void> {
+  const [sfRow] = await db
+    .select()
+    .from(seligsonFunds)
+    .where(eq(seligsonFunds.fid, fid))
+    .limit(1);
+  const publicAllocationUrl = sfRow?.publicAllocationPageUrl?.trim();
+  if (publicAllocationUrl) {
+    const wrote = await tryWriteSeligsonAllocationFromPublicTablePage(
+      instrumentId,
+      fid,
+      publicAllocationUrl,
+      fetchedAt,
+    );
+    if (wrote) {
+      return;
+    }
+  }
+
   const allocationHtml = await fetchSeligsonHtml(
     fid,
     SELIGSON_BOND_ALLOCATION_VIEW,
@@ -898,6 +1031,10 @@ async function refreshDistributionCacheForInstrumentIdImpl(
       },
     );
   } catch (e) {
+    const dbMsg = userFacingMessageFromDbError(e);
+    if (dbMsg) {
+      return { error: dbMsg, status: 502 };
+    }
     const { message, status } = formatYahooUpstreamError(e);
     return { error: message, status };
   }

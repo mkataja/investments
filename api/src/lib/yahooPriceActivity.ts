@@ -7,6 +7,8 @@ import { YAHOO_CHART_BACKFILL_PRICE_SOURCE } from "./yahooPriceHistoryBackfill.j
 type YahooPriceActivity = {
   yahooPricesLastFetchedAt: string | null;
   yahooChartBackfillLastFetchedAt: string | null;
+  /** Latest `fetched_at` among all `prices` rows (Seligson, Yahoo, seed, etc.). */
+  pricesLastFetchedAt: string | null;
 };
 
 /** pg/node may return `timestamp` as `Date` or ISO `string` depending on driver/settings. */
@@ -25,8 +27,8 @@ function fetchedAtToIso(v: unknown): string | null {
 }
 
 /**
- * Latest Yahoo price activity per instrument: any Yahoo `prices.source`, and chart backfill only
- * (for bulk backfill 3h backoff).
+ * Latest Yahoo price activity per instrument: any Yahoo `prices.source`, chart backfill only
+ * (for bulk backfill 3h backoff), and max `fetched_at` over all `prices` rows (instruments list UI).
  */
 export async function loadYahooPriceActivityByInstrumentIds(
   d: DbClient,
@@ -36,7 +38,7 @@ export async function loadYahooPriceActivityByInstrumentIds(
     return new Map();
   }
 
-  const [anyRows, chartRows] = await Promise.all([
+  const [anyRows, chartRows, allRows] = await Promise.all([
     d
       .select({
         instrumentId: prices.instrumentId,
@@ -63,6 +65,14 @@ export async function loadYahooPriceActivityByInstrumentIds(
         ),
       )
       .groupBy(prices.instrumentId),
+    d
+      .select({
+        instrumentId: prices.instrumentId,
+        lastAt: sql<unknown>`max(${prices.fetchedAt})`,
+      })
+      .from(prices)
+      .where(inArray(prices.instrumentId, instrumentIds))
+      .groupBy(prices.instrumentId),
   ]);
 
   const out = new Map<number, YahooPriceActivity>();
@@ -70,6 +80,7 @@ export async function loadYahooPriceActivityByInstrumentIds(
     out.set(r.instrumentId, {
       yahooPricesLastFetchedAt: fetchedAtToIso(r.lastAt),
       yahooChartBackfillLastFetchedAt: null,
+      pricesLastFetchedAt: null,
     });
   }
   for (const r of chartRows) {
@@ -81,6 +92,20 @@ export async function loadYahooPriceActivityByInstrumentIds(
       out.set(r.instrumentId, {
         yahooPricesLastFetchedAt: null,
         yahooChartBackfillLastFetchedAt: iso,
+        pricesLastFetchedAt: null,
+      });
+    }
+  }
+  for (const r of allRows) {
+    const iso = fetchedAtToIso(r.lastAt);
+    const existing = out.get(r.instrumentId);
+    if (existing) {
+      existing.pricesLastFetchedAt = iso;
+    } else {
+      out.set(r.instrumentId, {
+        yahooPricesLastFetchedAt: null,
+        yahooChartBackfillLastFetchedAt: null,
+        pricesLastFetchedAt: iso,
       });
     }
   }

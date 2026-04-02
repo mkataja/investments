@@ -274,6 +274,55 @@
       "when": 1775081808118,
       "tag": "0038_military_warstar",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1775086562250,
+      "tag": "0039_omniscient_wolf_cub",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1775124081490,
+      "tag": "0040_married_metal_master",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1775124565336,
+      "tag": "0041_slim_silver_sable",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1775124893370,
+      "tag": "0042_mean_echo",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1775125151923,
+      "tag": "0043_uneven_meggan",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1775200000000,
+      "tag": "0044_public_allocation_page_url",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1775210000000,
+      "tag": "0045_steep_groot",
+      "breakpoints": true
     }
   ]
 }

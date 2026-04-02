@@ -82,11 +82,15 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
     cache: "no-store",
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
     throw new Error(messageFromErrorResponse(res.status, text));
   }
-  return res.json() as Promise<T>;
+  const trimmed = text.trim();
+  if (trimmed.length === 0) {
+    return undefined as T;
+  }
+  return JSON.parse(trimmed) as T;
 }
 
 export async function apiPostFormData<T>(

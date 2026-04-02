@@ -1,5 +1,4 @@
 import type { BrokerType } from "@investments/lib/brokerTypes";
-import type { CompositePseudoKey } from "@investments/lib/instrumentComposite";
 
 export type InstrumentKind =
   | "etf"
@@ -52,10 +51,8 @@ export type InstrumentFormPageProps =
   | { mode: "new" }
   | { mode: "edit"; instrumentId: number };
 
-/** One row from Seligson composite table preview (map to instruments or pseudo-keys). */
-export type CompositePreviewRow = {
-  rawLabel: string;
-  pctOfFund: number;
-  suggestedInstrumentId: number | null;
-  suggestedPseudoKey: CompositePseudoKey | null;
+/** One row of user mapping for composite (Pharos table) fund creation. */
+export type SeligsonCompositeMappedRow = {
+  targetInstrumentId: string;
+  pseudoKey: string;
 };

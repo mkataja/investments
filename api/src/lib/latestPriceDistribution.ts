@@ -1,4 +1,5 @@
 import { distributions, prices } from "@investments/db";
+import type { DistributionPayload } from "@investments/lib/distributionPayload";
 import type { InferSelectModel } from "drizzle-orm";
 import { and, asc, desc, inArray, lte } from "drizzle-orm";
 import type { DbClient } from "../db.js";
@@ -52,6 +53,36 @@ export async function loadLatestDistributionRowsByInstrumentIds(
     }
   }
   return m;
+}
+
+/**
+ * Latest distribution payload per instrument id (one query). Missing ids map to `null`.
+ */
+export async function loadLatestDistributionPayloadsByInstrumentIds(
+  d: DbClient,
+  instrumentIds: number[],
+): Promise<Map<number, DistributionPayload | null>> {
+  const out = new Map<number, DistributionPayload | null>();
+  if (instrumentIds.length === 0) {
+    return out;
+  }
+  const uniq = [...new Set(instrumentIds)];
+  const rows = await d
+    .select()
+    .from(distributions)
+    .where(inArray(distributions.instrumentId, uniq))
+    .orderBy(desc(distributions.snapshotDate), desc(distributions.fetchedAt));
+  for (const r of rows) {
+    if (!out.has(r.instrumentId)) {
+      out.set(r.instrumentId, r.payload as DistributionPayload);
+    }
+  }
+  for (const id of uniq) {
+    if (!out.has(id)) {
+      out.set(id, null);
+    }
+  }
+  return out;
 }
 
 /**

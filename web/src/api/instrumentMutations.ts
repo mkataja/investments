@@ -3,13 +3,6 @@ import { DEFAULT_CASH_CURRENCY } from "@investments/lib/currencies";
 import { normalizeCashAccountIsoCountryCode } from "@investments/lib/geo/iso3166Alpha2CountryCodes";
 import type { InstrumentDetail } from "../components/instrumentForm/types";
 
-type CustomCompositeConstituent = {
-  rawLabel: string;
-  weightOfFund: number;
-  targetInstrumentId?: number;
-  pseudoKey?: string;
-};
-
 export function buildCreateEtfStockBody(args: {
   kind: "etf" | "stock";
   yahooSymbol: string;
@@ -45,12 +38,36 @@ export function buildCreateCommodityBody(args: {
 
 export function buildCreateCustomSeligsonBody(args: {
   brokerId: number;
-  seligsonFid: number;
+  seligsonFundPageUrl: string;
 }): Record<string, unknown> {
   return {
     kind: "custom",
     brokerId: args.brokerId,
-    seligsonFid: args.seligsonFid,
+    seligsonFundPageUrl: args.seligsonFundPageUrl,
+  };
+}
+
+export function buildCreateCustomCompositeBody(args: {
+  brokerId: number;
+  seligsonFundPageUrl: string;
+  constituents: Array<{
+    rawLabel: string;
+    weightOfFund: number;
+    targetInstrumentId?: number;
+    pseudoKey?: string;
+  }>;
+}): Record<string, unknown> {
+  return {
+    kind: "custom",
+    brokerId: args.brokerId,
+    seligsonFundPageUrl: args.seligsonFundPageUrl,
+    constituents: args.constituents.map((c) => ({
+      rawLabel: c.rawLabel,
+      weightOfFund: c.weightOfFund,
+      ...(c.pseudoKey != null
+        ? { pseudoKey: c.pseudoKey }
+        : { targetInstrumentId: c.targetInstrumentId }),
+    })),
   };
 }
 
@@ -66,19 +83,6 @@ export function buildCreateCashAccountBody(args: {
     displayName: args.displayName,
     currency: args.currency,
     cashGeoKey: args.cashGeoKey,
-  };
-}
-
-export function buildCreateCustomCompositeBody(args: {
-  brokerId: number;
-  displayName: string;
-  constituents: CustomCompositeConstituent[];
-}): Record<string, unknown> {
-  return {
-    kind: "custom",
-    brokerId: args.brokerId,
-    displayName: args.displayName,
-    constituents: args.constituents,
   };
 }
 

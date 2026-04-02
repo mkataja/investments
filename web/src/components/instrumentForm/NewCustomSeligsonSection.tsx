@@ -1,70 +1,50 @@
 import type { RefObject } from "react";
+import type { SeligsonFundPageCompositePreviewResponse } from "../../api/seligsonFundPageCompositePreview";
+import type { InstrumentListItem } from "../../pages/instruments/types";
 import { FormFieldsCardSkeleton } from "../skeletonPrimitives";
-import { SeligsonCompositeAllocationPanel } from "./SeligsonCompositeModal";
-import type { BrokerRow, CompositePreviewRow } from "./types";
+import { SeligsonCompositeAllocationPanel } from "./SeligsonCompositeAllocationPanel";
+import type { BrokerRow, SeligsonCompositeMappedRow } from "./types";
 
 export function NewCustomSeligsonSection({
   brokersLoading,
   seligsonBrokers,
   customBrokerId,
   setCustomBrokerId,
-  seligsonFid,
-  setSeligsonFid,
-  seligsonFidInputRef,
-  useCompositeAllocation,
-  setUseCompositeAllocation,
-  compositeTableUrl,
-  setCompositeTableUrl,
-  compositeTableUrlInputRef,
-  onLoadComposition,
-  compositionLoading,
-  compositePreview,
-  compositeFundDisplayName,
-  setCompositeFundDisplayName,
-  compositeSelectionByRow,
-  onCompositeSelectionChange,
-  instrumentOptionsForComposite,
-  onConfirmCompositeAllocation,
-  confirmCompositeDisabled,
-  onClearCompositeAllocation,
+  seligsonFundPageUrl,
+  setSeligsonFundPageUrl,
+  seligsonFundPageUrlInputRef,
+  seligsonCompositePreview,
+  seligsonCompositePreviewLoading,
+  seligsonCompositePreviewError,
+  seligsonCompositeMappedRows,
+  setSeligsonCompositeMappedRows,
+  seligsonCompositeInstrumentOptions,
+  seligsonCompositeInstrumentOptionsLoading,
+  seligsonCompositeInstrumentOptionsError,
 }: {
   brokersLoading: boolean;
   seligsonBrokers: BrokerRow[];
   customBrokerId: number | "";
   setCustomBrokerId: (v: number | "") => void;
-  seligsonFid: string;
-  setSeligsonFid: (v: string) => void;
-  seligsonFidInputRef: RefObject<HTMLInputElement>;
-  useCompositeAllocation: boolean;
-  setUseCompositeAllocation: (v: boolean) => void;
-  compositeTableUrl: string;
-  setCompositeTableUrl: (v: string) => void;
-  compositeTableUrlInputRef: RefObject<HTMLInputElement>;
-  onLoadComposition: () => void;
-  compositionLoading: boolean;
-  compositePreview: {
-    asOfDate: string | null;
-    notes: string[];
-    rows: CompositePreviewRow[];
-  } | null;
-  compositeFundDisplayName: string;
-  setCompositeFundDisplayName: (v: string) => void;
-  compositeSelectionByRow: Record<number, string>;
-  onCompositeSelectionChange: (rowIndex: number, value: string) => void;
-  instrumentOptionsForComposite: Array<{
-    id: number;
-    kind: string;
-    displayName: string;
-    yahooSymbol: string | null;
-    seligsonFund: { name: string } | null;
-  }>;
-  onConfirmCompositeAllocation: () => void;
-  confirmCompositeDisabled: boolean;
-  onClearCompositeAllocation: () => void;
+  seligsonFundPageUrl: string;
+  setSeligsonFundPageUrl: (v: string) => void;
+  seligsonFundPageUrlInputRef: RefObject<HTMLInputElement>;
+  seligsonCompositePreview: SeligsonFundPageCompositePreviewResponse | null;
+  seligsonCompositePreviewLoading: boolean;
+  seligsonCompositePreviewError: string | null;
+  seligsonCompositeMappedRows: SeligsonCompositeMappedRow[];
+  setSeligsonCompositeMappedRows: (v: SeligsonCompositeMappedRow[]) => void;
+  seligsonCompositeInstrumentOptions: InstrumentListItem[];
+  seligsonCompositeInstrumentOptionsLoading: boolean;
+  seligsonCompositeInstrumentOptionsError: string | null;
 }) {
   if (brokersLoading) {
     return <FormFieldsCardSkeleton ariaLabel="Loading brokers" fields={3} />;
   }
+  const showComposite =
+    seligsonCompositePreview?.composite === true &&
+    seligsonCompositePreview.rows.length > 0;
+
   return (
     <div className="form-stack border border-slate-200 rounded-lg p-4 bg-white">
       <label className="block text-sm">
@@ -91,70 +71,49 @@ export function NewCustomSeligsonSection({
           )}
         </select>
       </label>
-      {!useCompositeAllocation ? (
-        <label className="block text-sm">
-          Seligson FID
-          <input
-            ref={seligsonFidInputRef}
-            type="number"
-            min={1}
-            className="mt-1 block w-full border rounded px-2 py-1"
-            value={seligsonFid}
-            onChange={(e) => setSeligsonFid(e.target.value)}
-            placeholder="FundViewer fid=..."
-          />
-        </label>
-      ) : null}
-      <label className="flex items-center gap-2 text-sm cursor-pointer">
+
+      <label className="block text-sm">
+        Fund page URL
         <input
-          type="checkbox"
-          checked={useCompositeAllocation}
-          onChange={(e) => setUseCompositeAllocation(e.target.checked)}
+          ref={seligsonFundPageUrlInputRef}
+          type="url"
+          className="mt-1 block w-full border rounded px-2 py-1"
+          value={seligsonFundPageUrl}
+          onChange={(e) => setSeligsonFundPageUrl(e.target.value)}
+          placeholder="https://www.seligson.fi/suomi/rahastot/..."
         />
-        Composite allocation from public table
       </label>
-      {useCompositeAllocation ? (
-        <div className="form-stack">
-          <label className="block text-sm">
-            Allocation table URL
-            <input
-              ref={compositeTableUrlInputRef}
-              type="url"
-              className="mt-1 block w-full border rounded px-2 py-1"
-              value={compositeTableUrl}
-              onChange={(e) => setCompositeTableUrl(e.target.value)}
-              placeholder="https://www.seligson.fi/.../...-taulukko/"
-            />
-          </label>
-          <button
-            type="button"
-            className="button-primary w-fit"
-            disabled={compositionLoading}
-            onClick={onLoadComposition}
-          >
-            {compositionLoading ? "Loading..." : "Load composition"}
-          </button>
-          {compositePreview != null ? (
-            <SeligsonCompositeAllocationPanel
-              asOfDate={compositePreview.asOfDate}
-              notes={compositePreview.notes}
-              fundDisplayName={compositeFundDisplayName}
-              onFundDisplayNameChange={setCompositeFundDisplayName}
-              rows={compositePreview.rows}
-              instrumentOptions={instrumentOptionsForComposite}
-              selectionByRow={compositeSelectionByRow}
-              onChangeSelection={onCompositeSelectionChange}
-              onConfirm={onConfirmCompositeAllocation}
-              confirmDisabled={confirmCompositeDisabled}
-              onClear={onClearCompositeAllocation}
-            />
-          ) : null}
-        </div>
-      ) : (
-        <p className="text-xs text-slate-500">
-          The fund name is loaded from Seligson when you create the instrument.
+
+      {seligsonCompositePreviewLoading ? (
+        <p className="text-xs text-slate-500">Analyzing fund page...</p>
+      ) : null}
+      {seligsonCompositePreviewError != null &&
+      seligsonCompositePreviewError !== "" ? (
+        <p className="text-xs text-amber-800">
+          {seligsonCompositePreviewError}
         </p>
-      )}
+      ) : null}
+
+      <p className="text-xs text-slate-500">
+        Paste the public fund page on seligson.fi (for example{" "}
+        <code className="text-[11px] bg-slate-100 px-1 rounded">
+          https://www.seligson.fi/suomi/rahastot/rahes_suomi.htm
+        </code>
+        ).
+      </p>
+
+      {showComposite ? (
+        <SeligsonCompositeAllocationPanel
+          previewRows={seligsonCompositePreview.rows}
+          mappedRows={seligsonCompositeMappedRows}
+          onChangeMapped={setSeligsonCompositeMappedRows}
+          fundName={seligsonCompositePreview.fundName}
+          notes={seligsonCompositePreview.notes}
+          instrumentOptions={seligsonCompositeInstrumentOptions}
+          instrumentOptionsLoading={seligsonCompositeInstrumentOptionsLoading}
+          instrumentOptionsError={seligsonCompositeInstrumentOptionsError}
+        />
+      ) : null}
     </div>
   );
 }

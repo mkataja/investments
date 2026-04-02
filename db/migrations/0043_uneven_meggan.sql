@@ -1,0 +1,2 @@
+-- Fails if duplicate `seligson_fund_id` rows already exist; resolve manually before migrate.
+CREATE UNIQUE INDEX "instruments_seligson_fund_id_uidx" ON "instruments" USING btree ("seligson_fund_id") WHERE "instruments"."seligson_fund_id" IS NOT NULL;

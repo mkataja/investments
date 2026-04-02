@@ -17,6 +17,23 @@ export const COMPOSITE_PSEUDO_KEYS = [
 
 export type CompositePseudoKey = (typeof COMPOSITE_PSEUDO_KEYS)[number];
 
+/** Human-readable labels for composite pseudo allocation lines (same as add-transaction style). */
+export const COMPOSITE_PSEUDO_HUMAN_LABEL: Record<CompositePseudoKey, string> =
+  {
+    other_equities: "Other equities (unknown distribution)",
+    other_long_government_bonds:
+      "Other long government bonds (unknown country distribution)",
+    other_long_corporate_bonds:
+      "Other long corporate bonds (unknown country distribution)",
+    other_short_government_bonds:
+      "Other short government bonds (unknown country distribution)",
+    other_short_corporate_bonds:
+      "Other short corporate bonds (unknown country distribution)",
+    other_ultrashort_bonds:
+      "Other ultrashort bonds (unknown country distribution)",
+    cash: "Cash",
+  };
+
 export function isCompositePseudoKey(s: string): s is CompositePseudoKey {
   return (COMPOSITE_PSEUDO_KEYS as readonly string[]).includes(s);
 }

@@ -1,6 +1,8 @@
+import type { KeyboardEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
+import { LoadingSpinner } from "../components/LoadingSpinner";
 import { CashAccountFormFields } from "../components/instrumentForm/CashAccountFormFields";
 import { EditInstrumentMode } from "../components/instrumentForm/EditInstrumentMode";
 import { InstrumentKindPicker } from "../components/instrumentForm/InstrumentKindPicker";
@@ -9,6 +11,25 @@ import { NewCustomSeligsonSection } from "../components/instrumentForm/NewCustom
 import { NewYahooEtfStockSection } from "../components/instrumentForm/NewYahooEtfStockSection";
 import type { InstrumentFormPageProps } from "../components/instrumentForm/types";
 import { useInstrumentFormPage } from "../components/instrumentForm/useInstrumentFormPage";
+
+function preventEnterFromSubmittingForm(e: KeyboardEvent<HTMLFormElement>) {
+  if (e.key !== "Enter") {
+    return;
+  }
+  const t = e.target;
+  if (t === e.currentTarget) {
+    return;
+  }
+  if (t instanceof HTMLButtonElement && t.type === "submit") {
+    return;
+  }
+  if (t instanceof HTMLInputElement && t.type !== "submit") {
+    e.preventDefault();
+  }
+  if (t instanceof HTMLSelectElement) {
+    e.preventDefault();
+  }
+}
 
 function InstrumentFormPage(props: InstrumentFormPageProps) {
   const f = useInstrumentFormPage(props);
@@ -54,7 +75,12 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
         {f.error ? <ErrorAlert>{f.error}</ErrorAlert> : null}
       </header>
 
-      <form onSubmit={(e) => void f.submitNew(e)} className="page-stack">
+      <form
+        onSubmit={(e) => void f.submitNew(e)}
+        onKeyDown={preventEnterFromSubmittingForm}
+        className="page-stack"
+        aria-busy={f.mode === "new" && f.createSubmitting}
+      >
         <InstrumentKindPicker
           kind={f.kind}
           onKindChange={(value) => {
@@ -107,38 +133,23 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
             seligsonBrokers={f.seligsonBrokers}
             customBrokerId={f.customBrokerId}
             setCustomBrokerId={f.setCustomBrokerId}
-            seligsonFid={f.seligsonFid}
-            setSeligsonFid={f.setSeligsonFid}
-            seligsonFidInputRef={f.seligsonFidInputRef}
-            useCompositeAllocation={f.useCompositeAllocation}
-            setUseCompositeAllocation={f.setUseCompositeAllocation}
-            compositeTableUrl={f.compositeTableUrl}
-            setCompositeTableUrl={f.setCompositeTableUrl}
-            compositeTableUrlInputRef={f.compositeTableUrlInputRef}
-            onLoadComposition={() => void f.loadCompositeComposition()}
-            compositionLoading={f.compositionLoading}
-            compositePreview={f.compositePreview}
-            compositeFundDisplayName={f.compositeFundDisplayName}
-            setCompositeFundDisplayName={f.setCompositeFundDisplayName}
-            compositeSelectionByRow={f.compositeSelectionByRow}
-            onCompositeSelectionChange={(rowIndex, value) => {
-              f.setCompositeSelectionByRow((prev) => ({
-                ...prev,
-                [rowIndex]: value,
-              }));
-            }}
-            instrumentOptionsForComposite={f.instrumentOptionsForComposite}
-            onConfirmCompositeAllocation={() => void f.confirmCompositeCreate()}
-            confirmCompositeDisabled={
-              f.compositePreview == null ||
-              f.compositePreview.rows.length === 0 ||
-              f.compositeFundDisplayName.trim() === "" ||
-              f.compositePreview.rows.some((_, i) => {
-                const v = f.compositeSelectionByRow[i];
-                return v == null || v === "";
-              })
+            seligsonFundPageUrl={f.seligsonFundPageUrl}
+            setSeligsonFundPageUrl={f.setSeligsonFundPageUrl}
+            seligsonFundPageUrlInputRef={f.seligsonFundPageUrlInputRef}
+            seligsonCompositePreview={f.seligsonCompositePreview}
+            seligsonCompositePreviewLoading={f.seligsonCompositePreviewLoading}
+            seligsonCompositePreviewError={f.seligsonCompositePreviewError}
+            seligsonCompositeMappedRows={f.seligsonCompositeMappedRows}
+            setSeligsonCompositeMappedRows={f.setSeligsonCompositeMappedRows}
+            seligsonCompositeInstrumentOptions={
+              f.seligsonCompositeInstrumentOptions
             }
-            onClearCompositeAllocation={f.clearCompositeAllocationState}
+            seligsonCompositeInstrumentOptionsLoading={
+              f.seligsonCompositeInstrumentOptionsLoading
+            }
+            seligsonCompositeInstrumentOptionsError={
+              f.seligsonCompositeInstrumentOptionsError
+            }
           />
         ) : null}
 
@@ -162,14 +173,26 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
           <button
             type="submit"
             disabled={
+              f.createSubmitting ||
               !f.kind ||
               (f.brokersLoading &&
                 (f.kind === "custom" || f.kind === "cash_account")) ||
-              (f.kind === "custom" && f.useCompositeAllocation)
+              (f.kind === "custom" && !f.canSubmitCustomSeligson)
             }
-            className="button-primary"
+            className="button-primary gap-2"
+            aria-busy={f.createSubmitting}
           >
-            Create instrument
+            {f.createSubmitting ? (
+              <>
+                <LoadingSpinner
+                  decorative
+                  className="h-4 w-4 shrink-0 text-white"
+                />
+                <span>Creating...</span>
+              </>
+            ) : (
+              "Create instrument"
+            )}
           </button>
           <Link to="/instruments" className="button-cancel">
             Cancel

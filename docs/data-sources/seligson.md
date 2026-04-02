@@ -2,13 +2,19 @@
 
 ## Fund name and NAV
 
+`seligson_funds.price_history_csv_url` stores the absolute URL to each fund’s “Arvohistoria csv-muodossa” file (parsed from the public `rahes_*.htm` intro page when **inserting** a new `seligson_funds` row, or backfilled). The intro page URL itself is **not** stored. When create used **`seligsonFundPageUrl`**, the API also resolves **“Rahaston sijoitukset”** once and stores **`seligson_funds.public_allocation_page_url`** (the public allocation table page) when that link exists; an existing fund row is never overwritten by a later create. Legacy synthetic rows (negative `fid`) may use an empty CSV URL.
+
+When that URL is non-empty, `POST /instruments` (custom Seligson) fetches the CSV once after distribution cache write and upserts historical `prices` (`source = seligson_csv_backfill`, EUR, `close`; `api/src/lib/seligsonArvohistoriaCsv.ts`).
+
 API fetches Seligson HTML to resolve `name` on new `seligson_funds` rows (`fetchSeligsonFundName`). On distribution refresh, `parseSeligsonFundName` runs on the same FundViewer HTML; `seligson_funds.name` updates. Instrument labels use `instruments.display_name` (set at create); refresh updates `display_name` when it still mirrors the old title or strips to the parsed name. Failures → HTTP errors with body; exact routes/status codes in `api`.
 
 `FundValues_FI.html` uses shorter link text than FundViewer in some rows; `fundValuesRowMatchesDbName` includes aliases (e.g. table `Global Brands` ↔ DB name containing “Top 25 Brands”) in `FUND_VALUES_TABLE_LABEL_ALIASES` in `api/src/distributions/seligsonFundValues.ts`. Each row has `Pvm` (Finnish `d.m.yyyy`); `prices.price_date` uses that cell per fund, not the fetch instant.
 
-## Composite allocation (public table)
+## Allocation table (e.g. Pharos)
 
-Some funds (e.g. Varainhoitorahasto Pharos) publish a **static HTML table** on seligson.fi (“Osuus rahastosta”) instead of FundViewer line-by-line holdings. The API can build `distributions` from **weighted child instruments** stored in `instrument_composite_constituents` (`distributions.source = composite`): merge logic mirrors portfolio weighting (unknown distribution for synthetic pseudo keys). Detection: at least one row exists for `parent_instrument_id` — there is **no** `is_composite` column on `instruments`. Preview: `POST /instruments/composite-preview` with `source: seligson_pharos_table` and the page URL; create: `POST /instruments` with `constituents` and **`displayName`** (fund label; stored on a synthetic `seligson_funds` row with negative `fid`) **or** `seligsonFid` if you prefer FundViewer-backed `seligson_funds`. NAV: `FundValues_FI.html` matches by fund **name** (same as non-composite). Parser: `api/src/distributions/seligsonPharosAllocationTable.ts`.
+Some funds publish a **static HTML table** (“Osuus rahastosta”) linked from the fund intro page as **Rahaston sijoitukset** instead of FundViewer line-by-line holdings. When `public_allocation_page_url` is set, distribution refresh fetches **that** page and parses the table with `api/src/distributions/seligsonPharosAllocationTable.ts`, then merges **matched** child instruments’ latest distributions (same merge as portfolio weighting; cash lines map to pseudo `cash`). If the URL is missing or the page does not parse as that table format, refresh falls back to the bond or holdings FundViewer paths.
+
+**Legacy:** instruments created with manual `instrument_composite_constituents` still refresh with `distributions.source = composite` (detection: at least one constituent row for `parent_instrument_id`).
 
 ## Holdings distribution (HTML scrape)
 

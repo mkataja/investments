@@ -104,6 +104,13 @@ export const seligsonFunds = pgTable(
     id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
     fid: integer("fid").notNull(),
     name: text("name").notNull(),
+    /** Absolute HTTPS URL to Seligson Arvohistoria csv for this fund. Empty string for synthetic composite rows (negative fid). */
+    priceHistoryCsvUrl: text("price_history_csv_url").notNull(),
+    /**
+     * Public page URL of the Pharos-style allocation table (resolved once from “Rahaston sijoitukset”
+     * on the fund intro page at create). Not the intro `rahes_*.htm` URL. Null when the fund has no such table.
+     */
+    publicAllocationPageUrl: text("public_allocation_page_url"),
     notes: text("notes"),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -126,6 +133,7 @@ export const instruments = pgTable(
     isin: text("isin"),
     seligsonFundId: integer("seligson_fund_id").references(
       () => seligsonFunds.id,
+      { onDelete: "cascade" },
     ),
     /**
      * Required for `custom` (e.g. Seligson) and `cash_account`; null for `etf`/`stock`/`commodity`/`fx`.
@@ -199,6 +207,10 @@ export const instruments = pgTable(
       .on(sql`upper(trim(${t.fxForeignCurrency}))`)
       .where(sql`${t.kind} = 'fx'`),
     index("instruments_seligson_fund_id_idx").on(t.seligsonFundId),
+    /** At most one instrument per Seligson fund (`custom` instruments only use this FK). */
+    uniqueIndex("instruments_seligson_fund_id_uidx")
+      .on(t.seligsonFundId)
+      .where(sql`${t.seligsonFundId} IS NOT NULL`),
     index("instruments_broker_id_idx").on(t.brokerId),
     index("instruments_isin_idx").on(t.isin),
   ],
@@ -409,6 +421,11 @@ export const seligsonDistributionCache = pgTable(
         OR (
           COALESCE(TRIM(${t.allocationHtml}), '') <> ''
           AND COALESCE(TRIM(${t.countryHtml}), '') <> ''
+        )
+        OR (
+          COALESCE(TRIM(${t.allocationHtml}), '') <> ''
+          AND COALESCE(TRIM(${t.holdingsHtml}), '') = ''
+          AND COALESCE(TRIM(${t.countryHtml}), '') = ''
         )
       )`,
     ),

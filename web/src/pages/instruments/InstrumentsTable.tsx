@@ -18,7 +18,7 @@ function lastUpdatedCell(i: InstrumentListItem) {
   const distRaw = i.distribution?.fetchedAt;
   const dist =
     distRaw != null && distRaw !== "" ? formatInstantForDisplay(distRaw) : null;
-  const pricesRaw = i.yahooPricesLastFetchedAt;
+  const pricesRaw = i.pricesLastFetchedAt ?? i.yahooPricesLastFetchedAt;
   const prices =
     pricesRaw != null && pricesRaw !== ""
       ? formatInstantForDisplay(pricesRaw)

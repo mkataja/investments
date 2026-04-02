@@ -1,0 +1,1 @@
+ALTER TABLE "seligson_funds" ADD COLUMN "fund_intro_page_url" text;

@@ -32,23 +32,15 @@ import {
   desc,
   eq,
   inArray,
-  lt,
-  min,
   ne,
-  notInArray,
   sql,
 } from "drizzle-orm";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
-import { db } from "./db.js";
+import { type DbOrTx, db } from "./db.js";
 import { fetchSeligsonFundName } from "./distributions/seligson.js";
 import { upsertSeligsonFundValuesFromPage } from "./distributions/seligsonFundValues.js";
-import {
-  fetchSeligsonPublicPageHtml,
-  parseSeligsonPharosAllocationTable,
-  parseSeligsonPublicPageFundName,
-} from "./distributions/seligsonPharosAllocationTable.js";
 import {
   buildYahooInstrumentLookup,
   displayNameFromYahooLookup,
@@ -77,11 +69,6 @@ import {
   writeSeligsonDistributionCache,
 } from "./lib/cacheRefresh.js";
 import {
-  type InstrumentMatchCandidate,
-  suggestBestInstrumentId,
-  suggestPseudoKeyForLabel,
-} from "./lib/compositeInstrumentMatch.js";
-import {
   insertCommodityFromYahoo,
   insertEtfStockFromYahoo,
 } from "./lib/createYahooInstrument.js";
@@ -95,6 +82,19 @@ import {
 } from "./lib/portfolioAccess.js";
 import { getPortfolioAssetMixHistory } from "./lib/portfolioAssetMixHistory.js";
 import { loadOpenPositionsForPortfolio } from "./lib/positions.js";
+import {
+  duplicateSeligsonFundInstrumentMessage,
+  userFacingMessageFromDbError,
+} from "./lib/postgresUserMessage.js";
+import { backfillSeligsonPricesFromArvohistoriaCsv } from "./lib/seligsonArvohistoriaCsv.js";
+import {
+  fetchSeligsonFundIntroPageHtml,
+  isSeligsonFundViewerUrl,
+  normalizeSeligsonFundPageToHttps,
+  parseSeligsonFundIntroHtml,
+  resolveRahastonSijoituksetTableUrl,
+} from "./lib/seligsonFundIntroPage.js";
+import { seligsonFundPageCompositePreview } from "./lib/seligsonFundPageCompositePreview.js";
 import { seedIntradayPriceForInstrumentIfMissing } from "./lib/transactionPriceSeed.js";
 import {
   instrumentHasYahooFetchedPrice,
@@ -1348,17 +1348,18 @@ const compositePseudoKeyIn = z.enum(
 
 const compositeConstituentIn = z
   .object({
-    rawLabel: z.string(),
-    weightOfFund: z.number().positive(),
+    rawLabel: z.string().trim().min(1),
+    weightOfFund: z.number().positive().finite(),
     targetInstrumentId: z.number().int().positive().optional(),
     pseudoKey: compositePseudoKeyIn.optional(),
   })
   .refine(
     (d) =>
-      (d.targetInstrumentId != null && d.pseudoKey == null) ||
-      (d.targetInstrumentId == null && d.pseudoKey != null),
+      (d.targetInstrumentId != null ? 1 : 0) + (d.pseudoKey != null ? 1 : 0) ===
+      1,
     {
-      message: "Exactly one of targetInstrumentId or pseudoKey per constituent",
+      message:
+        "Each constituent must have exactly one of targetInstrumentId or pseudoKey",
     },
   );
 
@@ -1366,9 +1367,16 @@ const customInstrumentIn = z.object({
   kind: z.literal("custom"),
   brokerId: z.number().int().positive(),
   seligsonFid: z.number().int().positive().optional(),
-  /** When `constituents` is set and `seligsonFid` is omitted: name for `seligson_funds` (NAV match vs FundValues). */
-  displayName: z.string().trim().min(1).optional(),
+  /** Public fund intro page (`rahes_*.htm`). Server reads `fid`, CSV URL, and optional “Rahaston sijoitukset” table URL once; intro URL is not stored. */
+  seligsonFundPageUrl: z.string().trim().min(1).url().optional(),
+  /** Required with `seligsonFid` when not using `seligsonFundPageUrl`. */
+  priceHistoryCsvUrl: z.string().trim().min(1).url().optional(),
+  /** When set with `seligsonFundPageUrl`, creates a composite instrument (manual sleeve mapping) instead of a single-fund scrape. */
   constituents: z.array(compositeConstituentIn).optional(),
+});
+
+const seligsonFundPagePreviewIn = z.object({
+  seligsonFundPageUrl: z.string().trim().min(1).url(),
 });
 
 const commodityInstrumentIn = z.object({
@@ -1471,6 +1479,7 @@ function mapJoinedRowToInstrumentPayload(
   hasYahooFetchedPrice: boolean,
   yahooPricesLastFetchedAt: string | null,
   yahooChartBackfillLastFetchedAt: string | null,
+  pricesLastFetchedAt: string | null,
 ) {
   const {
     instrument,
@@ -1486,6 +1495,7 @@ function mapJoinedRowToInstrumentPayload(
     hasYahooFetchedPrice,
     yahooPricesLastFetchedAt,
     yahooChartBackfillLastFetchedAt,
+    pricesLastFetchedAt,
     netQuantity,
     providerHoldings: providerHoldingsRow
       ? {
@@ -1509,7 +1519,15 @@ function mapJoinedRowToInstrumentPayload(
             : null,
         }
       : null,
-    seligsonFund: fund ? { id: fund.id, fid: fund.fid, name: fund.name } : null,
+    seligsonFund: fund
+      ? {
+          id: fund.id,
+          fid: fund.fid,
+          name: fund.name,
+          priceHistoryCsvUrl: fund.priceHistoryCsvUrl,
+          publicAllocationPageUrl: fund.publicAllocationPageUrl,
+        }
+      : null,
     broker: br
       ? {
           id: br.id,
@@ -1590,6 +1608,7 @@ async function loadInstrumentPayloadById(
   const activity = activityMap.get(id) ?? {
     yahooPricesLastFetchedAt: null,
     yahooChartBackfillLastFetchedAt: null,
+    pricesLastFetchedAt: null,
   };
   return mapJoinedRowToInstrumentPayload(
     rowWithDist,
@@ -1597,79 +1616,112 @@ async function loadInstrumentPayloadById(
     hasYahooFetchedPrice,
     activity.yahooPricesLastFetchedAt,
     activity.yahooChartBackfillLastFetchedAt,
+    activity.pricesLastFetchedAt,
   );
 }
 
-async function loadInstrumentMatchCandidates(): Promise<
-  InstrumentMatchCandidate[]
-> {
-  const joined = await db
-    .select({
-      id: instruments.id,
-      displayName: instruments.displayName,
-      yahooSymbol: instruments.yahooSymbol,
-      sfName: seligsonFunds.name,
-    })
-    .from(instruments)
-    .leftJoin(seligsonFunds, eq(instruments.seligsonFundId, seligsonFunds.id))
-    .where(notInArray(instruments.kind, ["cash_account", "fx"]));
-
-  return joined.map((r) => ({
-    id: r.id,
-    labels: [r.displayName, r.yahooSymbol, r.sfName].filter(
-      (x): x is string => x != null && String(x).trim().length > 0,
-    ),
-  }));
+class DuplicateSeligsonInstrumentError extends Error {
+  constructor() {
+    super("An instrument for this Seligson fund already exists.");
+    this.name = "DuplicateSeligsonInstrumentError";
+  }
 }
 
-async function findOrCreateSeligsonFundByFid(fid: number) {
-  const [existing] = await db
+function isSeligsonFundFidUniqueViolation(e: unknown): boolean {
+  if (
+    typeof e !== "object" ||
+    e === null ||
+    !("code" in e) ||
+    (e as { code: unknown }).code !== "23505"
+  ) {
+    return false;
+  }
+  const constraint =
+    "constraint" in e &&
+    typeof (e as { constraint: unknown }).constraint === "string"
+      ? (e as { constraint: string }).constraint
+      : "";
+  const msg = e instanceof Error ? e.message : String(e);
+  return (
+    constraint === "seligson_funds_fid_uidx" ||
+    msg.includes("seligson_funds_fid_uidx")
+  );
+}
+
+async function backfillSeligsonCsvIfConfigured(
+  instrumentId: number,
+  priceHistoryCsvUrl: string,
+): Promise<void> {
+  if (priceHistoryCsvUrl.trim() === "") {
+    return;
+  }
+  await backfillSeligsonPricesFromArvohistoriaCsv(
+    db,
+    instrumentId,
+    priceHistoryCsvUrl,
+  );
+}
+
+/**
+ * Inside a transaction: find or insert `seligson_funds`. Pass `fundNameForInsert` when the fund
+ * row may need to be created (caller prefetches via `fetchSeligsonFundName` outside the tx).
+ */
+async function findOrCreateSeligsonFundByFidInTx(
+  tx: DbOrTx,
+  fid: number,
+  priceHistoryCsvUrlForNewRow: string | null | undefined,
+  publicAllocationPageUrlForNewRow: string | null | undefined,
+  fundNameForInsert: string | null,
+): Promise<InferSelectModel<typeof seligsonFunds>> {
+  const publicAlloc = publicAllocationPageUrlForNewRow?.trim() ?? null;
+  const [existing] = await tx
     .select()
     .from(seligsonFunds)
     .where(eq(seligsonFunds.fid, fid));
   if (existing) {
     return existing;
   }
-  let name: string;
+  if (fid <= 0) {
+    throw new Error("Invalid fid for Seligson fund insert");
+  }
+  const csv = priceHistoryCsvUrlForNewRow?.trim();
+  if (csv == null || csv === "") {
+    throw new Error(
+      "priceHistoryCsvUrl is required when creating a Seligson fund row",
+    );
+  }
+  const name = fundNameForInsert?.trim();
+  if (name == null || name === "") {
+    throw new Error("Fund name is required when creating a Seligson fund row");
+  }
   try {
-    name = await fetchSeligsonFundName(fid);
+    const [inserted] = await tx
+      .insert(seligsonFunds)
+      .values({
+        fid,
+        name,
+        priceHistoryCsvUrl: csv,
+        publicAllocationPageUrl: publicAlloc,
+        isActive: true,
+      })
+      .returning();
+    if (!inserted) {
+      throw new Error("Failed to insert seligson fund");
+    }
+    return inserted;
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    throw new Error(message);
+    if (isSeligsonFundFidUniqueViolation(e)) {
+      const [row] = await tx
+        .select()
+        .from(seligsonFunds)
+        .where(eq(seligsonFunds.fid, fid))
+        .limit(1);
+      if (row) {
+        return row;
+      }
+    }
+    throw e;
   }
-  const [inserted] = await db
-    .insert(seligsonFunds)
-    .values({
-      fid,
-      name,
-      isActive: true,
-    })
-    .returning();
-  if (!inserted) {
-    throw new Error("Failed to insert seligson fund");
-  }
-  return inserted;
-}
-
-/** Composite funds without FundViewer `fid`: unique negative `fid`, name from `displayName` (FundValues NAV match). */
-async function insertSyntheticSeligsonFund(name: string) {
-  const [agg] = await db
-    .select({ m: min(seligsonFunds.fid) })
-    .from(seligsonFunds)
-    .where(lt(seligsonFunds.fid, 0));
-  const nextFid = (agg?.m ?? 0) - 1;
-  const [inserted] = await db
-    .insert(seligsonFunds)
-    .values({
-      fid: nextFid,
-      name,
-      isActive: true,
-    })
-    .returning();
-  if (!inserted) {
-    throw new Error("Failed to insert seligson fund");
-  }
-  return inserted;
 }
 
 app.get("/instruments", async (c) => {
@@ -1770,6 +1822,7 @@ app.get("/instruments", async (c) => {
     const act = yahooPriceActivityMap.get(row.instrument.id) ?? {
       yahooPricesLastFetchedAt: null,
       yahooChartBackfillLastFetchedAt: null,
+      pricesLastFetchedAt: null,
     };
     return mapJoinedRowToInstrumentPayload(
       {
@@ -1780,6 +1833,7 @@ app.get("/instruments", async (c) => {
       yahooFetchedIdSet.has(row.instrument.id),
       act.yahooPricesLastFetchedAt,
       act.yahooChartBackfillLastFetchedAt,
+      act.pricesLastFetchedAt,
     );
   });
 
@@ -1820,6 +1874,35 @@ app.get("/instruments/lookup-yahoo", async (c) => {
     return c.json({ message }, status);
   }
 });
+
+app.post(
+  "/instruments/seligson-fund-page-preview",
+  zValidator("json", seligsonFundPagePreviewIn),
+  async (c) => {
+    const { seligsonFundPageUrl } = c.req.valid("json");
+    try {
+      const result =
+        await seligsonFundPageCompositePreview(seligsonFundPageUrl);
+      return c.json(result);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (
+        message.includes("Invalid fund page") ||
+        message.includes("Fund page URL must")
+      ) {
+        return c.json({ message }, 400);
+      }
+      if (
+        message.includes("Could not find") ||
+        message.includes("Multiple distinct fid") ||
+        message.includes("CSV link must")
+      ) {
+        return c.json({ message }, 502);
+      }
+      return c.json({ message }, 502);
+    }
+  },
+);
 
 app.post("/instruments/backfill-yahoo-prices", async (c) => {
   const result = await backfillAllYahooPricesFromHistory();
@@ -1883,42 +1966,6 @@ app.get("/instruments/:id", async (c) => {
   return c.json(payload);
 });
 
-const compositePreviewIn = z.object({
-  source: z.literal("seligson_pharos_table"),
-  url: z.string().url(),
-});
-
-app.post(
-  "/instruments/composite-preview",
-  zValidator("json", compositePreviewIn),
-  async (c) => {
-    const { url } = c.req.valid("json");
-    try {
-      const html = await fetchSeligsonPublicPageHtml(url);
-      const { rows, asOfDate, notes } =
-        parseSeligsonPharosAllocationTable(html);
-      const fundName = parseSeligsonPublicPageFundName(html);
-      const candidates = await loadInstrumentMatchCandidates();
-      const preview = rows.map((r) => {
-        const pseudo = suggestPseudoKeyForLabel(r.rawLabel);
-        const suggestedInstrumentId = pseudo
-          ? null
-          : suggestBestInstrumentId(r.rawLabel, candidates);
-        return {
-          rawLabel: r.rawLabel,
-          pctOfFund: r.pctOfFund,
-          suggestedInstrumentId,
-          suggestedPseudoKey: pseudo,
-        };
-      });
-      return c.json({ asOfDate, rows: preview, notes, fundName });
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return c.json({ message }, 502);
-    }
-  },
-);
-
 app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
   const body = c.req.valid("json");
 
@@ -1972,29 +2019,79 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
   }
 
   if (body.kind === "custom") {
-    const hasComposite =
+    const isComposite =
       body.constituents != null && body.constituents.length > 0;
-    if (hasComposite) {
-      if (
-        body.seligsonFid == null &&
-        (body.displayName == null || body.displayName.length === 0)
-      ) {
+    const compositeRows = body.constituents;
+    const pageUrlRaw = body.seligsonFundPageUrl?.trim();
+    const hasPageUrl = pageUrlRaw != null && pageUrlRaw.length > 0;
+
+    if (isComposite) {
+      if (!hasPageUrl) {
         return c.json(
           {
             message:
-              "Provide seligsonFid or displayName for composite instruments",
+              "seligsonFundPageUrl is required when constituents are provided",
+          },
+          400,
+        );
+      }
+      if (body.seligsonFid != null) {
+        return c.json(
+          {
+            message:
+              "Do not pass seligsonFid when providing composite constituents",
+          },
+          400,
+        );
+      }
+      if (body.priceHistoryCsvUrl != null) {
+        return c.json(
+          {
+            message:
+              "Do not pass priceHistoryCsvUrl when providing composite constituents",
+          },
+          400,
+        );
+      }
+    }
+
+    if (hasPageUrl) {
+      if (body.seligsonFid != null) {
+        return c.json(
+          {
+            message:
+              "Do not pass seligsonFid together with seligsonFundPageUrl",
+          },
+          400,
+        );
+      }
+      if (body.priceHistoryCsvUrl != null) {
+        return c.json(
+          {
+            message:
+              "Do not pass priceHistoryCsvUrl together with seligsonFundPageUrl",
           },
           400,
         );
       }
     } else if (body.seligsonFid == null) {
-      return c.json({ message: "seligsonFid is required" }, 400);
-    } else if (body.displayName != null) {
       return c.json(
-        { message: "displayName is only used for composite instruments" },
+        { message: "Provide seligsonFundPageUrl or seligsonFid" },
+        400,
+      );
+    } else if (
+      body.priceHistoryCsvUrl == null ||
+      body.priceHistoryCsvUrl.trim() === ""
+    ) {
+      return c.json(
+        {
+          message:
+            "priceHistoryCsvUrl is required when using seligsonFid without seligsonFundPageUrl",
+        },
         400,
       );
     }
+
     const [br] = await db
       .select()
       .from(brokers)
@@ -2008,115 +2105,170 @@ app.post("/instruments", zValidator("json", instrumentIn), async (c) => {
         400,
       );
     }
-    const constituents = body.constituents;
-    let fund: Awaited<ReturnType<typeof findOrCreateSeligsonFundByFid>>;
+
+    let fid: number;
+    let csvForFund: string;
+    let publicAllocationPageUrlForNewRow: string | null = null;
     try {
-      if (constituents != null && constituents.length > 0) {
-        if (body.seligsonFid != null) {
-          fund = await findOrCreateSeligsonFundByFid(body.seligsonFid);
-        } else {
-          const name = body.displayName?.trim();
-          if (!name) {
-            return c.json({ message: "displayName is required" }, 400);
-          }
-          fund = await insertSyntheticSeligsonFund(name);
-        }
+      if (hasPageUrl && pageUrlRaw != null) {
+        const { href, html } = await fetchSeligsonFundIntroPageHtml(pageUrlRaw);
+        const parsed = parseSeligsonFundIntroHtml(html, href);
+        fid = parsed.fid;
+        csvForFund = parsed.priceHistoryCsvUrl;
+        const tableUrl = resolveRahastonSijoituksetTableUrl(html, href);
+        const tableHttps =
+          tableUrl != null ? normalizeSeligsonFundPageToHttps(tableUrl) : null;
+        publicAllocationPageUrlForNewRow =
+          tableHttps != null && !isSeligsonFundViewerUrl(tableHttps)
+            ? tableHttps
+            : null;
       } else {
-        const fid = body.seligsonFid;
-        if (fid == null) {
-          return c.json({ message: "seligsonFid is required" }, 400);
-        }
-        fund = await findOrCreateSeligsonFundByFid(fid);
-      }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return c.json({ message }, 502);
-    }
-
-    if (constituents != null && constituents.length > 0) {
-      const sumRaw = constituents.reduce((s, c) => s + c.weightOfFund, 0);
-      if (!Number.isFinite(sumRaw) || sumRaw < 0.85 || sumRaw > 1.15) {
-        return c.json(
-          {
-            message:
-              "Constituent weightOfFund values must sum to about 1 (85–115%).",
-          },
-          400,
-        );
-      }
-      const norm = constituents.map((c) => ({
-        ...c,
-        weightOfFund: c.weightOfFund / sumRaw,
-      }));
-
-      const targetIds = norm
-        .map((c) => c.targetInstrumentId)
-        .filter((id): id is number => id != null);
-      const uniqueTargets = [...new Set(targetIds)];
-      if (uniqueTargets.length > 0) {
-        const found = await db
-          .select({ id: instruments.id })
-          .from(instruments)
-          .where(inArray(instruments.id, uniqueTargets));
-        if (found.length !== uniqueTargets.length) {
+        const fidRaw = body.seligsonFid;
+        const csvUrl = body.priceHistoryCsvUrl?.trim();
+        if (fidRaw == null || csvUrl == null || csvUrl === "") {
           return c.json(
-            { message: "One or more target instruments do not exist" },
+            {
+              message:
+                "seligsonFundPageUrl or seligsonFid with priceHistoryCsvUrl is required",
+            },
             400,
           );
         }
+        fid = fidRaw;
+        csvForFund = csvUrl;
       }
-
-      const [row] = await db
-        .insert(instruments)
-        .values({
-          kind: "custom",
-          displayName: fund.name,
-          seligsonFundId: fund.id,
-          brokerId: body.brokerId,
-        })
-        .returning();
-      if (!row) {
-        return c.json({ message: "Failed to insert instrument" }, 500);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      if (
+        message.includes("Invalid fund page") ||
+        message.includes("Fund page URL must")
+      ) {
+        return c.json({ message }, 400);
       }
+      if (
+        message.includes("Could not find") ||
+        message.includes("Multiple distinct fid") ||
+        message.includes("CSV link must")
+      ) {
+        return c.json({ message }, 502);
+      }
+      return c.json({ message }, 502);
+    }
 
+    const [preExistingFund] = await db
+      .select()
+      .from(seligsonFunds)
+      .where(eq(seligsonFunds.fid, fid))
+      .limit(1);
+    let fundNameForInsert: string | null = null;
+    if (!preExistingFund) {
       try {
-        await db.insert(instrumentCompositeConstituents).values(
-          norm.map((c, i) => ({
-            parentInstrumentId: row.id,
-            sortOrder: i,
-            rawLabel: c.rawLabel,
-            weight: String(c.weightOfFund),
-            targetInstrumentId: c.targetInstrumentId ?? null,
-            pseudoKey: c.pseudoKey ?? null,
-          })),
+        fundNameForInsert = await fetchSeligsonFundName(fid);
+      } catch (e) {
+        const message = e instanceof Error ? e.message : String(e);
+        return c.json({ message }, 502);
+      }
+    }
+
+    let fund!: InferSelectModel<typeof seligsonFunds>;
+    let row!: InferSelectModel<typeof instruments>;
+    try {
+      await db.transaction(async (tx) => {
+        fund = await findOrCreateSeligsonFundByFidInTx(
+          tx,
+          fid,
+          csvForFund,
+          publicAllocationPageUrlForNewRow,
+          fundNameForInsert,
         );
-        await writeCompositeDistributionCache(row.id);
-        await upsertSeligsonFundValuesFromPage(db, new Date());
+        const [dupInstrument] = await tx
+          .select({ id: instruments.id })
+          .from(instruments)
+          .where(eq(instruments.seligsonFundId, fund.id))
+          .limit(1);
+        if (dupInstrument) {
+          throw new DuplicateSeligsonInstrumentError();
+        }
+        const [inserted] = await tx
+          .insert(instruments)
+          .values({
+            kind: "custom",
+            displayName: fund.name,
+            seligsonFundId: fund.id,
+            brokerId: body.brokerId,
+          })
+          .returning();
+        if (!inserted) {
+          throw new Error("Failed to insert instrument");
+        }
+        row = inserted;
+        if (isComposite && compositeRows != null) {
+          await tx.insert(instrumentCompositeConstituents).values(
+            compositeRows.map(
+              (
+                c: {
+                  rawLabel: string;
+                  weightOfFund: number;
+                  targetInstrumentId?: number;
+                  pseudoKey?: string;
+                },
+                i: number,
+              ) => ({
+                parentInstrumentId: row.id,
+                sortOrder: i,
+                rawLabel: c.rawLabel,
+                weight: String(c.weightOfFund),
+                targetInstrumentId: c.targetInstrumentId ?? null,
+                pseudoKey: c.pseudoKey ?? null,
+              }),
+            ),
+          );
+        }
+      });
+    } catch (e) {
+      if (e instanceof DuplicateSeligsonInstrumentError) {
+        return c.json({ message: e.message }, 409);
+      }
+      const dupMsg = duplicateSeligsonFundInstrumentMessage(e);
+      if (dupMsg) {
+        return c.json({ message: dupMsg }, 409);
+      }
+      const message = e instanceof Error ? e.message : String(e);
+      if (
+        message.includes("priceHistoryCsvUrl is required") ||
+        message.includes(
+          "Fund name is required when creating a Seligson fund row",
+        )
+      ) {
+        return c.json({ message }, 400);
+      }
+      return c.json({ message }, 502);
+    }
+
+    if (isComposite) {
+      try {
+        const now = new Date();
+        await writeCompositeDistributionCache(row.id, now);
+        await upsertSeligsonFundValuesFromPage(db, now);
+        await backfillSeligsonCsvIfConfigured(row.id, fund.priceHistoryCsvUrl);
       } catch (e) {
         await db.delete(instruments).where(eq(instruments.id, row.id));
-        const message = e instanceof Error ? e.message : String(e);
+        const message =
+          userFacingMessageFromDbError(e) ??
+          (e instanceof Error ? e.message : String(e));
         return c.json({ message }, 502);
       }
       return c.json(row, 201);
     }
 
-    const [row] = await db
-      .insert(instruments)
-      .values({
-        kind: "custom",
-        displayName: fund.name,
-        seligsonFundId: fund.id,
-        brokerId: body.brokerId,
-      })
-      .returning();
-    if (!row) {
-      return c.json({ message: "Failed to insert instrument" }, 500);
-    }
     try {
       await writeSeligsonDistributionCache(row.id, fund.fid);
+      await backfillSeligsonCsvIfConfigured(row.id, fund.priceHistoryCsvUrl);
     } catch (e) {
       await db.delete(instruments).where(eq(instruments.id, row.id));
-      const message = e instanceof Error ? e.message : String(e);
+      const message =
+        userFacingMessageFromDbError(e) ??
+        (e instanceof Error ? e.message : String(e));
       return c.json({ message }, 502);
     }
     return c.json(row, 201);

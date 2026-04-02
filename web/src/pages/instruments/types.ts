@@ -4,6 +4,8 @@ type SeligsonFundSummary = {
   id: number;
   fid: number;
   name: string;
+  priceHistoryCsvUrl: string;
+  publicAllocationPageUrl: string | null;
 };
 
 export type InstrumentListItem = {
@@ -16,6 +18,8 @@ export type InstrumentListItem = {
   yahooPricesLastFetchedAt: string | null;
   /** Latest `fetched_at` for `yahoo_chart_backfill` only (bulk backfill 3h backoff); null if never chart-backfilled. */
   yahooChartBackfillLastFetchedAt: string | null;
+  /** Latest `fetched_at` among all `prices` rows (Seligson CSV, FundValues, Yahoo, etc.); null if none. */
+  pricesLastFetchedAt: string | null;
   yahooSymbol: string | null;
   isin: string | null;
   seligsonFundId: number | null;

@@ -1,0 +1,1 @@
+ALTER TABLE "seligson_funds" ADD COLUMN "price_history_csv_url" text DEFAULT '' NOT NULL;
