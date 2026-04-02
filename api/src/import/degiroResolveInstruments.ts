@@ -1,4 +1,4 @@
-import type { InstrumentRow } from "../lib/valuation.js";
+import type { InstrumentRow } from "../service/portfolio/valuation.js";
 import {
   type OpenFigiMappingRow,
   fetchOpenFigiMapping,

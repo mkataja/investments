@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { InstrumentRow } from "../lib/valuation.js";
+import type { InstrumentRow } from "../service/portfolio/valuation.js";
 import { resolveDegiroInstrumentIds } from "./degiroResolveInstruments.js";
 import * as openFigi from "./openFigi.js";
 

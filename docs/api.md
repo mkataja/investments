@@ -2,12 +2,21 @@
 
 **Routes** — [`api/src/index.ts`](../api/src/index.ts). Single source of truth; do not list endpoints elsewhere.
 
-**Request/response shapes, status codes, and non-obvious rules** — document with **JSDoc** on the route handler (or on the `api/src/lib` / `api/src/import` helper the handler calls). That keeps contracts next to code and avoids a second copy in markdown.
+**Request/response shapes, status codes, and non-obvious rules** — document with **JSDoc** on the route handler (or on the `api/src/service/` / `api/src/import` helper the handler calls). That keeps contracts next to code and avoids a second copy in markdown.
 
 **Where logic lives** (read before changing behavior):
 
 - Import parsers and upsert keys — `api/src/import/`
-- Portfolio merge and valuation — `api/src/lib/portfolio.ts`, `api/src/lib/portfolioAssetMix.ts`
 - Web HTTP helpers — `web/src/api/` (transport; parsing belongs in `api`)
+
+**Route handler entrypoints** — each `api/src/service/<area>/index.ts` registers HTTP handlers; the same folder usually holds domain code too (e.g. `service/portfolio/` has valuation and asset mix next to routes). Details stay in JSDoc:
+
+| Module | Role |
+| --- | --- |
+| `brokers` | Brokers CRUD. |
+| `transactions` | Transactions CRUD and intraday price seeding from trades. |
+| `import` | Degiro, IBKR, and Seligson import uploads and instrument resolution. |
+| `instrument` | Instruments CRUD, backfills, distribution refresh, Yahoo lookup, positions, and portfolio distribution or asset-mix history routes. |
+| `portfolio` | Portfolios CRUD and benchmark weights. |
 
 CORS and validation are in the same entrypoint as routes.

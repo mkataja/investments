@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { InstrumentRow } from "../lib/valuation.js";
+import type { InstrumentRow } from "../service/portfolio/valuation.js";
 import { resolveIbkrInstrumentRows } from "./ibkrResolveInstruments.js";
 
 function row(

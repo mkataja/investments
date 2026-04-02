@@ -6,7 +6,7 @@ import { yahooFinance } from "../lib/yahooClient.js";
 import {
   acquireYahooIntervalSlot,
   withYahooRetries,
-} from "../lib/yahooUpstream.js";
+} from "../service/yahoo/yahooUpstream.js";
 import {
   mapSectorLabelToCanonicalIdWithWarn,
   normalizeRegionWeightsToIsoKeys,

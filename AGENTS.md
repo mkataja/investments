@@ -49,9 +49,9 @@ Duplicating code is a maintenance nightmare, makes files larger than necessary, 
 ### Code layout
 
 - Split files that grow past ~300–500 lines when it helps clarity
-- No barrel `index.ts` files
+- No barrel import files
 - `web/src/api/` — web-only HTTP/API contract helpers (transport in `client.ts`); real payload/parse/error work only, not thin wrappers. Backend-shared logic belongs in `@investments/lib`. Import domain types from the feature that owns them (e.g. `pages/home/types.ts`, `components/instrumentForm/types.ts`) rather than growing a generic `types/` tree.
-- Other shared logic to `lib/` — package-local `api/src/lib` / `web/src/lib`, or `@investments/lib` when `api` and `web` both need it
+- Other shared logic to `lib/` — package-local `api/src/lib` (small generic helpers only), `api/src/service/` (HTTP and domain orchestration), `web/src/lib`, or `@investments/lib` when `api` and `web` both need it
 - It's important to consider maintainability
 
 

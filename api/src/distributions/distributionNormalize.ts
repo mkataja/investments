@@ -3,7 +3,7 @@ import {
   normLabel,
   resolveRegionKeyToIso,
 } from "@investments/lib/geo/countryIso";
-import { sectorRefreshStorage } from "../lib/sectorRefreshContext.js";
+import { sectorRefreshStorage } from "../service/instrument/sectorRefreshContext.js";
 import { mapSectorLabelToCanonicalId } from "./sectorMapping.js";
 
 /**

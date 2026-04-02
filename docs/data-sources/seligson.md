@@ -4,7 +4,7 @@
 
 `seligson_funds.price_history_csv_url` stores the absolute URL to each fund’s “Arvohistoria csv-muodossa” file (parsed from the public `rahes_*.htm` intro page when **inserting** a new `seligson_funds` row, or backfilled). The intro page URL itself is **not** stored. When create used **`seligsonFundPageUrl`**, the API also resolves **“Rahaston sijoitukset”** once and stores **`seligson_funds.public_allocation_page_url`** (the public allocation table page) when that link exists; an existing fund row is never overwritten by a later create. Legacy synthetic rows (negative `fid`) may use an empty CSV URL.
 
-When that URL is non-empty, `POST /instruments` (custom Seligson) fetches the CSV once after distribution cache write and upserts historical `prices` (`source = seligson_csv_backfill`, EUR, `close`; `api/src/lib/seligsonArvohistoriaCsv.ts`).
+When that URL is non-empty, `POST /instruments` (custom Seligson) fetches the CSV once after distribution cache write and upserts historical `prices` (`source = seligson_csv_backfill`, EUR, `close`; `api/src/service/seligsonArvohistoriaCsv.ts`).
 
 API fetches Seligson HTML to resolve `name` on new `seligson_funds` rows (`fetchSeligsonFundName`). On distribution refresh, `parseSeligsonFundName` runs on the same FundViewer HTML; `seligson_funds.name` updates. Instrument labels use `instruments.display_name` (set at create); refresh updates `display_name` when it still mirrors the old title or strips to the parsed name. Failures → HTTP errors with body; exact routes/status codes in `api`.
 

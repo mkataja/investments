@@ -1,6 +1,6 @@
 import { aggregateRegionsToGeoBuckets } from "@investments/lib/geo/geoBuckets";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { sectorRefreshStorage } from "../lib/sectorRefreshContext.js";
+import { sectorRefreshStorage } from "../service/instrument/sectorRefreshContext.js";
 import {
   mapSectorLabelToCanonicalIdWithWarn,
   normalizeRegionWeightsToIsoKeys,

@@ -10,8 +10,8 @@ import {
   normalizeSeligsonFundNameForMatch,
   parseSeligsonTradeDateDMY,
 } from "../import/seligsonTransactions.js";
-import { processFxBackfillQueue } from "../lib/fxEurPriceBackfill.js";
-import { upsertPriceForDate } from "../lib/priceDistributionWrite.js";
+import { processFxBackfillQueue } from "../service/fx/fxEurPriceBackfill.js";
+import { upsertPriceForDate } from "../service/instrument/priceDistributionWrite.js";
 
 const FUND_VALUES_URL =
   "https://www.seligson.fi/suomi/rahastot/FundValues_FI.html";
