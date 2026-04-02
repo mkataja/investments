@@ -23,6 +23,14 @@ export function useInstrumentsList() {
     done: number;
     total: number;
   } | null>(null);
+  const [backfillingAll, setBackfillingAll] = useState(false);
+  const [backfillingInstrumentId, setBackfillingInstrumentId] = useState<
+    number | null
+  >(null);
+  const [backfillAllProgress, setBackfillAllProgress] = useState<{
+    done: number;
+    total: number;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -154,6 +162,71 @@ export function useInstrumentsList() {
     }
   }, [rows, load]);
 
+  const backfillAllYahooPrices = useCallback(async () => {
+    const targets = rows.filter(
+      (r) =>
+        r.hasYahooFetchedPrice &&
+        r.yahooSymbol != null &&
+        r.yahooSymbol.trim() !== "" &&
+        ["etf", "stock", "commodity", "fx"].includes(r.kind),
+    );
+    if (targets.length === 0) {
+      return;
+    }
+    setError(null);
+    setNotice(null);
+    setBackfillingAll(true);
+    setBackfillAllProgress({ done: 0, total: targets.length });
+    let rowsUpsertedTotal = 0;
+    let failedCount = 0;
+    let firstFailure: string | null = null;
+    try {
+      for (const [idx, i] of targets.entries()) {
+        setBackfillingInstrumentId(i.id);
+        try {
+          const res = await apiPost<{
+            ok: true;
+            instrumentId: number;
+            kind: string;
+            yahooSymbol: string;
+            rowsUpserted: number;
+            error?: string;
+          }>(`/instruments/${i.id}/backfill-yahoo-prices`);
+          rowsUpsertedTotal += res.rowsUpserted;
+          if (res.error != null && res.error !== "") {
+            failedCount += 1;
+            if (firstFailure == null) {
+              firstFailure = res.error;
+            }
+          }
+        } catch (e) {
+          failedCount += 1;
+          if (firstFailure == null) {
+            firstFailure = e instanceof Error ? e.message : String(e);
+          }
+        }
+        setBackfillAllProgress({ done: idx + 1, total: targets.length });
+      }
+      await load();
+      const parts: string[] = [];
+      parts.push(
+        `${rowsUpsertedTotal.toLocaleString()} price rows for ${targets.length} ${targets.length === 1 ? "instrument" : "instruments"}`,
+      );
+      if (failedCount > 0) {
+        parts.push(
+          `${failedCount} failed${firstFailure ? ` (${firstFailure.length > 120 ? `${firstFailure.slice(0, 117)}...` : firstFailure})` : ""}`,
+        );
+      }
+      setNotice(parts.join(" · "));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBackfillingAll(false);
+      setBackfillAllProgress(null);
+      setBackfillingInstrumentId(null);
+    }
+  }, [rows, load]);
+
   const removeInstrument = useCallback(async (i: InstrumentListItem) => {
     if (
       !window.confirm(
@@ -176,6 +249,14 @@ export function useInstrumentsList() {
   }, []);
 
   const refreshableCount = rows.filter((r) => r.kind !== "cash_account").length;
+
+  const yahooBackfillableCount = rows.filter(
+    (r) =>
+      r.hasYahooFetchedPrice &&
+      r.yahooSymbol != null &&
+      r.yahooSymbol.trim() !== "" &&
+      ["etf", "stock", "commodity", "fx"].includes(r.kind),
+  ).length;
 
   const sortedRows = useMemo(
     () =>
@@ -209,10 +290,15 @@ export function useInstrumentsList() {
     refreshingIds,
     refreshingAll,
     refreshAllProgress,
+    backfillAllProgress,
+    backfillingInstrumentId,
     deletingId,
     refreshableCount,
     refreshDistribution,
     refreshAllDistributions,
+    backfillAllYahooPrices,
+    backfillingAll,
+    yahooBackfillableCount,
     removeInstrument,
   };
 }

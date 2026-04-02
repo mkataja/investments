@@ -96,6 +96,15 @@ import {
 import { getPortfolioAssetMixHistory } from "./lib/portfolioAssetMixHistory.js";
 import { loadOpenPositionsForPortfolio } from "./lib/positions.js";
 import { seedIntradayPriceForInstrumentIfMissing } from "./lib/transactionPriceSeed.js";
+import {
+  instrumentHasYahooFetchedPrice,
+  loadInstrumentIdsWithYahooFetchedPrices,
+} from "./lib/yahooFetchedPriceSources.js";
+import {
+  backfillAllYahooPricesFromHistory,
+  backfillYahooPricesForInstrument,
+  loadYahooBackfillInstrumentRowById,
+} from "./lib/yahooPriceHistoryBackfill.js";
 import { formatYahooUpstreamError } from "./lib/yahooUpstream.js";
 import { runDevMigrations } from "./runDevMigrations.js";
 
@@ -1454,6 +1463,7 @@ type JoinedInstrumentRow = {
 function mapJoinedRowToInstrumentPayload(
   row: JoinedInstrumentRow,
   netQuantity: number,
+  hasYahooFetchedPrice: boolean,
 ) {
   const {
     instrument,
@@ -1466,6 +1476,7 @@ function mapJoinedRowToInstrumentPayload(
   } = row;
   return {
     ...instrument,
+    hasYahooFetchedPrice,
     netQuantity,
     providerHoldings: providerHoldingsRow
       ? {
@@ -1565,7 +1576,12 @@ async function loadInstrumentPayloadById(
       ? Number.parseFloat(qtyRow.qty)
       : 0;
   const netQuantity = Number.isFinite(q) ? q : 0;
-  return mapJoinedRowToInstrumentPayload(rowWithDist, netQuantity);
+  const hasYahooFetchedPrice = await instrumentHasYahooFetchedPrice(db, id);
+  return mapJoinedRowToInstrumentPayload(
+    rowWithDist,
+    netQuantity,
+    hasYahooFetchedPrice,
+  );
 }
 
 async function loadInstrumentMatchCandidates(): Promise<
@@ -1705,6 +1721,8 @@ app.get("/instruments", async (c) => {
     joined.map((j) => j.instrument.id),
   );
 
+  const yahooFetchedIdSet = await loadInstrumentIdsWithYahooFetchedPrices(db);
+
   const qtyRows = await db
     .select({
       instrumentId: transactions.instrumentId,
@@ -1733,6 +1751,7 @@ app.get("/instruments", async (c) => {
         distribution: distMap.get(row.instrument.id) ?? null,
       },
       netQtyByInstrument.get(row.instrument.id) ?? 0,
+      yahooFetchedIdSet.has(row.instrument.id),
     ),
   );
 
@@ -1772,6 +1791,43 @@ app.get("/instruments/lookup-yahoo", async (c) => {
     const { message, status } = formatYahooUpstreamError(e);
     return c.json({ message }, status);
   }
+});
+
+app.post("/instruments/backfill-yahoo-prices", async (c) => {
+  const result = await backfillAllYahooPricesFromHistory();
+  const rowsUpsertedTotal = result.instruments.reduce(
+    (s, r) => s + r.rowsUpserted,
+    0,
+  );
+  const failed = result.instruments.filter((r) => r.error != null);
+  return c.json({
+    ok: true,
+    summary: {
+      instrumentsTotal: result.instruments.length,
+      rowsUpsertedTotal,
+      failedCount: failed.length,
+      instruments: result.instruments,
+    },
+  });
+});
+
+app.post("/instruments/:id/backfill-yahoo-prices", async (c) => {
+  const id = Number.parseInt(c.req.param("id"), 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid id" }, 400);
+  }
+  const row = await loadYahooBackfillInstrumentRowById(id);
+  if (!row) {
+    return c.json(
+      {
+        message:
+          "Instrument not found or not eligible for Yahoo price backfill",
+      },
+      404,
+    );
+  }
+  const result = await backfillYahooPricesForInstrument(row);
+  return c.json({ ok: true, ...result });
 });
 
 app.get("/instruments/:id", async (c) => {

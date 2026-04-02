@@ -44,6 +44,9 @@ type InstrumentsTableProps = {
   error: string | null;
   refreshingIds: ReadonlySet<number>;
   refreshingAll: boolean;
+  backfillingAll: boolean;
+  /** Row currently receiving Yahoo chart backfill (`null` when not backfilling or between rows). */
+  backfillingInstrumentId: number | null;
   deletingId: number | null;
   onRefreshRow: (i: InstrumentListItem) => void;
   onDelete: (i: InstrumentListItem) => void;
@@ -54,6 +57,8 @@ export function InstrumentsTable({
   error,
   refreshingIds,
   refreshingAll,
+  backfillingAll,
+  backfillingInstrumentId,
   deletingId,
   onRefreshRow,
   onDelete,
@@ -81,6 +86,7 @@ export function InstrumentsTable({
         <tbody>
           {sortedRows.map((i) => {
             const rowRefreshing = refreshingIds.has(i.id) || refreshingAll;
+            const rowBackfilling = backfillingInstrumentId === i.id;
             const ticker = instrumentTickerDisplay(i);
             return (
               <tr key={i.id} className="border-t border-slate-100 align-top">
@@ -141,7 +147,8 @@ export function InstrumentsTable({
                         disabled={
                           deletingId === i.id ||
                           refreshingIds.has(i.id) ||
-                          refreshingAll
+                          refreshingAll ||
+                          backfillingAll
                         }
                         onClick={() => void onDelete(i)}
                         className="action-delete"
@@ -155,16 +162,22 @@ export function InstrumentsTable({
                         disabled={
                           refreshingIds.has(i.id) ||
                           deletingId === i.id ||
-                          refreshingAll
+                          refreshingAll ||
+                          backfillingAll
                         }
                         onClick={() => void onRefreshRow(i)}
-                        aria-busy={rowRefreshing}
+                        aria-busy={rowRefreshing || rowBackfilling}
                         className={classNames(
                           "action-primary inline-flex items-center gap-1.5 whitespace-nowrap",
-                          rowRefreshing && "no-underline",
+                          (rowRefreshing || rowBackfilling) && "no-underline",
                         )}
                       >
-                        {rowRefreshing ? (
+                        {rowBackfilling ? (
+                          <>
+                            <RowRefreshSpinner />
+                            <span>Backfilling...</span>
+                          </>
+                        ) : rowRefreshing ? (
                           <>
                             <RowRefreshSpinner />
                             <span>Refreshing...</span>

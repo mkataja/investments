@@ -10,6 +10,8 @@ export type InstrumentListItem = {
   id: number;
   kind: string;
   displayName: string;
+  /** At least one `prices` row from Yahoo (`yahoo_quote_summary`, `yahoo_fx_cross`, or `yahoo_chart_backfill`). */
+  hasYahooFetchedPrice: boolean;
   yahooSymbol: string | null;
   isin: string | null;
   seligsonFundId: number | null;

@@ -13,10 +13,15 @@ export function InstrumentsPage() {
     refreshingIds,
     refreshingAll,
     refreshAllProgress,
+    backfillAllProgress,
     deletingId,
     refreshableCount,
     refreshDistribution,
     refreshAllDistributions,
+    backfillAllYahooPrices,
+    backfillingAll,
+    backfillingInstrumentId,
+    yahooBackfillableCount,
     removeInstrument,
   } = useInstrumentsList();
 
@@ -28,8 +33,24 @@ export function InstrumentsPage() {
           <Button
             disabled={
               initialLoad ||
+              yahooBackfillableCount === 0 ||
+              backfillingAll ||
+              refreshingAll ||
+              refreshingIds.size > 0 ||
+              deletingId !== null
+            }
+            onClick={() => void backfillAllYahooPrices()}
+          >
+            {backfillingAll
+              ? `${backfillAllProgress?.done ?? 0}/${backfillAllProgress?.total ?? 0} backfilled`
+              : "Backfill Yahoo prices"}
+          </Button>
+          <Button
+            disabled={
+              initialLoad ||
               refreshableCount === 0 ||
               refreshingAll ||
+              backfillingAll ||
               refreshingIds.size > 0 ||
               deletingId !== null
             }
@@ -55,6 +76,8 @@ export function InstrumentsPage() {
           error={error}
           refreshingIds={refreshingIds}
           refreshingAll={refreshingAll}
+          backfillingAll={backfillingAll}
+          backfillingInstrumentId={backfillingInstrumentId}
           deletingId={deletingId}
           onRefreshRow={refreshDistribution}
           onDelete={removeInstrument}
