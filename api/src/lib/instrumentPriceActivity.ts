@@ -8,6 +8,8 @@ import { YAHOO_CHART_BACKFILL_PRICE_SOURCE } from "./yahooPriceHistoryBackfill.j
 type InstrumentPriceActivity = {
   yahooPricesLastFetchedAt: string | null;
   yahooChartBackfillLastFetchedAt: string | null;
+  /** Latest `fetched_at` for `seligson_csv_backfill` only (bulk CSV backfill 3h backoff); null if never. */
+  seligsonCsvBackfillLastFetchedAt: string | null;
   /**
    * Instruments list "Prices": latest `fetched_at` among bulk history imports only
    * (`seligson_csv_backfill`, `yahoo_chart_backfill`).
@@ -47,53 +49,68 @@ export async function loadInstrumentPriceActivityByInstrumentIds(
     return new Map();
   }
 
-  const [anyRows, chartRows, pricesLabelRows] = await Promise.all([
-    d
-      .select({
-        instrumentId: prices.instrumentId,
-        lastAt: sql<unknown>`max(${prices.fetchedAt})`,
-      })
-      .from(prices)
-      .where(
-        and(
-          inArray(prices.instrumentId, instrumentIds),
-          inArray(prices.source, [...YAHOO_FETCHED_PRICE_SOURCES]),
-        ),
-      )
-      .groupBy(prices.instrumentId),
-    d
-      .select({
-        instrumentId: prices.instrumentId,
-        lastAt: sql<unknown>`max(${prices.fetchedAt})`,
-      })
-      .from(prices)
-      .where(
-        and(
-          inArray(prices.instrumentId, instrumentIds),
-          eq(prices.source, YAHOO_CHART_BACKFILL_PRICE_SOURCE),
-        ),
-      )
-      .groupBy(prices.instrumentId),
-    d
-      .select({
-        instrumentId: prices.instrumentId,
-        lastAt: sql<unknown>`max(${prices.fetchedAt})`,
-      })
-      .from(prices)
-      .where(
-        and(
-          inArray(prices.instrumentId, instrumentIds),
-          inArray(prices.source, [...PRICES_LABEL_SOURCES]),
-        ),
-      )
-      .groupBy(prices.instrumentId),
-  ]);
+  const [anyRows, chartRows, seligsonCsvRows, pricesLabelRows] =
+    await Promise.all([
+      d
+        .select({
+          instrumentId: prices.instrumentId,
+          lastAt: sql<unknown>`max(${prices.fetchedAt})`,
+        })
+        .from(prices)
+        .where(
+          and(
+            inArray(prices.instrumentId, instrumentIds),
+            inArray(prices.source, [...YAHOO_FETCHED_PRICE_SOURCES]),
+          ),
+        )
+        .groupBy(prices.instrumentId),
+      d
+        .select({
+          instrumentId: prices.instrumentId,
+          lastAt: sql<unknown>`max(${prices.fetchedAt})`,
+        })
+        .from(prices)
+        .where(
+          and(
+            inArray(prices.instrumentId, instrumentIds),
+            eq(prices.source, YAHOO_CHART_BACKFILL_PRICE_SOURCE),
+          ),
+        )
+        .groupBy(prices.instrumentId),
+      d
+        .select({
+          instrumentId: prices.instrumentId,
+          lastAt: sql<unknown>`max(${prices.fetchedAt})`,
+        })
+        .from(prices)
+        .where(
+          and(
+            inArray(prices.instrumentId, instrumentIds),
+            eq(prices.source, SELIGSON_ARVOHISTORIA_CSV_PRICE_SOURCE),
+          ),
+        )
+        .groupBy(prices.instrumentId),
+      d
+        .select({
+          instrumentId: prices.instrumentId,
+          lastAt: sql<unknown>`max(${prices.fetchedAt})`,
+        })
+        .from(prices)
+        .where(
+          and(
+            inArray(prices.instrumentId, instrumentIds),
+            inArray(prices.source, [...PRICES_LABEL_SOURCES]),
+          ),
+        )
+        .groupBy(prices.instrumentId),
+    ]);
 
   const out = new Map<number, InstrumentPriceActivity>();
   for (const r of anyRows) {
     out.set(r.instrumentId, {
       yahooPricesLastFetchedAt: fetchedAtToIso(r.lastAt),
       yahooChartBackfillLastFetchedAt: null,
+      seligsonCsvBackfillLastFetchedAt: null,
       pricesLastFetchedAt: null,
     });
   }
@@ -106,6 +123,21 @@ export async function loadInstrumentPriceActivityByInstrumentIds(
       out.set(r.instrumentId, {
         yahooPricesLastFetchedAt: null,
         yahooChartBackfillLastFetchedAt: iso,
+        seligsonCsvBackfillLastFetchedAt: null,
+        pricesLastFetchedAt: null,
+      });
+    }
+  }
+  for (const r of seligsonCsvRows) {
+    const iso = fetchedAtToIso(r.lastAt);
+    const existing = out.get(r.instrumentId);
+    if (existing) {
+      existing.seligsonCsvBackfillLastFetchedAt = iso;
+    } else {
+      out.set(r.instrumentId, {
+        yahooPricesLastFetchedAt: null,
+        yahooChartBackfillLastFetchedAt: null,
+        seligsonCsvBackfillLastFetchedAt: iso,
         pricesLastFetchedAt: null,
       });
     }
@@ -119,6 +151,7 @@ export async function loadInstrumentPriceActivityByInstrumentIds(
       out.set(r.instrumentId, {
         yahooPricesLastFetchedAt: null,
         yahooChartBackfillLastFetchedAt: null,
+        seligsonCsvBackfillLastFetchedAt: null,
         pricesLastFetchedAt: iso,
       });
     }

@@ -23,6 +23,11 @@ export function InstrumentsPage() {
     backfillingAll,
     backfillingInstrumentId,
     yahooBackfillableCount,
+    backfillAllSeligsonCsvPrices,
+    backfillingSeligsonAll,
+    seligsonBackfillAllProgress,
+    seligsonBackfillingInstrumentId,
+    seligsonCsvBackfillableCount,
     removeInstrument,
   } = useInstrumentsList();
 
@@ -36,6 +41,7 @@ export function InstrumentsPage() {
               initialLoad ||
               yahooBackfillableCount === 0 ||
               backfillingAll ||
+              backfillingSeligsonAll ||
               refreshingAll ||
               refreshingIds.size > 0 ||
               deletingId !== null
@@ -49,9 +55,26 @@ export function InstrumentsPage() {
           <Button
             disabled={
               initialLoad ||
+              seligsonCsvBackfillableCount === 0 ||
+              backfillingAll ||
+              backfillingSeligsonAll ||
+              refreshingAll ||
+              refreshingIds.size > 0 ||
+              deletingId !== null
+            }
+            onClick={() => void backfillAllSeligsonCsvPrices()}
+          >
+            {backfillingSeligsonAll
+              ? `${seligsonBackfillAllProgress?.done ?? 0}/${seligsonBackfillAllProgress?.total ?? 0} backfilled`
+              : "Backfill Seligson prices"}
+          </Button>
+          <Button
+            disabled={
+              initialLoad ||
               refreshableCount === 0 ||
               refreshingAll ||
               backfillingAll ||
+              backfillingSeligsonAll ||
               refreshingIds.size > 0 ||
               deletingId !== null
             }
@@ -79,7 +102,9 @@ export function InstrumentsPage() {
           refreshingAll={refreshingAll}
           refreshingInstrumentId={refreshingInstrumentId}
           backfillingAll={backfillingAll}
+          backfillingSeligsonAll={backfillingSeligsonAll}
           backfillingInstrumentId={backfillingInstrumentId}
+          seligsonBackfillingInstrumentId={seligsonBackfillingInstrumentId}
           deletingId={deletingId}
           onRefreshRow={refreshDistribution}
           onDelete={removeInstrument}

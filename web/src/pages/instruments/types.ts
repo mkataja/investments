@@ -18,6 +18,8 @@ export type InstrumentListItem = {
   yahooPricesLastFetchedAt: string | null;
   /** Latest `fetched_at` for `yahoo_chart_backfill` only (bulk backfill 3h backoff); null if never chart-backfilled. */
   yahooChartBackfillLastFetchedAt: string | null;
+  /** Latest `fetched_at` for `seligson_csv_backfill` only (bulk CSV backfill 3h backoff); null if never. */
+  seligsonCsvBackfillLastFetchedAt: string | null;
   /**
    * List "Prices" line: bulk history only — `seligson_csv_backfill` or `yahoo_chart_backfill`
    * (`fetched_at`); null if neither has run.

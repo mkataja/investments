@@ -34,3 +34,18 @@ export function isSkippedByBackfillAllBackoff(i: InstrumentListItem): boolean {
   }
   return Date.now() - t < BULK_MIN_INTERVAL_MS;
 }
+
+/** Bulk Seligson CSV backfill skips POST if `seligson_csv_backfill` was written within this window. */
+export function isSkippedBySeligsonBackfillAllBackoff(
+  i: InstrumentListItem,
+): boolean {
+  const raw = i.seligsonCsvBackfillLastFetchedAt;
+  if (raw == null || raw === "") {
+    return false;
+  }
+  const t = new Date(raw).getTime();
+  if (Number.isNaN(t)) {
+    return false;
+  }
+  return Date.now() - t < BULK_MIN_INTERVAL_MS;
+}

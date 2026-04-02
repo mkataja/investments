@@ -90,6 +90,10 @@ import {
 } from "./lib/postgresUserMessage.js";
 import { backfillSeligsonPricesFromArvohistoriaCsv } from "./lib/seligsonArvohistoriaCsv.js";
 import {
+  backfillSeligsonCsvPricesForInstrument,
+  loadSeligsonCsvBackfillInstrumentRowById,
+} from "./lib/seligsonCsvPriceBackfill.js";
+import {
   fetchSeligsonFundIntroPageHtml,
   isSeligsonFundViewerUrl,
   normalizeSeligsonFundPageToHttps,
@@ -1480,6 +1484,7 @@ function mapJoinedRowToInstrumentPayload(
   hasYahooFetchedPrice: boolean,
   yahooPricesLastFetchedAt: string | null,
   yahooChartBackfillLastFetchedAt: string | null,
+  seligsonCsvBackfillLastFetchedAt: string | null,
   pricesLastFetchedAt: string | null,
 ) {
   const {
@@ -1496,6 +1501,7 @@ function mapJoinedRowToInstrumentPayload(
     hasYahooFetchedPrice,
     yahooPricesLastFetchedAt,
     yahooChartBackfillLastFetchedAt,
+    seligsonCsvBackfillLastFetchedAt,
     pricesLastFetchedAt,
     netQuantity,
     providerHoldings: providerHoldingsRow
@@ -1611,6 +1617,7 @@ async function loadInstrumentPayloadById(
   const activity = activityMap.get(id) ?? {
     yahooPricesLastFetchedAt: null,
     yahooChartBackfillLastFetchedAt: null,
+    seligsonCsvBackfillLastFetchedAt: null,
     pricesLastFetchedAt: null,
   };
   return mapJoinedRowToInstrumentPayload(
@@ -1619,6 +1626,7 @@ async function loadInstrumentPayloadById(
     hasYahooFetchedPrice,
     activity.yahooPricesLastFetchedAt,
     activity.yahooChartBackfillLastFetchedAt,
+    activity.seligsonCsvBackfillLastFetchedAt,
     activity.pricesLastFetchedAt,
   );
 }
@@ -1823,6 +1831,7 @@ app.get("/instruments", async (c) => {
     const act = instrumentPriceActivityMap.get(row.instrument.id) ?? {
       yahooPricesLastFetchedAt: null,
       yahooChartBackfillLastFetchedAt: null,
+      seligsonCsvBackfillLastFetchedAt: null,
       pricesLastFetchedAt: null,
     };
     return mapJoinedRowToInstrumentPayload(
@@ -1834,6 +1843,7 @@ app.get("/instruments", async (c) => {
       yahooFetchedIdSet.has(row.instrument.id),
       act.yahooPricesLastFetchedAt,
       act.yahooChartBackfillLastFetchedAt,
+      act.seligsonCsvBackfillLastFetchedAt,
       act.pricesLastFetchedAt,
     );
   });
@@ -1939,6 +1949,29 @@ app.post("/instruments/:id/backfill-yahoo-prices", async (c) => {
     );
   }
   const result = await backfillYahooPricesForInstrument(row);
+  return c.json({ ok: true, ...result });
+});
+
+/**
+ * Fetches Seligson Arvohistoria CSV and upserts historical `prices` (`seligson_csv_backfill`).
+ * Eligible: `kind` `custom` with linked `seligson_funds.price_history_csv_url` non-empty.
+ */
+app.post("/instruments/:id/backfill-seligson-csv-prices", async (c) => {
+  const id = Number.parseInt(c.req.param("id"), 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid id" }, 400);
+  }
+  const row = await loadSeligsonCsvBackfillInstrumentRowById(id);
+  if (!row) {
+    return c.json(
+      {
+        message:
+          "Instrument not found or not eligible for Seligson CSV price backfill",
+      },
+      404,
+    );
+  }
+  const result = await backfillSeligsonCsvPricesForInstrument(row);
   return c.json({ ok: true, ...result });
 });
 

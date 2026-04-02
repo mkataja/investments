@@ -73,8 +73,11 @@ type InstrumentsTableProps = {
   /** Row currently receiving refresh-all distribution fetch (`null` when not running or between rows). */
   refreshingInstrumentId: number | null;
   backfillingAll: boolean;
+  backfillingSeligsonAll: boolean;
   /** Row currently receiving Yahoo chart backfill (`null` when not backfilling or between rows). */
   backfillingInstrumentId: number | null;
+  /** Row currently receiving Seligson CSV price backfill (`null` when not or between rows). */
+  seligsonBackfillingInstrumentId: number | null;
   deletingId: number | null;
   onRefreshRow: (i: InstrumentListItem) => void;
   onDelete: (i: InstrumentListItem) => void;
@@ -87,7 +90,9 @@ export function InstrumentsTable({
   refreshingAll,
   refreshingInstrumentId,
   backfillingAll,
+  backfillingSeligsonAll,
   backfillingInstrumentId,
+  seligsonBackfillingInstrumentId,
   deletingId,
   onRefreshRow,
   onDelete,
@@ -116,7 +121,9 @@ export function InstrumentsTable({
           {sortedRows.map((i) => {
             const rowRefreshing =
               refreshingIds.has(i.id) || refreshingInstrumentId === i.id;
-            const rowBackfilling = backfillingInstrumentId === i.id;
+            const rowBackfilling =
+              backfillingInstrumentId === i.id ||
+              seligsonBackfillingInstrumentId === i.id;
             const ticker = instrumentTickerDisplay(i);
             return (
               <tr key={i.id} className="border-t border-slate-100 align-top">
@@ -166,7 +173,8 @@ export function InstrumentsTable({
                           deletingId === i.id ||
                           refreshingIds.has(i.id) ||
                           refreshingAll ||
-                          backfillingAll
+                          backfillingAll ||
+                          backfillingSeligsonAll
                         }
                         onClick={() => void onDelete(i)}
                         className="action-delete"
@@ -181,7 +189,8 @@ export function InstrumentsTable({
                           refreshingIds.has(i.id) ||
                           deletingId === i.id ||
                           refreshingAll ||
-                          backfillingAll
+                          backfillingAll ||
+                          backfillingSeligsonAll
                         }
                         onClick={() => void onRefreshRow(i)}
                         aria-busy={rowRefreshing || rowBackfilling}
