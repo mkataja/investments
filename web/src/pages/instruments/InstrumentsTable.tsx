@@ -11,6 +11,32 @@ import { classNames } from "../../lib/css";
 import { formatInstantForDisplay } from "../../lib/dateTimeFormat";
 import type { InstrumentListItem } from "./types";
 
+function lastUpdatedCell(i: InstrumentListItem) {
+  if (i.kind === "cash_account") {
+    return <span className="text-slate-400 font-sans">-</span>;
+  }
+  const distRaw = i.distribution?.fetchedAt;
+  const dist =
+    distRaw != null && distRaw !== "" ? formatInstantForDisplay(distRaw) : null;
+  const pricesRaw = i.yahooPricesLastFetchedAt;
+  const prices =
+    pricesRaw != null && pricesRaw !== ""
+      ? formatInstantForDisplay(pricesRaw)
+      : null;
+  return (
+    <div className="flex flex-col gap-0.5 text-[11px] text-slate-600 tabular-nums font-sans">
+      <div>
+        <span className="text-slate-400">Dist </span>
+        {dist ?? "—"}
+      </div>
+      <div>
+        <span className="text-slate-400">Prices </span>
+        {prices ?? "—"}
+      </div>
+    </div>
+  );
+}
+
 function RowRefreshSpinner({ className }: { className?: string }) {
   return (
     <svg
@@ -80,7 +106,7 @@ export function InstrumentsTable({
             <th className="text-left p-2 font-medium w-[460px]">
               Distribution
             </th>
-            <th className="text-left p-2 font-medium whitespace-nowrap">
+            <th className="text-left p-2 font-medium whitespace-nowrap min-w-[12rem]">
               Last updated
             </th>
             <th className="text-right p-2 font-medium w-40">Actions</th>
@@ -117,20 +143,8 @@ export function InstrumentsTable({
                     </span>
                   )}
                 </td>
-                <td className="p-2 align-top text-left min-w-[10rem] max-w-xs">
-                  {i.kind === "cash_account" ? (
-                    <span className="text-slate-400 font-sans">-</span>
-                  ) : i.distribution ? (
-                    i.distribution.fetchedAt !== "" ? (
-                      <span className="text-[11px] text-slate-600 tabular-nums font-sans">
-                        {formatInstantForDisplay(i.distribution.fetchedAt)}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 font-sans">-</span>
-                    )
-                  ) : (
-                    <span className="text-slate-400 font-sans">-</span>
-                  )}
+                <td className="p-2 align-top text-left min-w-[12rem] max-w-xs">
+                  {lastUpdatedCell(i)}
                 </td>
                 <td className="p-2 text-right">
                   <div className="flex flex-col items-end gap-1">

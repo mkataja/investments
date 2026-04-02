@@ -14,7 +14,7 @@ import { fetchYahooChartDailyBars } from "./yahooChartFetch.js";
 import { YAHOO_FETCHED_PRICE_SOURCES } from "./yahooFetchedPriceSources.js";
 import { formatYahooUpstreamError } from "./yahooUpstream.js";
 
-const CHART_BACKFILL_SOURCE = "yahoo_chart_backfill";
+export const YAHOO_CHART_BACKFILL_PRICE_SOURCE = "yahoo_chart_backfill";
 const YAHOO_BACKFILL_PERIOD1 = "1970-01-01";
 
 type InstrumentRow = InferSelectModel<typeof instruments>;
@@ -79,7 +79,7 @@ async function writeChartQuotesToPrices(
       quotedPrice,
       currency: args.currency,
       fetchedAt: args.fetchedAt,
-      source: CHART_BACKFILL_SOURCE,
+      source: YAHOO_CHART_BACKFILL_PRICE_SOURCE,
       priceType: "close",
       skipFxEnqueue: true,
     });

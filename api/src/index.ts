@@ -100,6 +100,7 @@ import {
   instrumentHasYahooFetchedPrice,
   loadInstrumentIdsWithYahooFetchedPrices,
 } from "./lib/yahooFetchedPriceSources.js";
+import { loadYahooPriceActivityByInstrumentIds } from "./lib/yahooPriceActivity.js";
 import {
   backfillAllYahooPricesFromHistory,
   backfillYahooPricesForInstrument,
@@ -1464,6 +1465,8 @@ function mapJoinedRowToInstrumentPayload(
   row: JoinedInstrumentRow,
   netQuantity: number,
   hasYahooFetchedPrice: boolean,
+  yahooPricesLastFetchedAt: string | null,
+  yahooChartBackfillLastFetchedAt: string | null,
 ) {
   const {
     instrument,
@@ -1477,6 +1480,8 @@ function mapJoinedRowToInstrumentPayload(
   return {
     ...instrument,
     hasYahooFetchedPrice,
+    yahooPricesLastFetchedAt,
+    yahooChartBackfillLastFetchedAt,
     netQuantity,
     providerHoldings: providerHoldingsRow
       ? {
@@ -1577,10 +1582,17 @@ async function loadInstrumentPayloadById(
       : 0;
   const netQuantity = Number.isFinite(q) ? q : 0;
   const hasYahooFetchedPrice = await instrumentHasYahooFetchedPrice(db, id);
+  const activityMap = await loadYahooPriceActivityByInstrumentIds(db, [id]);
+  const activity = activityMap.get(id) ?? {
+    yahooPricesLastFetchedAt: null,
+    yahooChartBackfillLastFetchedAt: null,
+  };
   return mapJoinedRowToInstrumentPayload(
     rowWithDist,
     netQuantity,
     hasYahooFetchedPrice,
+    activity.yahooPricesLastFetchedAt,
+    activity.yahooChartBackfillLastFetchedAt,
   );
 }
 
@@ -1723,6 +1735,12 @@ app.get("/instruments", async (c) => {
 
   const yahooFetchedIdSet = await loadInstrumentIdsWithYahooFetchedPrices(db);
 
+  const instrumentIds = joined.map((j) => j.instrument.id);
+  const yahooPriceActivityMap = await loadYahooPriceActivityByInstrumentIds(
+    db,
+    instrumentIds,
+  );
+
   const qtyRows = await db
     .select({
       instrumentId: transactions.instrumentId,
@@ -1744,16 +1762,22 @@ app.get("/instruments", async (c) => {
     }
   }
 
-  let payload = joined.map((row) =>
-    mapJoinedRowToInstrumentPayload(
+  let payload = joined.map((row) => {
+    const act = yahooPriceActivityMap.get(row.instrument.id) ?? {
+      yahooPricesLastFetchedAt: null,
+      yahooChartBackfillLastFetchedAt: null,
+    };
+    return mapJoinedRowToInstrumentPayload(
       {
         ...row,
         distribution: distMap.get(row.instrument.id) ?? null,
       },
       netQtyByInstrument.get(row.instrument.id) ?? 0,
       yahooFetchedIdSet.has(row.instrument.id),
-    ),
-  );
+      act.yahooPricesLastFetchedAt,
+      act.yahooChartBackfillLastFetchedAt,
+    );
+  });
 
   if (brokerTypeForFilter != null && filterBrokerId != null) {
     payload = payload.filter((row) => {

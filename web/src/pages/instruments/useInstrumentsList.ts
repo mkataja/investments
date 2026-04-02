@@ -6,7 +6,10 @@ import {
   interpretRefreshDistributionResponse,
   userMessageForSkippedRefresh,
 } from "../../api/instrumentRefreshDistribution";
-import { isSkippedByRefreshAllBackoff } from "./refreshAllBackoff";
+import {
+  isSkippedByBackfillAllBackoff,
+  isSkippedByRefreshAllBackoff,
+} from "./refreshAllBackoff";
 import type { InstrumentListItem, RefreshDistributionResponse } from "./types";
 
 export function useInstrumentsList() {
@@ -200,10 +203,16 @@ export function useInstrumentsList() {
     setBackfillAllProgress({ done: 0, total: targets.length });
     let rowsUpsertedTotal = 0;
     let failedCount = 0;
+    let skippedBackfillRecent = 0;
     let firstFailure: string | null = null;
     try {
       for (const [idx, i] of targets.entries()) {
         setBackfillingInstrumentId(i.id);
+        if (isSkippedByBackfillAllBackoff(i)) {
+          skippedBackfillRecent += 1;
+          setBackfillAllProgress({ done: idx + 1, total: targets.length });
+          continue;
+        }
         try {
           const res = await apiPost<{
             ok: true;
@@ -233,6 +242,9 @@ export function useInstrumentsList() {
       parts.push(
         `${rowsUpsertedTotal.toLocaleString()} price rows for ${targets.length} ${targets.length === 1 ? "instrument" : "instruments"}`,
       );
+      if (skippedBackfillRecent > 0) {
+        parts.push(`${skippedBackfillRecent} skipped (recent)`);
+      }
       if (failedCount > 0) {
         parts.push(
           `${failedCount} failed${firstFailure ? ` (${firstFailure.length > 120 ? `${firstFailure.slice(0, 117)}...` : firstFailure})` : ""}`,
