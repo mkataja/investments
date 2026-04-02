@@ -78,6 +78,14 @@ function HoldingDistributionTooltipBody(
       </>
     );
   }
+  if (inst.kind === "fx") {
+    return (
+      <>
+        {heading}
+        <span className="text-slate-400 text-xs font-sans">-</span>
+      </>
+    );
+  }
   if (inst.distribution) {
     return (
       <>

@@ -146,6 +146,8 @@ export function InstrumentsTable({
                     <CashAccountDistributionSummary
                       cashGeoKey={i.cashGeoKey ?? ""}
                     />
+                  ) : i.kind === "fx" ? (
+                    <span className="text-slate-400 font-sans">-</span>
                   ) : i.distribution ? (
                     <DistributionSummary payload={i.distribution.payload} />
                   ) : (
