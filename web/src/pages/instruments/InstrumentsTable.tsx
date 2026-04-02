@@ -33,6 +33,10 @@ function lastUpdatedCell(i: InstrumentListItem) {
         <span className="text-slate-400">Prices </span>
         {prices ?? "—"}
       </div>
+      <div>
+        <span className="text-slate-400">Prices count: </span>
+        {i.pricesRowCount}
+      </div>
     </div>
   );
 }

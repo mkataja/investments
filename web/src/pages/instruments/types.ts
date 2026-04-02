@@ -25,6 +25,8 @@ export type InstrumentListItem = {
    * (`fetched_at`); null if neither has run.
    */
   pricesLastFetchedAt: string | null;
+  /** Number of rows in `prices` for this instrument (one per date). */
+  pricesRowCount: number;
   yahooSymbol: string | null;
   isin: string | null;
   seligsonFundId: number | null;

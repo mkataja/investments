@@ -75,6 +75,7 @@ import {
 import { deleteInstrumentWithLinkedSeligsonFund } from "./lib/deleteInstrumentWithLinkedSeligsonFund.js";
 import { processFxBackfillQueue } from "./lib/fxEurPriceBackfill.js";
 import { loadInstrumentPriceActivityByInstrumentIds } from "./lib/instrumentPriceActivity.js";
+import { loadPriceRowCountsByInstrumentIds } from "./lib/instrumentPriceRowCounts.js";
 import { loadLatestDistributionRowsByInstrumentIds } from "./lib/latestPriceDistribution.js";
 import { normalizeTradeDateInputToDate } from "./lib/normalizeTradeDate.js";
 import { getPortfolioDistributions } from "./lib/portfolio.js";
@@ -1486,6 +1487,7 @@ function mapJoinedRowToInstrumentPayload(
   yahooChartBackfillLastFetchedAt: string | null,
   seligsonCsvBackfillLastFetchedAt: string | null,
   pricesLastFetchedAt: string | null,
+  pricesRowCount: number,
 ) {
   const {
     instrument,
@@ -1503,6 +1505,7 @@ function mapJoinedRowToInstrumentPayload(
     yahooChartBackfillLastFetchedAt,
     seligsonCsvBackfillLastFetchedAt,
     pricesLastFetchedAt,
+    pricesRowCount,
     netQuantity,
     providerHoldings: providerHoldingsRow
       ? {
@@ -1620,6 +1623,7 @@ async function loadInstrumentPayloadById(
     seligsonCsvBackfillLastFetchedAt: null,
     pricesLastFetchedAt: null,
   };
+  const priceCountMap = await loadPriceRowCountsByInstrumentIds(db, [id]);
   return mapJoinedRowToInstrumentPayload(
     rowWithDist,
     netQuantity,
@@ -1628,6 +1632,7 @@ async function loadInstrumentPayloadById(
     activity.yahooChartBackfillLastFetchedAt,
     activity.seligsonCsvBackfillLastFetchedAt,
     activity.pricesLastFetchedAt,
+    priceCountMap.get(id) ?? 0,
   );
 }
 
@@ -1803,8 +1808,10 @@ app.get("/instruments", async (c) => {
   const yahooFetchedIdSet = await loadInstrumentIdsWithYahooFetchedPrices(db);
 
   const instrumentIds = joined.map((j) => j.instrument.id);
-  const instrumentPriceActivityMap =
-    await loadInstrumentPriceActivityByInstrumentIds(db, instrumentIds);
+  const [instrumentPriceActivityMap, priceRowCountMap] = await Promise.all([
+    loadInstrumentPriceActivityByInstrumentIds(db, instrumentIds),
+    loadPriceRowCountsByInstrumentIds(db, instrumentIds),
+  ]);
 
   const qtyRows = await db
     .select({
@@ -1845,6 +1852,7 @@ app.get("/instruments", async (c) => {
       act.yahooChartBackfillLastFetchedAt,
       act.seligsonCsvBackfillLastFetchedAt,
       act.pricesLastFetchedAt,
+      priceRowCountMap.get(row.instrument.id) ?? 0,
     );
   });
 
