@@ -1,15 +1,29 @@
-import { instruments, type portfolios, transactions } from "@investments/db";
-import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
+import {
+  type distributions,
+  instruments,
+  type portfolios,
+  type prices,
+  transactions,
+} from "@investments/db";
+import type { InferSelectModel } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { db } from "../db.js";
 import { calendarDateUtcFromInstant } from "./calendarDateUtc.js";
-import { loadLatestDistributionRowsByInstrumentIdsAsOf } from "./latestPriceDistribution.js";
+import {
+  loadDistributionRowsByInstrumentIdsUpToDate,
+  loadPriceRowsByInstrumentIdsUpToDate,
+  pickLatestDistributionRowAsOf,
+  pickLatestPriceRowAsOf,
+} from "./latestPriceDistribution.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import {
   buildMergedSectorsForAssetMix,
   computeAssetMixEur,
 } from "./portfolioAssetMix.js";
-import { valuePortfolioRowsEurAsOf } from "./valuation.js";
-import type { InstrumentRow } from "./valuation.js";
+import {
+  type InstrumentRow,
+  valuePortfolioRowsFromPriceMap,
+} from "./valuation.js";
 
 const STEP_DAYS = 7;
 
@@ -23,48 +37,33 @@ function addDaysUtc(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-async function loadPositionRowsAtDate(
-  portfolioId: number,
-  asOfDate: string,
-): Promise<Array<{ inst: InstrumentRow; qty: number }>> {
-  const posRows = await db
-    .select({
-      instrumentId: transactions.instrumentId,
-      qty: sql<string>`COALESCE(SUM(CASE WHEN ${transactions.side} = 'buy' THEN ${transactions.quantity}::numeric ELSE -${transactions.quantity}::numeric END), 0)`,
-    })
-    .from(transactions)
-    .where(
-      and(
-        eq(transactions.portfolioId, portfolioId),
-        lte(transactions.tradeDate, endOfUtcDay(asOfDate)),
-      ),
-    )
-    .groupBy(transactions.instrumentId);
-
-  const instIds = posRows
-    .map((r) => {
-      const q = Number.parseFloat(r.qty);
-      return Number.isFinite(q) && q !== 0 ? r.instrumentId : null;
-    })
-    .filter((id): id is number => id != null);
-
-  if (instIds.length === 0) {
-    return [];
+function candidateDatesForAssetMixHistory(
+  startDate: string,
+  today: string,
+): string[] {
+  const dates: string[] = [];
+  for (let d = startDate; d <= today; d = addDaysUtc(d, STEP_DAYS)) {
+    dates.push(d);
+    if (d >= today) {
+      break;
+    }
   }
+  if (startDate <= today && !dates.includes(today)) {
+    dates.push(today);
+  }
+  return dates;
+}
 
-  const instRows = await db
-    .select()
-    .from(instruments)
-    .where(inArray(instruments.id, instIds));
-
-  const byId = new Map(instRows.map((i) => [i.id, i] as const));
+function positionRowsFromQty(
+  qty: Map<number, number>,
+  instrumentsById: Map<number, InstrumentRow>,
+): Array<{ inst: InstrumentRow; qty: number }> {
   const out: Array<{ inst: InstrumentRow; qty: number }> = [];
-  for (const p of posRows) {
-    const q = Number.parseFloat(p.qty);
+  for (const [instrumentId, q] of qty) {
     if (!Number.isFinite(q) || q === 0) {
       continue;
     }
-    const inst = byId.get(p.instrumentId);
+    const inst = instrumentsById.get(instrumentId);
     if (!inst) {
       continue;
     }
@@ -73,61 +72,85 @@ async function loadPositionRowsAtDate(
   return out;
 }
 
-type PortfolioRow = typeof portfolios.$inferSelect;
+type TxRow = {
+  tradeDate: Date;
+  instrumentId: number;
+  side: string;
+  quantity: string;
+};
 
-type MixPointResult =
-  | { kind: "empty" }
-  | { kind: "stop" }
-  | { kind: "ok"; equitiesEur: number; cashEur: number };
-
-async function assetMixPointForDate(
-  portfolioId: number,
-  asOfDate: string,
-): Promise<MixPointResult> {
-  const rows = await loadPositionRowsAtDate(portfolioId, asOfDate);
-  if (rows.length === 0) {
-    return { kind: "empty" };
-  }
-  const valuedResults = await valuePortfolioRowsEurAsOf(rows, asOfDate);
-  let cashEur = 0;
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const v = valuedResults[i];
-    if (!row || !v) {
+function applyTransactionsUpTo(
+  txRows: TxRow[],
+  state: { i: number },
+  qty: Map<number, number>,
+  asOfEnd: Date,
+): void {
+  while (state.i < txRows.length) {
+    const t = txRows[state.i];
+    if (!t || t.tradeDate > asOfEnd) {
+      break;
+    }
+    state.i++;
+    const q = Number.parseFloat(String(t.quantity));
+    if (!Number.isFinite(q)) {
       continue;
     }
-    if (row.inst.kind === "cash_account") {
-      cashEur += v.valueEur;
-      continue;
-    }
-    if (v.source === "none") {
-      return { kind: "stop" };
+    const delta = t.side === "buy" ? q : -q;
+    const prev = qty.get(t.instrumentId) ?? 0;
+    const next = prev + delta;
+    if (next === 0) {
+      qty.delete(t.instrumentId);
+    } else {
+      qty.set(t.instrumentId, next);
     }
   }
-  const valuedFull = rows.map((row, i) => ({
-    inst: row.inst,
-    valueEur: valuedResults[i]?.valueEur ?? 0,
-  }));
-  const nonCashIds = [
-    ...new Set(
-      rows.filter((r) => r.inst.kind !== "cash_account").map((r) => r.inst.id),
-    ),
-  ];
-  const distMap = await loadLatestDistributionRowsByInstrumentIdsAsOf(
-    db,
-    nonCashIds,
-    asOfDate,
-  );
-  const { mergedSectors, nonCashPrincipalEur, cashInFundsEur } =
-    buildMergedSectorsForAssetMix(valuedFull, distMap);
-  const mix = computeAssetMixEur({
-    nonCashPrincipalEur,
-    mergedSectors,
-    cashInFundsEur,
-    cashExcessEur: 0,
-  });
-  return { kind: "ok", equitiesEur: mix.equitiesEur, cashEur };
 }
+
+function priceMapForDate(
+  positionRows: Array<{ inst: InstrumentRow; qty: number }>,
+  pricesByInstrument: Map<number, InferSelectModel<typeof prices>[]>,
+  asOfDate: string,
+): Map<number, InferSelectModel<typeof prices>> {
+  const m = new Map<number, InferSelectModel<typeof prices>>();
+  for (const { inst } of positionRows) {
+    if (inst.kind === "cash_account") {
+      continue;
+    }
+    const rows = pricesByInstrument.get(inst.id);
+    if (!rows?.length) {
+      continue;
+    }
+    const p = pickLatestPriceRowAsOf(rows, asOfDate);
+    if (p) {
+      m.set(inst.id, p);
+    }
+  }
+  return m;
+}
+
+function distributionMapForDate(
+  positionRows: Array<{ inst: InstrumentRow; qty: number }>,
+  distByInstrument: Map<number, InferSelectModel<typeof distributions>[]>,
+  asOfDate: string,
+): Map<number, InferSelectModel<typeof distributions>> {
+  const m = new Map<number, InferSelectModel<typeof distributions>>();
+  for (const { inst } of positionRows) {
+    if (inst.kind === "cash_account") {
+      continue;
+    }
+    const rows = distByInstrument.get(inst.id);
+    if (!rows?.length) {
+      continue;
+    }
+    const r = pickLatestDistributionRowAsOf(rows, asOfDate);
+    if (r) {
+      m.set(inst.id, r);
+    }
+  }
+  return m;
+}
+
+type PortfolioRow = typeof portfolios.$inferSelect;
 
 /**
  * POC: weekly samples from first portfolio trade, plus a trailing point for **today** (UTC calendar)
@@ -135,6 +158,8 @@ async function assetMixPointForDate(
  * commodity sleeves excluded from principal). **cashEur** = `cash_account` instruments only. Stops when
  * any non-cash position lacks a price on or before the date. Uses distribution snapshots with
  * `snapshot_date <= asOf` (same idea as latest price as-of).
+ *
+ * Loads transactions once, walks dates in memory, and batches price and distribution queries.
  */
 export async function getPortfolioAssetMixHistory(
   portfolioId: number,
@@ -151,58 +176,109 @@ export async function getPortfolioAssetMixHistory(
     return { points: [] };
   }
 
-  const [firstTxn] = await db
-    .select({ tradeDate: transactions.tradeDate })
+  const txRows = await db
+    .select({
+      tradeDate: transactions.tradeDate,
+      instrumentId: transactions.instrumentId,
+      side: transactions.side,
+      quantity: transactions.quantity,
+    })
     .from(transactions)
     .where(eq(transactions.portfolioId, portfolioId))
-    .orderBy(asc(transactions.tradeDate))
-    .limit(1);
+    .orderBy(asc(transactions.tradeDate));
 
-  if (!firstTxn) {
+  const [firstRow] = txRows;
+  if (!firstRow) {
     return { points: [] };
   }
-  const startDate = calendarDateUtcFromInstant(new Date(firstTxn.tradeDate));
+
+  const startDate = calendarDateUtcFromInstant(new Date(firstRow.tradeDate));
 
   const today = new Date().toISOString().slice(0, 10);
-  const points: Array<{ date: string; equitiesEur: number; cashEur: number }> =
-    [];
-
-  let stoppedEarly = false;
-  for (let d = startDate; d <= today; d = addDaysUtc(d, STEP_DAYS)) {
-    const r = await assetMixPointForDate(portfolioId, d);
-    if (r.kind === "stop") {
-      stoppedEarly = true;
-      break;
-    }
-    if (r.kind === "empty") {
-      points.push({ date: d, equitiesEur: 0, cashEur: 0 });
-    } else {
-      points.push({
-        date: d,
-        equitiesEur: r.equitiesEur,
-        cashEur: r.cashEur,
-      });
-    }
-    if (d >= today) {
-      break;
-    }
+  const candidateDates = candidateDatesForAssetMixHistory(startDate, today);
+  if (candidateDates.length === 0) {
+    return { points: [] };
   }
 
-  if (
-    !stoppedEarly &&
-    !points.some((p) => p.date === today) &&
-    startDate <= today
-  ) {
-    const r = await assetMixPointForDate(portfolioId, today);
-    if (r.kind === "empty") {
-      points.push({ date: today, equitiesEur: 0, cashEur: 0 });
-    } else if (r.kind === "ok") {
-      points.push({
-        date: today,
-        equitiesEur: r.equitiesEur,
-        cashEur: r.cashEur,
-      });
+  const maxDate = candidateDates.reduce((a, b) => (a > b ? a : b));
+
+  const instrumentIds = [...new Set(txRows.map((t) => t.instrumentId))];
+  const instRows = await db
+    .select()
+    .from(instruments)
+    .where(inArray(instruments.id, instrumentIds));
+  const instrumentsById = new Map(
+    instRows.map((i) => [i.id, i] as [number, InstrumentRow]),
+  );
+
+  const nonCashInstrumentIds = instRows
+    .filter((i) => i.kind !== "cash_account")
+    .map((i) => i.id);
+
+  const [pricesByInstrument, distByInstrument] = await Promise.all([
+    loadPriceRowsByInstrumentIdsUpToDate(db, nonCashInstrumentIds, maxDate),
+    loadDistributionRowsByInstrumentIdsUpToDate(
+      db,
+      nonCashInstrumentIds,
+      maxDate,
+    ),
+  ]);
+
+  const points: Array<{ date: string; equitiesEur: number; cashEur: number }> =
+    [];
+  const qty = new Map<number, number>();
+  const txState = { i: 0 };
+
+  for (const d of candidateDates) {
+    applyTransactionsUpTo(txRows, txState, qty, endOfUtcDay(d));
+    const rows = positionRowsFromQty(qty, instrumentsById);
+    if (rows.length === 0) {
+      points.push({ date: d, equitiesEur: 0, cashEur: 0 });
+      continue;
     }
+
+    const priceMap = priceMapForDate(rows, pricesByInstrument, d);
+    const valuedResults = valuePortfolioRowsFromPriceMap(rows, priceMap);
+
+    let cashEur = 0;
+    let stop = false;
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const v = valuedResults[i];
+      if (!row || !v) {
+        continue;
+      }
+      if (row.inst.kind === "cash_account") {
+        cashEur += v.valueEur;
+        continue;
+      }
+      if (v.source === "none") {
+        stop = true;
+        break;
+      }
+    }
+    if (stop) {
+      break;
+    }
+
+    const valuedFull = rows.map((row, i) => ({
+      inst: row.inst,
+      valueEur: valuedResults[i]?.valueEur ?? 0,
+    }));
+    const distMap = distributionMapForDate(rows, distByInstrument, d);
+    const { mergedSectors, nonCashPrincipalEur, cashInFundsEur } =
+      buildMergedSectorsForAssetMix(valuedFull, distMap);
+    const mix = computeAssetMixEur({
+      nonCashPrincipalEur,
+      mergedSectors,
+      cashInFundsEur,
+      cashExcessEur: 0,
+    });
+    points.push({
+      date: d,
+      equitiesEur: mix.equitiesEur,
+      cashEur,
+    });
   }
 
   return { points };

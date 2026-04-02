@@ -1,13 +1,15 @@
-import type { instruments } from "@investments/db";
+import type { instruments, prices } from "@investments/db";
 import { DEFAULT_CASH_CURRENCY } from "@investments/lib";
 import type { InferSelectModel } from "drizzle-orm";
 import { db } from "../db.js";
-import {
-  loadLatestPriceRowsByInstrumentIds,
-  loadLatestPriceRowsByInstrumentIdsAsOf,
-} from "./latestPriceDistribution.js";
+import { loadLatestPriceRowsByInstrumentIds } from "./latestPriceDistribution.js";
 
 export type InstrumentRow = InferSelectModel<typeof instruments>;
+type ValuationResult = {
+  valueEur: number;
+  source: "cached_price" | "cash" | "none";
+  detail: string;
+};
 
 /** Stub until persisted FX or `quoted_price_eur` on `prices` (see plan). */
 const STUB_EUR_PER_USD = 0.92;
@@ -31,28 +33,11 @@ function noQuoteResult(): ValuationResult {
   };
 }
 
-type ValuationResult = {
-  valueEur: number;
-  source: "cached_price" | "cash" | "none";
-  detail: string;
-};
-
-/** Latest `prices` row with `price_date <= asOfDate` (UTC calendar date string). */
-export async function valuePortfolioRowsEurAsOf(
+/** Uses a pre-fetched map of one `prices` row per instrument (caller picks which row, e.g. latest as-of date). */
+export function valuePortfolioRowsFromPriceMap(
   rows: Array<{ inst: InstrumentRow; qty: number }>,
-  asOfDate: string,
-): Promise<ValuationResult[]> {
-  const nonCashIds = [
-    ...new Set(
-      rows.filter((r) => r.inst.kind !== "cash_account").map((r) => r.inst.id),
-    ),
-  ];
-  const priceByInstrument = await loadLatestPriceRowsByInstrumentIdsAsOf(
-    db,
-    nonCashIds,
-    asOfDate,
-  );
-
+  priceByInstrument: Map<number, InferSelectModel<typeof prices>>,
+): ValuationResult[] {
   return rows.map(({ inst, qty }) => {
     if (inst.kind === "cash_account") {
       const cur =
