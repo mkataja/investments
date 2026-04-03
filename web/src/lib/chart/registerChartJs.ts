@@ -10,6 +10,13 @@ import {
   PointElement,
   Tooltip,
 } from "chart.js";
+import {
+  ChoroplethController,
+  ColorLogarithmicScale,
+  ColorScale,
+  GeoFeature,
+  ProjectionScale,
+} from "chartjs-chart-geo";
 
 /** Carries options read by `distributionChartTooltipPropsFromChart`. */
 const investmentsDistributionTooltipPlugin = {
@@ -45,6 +52,11 @@ ChartJS.register(
   PointElement,
   Legend,
   Tooltip,
+  ChoroplethController,
+  GeoFeature,
+  ColorScale,
+  ColorLogarithmicScale,
+  ProjectionScale,
   investmentsDistributionTooltipPlugin,
   investmentsPieTooltipPlugin,
 );

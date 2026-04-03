@@ -1,11 +1,16 @@
 import type { ChartData, ChartOptions } from "chart.js";
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
+import Skeleton from "react-loading-skeleton";
 import { classNames } from "../../../lib/css";
 import {
   type PortfolioChartsProps,
   usePortfolioCharts,
 } from "./usePortfolioCharts";
+
+const WorldCountryChoropleth = lazy(async () => ({
+  default: (await import("./WorldCountryChoropleth")).WorldCountryChoropleth,
+}));
 
 export function PortfolioCharts(props: PortfolioChartsProps) {
   const [assetMixHistoryStacked, setAssetMixHistoryStacked] = useState(false);
@@ -107,6 +112,17 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
           >
             <Bar data={countryBarData} options={countryBarOptions} />
           </div>
+          <Suspense
+            fallback={
+              <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 mt-4">
+                <div className="px-2 sm:px-4">
+                  <Skeleton className="h-[min(52vh,520px)] min-h-[300px] w-full rounded-md" />
+                </div>
+              </div>
+            }
+          >
+            <WorldCountryChoropleth countries={portfolio.countries} />
+          </Suspense>
         </div>
         {props.assetMixHistoryPoints.length > 0 ? (
           <div className="subsection-stack w-full min-w-0">

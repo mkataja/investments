@@ -13,7 +13,7 @@ import { formatToPercentage } from "./numberFormat.js";
 import { DISTRIBUTION_SECTOR_TITLES } from "./sectorTitles.js";
 
 /** Weights merged under this key could not be resolved to ISO (see `resolveRegionKeyToIso`). */
-const UNMAPPED_COUNTRY_KEY = "__unmapped__";
+export const UNMAPPED_COUNTRY_KEY = "__unmapped__";
 
 /** Synthetic key from API for non-cash holdings with no distribution cache (see `api` portfolio merge). */
 const PORTFOLIO_UNKNOWN_COUNTRY_KEY = "__portfolio_unknown__";
@@ -84,7 +84,7 @@ function sectorTitleForId(id: string): string {
  * Merge country/label keys into ISO alpha-2 keys; unresolvable weight is summed under
  * `UNMAPPED_COUNTRY_KEY`.
  */
-function normalizeCountryWeightsForDisplay(
+export function normalizeCountryWeightsForDisplay(
   countries: Record<string, number>,
 ): Record<string, number> {
   const out: Record<string, number> = {};
