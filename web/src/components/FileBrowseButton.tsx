@@ -14,13 +14,13 @@ export function FileBrowseButton({
   accept?: string;
   ariaLabel: string;
   file: File | null;
-  inputRef?: Ref<HTMLInputElement>;
+  inputRef?: Ref<HTMLInputElement | null>;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
     <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
       <input
-        ref={inputRef}
+        ref={inputRef as Ref<HTMLInputElement> | undefined}
         id={id}
         name={name}
         type="file"

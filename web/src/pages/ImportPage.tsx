@@ -21,6 +21,7 @@ import {
   pickInitialImportPortfolioId,
 } from "./import/ImportPortfolioPicker";
 import { ImportSeligsonSection } from "./import/ImportSeligsonSection";
+import { pastedTextAsImportFile } from "./import/pastedImportFile";
 import {
   type DegiroNeedsInstruments,
   type DegiroOk,
@@ -29,13 +30,19 @@ import {
   tryParseImportErrorJson,
 } from "./import/types";
 
+const CHOOSE_SOURCE_MSG = "Choose a file or paste text first.";
+
 export function ImportPage() {
   const [degiroFile, setDegiroFile] = useState<File | null>(null);
+  const [degiroPasteText, setDegiroPasteText] = useState("");
+  const [degiroPasteOpen, setDegiroPasteOpen] = useState(false);
+  const degiroFileInputRef = useRef<HTMLInputElement>(null);
+
   const [seligsonFile, setSeligsonFile] = useState<File | null>(null);
   const [seligsonPasteText, setSeligsonPasteText] = useState("");
   const [seligsonPasteOpen, setSeligsonPasteOpen] = useState(false);
   const seligsonFileInputRef = useRef<HTMLInputElement>(null);
-  const seligsonPasteTextareaRef = useRef<HTMLTextAreaElement>(null);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<DegiroOk | null>(null);
@@ -43,6 +50,10 @@ export function ImportPage() {
   const [selectedIsin, setSelectedIsin] = useState<Record<string, boolean>>({});
 
   const [ibkrFile, setIbkrFile] = useState<File | null>(null);
+  const [ibkrPasteText, setIbkrPasteText] = useState("");
+  const [ibkrPasteOpen, setIbkrPasteOpen] = useState(false);
+  const ibkrFileInputRef = useRef<HTMLInputElement>(null);
+
   const [ibkrError, setIbkrError] = useState<string | null>(null);
   const [ibkrResult, setIbkrResult] = useState<DegiroOk | null>(null);
   const [ibkrMissingSymbols, setIbkrMissingSymbols] = useState<string[] | null>(
@@ -102,25 +113,42 @@ export function ImportPage() {
     setSelectedIsin(next);
   }, [pending]);
 
-  useEffect(() => {
-    if (seligsonPasteOpen) {
-      seligsonPasteTextareaRef.current?.focus();
-    }
-  }, [seligsonPasteOpen]);
+  function resolveDegiroUpload(): File | null {
+    return (
+      degiroFile ??
+      (degiroPasteText.trim().length > 0
+        ? pastedTextAsImportFile(
+            degiroPasteText,
+            "degiro-paste.csv",
+            "text/csv",
+          )
+        : null)
+    );
+  }
+
+  function resolveIbkrUpload(): File | null {
+    return (
+      ibkrFile ??
+      (ibkrPasteText.trim().length > 0
+        ? pastedTextAsImportFile(ibkrPasteText, "ibkr-paste.csv", "text/csv")
+        : null)
+    );
+  }
 
   async function onSubmitDegiro(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setResult(null);
     setPending(null);
-    if (!degiroFile) {
-      setError("Choose a CSV file first.");
+    const upload = resolveDegiroUpload();
+    if (upload === null) {
+      setError(CHOOSE_SOURCE_MSG);
       return;
     }
     setBusy(true);
     try {
       const form = buildDegiroImportFormData({
-        file: degiroFile,
+        file: upload,
         portfolioId: importPortfolioId,
       });
       const data = await apiPostFormData<
@@ -133,6 +161,8 @@ export function ImportPage() {
       }
       if (parsed.outcome === "ok") {
         setResult(parsed.value);
+        setDegiroPasteText("");
+        setDegiroPasteOpen(false);
         return;
       }
       setError("Unexpected response from server.");
@@ -147,7 +177,8 @@ export function ImportPage() {
     e.preventDefault();
     setError(null);
     setResult(null);
-    if (!degiroFile || pending === null) {
+    const upload = resolveDegiroUpload();
+    if (upload === null || pending === null) {
       setError("Missing file or proposals.");
       return;
     }
@@ -164,7 +195,7 @@ export function ImportPage() {
     setBusy(true);
     try {
       const form = buildDegiroImportFormData({
-        file: degiroFile,
+        file: upload,
         portfolioId: importPortfolioId,
         createInstruments: toCreate.map((p) => ({
           isin: p.isin,
@@ -184,6 +215,8 @@ export function ImportPage() {
       if (parsed.outcome === "ok") {
         setPending(null);
         setResult(parsed.value);
+        setDegiroPasteText("");
+        setDegiroPasteOpen(false);
         return;
       }
       setError("Import did not complete. Check the API response.");
@@ -202,17 +235,20 @@ export function ImportPage() {
     setIbkrAmbiguousSymbols(null);
     setIbkrAmbiguousIsins(null);
     setIbkrMissingIsins(null);
-    if (!ibkrFile) {
-      setIbkrError("Choose a CSV file first.");
+    const upload = resolveIbkrUpload();
+    if (upload === null) {
+      setIbkrError(CHOOSE_SOURCE_MSG);
       return;
     }
     setBusy(true);
     try {
-      const form = buildIbkrImportFormData(ibkrFile, importPortfolioId);
+      const form = buildIbkrImportFormData(upload, importPortfolioId);
       const data = await apiPostFormData<DegiroOk>("/import/ibkr", form);
       const ok = parseImportOkResponse(data);
       if (ok != null) {
         setIbkrResult(ok);
+        setIbkrPasteText("");
+        setIbkrPasteOpen(false);
         return;
       }
       setIbkrError("Unexpected response from server.");
@@ -250,12 +286,14 @@ export function ImportPage() {
     const fileForUpload =
       seligsonFile ??
       (seligsonPasteText.trim().length > 0
-        ? new File([seligsonPasteText], "seligson-paste.tsv", {
-            type: "text/tab-separated-values",
-          })
+        ? pastedTextAsImportFile(
+            seligsonPasteText,
+            "seligson-paste.tsv",
+            "text/tab-separated-values",
+          )
         : null);
     if (fileForUpload === null) {
-      setSeligsonError("Choose a file or paste export text first.");
+      setSeligsonError(CHOOSE_SOURCE_MSG);
       return;
     }
     setBusy(true);
@@ -316,8 +354,14 @@ export function ImportPage() {
     <div className="max-w-2xl w-full min-w-0 page-stack">
       <div className="page-header-stack">
         <h1>Import transactions</h1>
-        <p className="text-sm text-slate-600">
-          Upload broker exports to add or refresh transactions idempotently.
+        <p>
+          Upload broker exports to add or refresh transactions. The import is
+          idempotent - importing the same data multiple times will not create
+          duplicates.
+        </p>
+        <p>
+          Before importing any transactions on an instrument, the instrument
+          needs to be added to the database from the <em>Instruments</em> page.
         </p>
       </div>
 
@@ -334,16 +378,38 @@ export function ImportPage() {
         result={result}
         pending={pending}
         degiroFile={degiroFile}
-        setDegiroFile={setDegiroFile}
-        selectedIsin={selectedIsin}
-        setSelectedIsin={setSelectedIsin}
-        onSubmitDegiro={onSubmitDegiro}
-        onConfirmAddAndImport={onConfirmAddAndImport}
-        onDegiroFileChange={() => {
+        onDegiroFileChange={(file) => {
+          setDegiroFile(file);
+          if (file != null) {
+            setDegiroPasteText("");
+            setDegiroPasteOpen(false);
+          }
           setResult(null);
           setPending(null);
           setError(null);
         }}
+        degiroPasteText={degiroPasteText}
+        degiroPasteOpen={degiroPasteOpen}
+        onDegiroPasteOpenToggle={() => {
+          setDegiroPasteOpen((o) => !o);
+        }}
+        onDegiroPasteChange={(v) => {
+          setDegiroPasteText(v);
+          if (v.length > 0) {
+            setDegiroFile(null);
+            if (degiroFileInputRef.current) {
+              degiroFileInputRef.current.value = "";
+            }
+          }
+          setResult(null);
+          setPending(null);
+          setError(null);
+        }}
+        degiroFileInputRef={degiroFileInputRef}
+        selectedIsin={selectedIsin}
+        setSelectedIsin={setSelectedIsin}
+        onSubmitDegiro={onSubmitDegiro}
+        onConfirmAddAndImport={onConfirmAddAndImport}
       />
 
       <ImportIbkrSection
@@ -351,13 +417,12 @@ export function ImportPage() {
         ibkrError={ibkrError}
         ibkrResult={ibkrResult}
         ibkrFile={ibkrFile}
-        setIbkrFile={setIbkrFile}
-        ibkrMissingSymbols={ibkrMissingSymbols}
-        ibkrAmbiguousSymbols={ibkrAmbiguousSymbols}
-        ibkrAmbiguousIsins={ibkrAmbiguousIsins}
-        ibkrMissingIsins={ibkrMissingIsins}
-        onSubmitIbkr={onSubmitIbkr}
-        onIbkrFileChange={() => {
+        onIbkrFileChange={(file) => {
+          setIbkrFile(file);
+          if (file != null) {
+            setIbkrPasteText("");
+            setIbkrPasteOpen(false);
+          }
           setIbkrResult(null);
           setIbkrError(null);
           setIbkrMissingSymbols(null);
@@ -365,6 +430,32 @@ export function ImportPage() {
           setIbkrAmbiguousIsins(null);
           setIbkrMissingIsins(null);
         }}
+        ibkrPasteText={ibkrPasteText}
+        ibkrPasteOpen={ibkrPasteOpen}
+        onIbkrPasteOpenToggle={() => {
+          setIbkrPasteOpen((o) => !o);
+        }}
+        onIbkrPasteChange={(v) => {
+          setIbkrPasteText(v);
+          if (v.length > 0) {
+            setIbkrFile(null);
+            if (ibkrFileInputRef.current) {
+              ibkrFileInputRef.current.value = "";
+            }
+          }
+          setIbkrResult(null);
+          setIbkrError(null);
+          setIbkrMissingSymbols(null);
+          setIbkrAmbiguousSymbols(null);
+          setIbkrAmbiguousIsins(null);
+          setIbkrMissingIsins(null);
+        }}
+        ibkrFileInputRef={ibkrFileInputRef}
+        ibkrMissingSymbols={ibkrMissingSymbols}
+        ibkrAmbiguousSymbols={ibkrAmbiguousSymbols}
+        ibkrAmbiguousIsins={ibkrAmbiguousIsins}
+        ibkrMissingIsins={ibkrMissingIsins}
+        onSubmitIbkr={onSubmitIbkr}
       />
 
       <ImportSeligsonSection
@@ -372,16 +463,8 @@ export function ImportPage() {
         seligsonError={seligsonError}
         seligsonResult={seligsonResult}
         seligsonFile={seligsonFile}
-        setSeligsonFile={setSeligsonFile}
-        seligsonPasteText={seligsonPasteText}
-        seligsonPasteOpen={seligsonPasteOpen}
-        setSeligsonPasteOpen={setSeligsonPasteOpen}
-        seligsonFileInputRef={seligsonFileInputRef}
-        seligsonPasteTextareaRef={seligsonPasteTextareaRef}
-        seligsonMissingFunds={seligsonMissingFunds}
-        seligsonAmbiguousFunds={seligsonAmbiguousFunds}
-        onSubmitSeligson={onSubmitSeligson}
-        onSeligsonFilePicked={(file) => {
+        onSeligsonFileChange={(file) => {
+          setSeligsonFile(file);
           if (file != null) {
             setSeligsonPasteText("");
             setSeligsonPasteOpen(false);
@@ -390,6 +473,11 @@ export function ImportPage() {
           setSeligsonError(null);
           setSeligsonMissingFunds(null);
           setSeligsonAmbiguousFunds(null);
+        }}
+        seligsonPasteText={seligsonPasteText}
+        seligsonPasteOpen={seligsonPasteOpen}
+        onSeligsonPasteOpenToggle={() => {
+          setSeligsonPasteOpen((o) => !o);
         }}
         onSeligsonPasteChange={(v) => {
           setSeligsonPasteText(v);
@@ -404,6 +492,10 @@ export function ImportPage() {
           setSeligsonMissingFunds(null);
           setSeligsonAmbiguousFunds(null);
         }}
+        seligsonFileInputRef={seligsonFileInputRef}
+        seligsonMissingFunds={seligsonMissingFunds}
+        seligsonAmbiguousFunds={seligsonAmbiguousFunds}
+        onSubmitSeligson={onSubmitSeligson}
         onImportAnyway={() => {
           void submitSeligson(true);
         }}
