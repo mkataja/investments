@@ -45,3 +45,15 @@ export function buildSeligsonImportFormData(args: {
   }
   return form;
 }
+
+export function buildSveaImportFormData(
+  file: File,
+  portfolioId: number | null,
+): FormData {
+  const form = new FormData();
+  form.append("file", file);
+  if (portfolioId != null) {
+    form.append("portfolioId", String(portfolioId));
+  }
+  return form;
+}

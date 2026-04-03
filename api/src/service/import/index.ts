@@ -26,6 +26,10 @@ import {
   normalizeSeligsonFundNameForMatch,
   parseSeligsonTransactionsTsv,
 } from "../../import/seligsonTransactions.js";
+import {
+  SVEA_PASTE_EXTERNAL_SOURCE,
+  parseSveaBankPaste,
+} from "../../import/sveaTransactions.js";
 import { seedIntradayPriceForInstrumentIfMissing } from "../instrument/transactionPriceSeed.js";
 import { resolvePortfolioIdFromImportBody } from "../portfolio/portfolioAccess.js";
 import { insertEtfStockFromYahoo } from "../yahoo/createYahooInstrument.js";
@@ -623,4 +627,177 @@ export async function postImportSeligson(c: Context) {
     unchanged,
     ...(skippedRows > 0 ? { skippedRows } : {}),
   });
+}
+
+/**
+ * Multipart: `file` (UTF-8 text of the account paste), optional `portfolioId`.
+ * Expects a broker named `Svea` with `broker_type` `cash_account` and exactly one `cash_account`
+ * instrument in EUR for that broker.
+ */
+export async function postImportSvea(c: Context) {
+  let body: Record<string, unknown>;
+  try {
+    body = (await c.req.parseBody({ all: true })) as Record<string, unknown>;
+  } catch {
+    return c.json({ message: "Invalid multipart body" }, 400);
+  }
+  const file = body.file;
+  if (file == null) {
+    return c.json({ message: 'Expected multipart field "file"' }, 400);
+  }
+  if (typeof file === "string") {
+    return c.json({ message: "Expected file upload, not string" }, 400);
+  }
+  const pasteText = await (file as File).text();
+
+  const parsed = parseSveaBankPaste(pasteText);
+  if (!parsed.ok) {
+    return c.json(
+      {
+        message: parsed.errors.join("\n"),
+        errors: parsed.errors,
+      },
+      400,
+    );
+  }
+  if (parsed.rows.length === 0) {
+    return c.json({ message: "No transaction rows to import" }, 400);
+  }
+
+  const [sveaBroker] = await db
+    .select()
+    .from(brokers)
+    .where(and(eq(brokers.name, "Svea Bank"), eq(brokers.userId, USER_ID)))
+    .limit(1);
+  if (!sveaBroker) {
+    return c.json({ message: 'Broker named "Svea Bank" is not configured' }, 500);
+  }
+  if (sveaBroker.brokerType !== "cash_account") {
+    return c.json(
+      {
+        message:
+          'Broker "Svea Bank" must have type cash account (not exchange) for this import',
+      },
+      400,
+    );
+  }
+
+  const resolvedPortfolioSv = await resolvePortfolioIdFromImportBody(body);
+  if (!resolvedPortfolioSv.ok) {
+    const m = resolvedPortfolioSv.message;
+    if (resolvedPortfolioSv.status === 400) {
+      return c.json({ message: m }, 400);
+    }
+    if (resolvedPortfolioSv.status === 404) {
+      return c.json({ message: m }, 404);
+    }
+    return c.json({ message: m }, 500);
+  }
+  const importPortfolioIdSv = resolvedPortfolioSv.portfolioId;
+
+  const cashInstRows = await db
+    .select()
+    .from(instruments)
+    .where(
+      and(
+        eq(instruments.brokerId, sveaBroker.id),
+        eq(instruments.kind, "cash_account"),
+      ),
+    );
+
+  if (cashInstRows.length === 0) {
+    return c.json(
+      {
+        message:
+          'No cash account instrument for Svea. Add one EUR cash account under Instruments, linked to broker "Svea".',
+      },
+      400,
+    );
+  }
+  if (cashInstRows.length > 1) {
+    return c.json(
+      {
+        message:
+          "Svea import needs exactly one cash account instrument for this broker. Merge or remove extras.",
+      },
+      400,
+    );
+  }
+
+  const cashInst = cashInstRows[0];
+  if (cashInst === undefined) {
+    return c.json({ message: "No cash account instrument" }, 500);
+  }
+  const cashCcy = cashInst.cashCurrency?.trim().toUpperCase() ?? "";
+  if (cashCcy !== "EUR") {
+    return c.json(
+      {
+        message:
+          "Svea paste amounts are EUR. Use a EUR cash account instrument for this broker.",
+      },
+      400,
+    );
+  }
+
+  const instrumentId = cashInst.id;
+
+  const values = parsed.rows.map((r) => ({
+    userId: sveaBroker.userId,
+    portfolioId: importPortfolioIdSv,
+    brokerId: sveaBroker.id,
+    tradeDate: new Date(r.tradeDate),
+    side: r.side,
+    instrumentId,
+    quantity: r.quantity,
+    unitPrice: r.unitPrice,
+    currency: r.currency,
+    externalSource: SVEA_PASTE_EXTERNAL_SOURCE,
+    externalId: r.externalId,
+  }));
+
+  const written = await db
+    .insert(transactions)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [
+        transactions.brokerId,
+        transactions.externalSource,
+        transactions.externalId,
+      ],
+      set: {
+        userId: sql`excluded.user_id`,
+        portfolioId: sql`excluded.portfolio_id`,
+        tradeDate: sql`excluded.trade_date`,
+        side: sql`excluded.side`,
+        instrumentId: sql`excluded.instrument_id`,
+        quantity: sql`excluded.quantity`,
+        unitPrice: sql`excluded.unit_price`,
+        currency: sql`excluded.currency`,
+      },
+      setWhere: sql`(
+        ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
+        OR ${transactions.side} IS DISTINCT FROM ${sql.raw("excluded.side")}
+        OR ${transactions.instrumentId} IS DISTINCT FROM ${sql.raw("excluded.instrument_id")}
+        OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
+        OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
+        OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
+        OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
+      )`,
+    })
+    .returning({ id: transactions.id });
+
+  const processed = values.length;
+  const changed = written.length;
+  const unchanged = processed - changed;
+
+  for (const v of values) {
+    await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
+      instrumentId: v.instrumentId,
+      tradeDate: v.tradeDate,
+      unitPrice: v.unitPrice,
+      currency: v.currency,
+    });
+  }
+
+  return c.json({ ok: true, processed, changed, unchanged });
 }

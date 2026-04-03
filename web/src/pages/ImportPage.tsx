@@ -4,6 +4,7 @@ import {
   buildDegiroImportFormData,
   buildIbkrImportFormData,
   buildSeligsonImportFormData,
+  buildSveaImportFormData,
 } from "../api/importFormData";
 import {
   classifyIbkrImportHttpError,
@@ -21,6 +22,7 @@ import {
   pickInitialImportPortfolioId,
 } from "./import/ImportPortfolioPicker";
 import { ImportSeligsonSection } from "./import/ImportSeligsonSection";
+import { ImportSveaSection } from "./import/ImportSveaSection";
 import { pastedTextAsImportFile } from "./import/pastedImportFile";
 import {
   type DegiroNeedsInstruments,
@@ -78,6 +80,13 @@ export function ImportPage() {
     string[] | null
   >(null);
 
+  const [sveaFile, setSveaFile] = useState<File | null>(null);
+  const [sveaPasteText, setSveaPasteText] = useState("");
+  const [sveaPasteOpen, setSveaPasteOpen] = useState(false);
+  const sveaFileInputRef = useRef<HTMLInputElement>(null);
+  const [sveaError, setSveaError] = useState<string | null>(null);
+  const [sveaResult, setSveaResult] = useState<DegiroOk | null>(null);
+
   const [portfolios, setPortfolios] = useState<PortfolioEntity[]>([]);
   const [importPortfolioId, setImportPortfolioId] = useState<number | null>(
     null,
@@ -131,6 +140,15 @@ export function ImportPage() {
       ibkrFile ??
       (ibkrPasteText.trim().length > 0
         ? pastedTextAsImportFile(ibkrPasteText, "ibkr-paste.csv", "text/csv")
+        : null)
+    );
+  }
+
+  function resolveSveaUpload(): File | null {
+    return (
+      sveaFile ??
+      (sveaPasteText.trim().length > 0
+        ? pastedTextAsImportFile(sveaPasteText, "svea-paste.txt", "text/plain")
         : null)
     );
   }
@@ -350,6 +368,34 @@ export function ImportPage() {
     void submitSeligson(false);
   }
 
+  async function onSubmitSvea(e: FormEvent) {
+    e.preventDefault();
+    setSveaError(null);
+    setSveaResult(null);
+    const upload = resolveSveaUpload();
+    if (upload === null) {
+      setSveaError(CHOOSE_SOURCE_MSG);
+      return;
+    }
+    setBusy(true);
+    try {
+      const form = buildSveaImportFormData(upload, importPortfolioId);
+      const data = await apiPostFormData<DegiroOk>("/import/svea", form);
+      const ok = parseImportOkResponse(data);
+      if (ok != null) {
+        setSveaResult(ok);
+        setSveaPasteText("");
+        setSveaPasteOpen(false);
+        return;
+      }
+      setSveaError("Unexpected response from server.");
+    } catch (err) {
+      setSveaError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="max-w-2xl w-full min-w-0 page-stack">
       <div className="page-header-stack">
@@ -499,6 +545,40 @@ export function ImportPage() {
         onImportAnyway={() => {
           void submitSeligson(true);
         }}
+      />
+
+      <ImportSveaSection
+        busy={busy}
+        sveaError={sveaError}
+        sveaResult={sveaResult}
+        sveaFile={sveaFile}
+        onSveaFileChange={(file) => {
+          setSveaFile(file);
+          if (file != null) {
+            setSveaPasteText("");
+            setSveaPasteOpen(false);
+          }
+          setSveaResult(null);
+          setSveaError(null);
+        }}
+        sveaPasteText={sveaPasteText}
+        sveaPasteOpen={sveaPasteOpen}
+        onSveaPasteOpenToggle={() => {
+          setSveaPasteOpen((o) => !o);
+        }}
+        onSveaPasteChange={(v) => {
+          setSveaPasteText(v);
+          if (v.length > 0) {
+            setSveaFile(null);
+            if (sveaFileInputRef.current) {
+              sveaFileInputRef.current.value = "";
+            }
+          }
+          setSveaResult(null);
+          setSveaError(null);
+        }}
+        sveaFileInputRef={sveaFileInputRef}
+        onSubmitSvea={onSubmitSvea}
       />
     </div>
   );

@@ -10,6 +10,7 @@ import {
   postImportDegiro,
   postImportIbkr,
   postImportSeligson,
+  postImportSvea,
 } from "./service/import/index.js";
 import * as instruments from "./service/instrument/index.js";
 import * as portfolios from "./service/portfolio/index.js";
@@ -77,6 +78,7 @@ app.delete("/transactions/:id", transactions.deleteTransaction);
 app.post("/import/degiro", postImportDegiro);
 app.post("/import/ibkr", postImportIbkr);
 app.post("/import/seligson", postImportSeligson);
+app.post("/import/svea", postImportSvea);
 
 app.get("/instruments", instruments.getInstruments);
 app.get("/instruments/lookup-yahoo", instruments.getInstrumentsLookupYahoo);
