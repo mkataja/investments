@@ -52,6 +52,8 @@ export type AssetMixHistoryPoint = {
   date: string;
   /** Equity sleeve EUR per sector key (same breakdown as the sectors bar chart). */
   equitySectorsEur: Record<string, number>;
+  /** Cumulative virtual sleeve when `variant=hodl`; 0 for actual history. */
+  virtualInputMoneyEur: number;
 } & PortfolioDistributions["assetMix"];
 
 export type BucketTopHolding = {

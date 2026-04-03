@@ -32,6 +32,8 @@ type PortfolioTabPanelsProps = {
   selectedPortfolioLabel: string;
   comparePortfolioLabel: string;
   assetMixHistoryPoints: AssetMixHistoryPoint[];
+  selectedPortfolioId: number | null;
+  portfolioHasSellTransactions: boolean;
   selectedIsBenchmark: boolean;
   instrumentById: Map<number, HomeInstrument>;
   instrumentTickerById: Map<number, string | null>;
@@ -51,6 +53,8 @@ function PortfolioTabPanels({
   selectedPortfolioLabel,
   comparePortfolioLabel,
   assetMixHistoryPoints,
+  selectedPortfolioId,
+  portfolioHasSellTransactions,
   selectedIsBenchmark,
   instrumentById,
   instrumentTickerById,
@@ -77,6 +81,8 @@ function PortfolioTabPanels({
             selectedPortfolioLabel={selectedPortfolioLabel}
             comparePortfolioLabel={comparePortfolioLabel}
             assetMixHistoryPoints={assetMixHistoryPoints}
+            portfolioId={selectedPortfolioId}
+            portfolioHasSellTransactions={portfolioHasSellTransactions}
             hideSectionTitle
           />
         </div>
@@ -143,6 +149,11 @@ export function PortfolioPage() {
 
   const [newPortfolioOpen, setNewPortfolioOpen] = useState(false);
   const [editPortfolioOpen, setEditPortfolioOpen] = useState(false);
+
+  const portfolioHasSellTransactions = useMemo(
+    () => transactions.some((t) => t.side === "sell"),
+    [transactions],
+  );
 
   const instrumentNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -383,6 +394,8 @@ export function PortfolioPage() {
           selectedPortfolioLabel={selectedPortfolioLabel}
           comparePortfolioLabel={comparePortfolioLabel}
           assetMixHistoryPoints={assetMixHistoryPoints}
+          selectedPortfolioId={selectedPortfolioId}
+          portfolioHasSellTransactions={portfolioHasSellTransactions}
           selectedIsBenchmark={selectedIsBenchmark}
           instrumentById={instrumentById}
           instrumentTickerById={instrumentTickerById}

@@ -27,13 +27,15 @@ export function yTickShort(v: number): string {
   if (!Number.isFinite(v)) {
     return "";
   }
-  if (v >= 1_000_000) {
-    return `${(v / 1_000_000).toFixed(1)}M`;
+  const sign = v < 0 ? "-" : "";
+  const a = Math.abs(v);
+  if (a >= 1_000_000) {
+    return `${sign}${(a / 1_000_000).toFixed(1)}M`;
   }
-  if (v >= 1000) {
-    return `${(v / 1000).toFixed(0)}k`;
+  if (a >= 1000) {
+    return `${sign}${(a / 1000).toFixed(0)}k`;
   }
-  return String(v);
+  return `${sign}${a}`;
 }
 
 export function totalPositiveEurAtDataIndex(
@@ -45,6 +47,46 @@ export function totalPositiveEurAtDataIndex(
     const row = ds.data;
     const raw = Array.isArray(row) ? row[dataIndex] : undefined;
     if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
+      s += raw;
+    }
+  }
+  return s;
+}
+
+/**
+ * Line chart: keep negative values; use `0` only next to a negative value so segments meet the axis.
+ */
+export function lineChartValueFromRawSeriesNonPositive(
+  raw: readonly number[],
+  index: number,
+): number | null {
+  const v = raw[index] ?? 0;
+  const n = raw.length;
+  if (Number.isFinite(v) && v < 0) {
+    return v;
+  }
+  if (!Number.isFinite(v) || v !== 0) {
+    return null;
+  }
+  const prev = index > 0 ? (raw[index - 1] ?? 0) : Number.NaN;
+  const next = index < n - 1 ? (raw[index + 1] ?? 0) : Number.NaN;
+  const prevNeg = index > 0 && Number.isFinite(prev) && prev < 0;
+  const nextNeg = index < n - 1 && Number.isFinite(next) && next < 0;
+  if (prevNeg || nextNeg) {
+    return 0;
+  }
+  return null;
+}
+
+export function totalNetEurAtDataIndex(
+  chart: Chart,
+  dataIndex: number,
+): number {
+  let s = 0;
+  for (const ds of chart.data.datasets) {
+    const row = ds.data;
+    const raw = Array.isArray(row) ? row[dataIndex] : undefined;
+    if (typeof raw === "number" && Number.isFinite(raw)) {
       s += raw;
     }
   }

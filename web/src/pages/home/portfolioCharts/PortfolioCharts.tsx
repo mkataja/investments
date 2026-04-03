@@ -1,8 +1,10 @@
 import type { ChartData, ChartOptions } from "chart.js";
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useId, useState } from "react";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
 import Skeleton from "react-loading-skeleton";
+import { apiGet } from "../../../api/client";
 import { classNames } from "../../../lib/css";
+import type { AssetMixHistoryPoint } from "../types";
 import {
   type PortfolioChartsProps,
   usePortfolioCharts,
@@ -12,12 +14,69 @@ const WorldCountryChoropleth = lazy(async () => ({
   default: (await import("./WorldCountryChoropleth")).WorldCountryChoropleth,
 }));
 
+const DIAMOND_HANDS_TOGGLE_TIP = "Simulates HODL: never sell, allow leverage on virtual cash";
+
 export function PortfolioCharts(props: PortfolioChartsProps) {
+  const diamondHandsTipId = useId();
   const [assetMixHistoryStacked, setAssetMixHistoryStacked] = useState(false);
   const [
     sectorDistributionHistoryStacked,
     setSectorDistributionHistoryStacked,
   ] = useState(false);
+  const [diamondHandsEnabled, setDiamondHandsEnabled] = useState(false);
+  const [hodlPoints, setHodlPoints] = useState<AssetMixHistoryPoint[] | null>(
+    null,
+  );
+  const [hodlLoading, setHodlLoading] = useState(false);
+  const [hodlErr, setHodlErr] = useState<string | null>(null);
+
+  const portfolioId = props.portfolioId ?? null;
+  const hasSells = props.portfolioHasSellTransactions ?? false;
+
+  useEffect(() => {
+    if (!diamondHandsEnabled || portfolioId == null || hodlPoints !== null) {
+      return;
+    }
+    let cancelled = false;
+    setHodlLoading(true);
+    setHodlErr(null);
+    void apiGet<{ points: AssetMixHistoryPoint[] }>(
+      `/portfolio/asset-mix-history?portfolioId=${portfolioId}&variant=hodl`,
+    )
+      .then((r) => {
+        if (!cancelled) {
+          setHodlPoints(r.points);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setHodlErr(String(e));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setHodlLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [diamondHandsEnabled, portfolioId, hodlPoints]);
+
+  const mixLineEmptyWhileHodlLoad =
+    diamondHandsEnabled && hodlLoading && hodlPoints === null;
+
+  const chartProps: PortfolioChartsProps = {
+    ...props,
+    assetMixOverTimeLinePoints: mixLineEmptyWhileHodlLoad
+      ? []
+      : diamondHandsEnabled && hodlPoints
+        ? hodlPoints
+        : undefined,
+    assetMixHistoryLineHodlMode:
+      diamondHandsEnabled && hodlPoints !== null && !hodlLoading,
+  };
+
   const {
     portfolio,
     countryChartContainerRef,
@@ -39,7 +98,7 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
     sectorDistributionLineData,
     sectorDistributionLineOptions,
     sectorDistributionHistoryHasData,
-  } = usePortfolioCharts(props, {
+  } = usePortfolioCharts(chartProps, {
     assetMixHistoryStacked,
     sectorDistributionHistoryStacked,
   });
@@ -158,12 +217,51 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
                 </span>
                 <span>Stacked areas</span>
               </label>
+              {hasSells && portfolioId != null ? (
+                <>
+                  <label
+                    className="inline-flex cursor-pointer items-center gap-2 select-none text-sm text-slate-600"
+                    title={DIAMOND_HANDS_TOGGLE_TIP}
+                  >
+                    <span className="relative inline-block h-6 w-11 shrink-0">
+                      <input
+                        type="checkbox"
+                        className="peer sr-only"
+                        aria-describedby={diamondHandsTipId}
+                        checked={diamondHandsEnabled}
+                        onChange={(e) => {
+                          setDiamondHandsEnabled(e.target.checked);
+                        }}
+                      />
+                      <span
+                        aria-hidden
+                        className="absolute inset-0 rounded-full bg-slate-200 transition peer-checked:bg-emerald-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500"
+                      />
+                      <span
+                        aria-hidden
+                        className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-[1.25rem]"
+                      />
+                    </span>
+                    <span>Diamond Hands mode 💎 🤲</span>
+                  </label>
+                  <span id={diamondHandsTipId} className="sr-only">
+                    {DIAMOND_HANDS_TOGGLE_TIP}
+                  </span>
+                </>
+              ) : null}
             </div>
+            {hodlErr ? (
+              <p className="text-sm text-red-600 mb-1">{hodlErr}</p>
+            ) : null}
             <div className="w-full h-[448px] min-w-0">
-              <Line
-                data={assetMixLineData as ChartData<"line">}
-                options={assetMixLineOptions as ChartOptions<"line">}
-              />
+              {mixLineEmptyWhileHodlLoad ? (
+                <Skeleton className="h-full w-full rounded-md" />
+              ) : (
+                <Line
+                  data={assetMixLineData as ChartData<"line">}
+                  options={assetMixLineOptions as ChartOptions<"line">}
+                />
+              )}
             </div>
           </div>
         ) : null}
@@ -196,8 +294,8 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
             </div>
             <div className="w-full h-[448px] min-w-0">
               <Line
-                data={sectorDistributionLineData as ChartData<"line">}
-                options={sectorDistributionLineOptions as ChartOptions<"line">}
+                data={sectorDistributionLineData}
+                options={sectorDistributionLineOptions}
               />
             </div>
           </div>

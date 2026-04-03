@@ -19,7 +19,8 @@ type ValuationResult = {
 /** Fallback when no `fx` instrument price exists for USD. */
 const STUB_EUR_PER_USD = 0.92;
 
-function nativeToEur(
+/** Convert an amount in `currency` to EUR using EUR-per-unit-foreign maps (same rules as position valuation). */
+export function nativeToEur(
   amount: number,
   currency: string | undefined,
   eurPerUnitByForeign: Map<string, number>,

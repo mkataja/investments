@@ -33,6 +33,7 @@ IMPORTANT! Read and always follow good quality standards!
 - ALWAYS prefer map/reduce over for-loops! For-loops only when there's a very clear benefit.
 - Never do typecasts like `as` or `<>` without asking for permission. `satisfies` is good though!
 - Avoid N+1 DB query pattern. Be mindful of DB performance.
+- No need to consider accessibility issues in detail as the app is anyway very visual by design
 
 
 ## Documentation and UI copy (text) style

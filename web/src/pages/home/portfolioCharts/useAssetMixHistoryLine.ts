@@ -2,14 +2,19 @@ import type { ChartData, ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { CHART_TOOLTIP_STYLE } from "../../../lib/chart/chartTooltipConstants";
 import { rgbaFromHex } from "../../../lib/chart/rgbaFromHex";
+import { PORTFOLIO_ASSET_MIX_COLORS } from "../../../lib/portfolioChartPalette";
 import type { AssetMixHistoryPoint } from "../types";
 import { assetMixPieRowsFromAssetMix } from "./assetMixPieRows";
 import { DISTRIBUTION_BAR_CHART_GRID_STROKE } from "./distributionBarChartOptions";
 import {
   lineChartValueFromRawSeries,
+  lineChartValueFromRawSeriesNonPositive,
+  totalNetEurAtDataIndex,
   totalPositiveEurAtDataIndex,
   yTickShort,
 } from "./portfolioHistorySeriesChartUtils";
+
+const VIRTUAL_INPUT_LABEL = "Input money (virtual)";
 
 type AssetMixHistoryChartResult = {
   data: ChartData<"line">;
@@ -19,6 +24,7 @@ type AssetMixHistoryChartResult = {
 export function useAssetMixHistoryLine(
   points: AssetMixHistoryPoint[],
   stacked: boolean,
+  lineHodlMode = false,
 ): AssetMixHistoryChartResult {
   return useMemo(() => {
     const formatEur = (n: number) =>
@@ -54,6 +60,31 @@ export function useAssetMixHistoryLine(
       .filter(({ rawSeries }) =>
         rawSeries.some((v) => Number.isFinite(v) && v > 0),
       );
+
+    const virtualRawSeries = points.map((p) => p.virtualInputMoneyEur ?? 0);
+    const includeVirtualSleeve =
+      lineHodlMode && virtualRawSeries.some((v) => Number.isFinite(v) && v < 0);
+
+    const virtualFill = PORTFOLIO_ASSET_MIX_COLORS.virtualInputMoney;
+
+    type Spec =
+      | (typeof filteredSpecs)[number]
+      | {
+          row: { name: string; fill: string };
+          rawSeries: number[];
+          mapValue: (raw: readonly number[], j: number) => number | null;
+        };
+
+    const allSpecs: Spec[] = includeVirtualSleeve
+      ? [
+          ...filteredSpecs,
+          {
+            row: { name: VIRTUAL_INPUT_LABEL, fill: virtualFill },
+            rawSeries: virtualRawSeries,
+            mapValue: lineChartValueFromRawSeriesNonPositive,
+          },
+        ]
+      : filteredSpecs;
 
     const xScaleTicks = {
       font: { size: 14 },
@@ -116,9 +147,12 @@ export function useAssetMixHistoryLine(
 
     const data: ChartData<"line"> = {
       labels: xLabels,
-      datasets: filteredSpecs.map(({ row, rawSeries }) => {
+      datasets: allSpecs.map((spec) => {
+        const rawSeries = spec.rawSeries;
+        const mapFn =
+          "mapValue" in spec ? spec.mapValue : lineChartValueFromRawSeries;
         const series = [
-          ...rawSeries.map((_, j) => lineChartValueFromRawSeries(rawSeries, j)),
+          ...rawSeries.map((_, j) => mapFn(rawSeries, j)),
           null,
         ] as (number | null)[];
         const isLastDot = (ctx: { dataIndex: number }) => {
@@ -129,12 +163,13 @@ export function useAssetMixHistoryLine(
           const v = series[idx];
           return typeof v === "number" && Number.isFinite(v);
         };
-        const areaFill = stacked ? row.fill : rgbaFromHex(row.fill, 0.12);
+        const rowFill = spec.row.fill;
+        const areaFill = stacked ? rowFill : rgbaFromHex(rowFill, 0.12);
         return {
-          label: row.name,
+          label: spec.row.name,
           data: series,
           ...(stacked ? { stack: "assetMix" } : {}),
-          borderColor: row.fill,
+          borderColor: rowFill,
           backgroundColor: areaFill,
           cubicInterpolationMode: "monotone" as const,
           fill: true,
@@ -142,9 +177,9 @@ export function useAssetMixHistoryLine(
             isLastDot(ctx) ? lastPointRadius : 0,
           pointHoverRadius: (ctx: { dataIndex: number }) =>
             isLastDot(ctx) ? lastPointHoverRadius : 5,
-          pointBackgroundColor: row.fill,
+          pointBackgroundColor: rowFill,
           pointBorderColor: (ctx: { dataIndex: number }) =>
-            isLastDot(ctx) ? "#ffffff" : row.fill,
+            isLastDot(ctx) ? "#ffffff" : rowFill,
           pointBorderWidth: (ctx: { dataIndex: number }) =>
             isLastDot(ctx) ? 2 : 0,
           pointHitRadius: (ctx: { dataIndex: number }) =>
@@ -178,7 +213,7 @@ export function useAssetMixHistoryLine(
         },
         y: {
           stacked,
-          min: 0,
+          ...(lineHodlMode ? {} : { min: 0 }),
           ticks: yScaleTicks,
           grid: yGrid,
           border: { display: false },
@@ -197,7 +232,7 @@ export function useAssetMixHistoryLine(
           filter: (item) => {
             const y =
               typeof item.parsed.y === "number" ? item.parsed.y : Number.NaN;
-            return Number.isFinite(y) && y > 0;
+            return Number.isFinite(y) && y !== 0;
           },
           callbacks: {
             title: (tooltipItems) => {
@@ -222,6 +257,16 @@ export function useAssetMixHistoryLine(
               if (!first) {
                 return "";
               }
+              if (lineHodlMode) {
+                const net = totalNetEurAtDataIndex(
+                  first.chart,
+                  first.dataIndex,
+                );
+                if (!Number.isFinite(net)) {
+                  return "";
+                }
+                return `Net total: ${formatEur(net)}`;
+              }
               const sum = totalPositiveEurAtDataIndex(
                 first.chart,
                 first.dataIndex,
@@ -237,5 +282,5 @@ export function useAssetMixHistoryLine(
     };
 
     return { data, options };
-  }, [points, stacked]);
+  }, [points, stacked, lineHodlMode]);
 }

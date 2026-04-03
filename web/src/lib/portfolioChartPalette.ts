@@ -6,6 +6,8 @@ export const PORTFOLIO_ASSET_MIX_COLORS = {
   commodityOther: "#9A7B5C",
   cashInFunds: "#C2EABA",
   cashExcess: "#8BCB7A",
+  /** Virtual "input money" sleeve (≤ 0) for Diamond hands HODL chart. */
+  virtualInputMoney: "#94A3B8",
 } as const;
 
 /** Bond sleeve mix pie — darker → lighter periwinkle (same hue family as `#6B7FD7`). */

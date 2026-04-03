@@ -49,7 +49,10 @@ import { refreshDistributionCacheForInstrumentId } from "../distributionCache/re
 import { writeSeligsonDistributionCache } from "../distributionCache/seligsonDistributionWrite.js";
 import { getPortfolioDistributions } from "../portfolio/portfolio.js";
 import { loadPortfolioOwnedByUser } from "../portfolio/portfolioAccess.js";
-import { getPortfolioAssetMixHistory } from "../portfolio/portfolioAssetMixHistory.js";
+import {
+  type AssetMixHistoryVariant,
+  getPortfolioAssetMixHistory,
+} from "../portfolio/portfolioAssetMixHistory.js";
 import { loadOpenPositionsForPortfolio } from "../portfolio/positions.js";
 import { backfillSeligsonPricesFromArvohistoriaCsv } from "../seligson/seligsonArvohistoriaCsv.js";
 import {
@@ -1458,9 +1461,11 @@ export async function getPortfolioDistributionsRoute(c: Context) {
 }
 
 /**
- * `GET /portfolio/asset-mix-history?portfolioId=…` — weekly asset mix EUR plus
+ * `GET /portfolio/asset-mix-history?portfolioId=…&variant=…` — weekly asset mix EUR plus
  * `equitySectorsEur` per date (equity sleeve only; same sector keys as portfolio
- * distributions / sectors bar chart).
+ * distributions / sectors bar chart). Optional `variant=hodl`: simulate never selling
+ * securities (sells reduce `virtualInputMoneyEur` instead of quantity; cash account sells
+ * apply normally). Default `variant` is `actual`.
  */
 export async function getPortfolioAssetMixHistoryRoute(c: Context) {
   const raw = c.req.query("portfolioId")?.trim();
@@ -1471,12 +1476,22 @@ export async function getPortfolioAssetMixHistoryRoute(c: Context) {
   if (!Number.isFinite(portfolioId) || portfolioId < 1) {
     return c.json({ message: "Invalid portfolioId" }, 400);
   }
+  const variantRaw = c.req.query("variant")?.trim().toLowerCase();
+  let variant: AssetMixHistoryVariant = "actual";
+  if (variantRaw !== undefined && variantRaw !== "") {
+    if (variantRaw === "hodl") {
+      variant = "hodl";
+    } else if (variantRaw !== "actual") {
+      return c.json({ message: "variant must be actual or hodl" }, 400);
+    }
+  }
   const pf = await loadPortfolioOwnedByUser(portfolioId);
   if (!pf) {
     return c.json({ message: "Portfolio not found" }, 404);
   }
   const data = await getPortfolioAssetMixHistory(portfolioId, {
     portfolio: pf,
+    variant,
   });
   return c.json(data);
 }

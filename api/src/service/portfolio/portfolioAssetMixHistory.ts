@@ -22,12 +22,19 @@ import {
   equitySectorsEurFromSnapshot,
 } from "./portfolioAssetMix.js";
 import {
+  type AssetMixHistoryTxRow,
+  applyTransactionsUpToActual,
+  applyTransactionsUpToHodl,
+} from "./portfolioAssetMixHistoryApply.js";
+import {
   type InstrumentRow,
   buildFxEurPerUnitMapAsOf,
   valuePortfolioRowsFromPriceMap,
 } from "./valuation.js";
 
 const STEP_DAYS = 7;
+
+export type AssetMixHistoryVariant = "actual" | "hodl";
 
 function endOfUtcDay(dateStr: string): Date {
   return new Date(`${dateStr}T23:59:59.999Z`);
@@ -72,40 +79,6 @@ function positionRowsFromQty(
     out.push({ inst, qty: q });
   }
   return out;
-}
-
-type TxRow = {
-  tradeDate: Date;
-  instrumentId: number;
-  side: string;
-  quantity: string;
-};
-
-function applyTransactionsUpTo(
-  txRows: TxRow[],
-  state: { i: number },
-  qty: Map<number, number>,
-  asOfEnd: Date,
-): void {
-  while (state.i < txRows.length) {
-    const t = txRows[state.i];
-    if (!t || t.tradeDate > asOfEnd) {
-      break;
-    }
-    state.i++;
-    const q = Number.parseFloat(String(t.quantity));
-    if (!Number.isFinite(q)) {
-      continue;
-    }
-    const delta = t.side === "buy" ? q : -q;
-    const prev = qty.get(t.instrumentId) ?? 0;
-    const next = prev + delta;
-    if (next === 0) {
-      qty.delete(t.instrumentId);
-    } else {
-      qty.set(t.instrumentId, next);
-    }
-  }
 }
 
 function priceMapForDate(
@@ -154,6 +127,20 @@ function distributionMapForDate(
 
 type PortfolioRow = typeof portfolios.$inferSelect;
 
+type AssetMixHistoryPointRow = {
+  date: string;
+  equitiesEur: number;
+  bondsTotalEur: number;
+  commodityGoldEur: number;
+  commoditySilverEur: number;
+  commodityOtherEur: number;
+  cashInFundsEur: number;
+  cashExcessEur: number;
+  equitySectorsEur: Record<string, number>;
+  /** Cumulative virtual "input money" from sells (≤ 0); 0 when `variant` is `actual`. */
+  virtualInputMoneyEur: number;
+};
+
 /**
  * Weekly samples from first portfolio trade, plus a trailing point for **today** (UTC calendar)
  * when the weekly grid does not land on today. Each point matches **asset mix** slices from
@@ -163,24 +150,20 @@ type PortfolioRow = typeof portfolios.$inferSelect;
  * snapshots: earliest `snapshot_date >= asOf` per instrument (next snapshot fills gaps); if as-of is
  * after all snapshots, the newest snapshot is used. Prices still use latest `price_date <= asOf`.
  *
+ * `variant=hodl`: buys apply as usual; sells on non-cash instruments do not reduce quantities but
+ * reduce `virtualInputMoneyEur` by sell proceeds in EUR (FX as of trade date). Cash account sells
+ * apply like actual (withdrawals reduce cash).
+ *
  * Loads transactions once, walks dates in memory, and batches price and distribution queries.
  */
 export async function getPortfolioAssetMixHistory(
   portfolioId: number,
-  options?: { portfolio: PortfolioRow },
-): Promise<{
-  points: Array<{
-    date: string;
-    equitiesEur: number;
-    bondsTotalEur: number;
-    commodityGoldEur: number;
-    commoditySilverEur: number;
-    commodityOtherEur: number;
-    cashInFundsEur: number;
-    cashExcessEur: number;
-    equitySectorsEur: Record<string, number>;
-  }>;
-}> {
+  options?: {
+    portfolio?: PortfolioRow;
+    variant?: AssetMixHistoryVariant;
+  },
+): Promise<{ points: AssetMixHistoryPointRow[] }> {
+  const variant: AssetMixHistoryVariant = options?.variant ?? "actual";
   const pf =
     options?.portfolio ?? (await loadPortfolioOwnedByUser(portfolioId));
   if (!pf || pf.id !== portfolioId) {
@@ -195,12 +178,14 @@ export async function getPortfolioAssetMixHistory(
     ? emergencyFundTargetEurRaw
     : 0;
 
-  const txRows = await db
+  const txRows: AssetMixHistoryTxRow[] = await db
     .select({
       tradeDate: transactions.tradeDate,
       instrumentId: transactions.instrumentId,
       side: transactions.side,
       quantity: transactions.quantity,
+      unitPrice: transactions.unitPrice,
+      currency: transactions.currency,
     })
     .from(transactions)
     .where(eq(transactions.portfolioId, portfolioId))
@@ -260,25 +245,40 @@ export async function getPortfolioAssetMixHistory(
     cashExcessEur: 0,
   });
 
-  const points: Array<{
-    date: string;
-    equitiesEur: number;
-    bondsTotalEur: number;
-    commodityGoldEur: number;
-    commoditySilverEur: number;
-    commodityOtherEur: number;
-    cashInFundsEur: number;
-    cashExcessEur: number;
-    equitySectorsEur: Record<string, number>;
-  }> = [];
+  const points: AssetMixHistoryPointRow[] = [];
   const qty = new Map<number, number>();
   const txState = { i: 0 };
+  const virtualInputMoneyEur = { value: 0 };
+  const fxMapByTradeDate = new Map<string, Map<string, number>>();
 
   for (const d of candidateDates) {
-    applyTransactionsUpTo(txRows, txState, qty, endOfUtcDay(d));
+    const asOfEnd = endOfUtcDay(d);
+    if (variant === "hodl") {
+      applyTransactionsUpToHodl(
+        txRows,
+        txState,
+        qty,
+        virtualInputMoneyEur,
+        asOfEnd,
+        instrumentsById,
+        fxInstRows,
+        fxPricesByInstrument,
+        fxMapByTradeDate,
+      );
+    } else {
+      applyTransactionsUpToActual(txRows, txState, qty, asOfEnd);
+    }
+
     const rows = positionRowsFromQty(qty, instrumentsById);
+    const virtualEur = variant === "hodl" ? virtualInputMoneyEur.value : 0;
+
     if (rows.length === 0) {
-      points.push({ date: d, ...emptyMix, equitySectorsEur: {} });
+      points.push({
+        date: d,
+        ...emptyMix,
+        equitySectorsEur: {},
+        virtualInputMoneyEur: virtualEur,
+      });
       continue;
     }
 
@@ -339,6 +339,7 @@ export async function getPortfolioAssetMixHistory(
       date: d,
       ...mix,
       equitySectorsEur,
+      virtualInputMoneyEur: virtualEur,
     });
   }
 

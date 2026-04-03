@@ -15,9 +15,12 @@ export function usePortfolioCharts(
 ) {
   const bars = usePortfolioDistributionBarCharts(props);
   const pies = usePortfolioPieCharts(props);
+  const assetMixOverTimePoints =
+    props.assetMixOverTimeLinePoints ?? props.assetMixHistoryPoints;
   const assetMixHistory = useAssetMixHistoryLine(
-    props.assetMixHistoryPoints,
+    assetMixOverTimePoints,
     options?.assetMixHistoryStacked ?? false,
+    props.assetMixHistoryLineHodlMode ?? false,
   );
   const sectorDistributionHistory = useSectorDistributionHistoryLine(
     props.assetMixHistoryPoints,
