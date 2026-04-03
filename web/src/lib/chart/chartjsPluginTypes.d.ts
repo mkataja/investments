@@ -1,4 +1,5 @@
 import type { ChartType } from "chart.js";
+import type { BucketTopHolding } from "../../pages/home/types";
 import type { DistributionBarChartRow } from "./distributionChartTooltipTypes";
 
 declare module "chart.js" {
@@ -8,6 +9,19 @@ declare module "chart.js" {
       showCompare: boolean;
       primaryLabel: string;
       compareLabel: string;
+    };
+    investmentsChoroplethDistributionTooltip?: {
+      showCompare: boolean;
+      primaryLabel: string;
+      compareLabel: string;
+      featureIsoByDataIndex: readonly (string | null)[];
+      normPrimary: Record<string, number>;
+      normCompare: Record<string, number>;
+      topHoldingsPrimary: Record<string, BucketTopHolding[]>;
+      topHoldingsCompare: Record<string, BucketTopHolding[]>;
+      singleSeriesColor: string;
+      comparePrimaryColor: string;
+      compareSecondaryColor: string;
     };
     investmentsPieTooltip?:
       | {

@@ -33,6 +33,12 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
 
   const portfolioId = props.portfolioId ?? null;
   const hasSells = props.portfolioHasSellTransactions ?? false;
+  const emergencyFundTargetEur = props.portfolio.emergencyFundTargetEur;
+
+  useEffect(() => {
+    void emergencyFundTargetEur;
+    setHodlPoints(null);
+  }, [emergencyFundTargetEur]);
 
   useEffect(() => {
     if (!diamondHandsEnabled || portfolioId == null || hodlPoints !== null) {
@@ -190,7 +196,19 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
               </div>
             }
           >
-            <WorldCountryChoropleth countries={portfolio.countries} />
+            <WorldCountryChoropleth
+              countries={portfolio.countries}
+              compareCountries={props.comparePortfolio?.countries ?? {}}
+              showDistributionCompare={props.showDistributionCompare}
+              selectedPortfolioLabel={props.selectedPortfolioLabel}
+              comparePortfolioLabel={props.comparePortfolioLabel}
+              bucketTopHoldingsPrimary={
+                portfolio.bucketTopHoldings?.countries ?? {}
+              }
+              bucketTopHoldingsCompare={
+                props.comparePortfolio?.bucketTopHoldings?.countries ?? {}
+              }
+            />
           </Suspense>
         </div>
         {props.assetMixHistoryPoints.length > 0 ? (

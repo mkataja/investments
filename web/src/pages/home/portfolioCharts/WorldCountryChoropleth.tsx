@@ -1,13 +1,18 @@
-import { alpha2ToNumeric } from "@investments/lib/geo/iso3166Alpha2CountryCodes";
+import {
+  alpha2ToNumeric,
+  numericAtlasIdToAlpha2Upper,
+} from "@investments/lib/geo/iso3166Alpha2CountryCodes";
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import type { ChartData, ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { Chart } from "react-chartjs-2";
+import { choroplethDistributionTooltipPlugin } from "../../../components/PortfolioChartTooltips";
 import {
   UNMAPPED_COUNTRY_KEY,
   normalizeCountryWeightsForDisplay,
 } from "../../../lib/distributionDisplay";
-import { formatToPercentage } from "../../../lib/numberFormat";
+import { PORTFOLIO_DISTRIBUTION_BAR_COLORS } from "../../../lib/portfolioChartPalette";
+import type { BucketTopHolding } from "../types";
 import {
   WORLD_COUNTRY_FEATURES,
   WORLD_LAND_OUTLINE,
@@ -26,10 +31,25 @@ function portfolioChoroplethBlueInterpolator(t: number): string {
 
 type WorldCountryChoroplethProps = {
   countries: Record<string, number>;
+  compareCountries: Record<string, number>;
+  showDistributionCompare: boolean;
+  selectedPortfolioLabel: string;
+  comparePortfolioLabel: string;
+  bucketTopHoldingsPrimary: Record<string, BucketTopHolding[]>;
+  bucketTopHoldingsCompare: Record<string, BucketTopHolding[]>;
 };
+
+const FEATURE_ISO_BY_DATA_INDEX: readonly (string | null)[] =
+  WORLD_COUNTRY_FEATURES.map((f) => numericAtlasIdToAlpha2Upper(String(f.id)));
 
 export function WorldCountryChoropleth({
   countries,
+  compareCountries,
+  showDistributionCompare,
+  selectedPortfolioLabel,
+  comparePortfolioLabel,
+  bucketTopHoldingsPrimary,
+  bucketTopHoldingsCompare,
 }: WorldCountryChoroplethProps) {
   const { data, options } = useMemo(() => {
     const norm = normalizeCountryWeightsForDisplay(countries);
@@ -38,7 +58,7 @@ export function WorldCountryChoropleth({
       if (iso === UNMAPPED_COUNTRY_KEY) continue;
       const numericId = alpha2ToNumeric(iso);
       if (numericId === undefined) continue;
-      weightByAtlasId.set(numericId, w);
+      weightByAtlasId.set(String(numericId), w);
     }
     const weights = [...weightByAtlasId.values()].filter((w) => w > 0);
     const maxW = weights.length ? Math.max(...weights) : 0;
@@ -100,28 +120,45 @@ export function WorldCountryChoropleth({
       },
       plugins: {
         legend: { display: false },
-        tooltip: {
-          callbacks: {
-            title: (items) => {
-              const i = items[0]?.dataIndex;
-              if (i === undefined) return "";
-              return labels[i] ?? "";
-            },
-            label: (item) => {
-              const raw = item.raw as { value?: number };
-              const v = raw.value;
-              if (typeof v !== "number" || !Number.isFinite(v)) {
-                return "0%";
-              }
-              return formatToPercentage(v);
-            },
-          },
-        },
       },
     };
 
-    return { data, options };
-  }, [countries]);
+    const normPrimary = normalizeCountryWeightsForDisplay(countries);
+    const normCompare = normalizeCountryWeightsForDisplay(compareCountries);
+
+    return {
+      data,
+      options: {
+        ...options,
+        plugins: {
+          ...options.plugins,
+          ...choroplethDistributionTooltipPlugin({
+            showCompare: showDistributionCompare,
+            primaryLabel: selectedPortfolioLabel,
+            compareLabel: comparePortfolioLabel,
+            featureIsoByDataIndex: FEATURE_ISO_BY_DATA_INDEX,
+            normPrimary,
+            normCompare,
+            topHoldingsPrimary: bucketTopHoldingsPrimary,
+            topHoldingsCompare: bucketTopHoldingsCompare,
+            singleSeriesColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryPrimary,
+            comparePrimaryColor:
+              PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryPrimary,
+            compareSecondaryColor:
+              PORTFOLIO_DISTRIBUTION_BAR_COLORS.countryCompare,
+          }),
+        },
+      },
+    };
+  }, [
+    countries,
+    compareCountries,
+    showDistributionCompare,
+    selectedPortfolioLabel,
+    comparePortfolioLabel,
+    bucketTopHoldingsPrimary,
+    bucketTopHoldingsCompare,
+  ]);
 
   return (
     <div role="img" aria-label="World map of portfolio allocation by country">

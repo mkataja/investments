@@ -21,7 +21,7 @@ const PORTFOLIO_UNKNOWN_COUNTRY_KEY = "__portfolio_unknown__";
 const CHART_UNKNOWN_LABEL = "Unknown";
 
 /** Country bar chart Y-axis: short label for unmapped / unknown ISO. */
-const COUNTRY_BAR_CHART_UNKNOWN_LABEL = "??";
+export const COUNTRY_BAR_CHART_UNKNOWN_LABEL = "??";
 
 export const equitySectorsForDisplay = equitySectorsForDisplayFromLib;
 
@@ -79,7 +79,7 @@ function isoAlpha2ToEnglishCountryName(iso: string): string {
 }
 
 /** Tooltip heading for country bars: flag emoji + full English name (`Intl.DisplayNames`). */
-function countryBarTooltipHeading(bucketKey: string): string {
+export function countryBarTooltipHeading(bucketKey: string): string {
   if (bucketKey === "rest") {
     return `${REST_ICON} Rest`;
   }

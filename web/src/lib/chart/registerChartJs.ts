@@ -24,6 +24,11 @@ const investmentsDistributionTooltipPlugin = {
   id: "investmentsDistributionTooltip",
 } satisfies Plugin;
 
+/** Carries options read by `distributionChartTooltipPropsFromChart` (choropleth branch). */
+const investmentsChoroplethDistributionTooltipPlugin = {
+  id: "investmentsChoroplethDistributionTooltip",
+} satisfies Plugin;
+
 /** Carries options read by `portfolioPieTooltipPropsFromChart`. */
 const investmentsPieTooltipPlugin = {
   id: "investmentsPieTooltip",
@@ -60,5 +65,6 @@ ChartJS.register(
   ColorLogarithmicScale,
   ProjectionScale,
   investmentsDistributionTooltipPlugin,
+  investmentsChoroplethDistributionTooltipPlugin,
   investmentsPieTooltipPlugin,
 );
