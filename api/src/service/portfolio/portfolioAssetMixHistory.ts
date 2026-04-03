@@ -12,7 +12,7 @@ import { calendarDateUtcFromInstant } from "../../lib/calendarDateUtc.js";
 import {
   loadDistributionRowsByInstrumentIdsUpToDate,
   loadPriceRowsByInstrumentIdsUpToDate,
-  pickLatestDistributionRowAsOf,
+  pickDistributionRowForAssetMixHistory,
   pickLatestPriceRowAsOf,
 } from "../instrument/latestPriceDistribution.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
@@ -143,7 +143,7 @@ function distributionMapForDate(
     if (!rows?.length) {
       continue;
     }
-    const r = pickLatestDistributionRowAsOf(rows, asOfDate);
+    const r = pickDistributionRowForAssetMixHistory(rows, asOfDate);
     if (r) {
       m.set(inst.id, r);
     }
@@ -157,8 +157,9 @@ type PortfolioRow = typeof portfolios.$inferSelect;
  * Weekly samples from first portfolio trade, plus a trailing point for **today** (UTC calendar)
  * when the weekly grid does not land on today. Each point matches **asset mix** slices from
  * `computeAssetMixEur` (same sleeves as the asset mix pie), including emergency fund split for cash
- * in accounts. Stops when any non-cash position lacks a price on or before the date. Uses distribution
- * snapshots with `snapshot_date <= asOf` (same idea as latest price as-of).
+ * in accounts. Stops when any non-cash position lacks a price on or before the date. Distribution
+ * snapshots: earliest `snapshot_date >= asOf` per instrument (next snapshot fills gaps); if as-of is
+ * after all snapshots, the newest snapshot is used. Prices still use latest `price_date <= asOf`.
  *
  * Loads transactions once, walks dates in memory, and batches price and distribution queries.
  */

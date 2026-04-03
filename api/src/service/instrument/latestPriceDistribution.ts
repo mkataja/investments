@@ -168,16 +168,36 @@ export function pickLatestPriceRowAsOf(
   return undefined;
 }
 
-/** `rows` must be sorted by `snapshot_date` descending (newest first). */
-export function pickLatestDistributionRowAsOf(
+/**
+ * For asset mix history: earliest `snapshot_date` on or after `asOfDate` (lexicographic
+ * `YYYY-MM-DD` compares correctly). Gaps between snapshots use the **next** snapshot. If
+ * `asOfDate` is after every snapshot, returns the newest row (`rows[0]` when sorted like
+ * `loadDistributionRowsByInstrumentIdsUpToDate`).
+ *
+ * `rows` must be sorted by `snapshot_date` desc, then `fetched_at` desc.
+ */
+export function pickDistributionRowForAssetMixHistory(
   rows: InferSelectModel<typeof distributions>[],
   asOfDate: string,
 ): InferSelectModel<typeof distributions> | undefined {
+  if (rows.length === 0) {
+    return undefined;
+  }
+  let minSd: string | null = null;
   for (const r of rows) {
     const sd = String(r.snapshotDate).slice(0, 10);
-    if (sd <= asOfDate) {
+    if (sd >= asOfDate && (minSd === null || sd < minSd)) {
+      minSd = sd;
+    }
+  }
+  if (minSd === null) {
+    return rows[0];
+  }
+  for (const r of rows) {
+    const sd = String(r.snapshotDate).slice(0, 10);
+    if (sd === minSd) {
       return r;
     }
   }
-  return undefined;
+  return rows[0];
 }
