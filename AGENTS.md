@@ -15,7 +15,7 @@ Multi-broker portfolio tracker: transactions per broker; positions from buy/sell
 | Topic | File |
 | --- | --- |
 | Data pipelines (Yahoo, providers, Seligson, JPM, geo, cash in charts) | [`docs/data-sources.md`](docs/data-sources.md), [`docs/data-sources/`](docs/data-sources/) |
-| Packages, DB, caching, positions, benchmark portfolios | [`docs/architecture.md`](docs/architecture.md) |
+| Packages, infrastructure, caching, distribution refresh | [`docs/architecture.md`](docs/architecture.md) |
 | HTTP API entrypoint and where to document contracts | [`docs/api.md`](docs/api.md) |
 | Known gaps and "lightweight project management" | [`docs/TODO.md`](docs/TODO.md) |
 
@@ -97,4 +97,4 @@ Keep commits well-scoped: one logical whole in one commit. Avoid committing depe
 
 ### When changing behavior
 
-- Schema: Drizzle in `db`, `pnpm db:generate`, commit migrations, `pnpm db:migrate` locally. Timestamps, indexes, FKs: [`docs/architecture.md`](docs/architecture.md) and existing `db/migrations`.
+- Schema: Drizzle in `db`, `pnpm db:generate`, commit migrations, `pnpm db:migrate` locally. Timestamps, indexes, FKs: follow patterns in `db/src/schema.ts` and existing `db/migrations`.
