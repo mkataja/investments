@@ -5,6 +5,7 @@ import { portfolioSectorBarRows } from "../../../lib/distributionDisplay";
 import { portfolioSectorTimeseriesColor } from "../../../lib/portfolioChartPalette";
 import type { AssetMixHistoryPoint } from "../types";
 import { DISTRIBUTION_BAR_CHART_GRID_STROKE } from "./distributionBarChartOptions";
+import { HISTORY_LINE_LEGEND_LABELS } from "./historyLineChartStyle";
 import { lineChartValueFromRawSeries } from "./portfolioHistorySeriesChartUtils";
 
 type SectorDistributionHistoryChartResult = {
@@ -154,15 +155,6 @@ export function useSectorDistributionHistoryLine(
       footerFont: { size: CHART_TOOLTIP_STYLE.footerSizePx },
     } as const;
 
-    const legendLabels = {
-      boxWidth: 12,
-      boxHeight: 12,
-      padding: 14,
-      font: { size: 14 },
-      usePointStyle: true,
-      pointStyle: "rectRounded" as const,
-    };
-
     const data: ChartData<"line"> = {
       labels: xLabels,
       datasets: pctSpecs.map(({ row, pctSeries }, seriesIndex) => {
@@ -186,6 +178,9 @@ export function useSectorDistributionHistoryLine(
           pointRadius: 0,
           pointHoverRadius: 5,
           pointHitRadius: 8,
+          pointBackgroundColor: fill,
+          pointBorderColor: fill,
+          pointBorderWidth: 0,
           borderWidth: 2,
         };
       }),
@@ -226,7 +221,7 @@ export function useSectorDistributionHistoryLine(
         legend: {
           position: "top",
           align: "end",
-          labels: legendLabels,
+          labels: HISTORY_LINE_LEGEND_LABELS,
         },
         tooltip: {
           ...tooltipBase,
