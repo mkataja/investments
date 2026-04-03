@@ -8,7 +8,7 @@ When that URL is non-empty, `POST /instruments` (custom Seligson) fetches the CS
 
 API fetches Seligson HTML to resolve `name` on new `seligson_funds` rows (`fetchSeligsonFundName`). On distribution refresh, `parseSeligsonFundName` runs on the same FundViewer HTML; `seligson_funds.name` updates. Instrument labels use `instruments.display_name` (set at create); refresh updates `display_name` when it still mirrors the old title or strips to the parsed name. Failures → HTTP errors with body; exact routes/status codes in `api`.
 
-`FundValues_FI.html` uses shorter link text than FundViewer in some rows; `fundValuesRowMatchesDbName` includes aliases (e.g. table `Global Brands` ↔ DB name containing “Top 25 Brands”) in `FUND_VALUES_TABLE_LABEL_ALIASES` in `api/src/distributions/seligsonFundValues.ts`. Each row has `Pvm` (Finnish `d.m.yyyy`); `prices.price_date` uses that cell per fund, not the fetch instant.
+`FundValues_FI.html` uses shorter link text than FundViewer in some rows; `fundValuesRowMatchesDbName` includes aliases in `FUND_VALUES_TABLE_LABEL_ALIASES` in `api/src/distributions/seligsonFundValues.ts`. Each row has `Pvm` (Finnish `d.m.yyyy`); `prices.price_date` uses that cell per fund, not the fetch instant.
 
 ## Allocation table (e.g. Pharos)
 

@@ -24,6 +24,7 @@ const USER_AGENT = "InvestmentsTracker/0.1 (personal)";
  */
 const FUND_VALUES_TABLE_LABEL_ALIASES: Readonly<Record<string, string>> = {
   "global brands": "top 25 brands",
+  "global pharma": "top 25 pharmaceuticals",
 };
 
 type ParsedFundValueRow = {

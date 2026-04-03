@@ -32,6 +32,15 @@ describe("fundValuesRowMatchesDbName", () => {
       ),
     ).toBe(true);
   });
+
+  it("maps FundValues short label Global Pharma to Global Top 25 Pharmaceuticals", () => {
+    expect(
+      fundValuesRowMatchesDbName(
+        "Global Pharma",
+        "Seligson & Co Global Top 25 Pharmaceuticals",
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("parseFundValuesTable", () => {
