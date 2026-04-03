@@ -6,3 +6,8 @@ When deciding not to address some identified edge case or other issue, write a *
 ## Price refreshing
 
 * No reliable check if price updates have been missed for some days since the last update - the only way to be sure is to run full backfill
+
+
+# Euribor
+
+* Only backfill - no live update

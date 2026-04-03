@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "rate_margin" numeric(24, 10) DEFAULT '0.005' NOT NULL;

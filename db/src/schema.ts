@@ -22,6 +22,10 @@ import {
 export const users = pgTable("users", {
   id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
   name: text("name").notNull(),
+  /** Margin added on top of reference rates, as a fraction (0.005 = 0.5%). */
+  rateMargin: numeric("rate_margin", { precision: 24, scale: 10 })
+    .notNull()
+    .default("0.005"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -470,6 +474,28 @@ export const seligsonHoldingsResolutionCache = pgTable(
 );
 
 export const priceTypeEnum = pgEnum("price_type", ["intraday", "close"]);
+
+export const interestRateIndexEnum = pgEnum("interest_rate_index", [
+  "euribor_3m",
+]);
+
+/**
+ * Market interest index fixings; `rate` is a fraction (e.g. 0.06 for 6%).
+ */
+export const interestRates = pgTable(
+  "interest_rates",
+  {
+    indexName: interestRateIndexEnum("index_name").notNull(),
+    observationDate: date("date").notNull(),
+    rate: numeric("rate", { precision: 24, scale: 10 }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("interest_rates_index_name_date_uidx").on(
+      t.indexName,
+      t.observationDate,
+    ),
+  ],
+);
 
 export const distributions = pgTable(
   "distributions",

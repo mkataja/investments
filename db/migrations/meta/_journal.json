@@ -323,6 +323,20 @@
       "when": 1775210000000,
       "tag": "0045_steep_groot",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1775225126386,
+      "tag": "0046_overconfident_hitman",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1775226529923,
+      "tag": "0047_lush_bloodstorm",
+      "breakpoints": true
     }
   ]
 }
