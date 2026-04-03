@@ -2,7 +2,7 @@ import type { ChartData, ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { CHART_TOOLTIP_STYLE } from "../../../lib/chart/chartTooltipConstants";
 import { portfolioSectorBarRows } from "../../../lib/distributionDisplay";
-import { portfolioSectorTimeseriesColor } from "../../../lib/portfolioChartPalette";
+import { portfolioSectorChartColorForBucketKey } from "../../../lib/portfolioChartPalette";
 import type { AssetMixHistoryPoint } from "../types";
 import { DISTRIBUTION_BAR_CHART_GRID_STROKE } from "./distributionBarChartOptions";
 import { HISTORY_LINE_LEGEND_LABELS } from "./historyLineChartStyle";
@@ -157,8 +157,8 @@ export function useSectorDistributionHistoryLine(
 
     const data: ChartData<"line"> = {
       labels: xLabels,
-      datasets: pctSpecs.map(({ row, pctSeries }, seriesIndex) => {
-        const fill = portfolioSectorTimeseriesColor(seriesIndex);
+      datasets: pctSpecs.map(({ row, pctSeries }) => {
+        const fill = portfolioSectorChartColorForBucketKey(row.bucketKey);
         const series = [
           ...pctSeries.map((_, j) => lineChartValueFromRawSeries(pctSeries, j)),
           null,

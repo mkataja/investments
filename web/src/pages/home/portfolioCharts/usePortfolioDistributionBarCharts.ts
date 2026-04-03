@@ -17,7 +17,12 @@ import {
   topCountriesChartData,
   topCountriesChartDataDual,
 } from "../../../lib/distributionDisplay";
-import { PORTFOLIO_DISTRIBUTION_BAR_COLORS } from "../../../lib/portfolioChartPalette";
+import {
+  PORTFOLIO_DISTRIBUTION_BAR_COLORS,
+  PORTFOLIO_SECTOR_BAR_COMPARE_LIGHTEN,
+  lightenPortfolioHex,
+  portfolioSectorChartColorForBucketKey,
+} from "../../../lib/portfolioChartPalette";
 import { buildDistributionBarChartData } from "./distributionBarChartData";
 import { distributionBarOptions } from "./distributionBarChartOptions";
 import type { PortfolioChartsProps } from "./portfolioChartsTypes";
@@ -262,23 +267,33 @@ export function usePortfolioDistributionBarCharts({
     ],
   );
 
-  const sectorBarData = useMemo(
-    () =>
-      buildDistributionBarChartData(sectorBarChartData, {
-        showCompare: showDistributionCompare,
-        selectedPortfolioLabel,
-        comparePortfolioLabel,
-        singleSeriesColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorPrimary,
-        comparePrimaryColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorPrimary,
-        compareSecondaryColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorCompare,
-      }),
-    [
-      sectorBarChartData,
-      showDistributionCompare,
+  const sectorBarData = useMemo(() => {
+    const primaryPerBar = sectorBarChartData.map((r) =>
+      portfolioSectorChartColorForBucketKey(r.bucketKey),
+    );
+    const comparePerBar = primaryPerBar.map((c) =>
+      lightenPortfolioHex(c, PORTFOLIO_SECTOR_BAR_COMPARE_LIGHTEN),
+    );
+    return buildDistributionBarChartData(sectorBarChartData, {
+      showCompare: showDistributionCompare,
       selectedPortfolioLabel,
       comparePortfolioLabel,
-    ],
-  );
+      singleSeriesColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorPrimary,
+      comparePrimaryColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorPrimary,
+      compareSecondaryColor: PORTFOLIO_DISTRIBUTION_BAR_COLORS.sectorCompare,
+      ...(showDistributionCompare
+        ? {
+            comparePrimaryColorsPerBar: primaryPerBar,
+            compareSecondaryColorsPerBar: comparePerBar,
+          }
+        : { singleSeriesColorsPerBar: primaryPerBar }),
+    });
+  }, [
+    sectorBarChartData,
+    showDistributionCompare,
+    selectedPortfolioLabel,
+    comparePortfolioLabel,
+  ]);
 
   const countryBarData = useMemo(
     () =>

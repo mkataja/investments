@@ -13,6 +13,9 @@ export function buildDistributionBarChartData(
     singleSeriesColor: string;
     comparePrimaryColor: string;
     compareSecondaryColor: string;
+    singleSeriesColorsPerBar?: string[];
+    comparePrimaryColorsPerBar?: string[];
+    compareSecondaryColorsPerBar?: string[];
   },
 ): ChartData<"bar"> {
   const labels = chartRows.map((r) => r.name);
@@ -28,12 +31,14 @@ export function buildDistributionBarChartData(
         {
           label: args.selectedPortfolioLabel,
           data: rows.map((r) => r.primary ?? 0),
-          backgroundColor: args.comparePrimaryColor,
+          backgroundColor:
+            args.comparePrimaryColorsPerBar ?? args.comparePrimaryColor,
         },
         {
           label: args.comparePortfolioLabel,
           data: rows.map((r) => r.compare ?? 0),
-          backgroundColor: args.compareSecondaryColor,
+          backgroundColor:
+            args.compareSecondaryColorsPerBar ?? args.compareSecondaryColor,
         },
       ],
     };
@@ -45,7 +50,8 @@ export function buildDistributionBarChartData(
       {
         label: "Weight",
         data: rows.map((r) => r.value ?? 0),
-        backgroundColor: args.singleSeriesColor,
+        backgroundColor:
+          args.singleSeriesColorsPerBar ?? args.singleSeriesColor,
       },
     ],
   };

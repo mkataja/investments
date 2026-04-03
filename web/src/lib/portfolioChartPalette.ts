@@ -21,26 +21,47 @@ export const PORTFOLIO_BOND_MIX_PIE_COLORS: Record<string, string> = {
 };
 
 /** Region, sector, and country bar charts — saturated blue primary vs lighter blue compare. */
-/** Cycle for multi-series line charts (e.g. sector share over time). */
-const PORTFOLIO_SECTOR_TIMESERIES_COLORS = [
-  "#3B7FD4",
-  "#6B7FD7",
-  "#8BCB7A",
-  "#D4A574",
-  "#ACDDF6",
-  "#9A7B5C",
-  "#4A54B8",
-  "#8EC0F2",
-  "#C2EABA",
-  "#5E6BC8",
-  "#B0B8C8",
-  "#2D6A4F",
-] as const;
 
-export function portfolioSectorTimeseriesColor(index: number): string {
-  const colors = PORTFOLIO_SECTOR_TIMESERIES_COLORS;
-  return colors.at(index % colors.length) ?? colors[0];
+/**
+ * Equity sector bar and sector-over-time line colors. Values match the former
+ * de-facto mapping: `DISTRIBUTION_SECTOR_IDS` minus bond/commodity keys (same
+ * as `equitySectorsForDisplay`), unknown last, each index `i` took palette
+ * `[#3B7FD4, #6B7FD7, ...][i % 12]`.
+ *
+ * Keep `__portfolio_unknown__` in sync with `PORTFOLIO_UNKNOWN_COUNTRY_KEY` in
+ * distributionDisplay.ts.
+ */
+const PORTFOLIO_SECTOR_CHART_COLORS_BY_BUCKET_KEY: Record<string, string> = {
+  technology: "#3B7FD4",
+  healthcare: "#6B7FD7",
+  financials: "#8BCB7A",
+  consumer_cyclical: "#C41E3A",
+  consumer_defensive: "#E8C4B8",
+  industrials: "#9A7B5C",
+  energy: "#FFE600",
+  materials: "#D4A574",
+  real_estate: "#C2EABA",
+  utilities: "#E8880E",
+  communication_services: "#B0B8C8",
+  other: "#2D6A4F",
+  cash: "#3B7FD4",
+  __portfolio_unknown__: "#6B7FD7",
+};
+
+const PORTFOLIO_SECTOR_CHART_FALLBACK_COLOR = "#94A3B8";
+
+/** Color for a sector bar / timeseries line by canonical sector id. */
+export function portfolioSectorChartColorForBucketKey(
+  bucketKey: string,
+): string {
+  return (
+    PORTFOLIO_SECTOR_CHART_COLORS_BY_BUCKET_KEY[bucketKey] ??
+    PORTFOLIO_SECTOR_CHART_FALLBACK_COLOR
+  );
 }
+
+/** Lighten factor for compare portfolio sector bars (primary uses full sector color). */
+export const PORTFOLIO_SECTOR_BAR_COMPARE_LIGHTEN = 0.42;
 
 export const PORTFOLIO_DISTRIBUTION_BAR_COLORS = {
   regionPrimary: "#3B7FD4",
