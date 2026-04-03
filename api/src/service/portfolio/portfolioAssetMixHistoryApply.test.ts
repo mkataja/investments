@@ -259,6 +259,44 @@ describe("applyTransactionsUpToHodl", () => {
     expect(virtual.value).toBe(-3);
   });
 
+  it("does not withdraw cash below emergency fund target on cash sells", () => {
+    const txs: AssetMixHistoryTxRow[] = [
+      {
+        tradeDate: d("2020-01-01"),
+        instrumentId: 99,
+        side: "buy",
+        quantity: "100",
+        unitPrice: "1",
+        currency: "EUR",
+      },
+      {
+        tradeDate: d("2020-01-02"),
+        instrumentId: 99,
+        side: "sell",
+        quantity: "50",
+        unitPrice: "1",
+        currency: "EUR",
+      },
+    ];
+    const qty = new Map<number, number>();
+    const state = { i: 0 };
+    const virtual = { value: 0 };
+    applyTransactionsUpToHodl(
+      txs,
+      state,
+      qty,
+      virtual,
+      end("2020-01-03"),
+      new Map([[99, inst("cash_account", "EUR")]]),
+      emptyFxInsts,
+      emptyFxPrices,
+      new Map(),
+      80,
+    );
+    expect(qty.get(99)).toBe(80);
+    expect(virtual.value).toBe(-30);
+  });
+
   it("reduces cash quantity on sell like actual and does not change virtual EUR", () => {
     const txs: AssetMixHistoryTxRow[] = [
       {
@@ -331,5 +369,119 @@ describe("applyTransactionsUpToHodl", () => {
     );
     expect(qty.has(99)).toBe(false);
     expect(virtual.value).toBe(-50);
+  });
+
+  it("applies cash deposits to virtual leverage before crediting cash when leverage is negative", () => {
+    const txs: AssetMixHistoryTxRow[] = [
+      {
+        tradeDate: d("2020-01-01"),
+        instrumentId: 99,
+        side: "buy",
+        quantity: "5",
+        unitPrice: "1",
+        currency: "EUR",
+      },
+      {
+        tradeDate: d("2020-01-01"),
+        instrumentId: 1,
+        side: "buy",
+        quantity: "10",
+        unitPrice: "1",
+        currency: "EUR",
+      },
+      {
+        tradeDate: d("2020-01-02"),
+        instrumentId: 1,
+        side: "sell",
+        quantity: "4",
+        unitPrice: "2",
+        currency: "EUR",
+      },
+      {
+        tradeDate: d("2020-01-03"),
+        instrumentId: 99,
+        side: "buy",
+        quantity: "100",
+        unitPrice: "1",
+        currency: "EUR",
+      },
+    ];
+    const qty = new Map<number, number>();
+    const state = { i: 0 };
+    const virtual = { value: 0 };
+    applyTransactionsUpToHodl(
+      txs,
+      state,
+      qty,
+      virtual,
+      end("2020-01-04"),
+      new Map<number, Pick<InstrumentRow, "kind" | "cashCurrency">>([
+        [1, inst("etf")],
+        [99, inst("cash_account", "EUR")],
+      ]),
+      emptyFxInsts,
+      emptyFxPrices,
+      new Map(),
+    );
+    expect(qty.get(1)).toBe(10);
+    expect(qty.get(99)).toBe(97);
+    expect(virtual.value).toBe(0);
+  });
+
+  it("uses a small cash deposit only to pay down leverage when remainder is zero", () => {
+    const txs: AssetMixHistoryTxRow[] = [
+      {
+        tradeDate: d("2020-01-01"),
+        instrumentId: 99,
+        side: "buy",
+        quantity: "5",
+        unitPrice: "1",
+        currency: "EUR",
+      },
+      {
+        tradeDate: d("2020-01-01"),
+        instrumentId: 1,
+        side: "buy",
+        quantity: "10",
+        unitPrice: "1",
+        currency: "EUR",
+      },
+      {
+        tradeDate: d("2020-01-02"),
+        instrumentId: 1,
+        side: "sell",
+        quantity: "4",
+        unitPrice: "2",
+        currency: "EUR",
+      },
+      {
+        tradeDate: d("2020-01-03"),
+        instrumentId: 99,
+        side: "buy",
+        quantity: "2",
+        unitPrice: "1",
+        currency: "EUR",
+      },
+    ];
+    const qty = new Map<number, number>();
+    const state = { i: 0 };
+    const virtual = { value: 0 };
+    applyTransactionsUpToHodl(
+      txs,
+      state,
+      qty,
+      virtual,
+      end("2020-01-04"),
+      new Map<number, Pick<InstrumentRow, "kind" | "cashCurrency">>([
+        [1, inst("etf")],
+        [99, inst("cash_account", "EUR")],
+      ]),
+      emptyFxInsts,
+      emptyFxPrices,
+      new Map(),
+    );
+    expect(qty.get(1)).toBe(10);
+    expect(qty.has(99)).toBe(false);
+    expect(virtual.value).toBe(-1);
   });
 });

@@ -9,10 +9,26 @@ import { DISTRIBUTION_BAR_CHART_GRID_STROKE } from "./distributionBarChartOption
 import {
   lineChartValueFromRawSeries,
   lineChartValueFromRawSeriesNonPositive,
-  totalNetEurAtDataIndex,
-  totalPositiveEurAtDataIndex,
   yTickShort,
 } from "./portfolioHistorySeriesChartUtils";
+
+function totalPositiveAssetMixEurFromPoint(p: AssetMixHistoryPoint): number {
+  return (
+    p.equitiesEur +
+    p.bondsTotalEur +
+    p.commodityGoldEur +
+    p.commoditySilverEur +
+    p.commodityOtherEur +
+    p.cashInFundsEur +
+    p.cashExcessEur
+  );
+}
+
+function netAssetMixEurFromPoint(p: AssetMixHistoryPoint): number {
+  return (
+    totalPositiveAssetMixEurFromPoint(p) + (p.virtualLeverageEur ?? 0)
+  );
+}
 
 const VIRTUAL_LEVERAGE_LABEL = "Leverage (virtual)";
 
@@ -257,20 +273,19 @@ export function useAssetMixHistoryLine(
               if (!first) {
                 return "";
               }
+              const i = first.dataIndex;
+              const p = points[i];
+              if (p === undefined) {
+                return "";
+              }
               if (lineHodlMode) {
-                const net = totalNetEurAtDataIndex(
-                  first.chart,
-                  first.dataIndex,
-                );
+                const net = netAssetMixEurFromPoint(p);
                 if (!Number.isFinite(net)) {
                   return "";
                 }
                 return `Net total: ${formatEur(net)}`;
               }
-              const sum = totalPositiveEurAtDataIndex(
-                first.chart,
-                first.dataIndex,
-              );
+              const sum = totalPositiveAssetMixEurFromPoint(p);
               if (!(sum > 0)) {
                 return "";
               }

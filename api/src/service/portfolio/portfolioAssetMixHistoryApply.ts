@@ -122,7 +122,10 @@ export function applyTransactionsUpToHodl(
   fxInstRows: InstrumentRow[],
   fxPricesByInstrument: Map<number, InferSelectModel<typeof prices>[]>,
   fxMapByTradeDate: Map<string, Map<string, number>>,
-  /** Cash below this EUR total (across accounts, FX as of trade date) is not drained when reversing security sells. */
+  /**
+   * Portfolio cash in EUR (FX as of trade date) is not reduced below this total: reversing security
+   * sells and cash withdrawals only remove `max(0, totalCashEur - target)` EUR from accounts.
+   */
   emergencyFundTargetEur = 0,
 ): void {
   while (state.i < txRows.length) {
@@ -136,6 +139,49 @@ export function applyTransactionsUpToHodl(
       continue;
     }
     if (t.side === "buy") {
+      if (instrumentById.get(t.instrumentId)?.kind === "cash_account") {
+        const inst = instrumentById.get(t.instrumentId);
+        if (!inst) {
+          continue;
+        }
+        const tradeDateStr = calendarDateUtcFromInstant(new Date(t.tradeDate));
+        let fxMap = fxMapByTradeDate.get(tradeDateStr);
+        if (!fxMap) {
+          fxMap = buildFxEurPerUnitMapAsOf(
+            fxInstRows,
+            fxPricesByInstrument,
+            tradeDateStr,
+          );
+          fxMapByTradeDate.set(tradeDateStr, fxMap);
+        }
+        const up = Number.parseFloat(String(t.unitPrice));
+        const depositNative = Number.isFinite(up) ? q * up : q;
+        const depositEur = nativeToEur(depositNative, t.currency, fxMap);
+        const cur =
+          inst.cashCurrency?.trim().toUpperCase() ?? DEFAULT_CASH_CURRENCY;
+        const prev = qty.get(t.instrumentId) ?? 0;
+        if (virtualLeverageEur.value < 0 && depositEur > 0) {
+          const debtEur = -virtualLeverageEur.value;
+          const towardDebtEur = Math.min(depositEur, debtEur);
+          virtualLeverageEur.value += towardDebtEur;
+          const toCashEur = depositEur - towardDebtEur;
+          const addNative = eurToNativeCashUnits(toCashEur, cur, fxMap);
+          const next = prev + addNative;
+          if (next === 0) {
+            qty.delete(t.instrumentId);
+          } else {
+            qty.set(t.instrumentId, next);
+          }
+        } else {
+          const next = prev + q;
+          if (next === 0) {
+            qty.delete(t.instrumentId);
+          } else {
+            qty.set(t.instrumentId, next);
+          }
+        }
+        continue;
+      }
       const prev = qty.get(t.instrumentId) ?? 0;
       const next = prev + q;
       if (next === 0) {
@@ -166,12 +212,28 @@ export function applyTransactionsUpToHodl(
       const proceedsEur = nativeToEur(proceedsNative, t.currency, fxMap);
       const cur =
         inst.cashCurrency?.trim().toUpperCase() ?? DEFAULT_CASH_CURRENCY;
+      const totalCashEur = sumCashAccountsEur(qty, instrumentById, fxMap);
+      const maxRemovableEur = Math.max(
+        0,
+        totalCashEur - emergencyFundTargetEur,
+      );
       const availableCashEur = nativeToEur(Math.max(0, prev), cur, fxMap);
-      const overflowEur = proceedsEur - Math.min(proceedsEur, availableCashEur);
+      const targetRemovalEur = Math.min(
+        proceedsEur,
+        maxRemovableEur,
+        availableCashEur,
+      );
+      let actualDelta = 0;
+      if (targetRemovalEur > 0) {
+        const deltaNative = eurToNativeCashUnits(targetRemovalEur, cur, fxMap);
+        actualDelta = Math.min(prev, deltaNative);
+      }
+      const removedEur = nativeToEur(actualDelta, cur, fxMap);
+      const overflowEur = proceedsEur - removedEur;
       if (overflowEur > 0) {
         virtualLeverageEur.value -= overflowEur;
       }
-      const next = prev - q;
+      const next = prev - actualDelta;
       if (next <= 0) {
         qty.delete(t.instrumentId);
       } else {
@@ -196,10 +258,7 @@ export function applyTransactionsUpToHodl(
     const proceedsNative = q * up;
     const proceedsEur = nativeToEur(proceedsNative, t.currency, fxMap);
     const totalCashEur = sumCashAccountsEur(qty, instrumentById, fxMap);
-    const maxDrainableEur = Math.max(
-      0,
-      totalCashEur - emergencyFundTargetEur,
-    );
+    const maxDrainableEur = Math.max(0, totalCashEur - emergencyFundTargetEur);
     const drainCapEur = Math.min(proceedsEur, maxDrainableEur);
     const fromCashEur = drainCashUpToEur(
       qty,

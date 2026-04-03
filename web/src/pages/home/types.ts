@@ -54,6 +54,8 @@ export type AssetMixHistoryPoint = {
   equitySectorsEur: Record<string, number>;
   /** Cumulative virtual leverage when `variant=hodl`; 0 for actual history. */
   virtualLeverageEur: number;
+  /** Cash accounts total EUR (optional on older cached responses). */
+  cashTotalEur?: number;
 } & PortfolioDistributions["assetMix"];
 
 export type BucketTopHolding = {

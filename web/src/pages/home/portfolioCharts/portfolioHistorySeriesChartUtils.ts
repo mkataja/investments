@@ -1,5 +1,3 @@
-import type { Chart } from "chart.js";
-
 /**
  * Line chart: keep positive values; use `0` only next to a positive value so
  * segments meet the axis without drawing long runs along y = 0.
@@ -38,21 +36,6 @@ export function yTickShort(v: number): string {
   return `${sign}${a}`;
 }
 
-export function totalPositiveEurAtDataIndex(
-  chart: Chart,
-  dataIndex: number,
-): number {
-  let s = 0;
-  for (const ds of chart.data.datasets) {
-    const row = ds.data;
-    const raw = Array.isArray(row) ? row[dataIndex] : undefined;
-    if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
-      s += raw;
-    }
-  }
-  return s;
-}
-
 /**
  * Line chart: keep negative values; use `0` only next to a negative value so segments meet the axis.
  */
@@ -76,19 +59,4 @@ export function lineChartValueFromRawSeriesNonPositive(
     return 0;
   }
   return null;
-}
-
-export function totalNetEurAtDataIndex(
-  chart: Chart,
-  dataIndex: number,
-): number {
-  let s = 0;
-  for (const ds of chart.data.datasets) {
-    const row = ds.data;
-    const raw = Array.isArray(row) ? row[dataIndex] : undefined;
-    if (typeof raw === "number" && Number.isFinite(raw)) {
-      s += raw;
-    }
-  }
-  return s;
 }

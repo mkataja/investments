@@ -12,6 +12,7 @@ import {
   BENCHMARK_TOTAL_EUR_DEFAULT,
   loadBenchmarkValuedRows,
 } from "./benchmarkPortfolio.js";
+import { emergencyFundTargetEurFromDb } from "./emergencyFundTargetEurFromDb.js";
 import {
   type NonCashAssetClass,
   classifyNonCashInstrument,
@@ -205,9 +206,8 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   };
 }> {
   const pfRow = await loadPortfolioOwnedByUser(portfolioId);
-  const emergencyFundTargetEurRaw = pfRow ? Number(pfRow.emergencyFundEur) : 0;
-  const emergencyFundTargetEur = Number.isFinite(emergencyFundTargetEurRaw)
-    ? emergencyFundTargetEurRaw
+  const emergencyFundTargetEur = pfRow
+    ? emergencyFundTargetEurFromDb(pfRow.emergencyFundEur)
     : 0;
 
   const emptyDistributions = () => {

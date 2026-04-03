@@ -15,6 +15,7 @@ import {
   pickDistributionRowForAssetMixHistory,
   pickLatestPriceRowAsOf,
 } from "../instrument/latestPriceDistribution.js";
+import { emergencyFundTargetEurFromDb } from "./emergencyFundTargetEurFromDb.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import {
   buildMergedSectorsForAssetMix,
@@ -136,6 +137,8 @@ type AssetMixHistoryPointRow = {
   commodityOtherEur: number;
   cashInFundsEur: number;
   cashExcessEur: number;
+  /** Sum of cash-account position values in EUR (same basis as `cashExcessEur` split). */
+  cashTotalEur: number;
   equitySectorsEur: Record<string, number>;
   /** Cumulative virtual leverage from security sells after cash is depleted (≤ 0); 0 when `variant` is `actual`. */
   virtualLeverageEur: number;
@@ -150,11 +153,13 @@ type AssetMixHistoryPointRow = {
  * snapshots: earliest `snapshot_date >= asOf` per instrument (next snapshot fills gaps); if as-of is
  * after all snapshots, the newest snapshot is used. Prices still use latest `price_date <= asOf`.
  *
- * `variant=hodl`: buys apply as usual; security sells do not reduce quantities. Proceeds in EUR (FX
- * as of trade date) first reduce cash above the portfolio emergency fund target (instrument id
- * order within that cap); any remainder reduces `virtualLeverageEur`. Cash sells reduce balance;
- * withdrawal above balance floors cash at zero and books the remainder to `virtualLeverageEur`
- * (negative cash would otherwise drop out of the mix because `cashExcessEur` is floored at 0).
+ * `variant=hodl`: non-cash buys apply as usual; security sells do not reduce quantities. Proceeds
+ * in EUR (FX as of trade date) first reduce cash above the portfolio emergency fund target
+ * (instrument id order within that cap); any remainder reduces `virtualLeverageEur`. Cash deposits
+ * (cash account buys) first increase `virtualLeverageEur` toward zero when it is negative, then
+ * credit the remainder to cash. Cash sells remove at most the amount that leaves total cash EUR at
+ * or above the emergency fund target (same cap as security-sell drains); any shortfall vs the
+ * transaction size, or withdrawal past balance, books to `virtualLeverageEur`.
  *
  * Loads transactions once, walks dates in memory, and batches price and distribution queries.
  */
@@ -175,10 +180,7 @@ export async function getPortfolioAssetMixHistory(
     return { points: [] };
   }
 
-  const emergencyFundTargetEurRaw = Number(pf.emergencyFundEur);
-  const emergencyFundTargetEur = Number.isFinite(emergencyFundTargetEurRaw)
-    ? emergencyFundTargetEurRaw
-    : 0;
+  const emergencyFundTargetEur = emergencyFundTargetEurFromDb(pf.emergencyFundEur);
 
   const txRows: AssetMixHistoryTxRow[] = await db
     .select({
@@ -246,6 +248,7 @@ export async function getPortfolioAssetMixHistory(
     cashInFundsEur: 0,
     cashExcessEur: 0,
   });
+  const emptyPointBase = { ...emptyMix, cashTotalEur: 0 };
 
   const points: AssetMixHistoryPointRow[] = [];
   const qty = new Map<number, number>();
@@ -278,7 +281,7 @@ export async function getPortfolioAssetMixHistory(
     if (rows.length === 0) {
       points.push({
         date: d,
-        ...emptyMix,
+        ...emptyPointBase,
         equitySectorsEur: {},
         virtualLeverageEur: virtualEur,
       });
@@ -341,6 +344,7 @@ export async function getPortfolioAssetMixHistory(
     points.push({
       date: d,
       ...mix,
+      cashTotalEur: cashEur,
       equitySectorsEur,
       virtualLeverageEur: virtualEur,
     });
