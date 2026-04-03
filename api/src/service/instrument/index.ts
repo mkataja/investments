@@ -1457,6 +1457,11 @@ export async function getPortfolioDistributionsRoute(c: Context) {
   return c.json(data);
 }
 
+/**
+ * `GET /portfolio/asset-mix-history?portfolioId=…` — weekly asset mix EUR plus
+ * `equitySectorsEur` per date (equity sleeve only; same sector keys as portfolio
+ * distributions / sectors bar chart).
+ */
 export async function getPortfolioAssetMixHistoryRoute(c: Context) {
   const raw = c.req.query("portfolioId")?.trim();
   if (!raw) {

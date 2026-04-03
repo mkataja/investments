@@ -14,6 +14,7 @@
     "./commodity": "./src/commodity.ts",
     "./currencies": "./src/currencies.ts",
     "./distributionPayload": "./src/distributionPayload.ts",
+    "./distribution/equitySectorsForDisplay": "./src/distribution/equitySectorsForDisplay.ts",
     "./distribution/sectorIds": "./src/distribution/sectorIds.ts",
     "./fxYahooEurLeg": "./src/fxYahooEurLeg.ts",
     "./geo/countryIso": "./src/geo/countryIso.ts",

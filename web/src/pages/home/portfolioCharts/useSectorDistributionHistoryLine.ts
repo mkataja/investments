@@ -1,59 +1,105 @@
 import type { ChartData, ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { CHART_TOOLTIP_STYLE } from "../../../lib/chart/chartTooltipConstants";
-import { rgbaFromHex } from "../../../lib/chart/rgbaFromHex";
+import { portfolioSectorBarRows } from "../../../lib/distributionDisplay";
+import { portfolioSectorTimeseriesColor } from "../../../lib/portfolioChartPalette";
 import type { AssetMixHistoryPoint } from "../types";
-import { assetMixPieRowsFromAssetMix } from "./assetMixPieRows";
 import { DISTRIBUTION_BAR_CHART_GRID_STROKE } from "./distributionBarChartOptions";
-import {
-  lineChartValueFromRawSeries,
-  totalPositiveEurAtDataIndex,
-  yTickShort,
-} from "./portfolioHistorySeriesChartUtils";
+import { lineChartValueFromRawSeries } from "./portfolioHistorySeriesChartUtils";
 
-type AssetMixHistoryChartResult = {
+type SectorDistributionHistoryChartResult = {
   data: ChartData<"line">;
   options: ChartOptions<"line">;
+  hasData: boolean;
 };
 
-export function useAssetMixHistoryLine(
+function maxEurWeightsBySectorKey(
+  points: AssetMixHistoryPoint[],
+): Record<string, number> {
+  const maxEurByKey: Record<string, number> = {};
+  for (const p of points) {
+    const m = p.equitySectorsEur ?? {};
+    for (const [k, v] of Object.entries(m)) {
+      if (typeof v === "number" && Number.isFinite(v) && v > 0) {
+        maxEurByKey[k] = Math.max(maxEurByKey[k] ?? 0, v);
+      }
+    }
+  }
+  const sum = Object.values(maxEurByKey).reduce((a, b) => a + b, 0);
+  if (!(sum > 0)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(maxEurByKey).map(([k, v]) => [k, v / sum]),
+  );
+}
+
+export function useSectorDistributionHistoryLine(
   points: AssetMixHistoryPoint[],
   stacked: boolean,
-): AssetMixHistoryChartResult {
+): SectorDistributionHistoryChartResult {
   return useMemo(() => {
-    const formatEur = (n: number) =>
-      `${n.toLocaleString("en-US", { maximumFractionDigits: 0 })} EUR`;
+    const formatPct = (n: number) => {
+      const t = n.toFixed(1);
+      return t.endsWith(".0") ? `${Math.round(n)}%` : `${t}%`;
+    };
 
-    const empty = (): AssetMixHistoryChartResult => ({
+    const empty = (): SectorDistributionHistoryChartResult => ({
       data: { labels: [], datasets: [] },
       options: {
         responsive: true,
         maintainAspectRatio: false,
       },
+      hasData: false,
     });
 
-    const first = points[0];
-    if (points.length === 0 || first === undefined) {
+    if (points.length === 0) {
       return empty();
     }
 
-    const templateRows = assetMixPieRowsFromAssetMix(first);
-    const rowsByPoint = points.map((p) => assetMixPieRowsFromAssetMix(p));
+    const norm = maxEurWeightsBySectorKey(points);
+    const templateRows = portfolioSectorBarRows(norm);
+    if (templateRows.length === 0) {
+      return empty();
+    }
+
+    const rowsByPoint = points.map(
+      (p) => p.equitySectorsEur ?? ({} as Record<string, number>),
+    );
 
     const xLabels = [...points.map((p) => p.date), ""];
 
-    const lastDateIndex = points.length - 1;
-    const lastPointRadius = 4;
-    const lastPointHoverRadius = 6;
-
     const filteredSpecs = templateRows
-      .map((row, i) => {
-        const rawSeries = rowsByPoint.map((rows) => rows[i]?.value ?? 0);
+      .map((row) => {
+        const rawSeries = rowsByPoint.map((m) => m[row.bucketKey] ?? 0);
         return { row, rawSeries };
       })
       .filter(({ rawSeries }) =>
         rawSeries.some((v) => Number.isFinite(v) && v > 0),
       );
+
+    if (filteredSpecs.length === 0) {
+      return empty();
+    }
+
+    const nDates = points.length;
+    const totalEurAtDate = Array.from({ length: nDates }, (_, j) =>
+      filteredSpecs.reduce(
+        (s, { rawSeries }) => s + Math.max(0, rawSeries[j] ?? 0),
+        0,
+      ),
+    );
+
+    const pctSpecs = filteredSpecs.map(({ row, rawSeries }) => ({
+      row,
+      pctSeries: rawSeries.map((eur, j) => {
+        const t = totalEurAtDate[j] ?? 0;
+        if (!(t > 0) || !Number.isFinite(eur) || eur <= 0) {
+          return 0;
+        }
+        return (eur / t) * 100;
+      }),
+    }));
 
     const xScaleTicks = {
       font: { size: 14 },
@@ -79,7 +125,10 @@ export function useAssetMixHistoryLine(
       color: "#475569",
       callback: (tickValue: string | number) => {
         const v = typeof tickValue === "number" ? tickValue : Number(tickValue);
-        return yTickShort(v);
+        if (!Number.isFinite(v)) {
+          return "";
+        }
+        return `${v}%`;
       },
     };
 
@@ -116,39 +165,27 @@ export function useAssetMixHistoryLine(
 
     const data: ChartData<"line"> = {
       labels: xLabels,
-      datasets: filteredSpecs.map(({ row, rawSeries }) => {
+      datasets: pctSpecs.map(({ row, pctSeries }, seriesIndex) => {
+        const fill = portfolioSectorTimeseriesColor(seriesIndex);
         const series = [
-          ...rawSeries.map((_, j) => lineChartValueFromRawSeries(rawSeries, j)),
+          ...pctSeries.map((_, j) => lineChartValueFromRawSeries(pctSeries, j)),
           null,
         ] as (number | null)[];
-        const isLastDot = (ctx: { dataIndex: number }) => {
-          const idx = ctx.dataIndex;
-          if (idx !== lastDateIndex) {
-            return false;
-          }
-          const v = series[idx];
-          return typeof v === "number" && Number.isFinite(v);
-        };
-        const areaFill = stacked ? row.fill : rgbaFromHex(row.fill, 0.12);
         return {
           label: row.name,
           data: series,
-          ...(stacked ? { stack: "assetMix" } : {}),
-          borderColor: row.fill,
-          backgroundColor: areaFill,
+          ...(stacked
+            ? {
+                stack: "sectorDist",
+                backgroundColor: fill,
+                fill: true,
+              }
+            : { fill: false }),
+          borderColor: fill,
           cubicInterpolationMode: "monotone" as const,
-          fill: true,
-          pointRadius: (ctx: { dataIndex: number }) =>
-            isLastDot(ctx) ? lastPointRadius : 0,
-          pointHoverRadius: (ctx: { dataIndex: number }) =>
-            isLastDot(ctx) ? lastPointHoverRadius : 5,
-          pointBackgroundColor: row.fill,
-          pointBorderColor: (ctx: { dataIndex: number }) =>
-            isLastDot(ctx) ? "#ffffff" : row.fill,
-          pointBorderWidth: (ctx: { dataIndex: number }) =>
-            isLastDot(ctx) ? 2 : 0,
-          pointHitRadius: (ctx: { dataIndex: number }) =>
-            isLastDot(ctx) ? 10 : 0,
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHitRadius: 8,
           borderWidth: 2,
         };
       }),
@@ -179,6 +216,7 @@ export function useAssetMixHistoryLine(
         y: {
           stacked,
           min: 0,
+          ...(stacked ? { max: 100 } : {}),
           ticks: yScaleTicks,
           grid: yGrid,
           border: { display: false },
@@ -215,27 +253,24 @@ export function useAssetMixHistoryLine(
               if (typeof n !== "number" || !Number.isFinite(n)) {
                 return "";
               }
-              return `${ctx.dataset.label ?? ""}: ${formatEur(n)}`;
+              return `${ctx.dataset.label ?? ""}: ${formatPct(n)}`;
             },
             footer: (tooltipItems) => {
-              const first = tooltipItems[0];
-              if (!first) {
-                return "";
-              }
-              const sum = totalPositiveEurAtDataIndex(
-                first.chart,
-                first.dataIndex,
-              );
+              const sum = tooltipItems.reduce((acc, it) => {
+                const y =
+                  typeof it.parsed.y === "number" ? it.parsed.y : Number.NaN;
+                return acc + (Number.isFinite(y) && y > 0 ? y : 0);
+              }, 0);
               if (!(sum > 0)) {
                 return "";
               }
-              return `Total: ${formatEur(sum)}`;
+              return `Total: ${formatPct(sum)}`;
             },
           },
         },
       },
     };
 
-    return { data, options };
+    return { data, options, hasData: true };
   }, [points, stacked]);
 }

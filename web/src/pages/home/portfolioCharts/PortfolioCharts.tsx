@@ -14,6 +14,10 @@ const WorldCountryChoropleth = lazy(async () => ({
 
 export function PortfolioCharts(props: PortfolioChartsProps) {
   const [assetMixHistoryStacked, setAssetMixHistoryStacked] = useState(false);
+  const [
+    sectorDistributionHistoryStacked,
+    setSectorDistributionHistoryStacked,
+  ] = useState(false);
   const {
     portfolio,
     countryChartContainerRef,
@@ -32,9 +36,12 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
     countryBarOptions,
     assetMixLineData,
     assetMixLineOptions,
-    assetMixHistoryChartKind,
+    sectorDistributionLineData,
+    sectorDistributionLineOptions,
+    sectorDistributionHistoryHasData,
   } = usePortfolioCharts(props, {
     assetMixHistoryStacked,
+    sectorDistributionHistoryStacked,
   });
 
   return (
@@ -147,21 +154,49 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
                     className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-[1.25rem]"
                   />
                 </span>
-                <span>Stacked bars</span>
+                <span>Stacked areas</span>
               </label>
             </div>
             <div className="w-full h-[448px] min-w-0">
-              {assetMixHistoryChartKind === "bar" ? (
-                <Bar
-                  data={assetMixLineData as ChartData<"bar">}
-                  options={assetMixLineOptions as ChartOptions<"bar">}
-                />
-              ) : (
-                <Line
-                  data={assetMixLineData as ChartData<"line">}
-                  options={assetMixLineOptions as ChartOptions<"line">}
-                />
-              )}
+              <Line
+                data={assetMixLineData as ChartData<"line">}
+                options={assetMixLineOptions as ChartOptions<"line">}
+              />
+            </div>
+          </div>
+        ) : null}
+        {props.assetMixHistoryPoints.length > 0 &&
+        sectorDistributionHistoryHasData ? (
+          <div className="subsection-stack w-full min-w-0">
+            <div className="flex flex-wrap items-center gap-3 mb-1">
+              <h3 className="mb-0 shrink-0">Sector distribution over time</h3>
+              <label className="inline-flex cursor-pointer items-center gap-2 select-none text-sm text-slate-600">
+                <span className="relative inline-block h-6 w-11 shrink-0">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={sectorDistributionHistoryStacked}
+                    onChange={(e) =>
+                      setSectorDistributionHistoryStacked(e.target.checked)
+                    }
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full bg-slate-200 transition peer-checked:bg-emerald-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500"
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-[1.25rem]"
+                  />
+                </span>
+                <span>Stacked areas</span>
+              </label>
+            </div>
+            <div className="w-full h-[448px] min-w-0">
+              <Line
+                data={sectorDistributionLineData as ChartData<"line">}
+                options={sectorDistributionLineOptions as ChartOptions<"line">}
+              />
             </div>
           </div>
         ) : null}

@@ -17,6 +17,27 @@ export const PORTFOLIO_BOND_MIX_PIE_COLORS: Record<string, string> = {
 };
 
 /** Region, sector, and country bar charts — saturated blue primary vs lighter blue compare. */
+/** Cycle for multi-series line charts (e.g. sector share over time). */
+const PORTFOLIO_SECTOR_TIMESERIES_COLORS = [
+  "#3B7FD4",
+  "#6B7FD7",
+  "#8BCB7A",
+  "#D4A574",
+  "#ACDDF6",
+  "#9A7B5C",
+  "#4A54B8",
+  "#8EC0F2",
+  "#C2EABA",
+  "#5E6BC8",
+  "#B0B8C8",
+  "#2D6A4F",
+] as const;
+
+export function portfolioSectorTimeseriesColor(index: number): string {
+  const colors = PORTFOLIO_SECTOR_TIMESERIES_COLORS;
+  return colors.at(index % colors.length) ?? colors[0];
+}
+
 export const PORTFOLIO_DISTRIBUTION_BAR_COLORS = {
   regionPrimary: "#3B7FD4",
   regionCompare: "#8EC0F2",

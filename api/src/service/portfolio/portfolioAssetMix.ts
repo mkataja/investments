@@ -1,3 +1,4 @@
+import { equitySectorsForDisplay } from "@investments/lib/distribution/equitySectorsForDisplay";
 import type { DistributionPayload } from "@investments/lib/distributionPayload";
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import type { InferSelectModel } from "drizzle-orm";
@@ -261,6 +262,28 @@ export function buildMergedSectorsForAssetMix(
     nonCashPrincipalEur,
     cashInFundsEur,
   };
+}
+
+/**
+ * EUR per equity-sector bucket (same keys as web `equitySectorsForDisplay` on merged sectors),
+ * using the equity sleeve from `computeAssetMixEur`.
+ */
+export function equitySectorsEurFromSnapshot(input: {
+  nonCashPrincipalEur: number;
+  mergedSectors: Record<string, number>;
+  cashInFundsEur: number;
+  cashExcessEur: number;
+}): Record<string, number> {
+  const mix = computeAssetMixEur(input);
+  const weights = equitySectorsForDisplay(input.mergedSectors);
+  const out: Record<string, number> = {};
+  for (const [k, w] of Object.entries(weights)) {
+    const eur = mix.equitiesEur * w;
+    if (typeof eur === "number" && Number.isFinite(eur) && eur > 0) {
+      out[k] = eur;
+    }
+  }
+  return out;
 }
 
 export function computeAssetMixEur(input: {

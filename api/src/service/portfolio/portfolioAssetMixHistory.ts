@@ -19,6 +19,7 @@ import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import {
   buildMergedSectorsForAssetMix,
   computeAssetMixEur,
+  equitySectorsEurFromSnapshot,
 } from "./portfolioAssetMix.js";
 import {
   type InstrumentRow,
@@ -157,7 +158,8 @@ type PortfolioRow = typeof portfolios.$inferSelect;
  * Weekly samples from first portfolio trade, plus a trailing point for **today** (UTC calendar)
  * when the weekly grid does not land on today. Each point matches **asset mix** slices from
  * `computeAssetMixEur` (same sleeves as the asset mix pie), including emergency fund split for cash
- * in accounts. Stops when any non-cash position lacks a price on or before the date. Distribution
+ * in accounts, plus `equitySectorsEur` (equity sleeve only, same sector keys as the sectors bar chart).
+ * Stops when any non-cash position lacks a price on or before the date. Distribution
  * snapshots: earliest `snapshot_date >= asOf` per instrument (next snapshot fills gaps); if as-of is
  * after all snapshots, the newest snapshot is used. Prices still use latest `price_date <= asOf`.
  *
@@ -176,6 +178,7 @@ export async function getPortfolioAssetMixHistory(
     commodityOtherEur: number;
     cashInFundsEur: number;
     cashExcessEur: number;
+    equitySectorsEur: Record<string, number>;
   }>;
 }> {
   const pf =
@@ -266,6 +269,7 @@ export async function getPortfolioAssetMixHistory(
     commodityOtherEur: number;
     cashInFundsEur: number;
     cashExcessEur: number;
+    equitySectorsEur: Record<string, number>;
   }> = [];
   const qty = new Map<number, number>();
   const txState = { i: 0 };
@@ -274,7 +278,7 @@ export async function getPortfolioAssetMixHistory(
     applyTransactionsUpTo(txRows, txState, qty, endOfUtcDay(d));
     const rows = positionRowsFromQty(qty, instrumentsById);
     if (rows.length === 0) {
-      points.push({ date: d, ...emptyMix });
+      points.push({ date: d, ...emptyMix, equitySectorsEur: {} });
       continue;
     }
 
@@ -325,9 +329,16 @@ export async function getPortfolioAssetMixHistory(
       cashInFundsEur,
       cashExcessEur,
     });
+    const equitySectorsEur = equitySectorsEurFromSnapshot({
+      nonCashPrincipalEur,
+      mergedSectors,
+      cashInFundsEur,
+      cashExcessEur,
+    });
     points.push({
       date: d,
       ...mix,
+      equitySectorsEur,
     });
   }
 

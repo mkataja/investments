@@ -4,6 +4,7 @@ import {
   commodityPrincipalShareFromMergedSectors,
   computeAssetMixEur,
   computeBondMix,
+  equitySectorsEurFromSnapshot,
   sumBondSectorWeights,
   sumCommoditySectorWeights,
 } from "./portfolioAssetMix.js";
@@ -175,5 +176,37 @@ describe("computeBondMix", () => {
   it("returns empty when no bond mass", () => {
     expect(computeBondMix({ technology: 1 })).toEqual([]);
     expect(computeBondMix({})).toEqual([]);
+  });
+});
+
+describe("equitySectorsEurFromSnapshot", () => {
+  it("allocates the equity sleeve across non-bond, non-commodity sector keys", () => {
+    const input = {
+      nonCashPrincipalEur: 10_000,
+      mergedSectors: {
+        technology: 0.5,
+        financials: 0.2,
+        long_government_bonds: 0.3,
+      },
+      cashInFundsEur: 0,
+      cashExcessEur: 0,
+    };
+    const mix = computeAssetMixEur(input);
+    const eq = equitySectorsEurFromSnapshot(input);
+    expect(mix.equitiesEur).toBeCloseTo(7000);
+    expect(eq.technology).toBeCloseTo((0.5 / 0.7) * 7000);
+    expect(eq.financials).toBeCloseTo((0.2 / 0.7) * 7000);
+    expect(eq.long_government_bonds).toBeUndefined();
+  });
+
+  it("returns empty when there is no equity sleeve", () => {
+    expect(
+      equitySectorsEurFromSnapshot({
+        nonCashPrincipalEur: 1000,
+        mergedSectors: { long_government_bonds: 1 },
+        cashInFundsEur: 0,
+        cashExcessEur: 0,
+      }),
+    ).toEqual({});
   });
 });

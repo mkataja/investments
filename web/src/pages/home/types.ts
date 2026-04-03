@@ -50,6 +50,8 @@ export type PortfolioEntity = {
 /** Weekly series from `GET /portfolio/asset-mix-history` (same sleeves as `assetMix`). */
 export type AssetMixHistoryPoint = {
   date: string;
+  /** Equity sleeve EUR per sector key (same breakdown as the sectors bar chart). */
+  equitySectorsEur: Record<string, number>;
 } & PortfolioDistributions["assetMix"];
 
 export type BucketTopHolding = {
