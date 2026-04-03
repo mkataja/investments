@@ -1,5 +1,8 @@
+import { sortByTransactionInstrumentSelectLabel } from "@investments/lib/instrumentSelectLabel";
+import { useEffect, useMemo, useState } from "react";
 import { apiDelete } from "../../api/client";
 import { formatInstantForDisplay } from "../../lib/dateTimeFormat";
+import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
 import {
   formatIntegerForDisplay,
   formatTransactionTotalValueForDisplay,
@@ -8,6 +11,7 @@ import {
   roundQuantityForDisplay,
 } from "../../lib/numberFormat";
 import { instrumentTickerCell } from "./instrumentTickerCell";
+import { positionValueAfterLabelByTransactionId } from "./transactionsPositionValueAfter";
 import type { HomeInstrument, HomeTransaction } from "./types";
 
 function transactionSideLabel(side: string, instrumentKind?: string): string {
@@ -50,9 +54,76 @@ export function TransactionsTable({
   onError,
   hideSectionTitle = false,
 }: TransactionsTableProps) {
+  const [filterInstrumentId, setFilterInstrumentId] = useState<number | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (filterInstrumentId == null) {
+      return;
+    }
+    if (!transactions.some((t) => t.instrumentId === filterInstrumentId)) {
+      setFilterInstrumentId(null);
+    }
+  }, [transactions, filterInstrumentId]);
+
+  const valueAfterByTxnId = useMemo(
+    () => positionValueAfterLabelByTransactionId(transactions, instrumentById),
+    [transactions, instrumentById],
+  );
+
+  const instrumentFilterOptions = useMemo(() => {
+    const ids = [...new Set(transactions.map((t) => t.instrumentId))];
+    const known = ids
+      .map((id) => instrumentById.get(id))
+      .filter((i): i is HomeInstrument => i != null);
+    const sortedKnownIds = sortByTransactionInstrumentSelectLabel(known).map(
+      (i) => i.id,
+    );
+    const unknownIds = ids
+      .filter((id) => instrumentById.get(id) == null)
+      .sort((a, b) => a - b);
+    return [...sortedKnownIds, ...unknownIds];
+  }, [transactions, instrumentById]);
+
+  const visibleTransactions = useMemo(() => {
+    if (filterInstrumentId == null) {
+      return transactions;
+    }
+    return transactions.filter((t) => t.instrumentId === filterInstrumentId);
+  }, [transactions, filterInstrumentId]);
+
   return (
     <section className="page-section">
       {hideSectionTitle ? null : <h2>Transactions</h2>}
+      {transactions.length > 0 ? (
+        <label className="flex flex-wrap items-baseline gap-2 text-sm text-slate-700 mb-2">
+          <span className="whitespace-nowrap">Instrument</span>
+          <select
+            className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[12rem] max-w-full"
+            value={filterInstrumentId ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === "") {
+                setFilterInstrumentId(null);
+                return;
+              }
+              const id = Number.parseInt(v, 10);
+              setFilterInstrumentId(Number.isFinite(id) ? id : null);
+            }}
+          >
+            <option value="">All</option>
+            {instrumentFilterOptions.map((id) => {
+              const inst = instrumentById.get(id);
+              return (
+                <option key={id} value={id}>
+                  {inst != null ? instrumentSelectUiLabel(inst) : `#${id}`}
+                </option>
+              );
+            })}
+          </select>
+        </label>
+      ) : null}
       <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
         <table className="min-w-full">
           <thead className="bg-slate-100 text-slate-700">
@@ -65,11 +136,12 @@ export function TransactionsTable({
               <th className="text-right p-2 font-medium">Qty</th>
               <th className="text-right p-2 font-medium">Price</th>
               <th className="text-right p-2 font-medium">Value</th>
+              <th className="text-right p-2 font-medium">Value after</th>
               <th className="text-right p-2 font-medium w-30">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {transactions.map((t) => (
+            {visibleTransactions.map((t) => (
               <tr key={t.id} className="border-t border-slate-100">
                 <td className="p-2">{formatInstantForDisplay(t.tradeDate)}</td>
                 <td className="p-2">
@@ -126,6 +198,9 @@ export function TransactionsTable({
                     )}
                   </span>
                 </td>
+                <td className="p-2 text-right tabular-nums text-slate-800">
+                  {valueAfterByTxnId.get(t.id) ?? "-"}
+                </td>
                 <td className="text-right p-2 space-x-3 whitespace-nowrap">
                   <button
                     type="button"
@@ -164,10 +239,10 @@ export function TransactionsTable({
           </tbody>
         </table>
       </div>
-      {transactions.length > 0 ? (
+      {visibleTransactions.length > 0 ? (
         <p className="text-sm text-slate-600 tabular-nums">
-          {formatIntegerForDisplay(transactions.length)}{" "}
-          {transactions.length === 1 ? "transaction" : "transactions"}
+          {formatIntegerForDisplay(visibleTransactions.length)}{" "}
+          {visibleTransactions.length === 1 ? "transaction" : "transactions"}
         </p>
       ) : null}
     </section>
