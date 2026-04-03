@@ -126,7 +126,7 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
         </div>
         {props.assetMixHistoryPoints.length > 0 ? (
           <div className="subsection-stack w-full min-w-0">
-            <div className="flex flex-wrap items-start justify-between gap-3 mb-1">
+            <div className="flex flex-wrap items-center gap-3 mb-1">
               <h3 className="mb-0 shrink-0">Asset mix over time</h3>
               <label className="inline-flex cursor-pointer items-center gap-2 select-none text-sm text-slate-600">
                 <span className="relative inline-block h-6 w-11 shrink-0">
