@@ -24,49 +24,42 @@ HTTP routes live in `api` code only. They are not to be listed in documentation;
 Data model lives in `db/src/schema.ts` (and migrations).
 
 
-## Tooling
+## Code style, quality, and performance
 
-`pnpm` monorepo — [`pnpm-workspace.yaml`](pnpm-workspace.yaml). Lint: Biome ([`biome.json`](biome.json), `pnpm lint`).
+IMPORTANT! Read and always follow good quality standards!
 
-
-## Practical instructions
-
-### Maintainability - no copy-paste duplication
-
-IMPORTANT! Do not duplicate logic, markup, validation, or CSS. Extract shared UI to components/hooks, etc.
-
-Duplicating code is a maintenance nightmare, makes files larger than necessary, and causes drift and bugs.
+- Do not duplicate logic, markup, validation, or CSS. Extract shared UI to components/hooks, etc.
+- Prefer reuse and clear abstractions - in logic, UI, styles, everything.
+- ALWAYS prefer map/reduce over for-loops! For-loops only when there's a very clear benefit.
+- Never do typecasts like `as` or `<>` without asking for permission. `satisfies` is good though!
+- Avoid N+1 DB query pattern. Be mindful of DB performance.
 
 
-### Documentation and UI copy style
+## Documentation and UI copy (text) style
 
+- Never change UI copy unless asked to do so. Only write new copy when copy is missing.
 - Keep documentation and UI copy terse and to the point. Avoid repeating.
 - Do not use the "…" character - use "...".
 - Do NOT overuse **emphasis** in documentation.
 - Put a space on both sides of en and em dashes in sentences.
 
 
-### Code layout
+## Code layout
 
+- The project is a `pnpm` monorepo
 - Split files that grow past ~300–500 lines when it helps clarity
-- No barrel import files
-- `web/src/api/` — web-only HTTP/API contract helpers (transport in `client.ts`); real payload/parse/error work only, not thin wrappers. Backend-shared logic belongs in `@investments/lib`. Import domain types from the feature that owns them (e.g. `pages/home/types.ts`, `components/instrumentForm/types.ts`) rather than growing a generic `types/` tree.
-- Other shared logic to `lib/` — package-local `api/src/lib` (small generic helpers only), `api/src/service/` (HTTP and domain orchestration), `web/src/lib`, or `@investments/lib` when `api` and `web` both need it
+- Put files in the right places. See [`architecture.md`](docs/architecture.md) for more detailed layout. E.g. service layer VS lib VS models etc.
+- No barrel import files!
+- Genrally define types within the feature/model/entity they belong to
 - It's important to consider maintainability
 
 
-### Code style and performance
-
-- Prefer map/reduce over for-loops, unless there's a very clear usecase
-- Avoid N+1 DB query pattern
-
-
-### General bits
+## General bits
 
 - Web date/time formatting: `web/src/lib/dateTimeFormat.ts` (`YYYY-MM-DD`, or with time `YYYY-MM-DD HH:mm` local 24h)
 
 
-### Web UI
+## Web UI
 
 Small UX wins on forms/flows when obvious: default values, enter to submit, etc. quality of life improvements.
 
@@ -75,7 +68,7 @@ Minimal copy unless asked.
 CSS/Tailwind patterns: [`web/design-system.md`](web/design-system.md).
 
 
-### Before committing or signing off work
+## Before committing or signing off work
 
 - `pnpm run ci` — run *all* CI checks *in parallel*
 
@@ -86,7 +79,9 @@ If necessary, you can run individual CI checks for faster output:
 - `pnpm ts-prune`
 
 
-### Git commits
+## Git commits
+
+Don't commit unless asked to. Only ever commit changes you have made.
 
 - One-line titles
 - NO commit prefixes (such as `feat:` or `db:`, etc.)
@@ -95,6 +90,6 @@ If necessary, you can run individual CI checks for faster output:
 Keep commits well-scoped: one logical whole in one commit. Avoid committing dependent code in separate commits. Avoid committing multiple separate wholes in one commit.
 
 
-### When changing behavior
+## When changing behavior
 
 - Schema: Drizzle in `db`, `pnpm db:generate`, commit migrations, `pnpm db:migrate` locally. Timestamps, indexes, FKs: follow patterns in `db/src/schema.ts` and existing `db/migrations`.
