@@ -150,11 +150,6 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
                 <span>Stacked bars</span>
               </label>
             </div>
-            <p className="text-slate-600 text-sm mb-2">
-              Weekly estimated EUR by sleeve (same breakdown as the asset mix
-              chart). Series stops when a price is missing for a held non-cash
-              instrument.
-            </p>
             <div className="w-full h-[448px] min-w-0">
               {assetMixHistoryChartKind === "bar" ? (
                 <Bar
