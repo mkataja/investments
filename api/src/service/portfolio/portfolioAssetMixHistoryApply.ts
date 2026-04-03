@@ -1,9 +1,11 @@
 import type { prices } from "@investments/db";
+import { DEFAULT_CASH_CURRENCY } from "@investments/lib/currencies";
 import type { InferSelectModel } from "drizzle-orm";
 import { calendarDateUtcFromInstant } from "../../lib/calendarDateUtc.js";
 import {
   type InstrumentRow,
   buildFxEurPerUnitMapAsOf,
+  eurToNativeCashUnits,
   nativeToEur,
 } from "./valuation.js";
 
@@ -15,6 +17,73 @@ export type AssetMixHistoryTxRow = {
   unitPrice: string;
   currency: string;
 };
+
+type HodlInstrumentRef = Pick<InstrumentRow, "kind" | "cashCurrency">;
+
+function sumCashAccountsEur(
+  qty: Map<number, number>,
+  instrumentById: ReadonlyMap<number, HodlInstrumentRef>,
+  fxMap: Map<string, number>,
+): number {
+  return [...qty.entries()].reduce((sum, [id, q]) => {
+    if (!(q > 0)) {
+      return sum;
+    }
+    const inst = instrumentById.get(id);
+    if (!inst || inst.kind !== "cash_account") {
+      return sum;
+    }
+    const cur =
+      inst.cashCurrency?.trim().toUpperCase() ?? DEFAULT_CASH_CURRENCY;
+    return sum + nativeToEur(q, cur, fxMap);
+  }, 0);
+}
+
+function drainCashUpToEur(
+  qty: Map<number, number>,
+  instrumentById: ReadonlyMap<number, HodlInstrumentRef>,
+  fxMap: Map<string, number>,
+  capEur: number,
+): number {
+  if (!(capEur > 0)) {
+    return 0;
+  }
+  let removedEur = 0;
+  let remaining = capEur;
+  const cashIds = [...instrumentById.keys()]
+    .filter((id) => instrumentById.get(id)?.kind === "cash_account")
+    .filter((id) => (qty.get(id) ?? 0) > 0)
+    .sort((a, b) => a - b);
+  for (const id of cashIds) {
+    if (!(remaining > 0)) {
+      break;
+    }
+    const q = qty.get(id) ?? 0;
+    if (!(q > 0)) {
+      continue;
+    }
+    const inst = instrumentById.get(id);
+    if (!inst || inst.kind !== "cash_account") {
+      continue;
+    }
+    const cur =
+      inst.cashCurrency?.trim().toUpperCase() ?? DEFAULT_CASH_CURRENCY;
+    const capNativeEur = nativeToEur(q, cur, fxMap);
+    const takeEur = Math.min(remaining, capNativeEur);
+    const deltaNative = eurToNativeCashUnits(takeEur, cur, fxMap);
+    const actualDelta = Math.min(q, deltaNative);
+    const actualRemovedEur = nativeToEur(actualDelta, cur, fxMap);
+    const newQ = q - actualDelta;
+    if (newQ === 0) {
+      qty.delete(id);
+    } else {
+      qty.set(id, newQ);
+    }
+    removedEur += actualRemovedEur;
+    remaining -= actualRemovedEur;
+  }
+  return removedEur;
+}
 
 export function applyTransactionsUpToActual(
   txRows: AssetMixHistoryTxRow[],
@@ -47,12 +116,14 @@ export function applyTransactionsUpToHodl(
   txRows: AssetMixHistoryTxRow[],
   state: { i: number },
   qty: Map<number, number>,
-  virtualInputMoneyEur: { value: number },
+  virtualLeverageEur: { value: number },
   asOfEnd: Date,
-  instrumentById: ReadonlyMap<number, { kind: string }>,
+  instrumentById: ReadonlyMap<number, HodlInstrumentRef>,
   fxInstRows: InstrumentRow[],
   fxPricesByInstrument: Map<number, InferSelectModel<typeof prices>[]>,
   fxMapByTradeDate: Map<string, Map<string, number>>,
+  /** Cash below this EUR total (across accounts, FX as of trade date) is not drained when reversing security sells. */
+  emergencyFundTargetEur = 0,
 ): void {
   while (state.i < txRows.length) {
     const t = txRows[state.i];
@@ -75,9 +146,33 @@ export function applyTransactionsUpToHodl(
       continue;
     }
     if (instrumentById.get(t.instrumentId)?.kind === "cash_account") {
+      const inst = instrumentById.get(t.instrumentId);
+      if (!inst) {
+        continue;
+      }
+      const tradeDateStr = calendarDateUtcFromInstant(new Date(t.tradeDate));
+      let fxMap = fxMapByTradeDate.get(tradeDateStr);
+      if (!fxMap) {
+        fxMap = buildFxEurPerUnitMapAsOf(
+          fxInstRows,
+          fxPricesByInstrument,
+          tradeDateStr,
+        );
+        fxMapByTradeDate.set(tradeDateStr, fxMap);
+      }
+      const up = Number.parseFloat(String(t.unitPrice));
       const prev = qty.get(t.instrumentId) ?? 0;
+      const proceedsNative = Number.isFinite(up) ? q * up : q;
+      const proceedsEur = nativeToEur(proceedsNative, t.currency, fxMap);
+      const cur =
+        inst.cashCurrency?.trim().toUpperCase() ?? DEFAULT_CASH_CURRENCY;
+      const availableCashEur = nativeToEur(Math.max(0, prev), cur, fxMap);
+      const overflowEur = proceedsEur - Math.min(proceedsEur, availableCashEur);
+      if (overflowEur > 0) {
+        virtualLeverageEur.value -= overflowEur;
+      }
       const next = prev - q;
-      if (next === 0) {
+      if (next <= 0) {
         qty.delete(t.instrumentId);
       } else {
         qty.set(t.instrumentId, next);
@@ -99,10 +194,19 @@ export function applyTransactionsUpToHodl(
       fxMapByTradeDate.set(tradeDateStr, fxMap);
     }
     const proceedsNative = q * up;
-    virtualInputMoneyEur.value -= nativeToEur(
-      proceedsNative,
-      t.currency,
-      fxMap,
+    const proceedsEur = nativeToEur(proceedsNative, t.currency, fxMap);
+    const totalCashEur = sumCashAccountsEur(qty, instrumentById, fxMap);
+    const maxDrainableEur = Math.max(
+      0,
+      totalCashEur - emergencyFundTargetEur,
     );
+    const drainCapEur = Math.min(proceedsEur, maxDrainableEur);
+    const fromCashEur = drainCashUpToEur(
+      qty,
+      instrumentById,
+      fxMap,
+      drainCapEur,
+    );
+    virtualLeverageEur.value -= proceedsEur - fromCashEur;
   }
 }

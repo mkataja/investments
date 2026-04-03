@@ -39,6 +39,26 @@ export function nativeToEur(
   return amount;
 }
 
+/** Native cash units to subtract to remove `eurAmount` worth (inverse of `nativeToEur` for cash). */
+export function eurToNativeCashUnits(
+  eurAmount: number,
+  currency: string | undefined,
+  eurPerUnitByForeign: Map<string, number>,
+): number {
+  const c = (currency ?? "EUR").toUpperCase();
+  if (c === "EUR") {
+    return eurAmount;
+  }
+  const rate = eurPerUnitByForeign.get(c);
+  if (rate !== undefined && Number.isFinite(rate) && rate > 0) {
+    return eurAmount / rate;
+  }
+  if (c === "USD") {
+    return eurAmount / STUB_EUR_PER_USD;
+  }
+  return eurAmount;
+}
+
 function noQuoteResult(): ValuationResult {
   return {
     valueEur: 0,

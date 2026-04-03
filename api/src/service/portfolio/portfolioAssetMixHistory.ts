@@ -137,8 +137,8 @@ type AssetMixHistoryPointRow = {
   cashInFundsEur: number;
   cashExcessEur: number;
   equitySectorsEur: Record<string, number>;
-  /** Cumulative virtual "input money" from sells (≤ 0); 0 when `variant` is `actual`. */
-  virtualInputMoneyEur: number;
+  /** Cumulative virtual leverage from security sells after cash is depleted (≤ 0); 0 when `variant` is `actual`. */
+  virtualLeverageEur: number;
 };
 
 /**
@@ -150,9 +150,11 @@ type AssetMixHistoryPointRow = {
  * snapshots: earliest `snapshot_date >= asOf` per instrument (next snapshot fills gaps); if as-of is
  * after all snapshots, the newest snapshot is used. Prices still use latest `price_date <= asOf`.
  *
- * `variant=hodl`: buys apply as usual; sells on non-cash instruments do not reduce quantities but
- * reduce `virtualInputMoneyEur` by sell proceeds in EUR (FX as of trade date). Cash account sells
- * apply like actual (withdrawals reduce cash).
+ * `variant=hodl`: buys apply as usual; security sells do not reduce quantities. Proceeds in EUR (FX
+ * as of trade date) first reduce cash above the portfolio emergency fund target (instrument id
+ * order within that cap); any remainder reduces `virtualLeverageEur`. Cash sells reduce balance;
+ * withdrawal above balance floors cash at zero and books the remainder to `virtualLeverageEur`
+ * (negative cash would otherwise drop out of the mix because `cashExcessEur` is floored at 0).
  *
  * Loads transactions once, walks dates in memory, and batches price and distribution queries.
  */
@@ -248,7 +250,7 @@ export async function getPortfolioAssetMixHistory(
   const points: AssetMixHistoryPointRow[] = [];
   const qty = new Map<number, number>();
   const txState = { i: 0 };
-  const virtualInputMoneyEur = { value: 0 };
+  const virtualLeverageEur = { value: 0 };
   const fxMapByTradeDate = new Map<string, Map<string, number>>();
 
   for (const d of candidateDates) {
@@ -258,26 +260,27 @@ export async function getPortfolioAssetMixHistory(
         txRows,
         txState,
         qty,
-        virtualInputMoneyEur,
+        virtualLeverageEur,
         asOfEnd,
         instrumentsById,
         fxInstRows,
         fxPricesByInstrument,
         fxMapByTradeDate,
+        emergencyFundTargetEur,
       );
     } else {
       applyTransactionsUpToActual(txRows, txState, qty, asOfEnd);
     }
 
     const rows = positionRowsFromQty(qty, instrumentsById);
-    const virtualEur = variant === "hodl" ? virtualInputMoneyEur.value : 0;
+    const virtualEur = variant === "hodl" ? virtualLeverageEur.value : 0;
 
     if (rows.length === 0) {
       points.push({
         date: d,
         ...emptyMix,
         equitySectorsEur: {},
-        virtualInputMoneyEur: virtualEur,
+        virtualLeverageEur: virtualEur,
       });
       continue;
     }
@@ -339,7 +342,7 @@ export async function getPortfolioAssetMixHistory(
       date: d,
       ...mix,
       equitySectorsEur,
-      virtualInputMoneyEur: virtualEur,
+      virtualLeverageEur: virtualEur,
     });
   }
 
