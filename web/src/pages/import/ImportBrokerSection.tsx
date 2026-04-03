@@ -32,6 +32,10 @@ type ImportBrokerSectionProps = {
   errorExtra?: ReactNode;
   result: DegiroOk | null;
   footer?: ReactNode;
+  /** Rendered inside the form directly under the broker select (e.g. Svea cash account picker). */
+  afterBrokerSelect?: ReactNode;
+  /** When false, Import stays disabled even if a file or paste is ready. Default true. */
+  additionalSubmitGate?: boolean;
 };
 
 function ImportSuccessMessage({ result }: { result: DegiroOk }) {
@@ -75,6 +79,8 @@ export function ImportBrokerSection({
   errorExtra,
   result,
   footer,
+  afterBrokerSelect,
+  additionalSubmitGate = true,
 }: ImportBrokerSectionProps) {
   const pasteTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -90,6 +96,7 @@ export function ImportBrokerSection({
       importBrokers.some((b) => b.id === importBrokerId));
   const canSubmit =
     hasImportTarget &&
+    additionalSubmitGate &&
     (file !== null || (pasteOpen && pasteText.trim().length > 0));
 
   return (
@@ -124,6 +131,7 @@ export function ImportBrokerSection({
         ) : (
           <p className="text-sm text-slate-600">{noImportBrokersMessage}</p>
         )}
+        {afterBrokerSelect}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
             <Button type="button" className="w-28" onClick={onPasteOpenToggle}>

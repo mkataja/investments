@@ -27,6 +27,7 @@ import {
   IMPORT_DEFAULT_BROKER_HINTS,
   filterBrokersByType,
   pickDefaultImportBrokerId,
+  pickDefaultSveaCashInstrumentId,
 } from "./import/importBrokerDefaults";
 import { pastedTextAsImportFile } from "./import/pastedImportFile";
 import {
@@ -36,6 +37,7 @@ import {
   isProposalOk,
   tryParseImportErrorJson,
 } from "./import/types";
+import type { InstrumentListItem } from "./instruments/types";
 
 const CHOOSE_SOURCE_MSG = "Choose a file or paste text first.";
 
@@ -103,6 +105,13 @@ export function ImportPage() {
   const [ibkrBrokerId, setIbkrBrokerId] = useState<number | null>(null);
   const [seligsonBrokerId, setSeligsonBrokerId] = useState<number | null>(null);
   const [sveaBrokerId, setSveaBrokerId] = useState<number | null>(null);
+  const [sveaCashAccounts, setSveaCashAccounts] = useState<
+    InstrumentListItem[]
+  >([]);
+  const [sveaCashAccountsLoading, setSveaCashAccountsLoading] = useState(false);
+  const [sveaCashInstrumentId, setSveaCashInstrumentId] = useState<
+    number | null
+  >(null);
 
   const livePortfolios = useMemo(
     () => portfolios.filter((p) => (p.kind ?? "live") !== "benchmark"),
@@ -193,6 +202,45 @@ export function ImportPage() {
       );
     });
   }, [exchangeBrokers, seligsonBrokers, cashBrokers]);
+
+  useEffect(() => {
+    if (sveaBrokerId == null) {
+      setSveaCashAccounts([]);
+      setSveaCashInstrumentId(null);
+      setSveaCashAccountsLoading(false);
+      return;
+    }
+    setSveaCashAccountsLoading(true);
+    let cancelled = false;
+    void apiGet<InstrumentListItem[]>(`/instruments?brokerId=${sveaBrokerId}`)
+      .then((list) => {
+        if (cancelled) {
+          return;
+        }
+        const cash = list.filter((i) => i.kind === "cash_account");
+        setSveaCashAccounts(cash);
+        setSveaCashInstrumentId((prev) => {
+          if (prev != null && cash.some((c) => c.id === prev)) {
+            return prev;
+          }
+          return pickDefaultSveaCashInstrumentId(cash);
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSveaCashAccounts([]);
+          setSveaCashInstrumentId(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSveaCashAccountsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sveaBrokerId]);
 
   useEffect(() => {
     if (pending === null) {
@@ -475,6 +523,7 @@ export function ImportPage() {
         file: upload,
         portfolioId: importPortfolioId,
         brokerId: sveaBrokerId,
+        instrumentId: sveaCashInstrumentId,
       });
       const data = await apiPostFormData<DegiroOk>("/import/svea", form);
       const ok = parseImportOkResponse(data);
@@ -656,6 +705,10 @@ export function ImportPage() {
         importBrokers={cashBrokers}
         importBrokerId={sveaBrokerId}
         onImportBrokerIdChange={setSveaBrokerId}
+        sveaCashAccounts={sveaCashAccounts}
+        sveaCashAccountsLoading={sveaCashAccountsLoading}
+        sveaCashInstrumentId={sveaCashInstrumentId}
+        onSveaCashInstrumentIdChange={setSveaCashInstrumentId}
         busy={busy}
         sveaError={sveaError}
         sveaResult={sveaResult}

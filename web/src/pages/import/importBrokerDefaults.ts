@@ -71,3 +71,23 @@ export const IMPORT_DEFAULT_BROKER_HINTS = {
   seligson: ["Seligson"],
   svea: ["Svea Bank", "Svea", "svea bank"],
 } as const;
+
+type SveaCashPickRow = { id: number; cashCurrency: string | null };
+
+/** Prefer EUR, then lowest id (stable default when several cash rows exist). */
+export function pickDefaultSveaCashInstrumentId(
+  rows: SveaCashPickRow[],
+): number | null {
+  if (rows.length === 0) {
+    return null;
+  }
+  const eur = rows.filter(
+    (r) => (r.cashCurrency?.trim().toUpperCase() ?? "") === "EUR",
+  );
+  const pool = eur.length > 0 ? eur : rows;
+  const first = pool[0];
+  if (first === undefined) {
+    return null;
+  }
+  return pool.reduce((min, r) => (r.id < min.id ? r : min), first).id;
+}

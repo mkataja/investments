@@ -62,6 +62,7 @@ export function buildSveaImportFormData(args: {
   file: File;
   portfolioId: number | null;
   brokerId?: number | null;
+  instrumentId?: number | null;
 }): FormData {
   const form = new FormData();
   form.append("file", args.file);
@@ -70,6 +71,9 @@ export function buildSveaImportFormData(args: {
   }
   if (args.brokerId != null) {
     form.append("brokerId", String(args.brokerId));
+  }
+  if (args.instrumentId != null) {
+    form.append("instrumentId", String(args.instrumentId));
   }
   return form;
 }

@@ -635,8 +635,10 @@ export async function postImportSeligson(c: Context) {
 
 /**
  * Multipart: `file` (UTF-8 text of the account paste), optional `portfolioId`, optional `brokerId`
- * (`cash_account` broker). Without `brokerId`, falls back to a broker named `Svea Bank`.
- * Expects exactly one EUR `cash_account` instrument for the chosen broker.
+ * (`cash_account` broker), optional `instrumentId` (cash account row for that broker).
+ * Without `brokerId`, falls back to a broker named `Svea Bank`.
+ * With multiple cash accounts for the broker, `instrumentId` is required; with exactly one, it may be omitted.
+ * Amounts are EUR; the chosen instrument must use EUR as cash currency.
  */
 export async function postImportSvea(c: Context) {
   let body: Record<string, unknown>;
@@ -694,6 +696,16 @@ export async function postImportSvea(c: Context) {
   }
   const importPortfolioIdSv = resolvedPortfolioSv.portfolioId;
 
+  const instrumentIdRaw = body.instrumentId;
+  let requestedCashInstrumentId: number | null = null;
+  if (instrumentIdRaw != null && String(instrumentIdRaw).trim() !== "") {
+    const n = Number.parseInt(String(instrumentIdRaw).trim(), 10);
+    if (!Number.isFinite(n) || n < 1) {
+      return c.json({ message: "Invalid instrumentId" }, 400);
+    }
+    requestedCashInstrumentId = n;
+  }
+
   const cashInstRows = await db
     .select()
     .from(instruments)
@@ -712,26 +724,42 @@ export async function postImportSvea(c: Context) {
       400,
     );
   }
-  if (cashInstRows.length > 1) {
+
+  let cashInst: (typeof cashInstRows)[number];
+  if (requestedCashInstrumentId != null) {
+    const row = cashInstRows.find((r) => r.id === requestedCashInstrumentId);
+    if (row === undefined) {
+      return c.json(
+        {
+          message:
+            "instrumentId is not a cash account instrument for this broker",
+        },
+        400,
+      );
+    }
+    cashInst = row;
+  } else if (cashInstRows.length === 1) {
+    const row = cashInstRows[0];
+    if (row === undefined) {
+      return c.json({ message: "No cash account instrument" }, 500);
+    }
+    cashInst = row;
+  } else {
     return c.json(
       {
         message:
-          "Svea import needs exactly one cash account instrument for this broker. Merge or remove extras.",
+          "This broker has multiple cash accounts. Pass instrumentId to choose which one to import into.",
       },
       400,
     );
   }
 
-  const cashInst = cashInstRows[0];
-  if (cashInst === undefined) {
-    return c.json({ message: "No cash account instrument" }, 500);
-  }
   const cashCcy = cashInst.cashCurrency?.trim().toUpperCase() ?? "";
   if (cashCcy !== "EUR") {
     return c.json(
       {
         message:
-          "Svea paste amounts are EUR. Use a EUR cash account instrument for this broker.",
+          "Svea paste amounts are EUR. Use a EUR cash account instrument.",
       },
       400,
     );
