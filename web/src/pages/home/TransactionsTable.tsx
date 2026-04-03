@@ -34,6 +34,8 @@ type TransactionsTableProps = {
   onEdit: (t: HomeTransaction) => void;
   onDeleted: () => void | Promise<void>;
   onError: (message: string | null) => void;
+  /** When true, omit the section h2 (e.g. when a parent tab bar labels the view). */
+  hideSectionTitle?: boolean;
 };
 
 export function TransactionsTable({
@@ -45,10 +47,11 @@ export function TransactionsTable({
   onEdit,
   onDeleted,
   onError,
+  hideSectionTitle = false,
 }: TransactionsTableProps) {
   return (
     <section className="page-section">
-      <h2>Transactions</h2>
+      {hideSectionTitle ? null : <h2>Transactions</h2>}
       <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
         <table className="min-w-full">
           <thead className="bg-slate-100 text-slate-700">

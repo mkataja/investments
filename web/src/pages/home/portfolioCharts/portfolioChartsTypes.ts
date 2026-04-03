@@ -10,4 +10,6 @@ export type PortfolioChartsProps = {
   assetMixHistoryPoints: AssetMixHistoryPoint[];
   /** Labeled Y-axis ticks per distribution bar chart (including 0). Default 5. */
   distributionBarYAxisTickCount?: number;
+  /** When true, omit the section h2 (e.g. when a parent tab bar labels the view). */
+  hideSectionTitle?: boolean;
 };

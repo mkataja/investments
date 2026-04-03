@@ -17,6 +17,8 @@ type HoldingsTableProps = {
   instrumentTickerById: Map<number, string | null>;
   /** Benchmark portfolios use synthetic notionals; hide quantity and unit price columns. */
   hideQtyAndUnitEur?: boolean;
+  /** When true, omit the section h2 (e.g. when a parent tab bar labels the view). */
+  hideSectionTitle?: boolean;
 };
 
 type PortfolioPosition = PortfolioDistributions["positions"][number];
@@ -133,6 +135,7 @@ export function HoldingsTable({
   instrumentById,
   instrumentTickerById,
   hideQtyAndUnitEur = false,
+  hideSectionTitle = false,
 }: HoldingsTableProps) {
   const [holdingTooltip, setHoldingTooltip] =
     useState<HoldingDistributionTooltipState | null>(null);
@@ -163,7 +166,7 @@ export function HoldingsTable({
 
   return (
     <section className="page-section">
-      <h2>Holdings</h2>
+      {hideSectionTitle ? null : <h2>Holdings</h2>}
       <HoldingsSubtable
         title="Cash accounts"
         rows={cashAccounts}

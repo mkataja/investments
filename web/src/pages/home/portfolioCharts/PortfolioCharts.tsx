@@ -47,7 +47,9 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
   return (
     <section className="page-section w-full min-w-0">
       <div className="min-w-0">
-        <h2 className="mb-0">Distributions</h2>
+        {props.hideSectionTitle ? null : (
+          <h2 className="mb-0">Distributions</h2>
+        )}
         <p className="text-slate-600">
           Total estimated portfolio value:{" "}
           <span className="font-semibold">

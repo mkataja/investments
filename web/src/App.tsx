@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import {
   BrowserRouter,
   Link,
@@ -9,6 +9,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { classNames } from "./lib/css";
+import { useSlidingUnderlineIndicator } from "./lib/useSlidingUnderlineIndicator";
 import { BrokersPage } from "./pages/BrokersPage";
 import { HomePage } from "./pages/HomePage";
 import { ImportPage } from "./pages/ImportPage";
@@ -39,46 +40,12 @@ function AppShell() {
   const portfolioRef = useRef<HTMLAnchorElement>(null);
   const instrumentsRef = useRef<HTMLAnchorElement>(null);
   const brokersRef = useRef<HTMLAnchorElement>(null);
-  const [indicator, setIndicator] = useState<{
-    left: number;
-    width: number;
-  } | null>(null);
-
-  const updateIndicator = useCallback(() => {
-    const nav = navRef.current;
-    const refs = [portfolioRef, instrumentsRef, brokersRef];
-    const idx = navActiveIndex(pathname);
-    const el = refs[idx]?.current;
-    if (!nav || !el) {
-      return;
-    }
-    const navRect = nav.getBoundingClientRect();
-    const elRect = el.getBoundingClientRect();
-    setIndicator({
-      left: elRect.left - navRect.left,
-      width: elRect.width,
-    });
-  }, [pathname]);
-
-  useLayoutEffect(() => {
-    updateIndicator();
-  }, [updateIndicator]);
-
-  useLayoutEffect(() => {
-    const nav = navRef.current;
-    if (!nav) {
-      return;
-    }
-    const ro = new ResizeObserver(() => {
-      updateIndicator();
-    });
-    ro.observe(nav);
-    window.addEventListener("resize", updateIndicator);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", updateIndicator);
-    };
-  }, [updateIndicator]);
+  const navIdx = navActiveIndex(pathname);
+  const indicator = useSlidingUnderlineIndicator(
+    navRef,
+    [portfolioRef, instrumentsRef, brokersRef],
+    navIdx,
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">

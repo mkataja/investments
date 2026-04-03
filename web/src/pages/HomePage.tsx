@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import {
@@ -9,11 +9,117 @@ import { EditPortfolioModal } from "./home/EditPortfolioModal";
 import { HoldingsTable } from "./home/HoldingsTable";
 import { NewPortfolioModal } from "./home/NewPortfolioModal";
 import { NewTransactionModal } from "./home/NewTransactionModal";
+import {
+  type PortfolioSubTab,
+  PortfolioTabStrip,
+} from "./home/PortfolioTabStrip";
 import { TransactionsTable } from "./home/TransactionsTable";
 import { buildInstrumentTickerById } from "./home/instrumentTickerCell";
 import { PortfolioCharts } from "./home/portfolioCharts/PortfolioCharts";
-import type { HomeTransaction } from "./home/types";
+import type {
+  AssetMixHistoryPoint,
+  HomeInstrument,
+  HomeTransaction,
+  PortfolioDistributions,
+} from "./home/types";
 import { useHomeData } from "./home/useHomeData";
+
+type PortfolioTabPanelsProps = {
+  activeTab: PortfolioSubTab;
+  portfolio: PortfolioDistributions;
+  comparePortfolio: PortfolioDistributions | null;
+  showDistributionCompare: boolean;
+  selectedPortfolioLabel: string;
+  comparePortfolioLabel: string;
+  assetMixHistoryPoints: AssetMixHistoryPoint[];
+  selectedIsBenchmark: boolean;
+  instrumentById: Map<number, HomeInstrument>;
+  instrumentTickerById: Map<number, string | null>;
+  instrumentNameById: Map<number, string>;
+  brokerNameById: Map<number, string>;
+  transactions: HomeTransaction[];
+  load: () => void | Promise<void>;
+  setError: (message: string | null) => void;
+  onEditTransaction: (t: HomeTransaction) => void;
+};
+
+function PortfolioTabPanels({
+  activeTab,
+  portfolio,
+  comparePortfolio,
+  showDistributionCompare,
+  selectedPortfolioLabel,
+  comparePortfolioLabel,
+  assetMixHistoryPoints,
+  selectedIsBenchmark,
+  instrumentById,
+  instrumentTickerById,
+  instrumentNameById,
+  brokerNameById,
+  transactions,
+  load,
+  setError,
+  onEditTransaction,
+}: PortfolioTabPanelsProps) {
+  return (
+    <div className="page-section">
+      {activeTab === "distributions" ? (
+        <div
+          role="tabpanel"
+          id="portfolio-panel-distributions"
+          aria-labelledby="portfolio-tab-distributions"
+          className="min-w-0"
+        >
+          <PortfolioCharts
+            portfolio={portfolio}
+            comparePortfolio={comparePortfolio}
+            showDistributionCompare={showDistributionCompare}
+            selectedPortfolioLabel={selectedPortfolioLabel}
+            comparePortfolioLabel={comparePortfolioLabel}
+            assetMixHistoryPoints={assetMixHistoryPoints}
+            hideSectionTitle
+          />
+        </div>
+      ) : null}
+      {activeTab === "holdings" ? (
+        <div
+          role="tabpanel"
+          id="portfolio-panel-holdings"
+          aria-labelledby="portfolio-tab-holdings"
+          className="min-w-0"
+        >
+          <HoldingsTable
+            portfolio={portfolio}
+            instrumentById={instrumentById}
+            instrumentTickerById={instrumentTickerById}
+            hideQtyAndUnitEur={selectedIsBenchmark}
+            hideSectionTitle
+          />
+        </div>
+      ) : null}
+      {activeTab === "transactions" ? (
+        <div
+          role="tabpanel"
+          id="portfolio-panel-transactions"
+          aria-labelledby="portfolio-tab-transactions"
+          className="min-w-0"
+        >
+          <TransactionsTable
+            transactions={transactions}
+            brokerNameById={brokerNameById}
+            instrumentById={instrumentById}
+            instrumentNameById={instrumentNameById}
+            instrumentTickerById={instrumentTickerById}
+            onEdit={onEditTransaction}
+            onDeleted={load}
+            onError={setError}
+            hideSectionTitle
+          />
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export function HomePage() {
   const {
@@ -100,6 +206,14 @@ export function HomePage() {
   const [txnModalOpen, setTxnModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] =
     useState<HomeTransaction | null>(null);
+
+  const [portfolioSubTab, setPortfolioSubTab] =
+    useState<PortfolioSubTab>("distributions");
+
+  useEffect(() => {
+    void selectedPortfolioId;
+    setPortfolioSubTab("distributions");
+  }, [selectedPortfolioId]);
 
   return (
     <div className="w-full min-w-0 page-stack">
@@ -209,6 +323,12 @@ export function HomePage() {
           </div>
         </div>
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
+        {portfolio && selectedPortfolioId != null ? (
+          <PortfolioTabStrip
+            activeTab={portfolioSubTab}
+            onTabChange={setPortfolioSubTab}
+          />
+        ) : null}
       </header>
 
       <NewPortfolioModal
@@ -253,40 +373,30 @@ export function HomePage() {
         onError={setError}
       />
 
-      {portfolio ? (
-        <div className="page-section">
-          <PortfolioCharts
-            portfolio={portfolio}
-            comparePortfolio={comparePortfolio}
-            showDistributionCompare={showDistributionCompare}
-            selectedPortfolioLabel={selectedPortfolioLabel}
-            comparePortfolioLabel={comparePortfolioLabel}
-            assetMixHistoryPoints={assetMixHistoryPoints}
-          />
-          <HoldingsTable
-            portfolio={portfolio}
-            instrumentById={instrumentById}
-            instrumentTickerById={instrumentTickerById}
-            hideQtyAndUnitEur={selectedIsBenchmark}
-          />
-        </div>
-      ) : null}
-
-      {selectedIsBenchmark ? null : (
-        <TransactionsTable
-          transactions={transactions}
-          brokerNameById={brokerNameById}
+      {portfolio && selectedPortfolioId != null ? (
+        <PortfolioTabPanels
+          key={selectedPortfolioId}
+          activeTab={portfolioSubTab}
+          portfolio={portfolio}
+          comparePortfolio={comparePortfolio}
+          showDistributionCompare={showDistributionCompare}
+          selectedPortfolioLabel={selectedPortfolioLabel}
+          comparePortfolioLabel={comparePortfolioLabel}
+          assetMixHistoryPoints={assetMixHistoryPoints}
+          selectedIsBenchmark={selectedIsBenchmark}
           instrumentById={instrumentById}
-          instrumentNameById={instrumentNameById}
           instrumentTickerById={instrumentTickerById}
-          onEdit={(t) => {
+          instrumentNameById={instrumentNameById}
+          brokerNameById={brokerNameById}
+          transactions={transactions}
+          load={load}
+          setError={setError}
+          onEditTransaction={(t) => {
             setEditingTransaction(t);
             setTxnModalOpen(true);
           }}
-          onDeleted={load}
-          onError={setError}
         />
-      )}
+      ) : null}
     </div>
   );
 }

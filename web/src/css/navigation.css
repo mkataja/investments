@@ -31,8 +31,42 @@
       bottom-0
       h-0.5
       rounded-full
-      bg-emerald-600;
+      bg-emerald-500;
     transition: left 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s
       cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* In-page sub-tabs (inside `page-header-sticky`; bottom rule is header border-b). */
+  .page-subtabs {
+    @apply relative
+      -mx-1
+      flex
+      flex-wrap
+      gap-3;
+  }
+
+  .page-subtab {
+    @apply rounded-t
+      px-1
+      py-2
+      text-sm
+      font-medium
+      tracking-wide
+      text-slate-600
+      transition-colors
+      duration-150
+      hover:text-slate-900
+      focus:outline-none
+      focus-visible:ring-2
+      focus-visible:ring-emerald-500
+      focus-visible:ring-offset-2;
+  }
+
+  .page-subtab-active {
+    @apply text-slate-900;
+  }
+
+  .page-subtab-indicator {
+    @apply nav-bar-indicator;
   }
 }

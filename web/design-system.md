@@ -38,6 +38,8 @@ Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`headi
 | `subsection-stack` | `h3` + table/chart block |
 | `page-header-stack` | Title row (back link, `h1`, meta) |
 | `page-header-sticky` | Sticky title bar — combine with `page-header-stack` or a flex title row (`sticky`, border, `bg-slate-50`) |
+| `page-subtabs` / `page-subtab` / `page-subtab-active` | Portfolio sub-tab row inside `page-header-sticky` with the Portfolio `h1` (`HomePage.tsx`) |
+| `page-subtab-indicator` | Animated underline for portfolio sub-tabs — same transition as `nav-bar-indicator` (`navigation.css`) |
 | `modal-stack` | Modal body |
 | `modal-title` | Modal `h2` |
 | `form-stack` | Compact stacked form |
