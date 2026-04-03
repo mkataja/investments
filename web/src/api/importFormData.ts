@@ -7,6 +7,7 @@ export function buildDegiroImportFormData(args: {
     yahooSymbol: string;
     kind: "etf" | "stock";
   }>;
+  deleteAllOld?: boolean;
 }): FormData {
   const form = new FormData();
   form.append("file", args.file);
@@ -19,6 +20,9 @@ export function buildDegiroImportFormData(args: {
   if (args.createInstruments != null) {
     form.append("createInstruments", JSON.stringify(args.createInstruments));
   }
+  if (args.deleteAllOld === true) {
+    form.append("deleteAllOld", "true");
+  }
   return form;
 }
 
@@ -26,6 +30,7 @@ export function buildIbkrImportFormData(args: {
   file: File;
   portfolioId: number | null;
   brokerId?: number | null;
+  deleteAllOld?: boolean;
 }): FormData {
   const form = new FormData();
   form.append("file", args.file);
@@ -35,6 +40,9 @@ export function buildIbkrImportFormData(args: {
   if (args.brokerId != null) {
     form.append("brokerId", String(args.brokerId));
   }
+  if (args.deleteAllOld === true) {
+    form.append("deleteAllOld", "true");
+  }
   return form;
 }
 
@@ -43,6 +51,7 @@ export function buildSeligsonImportFormData(args: {
   portfolioId: number | null;
   brokerId?: number | null;
   skipMissingInstruments?: boolean;
+  deleteAllOld?: boolean;
 }): FormData {
   const form = new FormData();
   form.append("file", args.file);
@@ -55,6 +64,9 @@ export function buildSeligsonImportFormData(args: {
   if (args.skipMissingInstruments === true) {
     form.append("skipMissingInstruments", "true");
   }
+  if (args.deleteAllOld === true) {
+    form.append("deleteAllOld", "true");
+  }
   return form;
 }
 
@@ -63,6 +75,7 @@ export function buildSveaImportFormData(args: {
   portfolioId: number | null;
   brokerId?: number | null;
   instrumentId?: number | null;
+  deleteAllOld?: boolean;
 }): FormData {
   const form = new FormData();
   form.append("file", args.file);
@@ -74,6 +87,9 @@ export function buildSveaImportFormData(args: {
   }
   if (args.instrumentId != null) {
     form.append("instrumentId", String(args.instrumentId));
+  }
+  if (args.deleteAllOld === true) {
+    form.append("deleteAllOld", "true");
   }
   return form;
 }

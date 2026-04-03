@@ -3,7 +3,7 @@ import { normalizeYahooSymbolForStorage } from "@investments/lib/yahooSymbol";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import { z } from "zod";
-import { db } from "../../db.js";
+import { type DbOrTx, db } from "../../db.js";
 import { buildDegiroInstrumentProposals } from "../../import/degiroInstrumentProposals.js";
 import { resolveDegiroInstrumentIds } from "../../import/degiroResolveInstruments.js";
 import {
@@ -28,6 +28,11 @@ import { seedIntradayPriceForInstrumentIfMissing } from "../instrument/transacti
 import { resolvePortfolioIdFromImportBody } from "../portfolio/portfolioAccess.js";
 import { insertEtfStockFromYahoo } from "../yahoo/createYahooInstrument.js";
 import { formatYahooUpstreamError } from "../yahoo/yahooUpstream.js";
+import {
+  deleteTransactionsForBrokerImport,
+  deleteTransactionsForSveaCashAccountImport,
+  parseMultipartBooleanField,
+} from "./deleteBeforeImport.js";
 import { resolveImportBrokerFromBody } from "./resolveImportBroker.js";
 
 const createDegiroInstrumentsSchema = z.array(
@@ -37,6 +42,46 @@ const createDegiroInstrumentsSchema = z.array(
     kind: z.enum(["etf", "stock"]),
   }),
 );
+
+type TransactionInsertRow = typeof transactions.$inferInsert;
+
+async function insertImportTransactions(
+  client: DbOrTx,
+  values: TransactionInsertRow[],
+) {
+  return client
+    .insert(transactions)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [
+        transactions.brokerId,
+        transactions.externalSource,
+        transactions.externalId,
+      ],
+      set: {
+        userId: sql`excluded.user_id`,
+        portfolioId: sql`excluded.portfolio_id`,
+        tradeDate: sql`excluded.trade_date`,
+        side: sql`excluded.side`,
+        instrumentId: sql`excluded.instrument_id`,
+        quantity: sql`excluded.quantity`,
+        unitPrice: sql`excluded.unit_price`,
+        currency: sql`excluded.currency`,
+      },
+      setWhere: sql`(
+        ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
+        OR ${transactions.side} IS DISTINCT FROM ${sql.raw("excluded.side")}
+        OR ${transactions.instrumentId} IS DISTINCT FROM ${sql.raw("excluded.instrument_id")}
+        OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
+        OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
+        OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
+        OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
+      )`,
+    })
+    .returning({ id: transactions.id });
+}
+
+/** Multipart: `file`, optional `deleteAllOld` (remove all transactions for the import broker before upsert). */
 export async function postImportDegiro(c: Context) {
   let body: Record<string, unknown>;
   try {
@@ -218,36 +263,24 @@ export async function postImportDegiro(c: Context) {
     };
   });
 
-  const written = await db
-    .insert(transactions)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [
-        transactions.brokerId,
-        transactions.externalSource,
-        transactions.externalId,
-      ],
-      set: {
-        userId: sql`excluded.user_id`,
-        portfolioId: sql`excluded.portfolio_id`,
-        tradeDate: sql`excluded.trade_date`,
-        side: sql`excluded.side`,
-        instrumentId: sql`excluded.instrument_id`,
-        quantity: sql`excluded.quantity`,
-        unitPrice: sql`excluded.unit_price`,
-        currency: sql`excluded.currency`,
-      },
-      setWhere: sql`(
-        ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
-        OR ${transactions.side} IS DISTINCT FROM ${sql.raw("excluded.side")}
-        OR ${transactions.instrumentId} IS DISTINCT FROM ${sql.raw("excluded.instrument_id")}
-        OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
-        OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
-        OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
-        OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
-      )`,
-    })
-    .returning({ id: transactions.id });
+  const deleteAllOld = parseMultipartBooleanField(body, "deleteAllOld");
+  let deletedOld: number | undefined;
+  let written: { id: number }[];
+  if (deleteAllOld) {
+    const out = await db.transaction(async (tx) => {
+      const n = await deleteTransactionsForBrokerImport(
+        tx,
+        degiroBroker.id,
+        degiroBroker.userId,
+      );
+      const w = await insertImportTransactions(tx, values);
+      return { n, w };
+    });
+    deletedOld = out.n;
+    written = out.w;
+  } else {
+    written = await insertImportTransactions(db, values);
+  }
 
   const processed = values.length;
   const changed = written.length;
@@ -262,9 +295,16 @@ export async function postImportDegiro(c: Context) {
     });
   }
 
-  return c.json({ ok: true, processed, changed, unchanged });
+  return c.json({
+    ok: true,
+    processed,
+    changed,
+    unchanged,
+    ...(deletedOld !== undefined ? { deletedOld } : {}),
+  });
 }
 
+/** Multipart: `file`, optional `deleteAllOld` (remove all transactions for the import broker before upsert). */
 export async function postImportIbkr(c: Context) {
   let body: Record<string, unknown>;
   try {
@@ -367,39 +407,27 @@ export async function postImportIbkr(c: Context) {
     };
   });
 
-  const written = await db
-    .insert(transactions)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [
-        transactions.brokerId,
-        transactions.externalSource,
-        transactions.externalId,
-      ],
-      set: {
-        userId: sql`excluded.user_id`,
-        portfolioId: sql`excluded.portfolio_id`,
-        tradeDate: sql`excluded.trade_date`,
-        side: sql`excluded.side`,
-        instrumentId: sql`excluded.instrument_id`,
-        quantity: sql`excluded.quantity`,
-        unitPrice: sql`excluded.unit_price`,
-        currency: sql`excluded.currency`,
-      },
-      setWhere: sql`(
-        ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
-        OR ${transactions.side} IS DISTINCT FROM ${sql.raw("excluded.side")}
-        OR ${transactions.instrumentId} IS DISTINCT FROM ${sql.raw("excluded.instrument_id")}
-        OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
-        OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
-        OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
-        OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
-      )`,
-    })
-    .returning({ id: transactions.id });
+  const deleteAllOldIbkr = parseMultipartBooleanField(body, "deleteAllOld");
+  let deletedOldIbkr: number | undefined;
+  let writtenIbkr: { id: number }[];
+  if (deleteAllOldIbkr) {
+    const outIbkr = await db.transaction(async (tx) => {
+      const n = await deleteTransactionsForBrokerImport(
+        tx,
+        ibkrBroker.id,
+        ibkrBroker.userId,
+      );
+      const w = await insertImportTransactions(tx, values);
+      return { n, w };
+    });
+    deletedOldIbkr = outIbkr.n;
+    writtenIbkr = outIbkr.w;
+  } else {
+    writtenIbkr = await insertImportTransactions(db, values);
+  }
 
   const processed = values.length;
-  const changed = written.length;
+  const changed = writtenIbkr.length;
   const unchanged = processed - changed;
 
   for (const v of values) {
@@ -411,9 +439,16 @@ export async function postImportIbkr(c: Context) {
     });
   }
 
-  return c.json({ ok: true, processed, changed, unchanged });
+  return c.json({
+    ok: true,
+    processed,
+    changed,
+    unchanged,
+    ...(deletedOldIbkr !== undefined ? { deletedOld: deletedOldIbkr } : {}),
+  });
 }
 
+/** Multipart: `file`, optional `deleteAllOld` (remove all transactions for the import broker before upsert). */
 export async function postImportSeligson(c: Context) {
   let body: Record<string, unknown>;
   try {
@@ -580,39 +615,27 @@ export async function postImportSeligson(c: Context) {
     };
   });
 
-  const written = await db
-    .insert(transactions)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [
-        transactions.brokerId,
-        transactions.externalSource,
-        transactions.externalId,
-      ],
-      set: {
-        userId: sql`excluded.user_id`,
-        portfolioId: sql`excluded.portfolio_id`,
-        tradeDate: sql`excluded.trade_date`,
-        side: sql`excluded.side`,
-        instrumentId: sql`excluded.instrument_id`,
-        quantity: sql`excluded.quantity`,
-        unitPrice: sql`excluded.unit_price`,
-        currency: sql`excluded.currency`,
-      },
-      setWhere: sql`(
-        ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
-        OR ${transactions.side} IS DISTINCT FROM ${sql.raw("excluded.side")}
-        OR ${transactions.instrumentId} IS DISTINCT FROM ${sql.raw("excluded.instrument_id")}
-        OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
-        OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
-        OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
-        OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
-      )`,
-    })
-    .returning({ id: transactions.id });
+  const deleteAllOldSg = parseMultipartBooleanField(body, "deleteAllOld");
+  let deletedOldSg: number | undefined;
+  let writtenSg: { id: number }[];
+  if (deleteAllOldSg) {
+    const outSg = await db.transaction(async (tx) => {
+      const n = await deleteTransactionsForBrokerImport(
+        tx,
+        seligsonBroker.id,
+        seligsonBroker.userId,
+      );
+      const w = await insertImportTransactions(tx, values);
+      return { n, w };
+    });
+    deletedOldSg = outSg.n;
+    writtenSg = outSg.w;
+  } else {
+    writtenSg = await insertImportTransactions(db, values);
+  }
 
   const processed = values.length;
-  const changed = written.length;
+  const changed = writtenSg.length;
   const unchanged = processed - changed;
 
   for (const v of values) {
@@ -630,12 +653,14 @@ export async function postImportSeligson(c: Context) {
     changed,
     unchanged,
     ...(skippedRows > 0 ? { skippedRows } : {}),
+    ...(deletedOldSg !== undefined ? { deletedOld: deletedOldSg } : {}),
   });
 }
 
 /**
  * Multipart: `file` (UTF-8 text of the account paste), optional `portfolioId`, optional `brokerId`
- * (`cash_account` broker), optional `instrumentId` (cash account row for that broker).
+ * (`cash_account` broker), optional `instrumentId` (cash account row for that broker),
+ * optional `deleteAllOld` (clears existing transactions for that cash account before import).
  * Without `brokerId`, falls back to a broker named `Svea Bank`.
  * With multiple cash accounts for the broker, `instrumentId` is required; with exactly one, it may be omitted.
  * Amounts are EUR; the chosen instrument must use EUR as cash currency.
@@ -781,39 +806,28 @@ export async function postImportSvea(c: Context) {
     externalId: r.externalId,
   }));
 
-  const written = await db
-    .insert(transactions)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [
-        transactions.brokerId,
-        transactions.externalSource,
-        transactions.externalId,
-      ],
-      set: {
-        userId: sql`excluded.user_id`,
-        portfolioId: sql`excluded.portfolio_id`,
-        tradeDate: sql`excluded.trade_date`,
-        side: sql`excluded.side`,
-        instrumentId: sql`excluded.instrument_id`,
-        quantity: sql`excluded.quantity`,
-        unitPrice: sql`excluded.unit_price`,
-        currency: sql`excluded.currency`,
-      },
-      setWhere: sql`(
-        ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
-        OR ${transactions.side} IS DISTINCT FROM ${sql.raw("excluded.side")}
-        OR ${transactions.instrumentId} IS DISTINCT FROM ${sql.raw("excluded.instrument_id")}
-        OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
-        OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
-        OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
-        OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
-      )`,
-    })
-    .returning({ id: transactions.id });
+  const deleteAllOldSv = parseMultipartBooleanField(body, "deleteAllOld");
+  let deletedOldSv: number | undefined;
+  let writtenSv: { id: number }[];
+  if (deleteAllOldSv) {
+    const outSv = await db.transaction(async (tx) => {
+      const n = await deleteTransactionsForSveaCashAccountImport(
+        tx,
+        sveaBroker.id,
+        sveaBroker.userId,
+        instrumentId,
+      );
+      const w = await insertImportTransactions(tx, values);
+      return { n, w };
+    });
+    deletedOldSv = outSv.n;
+    writtenSv = outSv.w;
+  } else {
+    writtenSv = await insertImportTransactions(db, values);
+  }
 
   const processed = values.length;
-  const changed = written.length;
+  const changed = writtenSv.length;
   const unchanged = processed - changed;
 
   for (const v of values) {
@@ -825,5 +839,11 @@ export async function postImportSvea(c: Context) {
     });
   }
 
-  return c.json({ ok: true, processed, changed, unchanged });
+  return c.json({
+    ok: true,
+    processed,
+    changed,
+    unchanged,
+    ...(deletedOldSv !== undefined ? { deletedOld: deletedOldSv } : {}),
+  });
 }

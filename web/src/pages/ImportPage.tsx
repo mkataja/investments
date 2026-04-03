@@ -98,6 +98,10 @@ export function ImportPage() {
   const [importPortfolioId, setImportPortfolioId] = useState<number | null>(
     null,
   );
+  const [deleteAllOldDegiro, setDeleteAllOldDegiro] = useState(false);
+  const [deleteAllOldIbkr, setDeleteAllOldIbkr] = useState(false);
+  const [deleteAllOldSeligson, setDeleteAllOldSeligson] = useState(false);
+  const [deleteAllOldSvea, setDeleteAllOldSvea] = useState(false);
 
   const [brokers, setBrokers] = useState<HomeBroker[]>([]);
 
@@ -302,6 +306,7 @@ export function ImportPage() {
         file: upload,
         portfolioId: importPortfolioId,
         brokerId: degiroBrokerId,
+        deleteAllOld: deleteAllOldDegiro,
       });
       const data = await apiPostFormData<
         DegiroOk | DegiroNeedsInstruments | { message?: string }
@@ -355,6 +360,7 @@ export function ImportPage() {
           yahooSymbol: p.yahooSymbol,
           kind: p.kind,
         })),
+        deleteAllOld: deleteAllOldDegiro,
       });
       const data = await apiPostFormData<DegiroOk | DegiroNeedsInstruments>(
         "/import/degiro",
@@ -399,6 +405,7 @@ export function ImportPage() {
         file: upload,
         portfolioId: importPortfolioId,
         brokerId: ibkrBrokerId,
+        deleteAllOld: deleteAllOldIbkr,
       });
       const data = await apiPostFormData<DegiroOk>("/import/ibkr", form);
       const ok = parseImportOkResponse(data);
@@ -460,6 +467,7 @@ export function ImportPage() {
         portfolioId: importPortfolioId,
         brokerId: seligsonBrokerId,
         skipMissingInstruments,
+        deleteAllOld: deleteAllOldSeligson,
       });
       const data = await apiPostFormData<DegiroOk>("/import/seligson", form);
       const ok = parseImportOkResponse(data);
@@ -524,6 +532,7 @@ export function ImportPage() {
         portfolioId: importPortfolioId,
         brokerId: sveaBrokerId,
         instrumentId: sveaCashInstrumentId,
+        deleteAllOld: deleteAllOldSvea,
       });
       const data = await apiPostFormData<DegiroOk>("/import/svea", form);
       const ok = parseImportOkResponse(data);
@@ -604,6 +613,8 @@ export function ImportPage() {
         setSelectedIsin={setSelectedIsin}
         onSubmitDegiro={onSubmitDegiro}
         onConfirmAddAndImport={onConfirmAddAndImport}
+        deleteAllOld={deleteAllOldDegiro}
+        onDeleteAllOldChange={setDeleteAllOldDegiro}
       />
 
       <ImportIbkrSection
@@ -653,6 +664,8 @@ export function ImportPage() {
         ibkrAmbiguousIsins={ibkrAmbiguousIsins}
         ibkrMissingIsins={ibkrMissingIsins}
         onSubmitIbkr={onSubmitIbkr}
+        deleteAllOld={deleteAllOldIbkr}
+        onDeleteAllOldChange={setDeleteAllOldIbkr}
       />
 
       <ImportSeligsonSection
@@ -699,6 +712,8 @@ export function ImportPage() {
         onImportAnyway={() => {
           void submitSeligson(true);
         }}
+        deleteAllOld={deleteAllOldSeligson}
+        onDeleteAllOldChange={setDeleteAllOldSeligson}
       />
 
       <ImportSveaSection
@@ -740,6 +755,8 @@ export function ImportPage() {
         }}
         sveaFileInputRef={sveaFileInputRef}
         onSubmitSvea={onSubmitSvea}
+        deleteAllOld={deleteAllOldSvea}
+        onDeleteAllOldChange={setDeleteAllOldSvea}
       />
     </div>
   );

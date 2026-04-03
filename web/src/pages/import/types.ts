@@ -4,6 +4,8 @@ export type DegiroOk = {
   changed: number;
   unchanged: number;
   skippedRows?: number;
+  /** Present when import ran with delete-all-old for this broker or Svea account. */
+  deletedOld?: number;
 };
 
 export type DegiroProposalOk = {

@@ -22,6 +22,8 @@ type ImportSeligsonSectionProps = {
   seligsonAmbiguousFunds: string[] | null;
   onSubmitSeligson: (e: FormEvent) => void;
   onImportAnyway: () => void;
+  deleteAllOld: boolean;
+  onDeleteAllOldChange: (next: boolean) => void;
 };
 
 export function ImportSeligsonSection({
@@ -42,6 +44,8 @@ export function ImportSeligsonSection({
   seligsonAmbiguousFunds,
   onSubmitSeligson,
   onImportAnyway,
+  deleteAllOld,
+  onDeleteAllOldChange,
 }: ImportSeligsonSectionProps) {
   const intro = (
     <div className="space-y-2">
@@ -123,6 +127,10 @@ export function ImportSeligsonSection({
       error={seligsonError}
       errorExtra={errorExtra}
       result={seligsonResult}
+      deleteAllOldControl={{
+        checked: deleteAllOld,
+        onChange: onDeleteAllOldChange,
+      }}
     />
   );
 }

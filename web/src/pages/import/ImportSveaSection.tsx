@@ -28,6 +28,8 @@ type ImportSveaSectionProps = {
   onSveaPasteChange: (value: string) => void;
   sveaFileInputRef: RefObject<HTMLInputElement | null>;
   onSubmitSvea: (e: FormEvent) => void;
+  deleteAllOld: boolean;
+  onDeleteAllOldChange: (next: boolean) => void;
 };
 
 export function ImportSveaSection({
@@ -49,6 +51,8 @@ export function ImportSveaSection({
   onSveaPasteChange,
   sveaFileInputRef,
   onSubmitSvea,
+  deleteAllOld,
+  onDeleteAllOldChange,
 }: ImportSveaSectionProps) {
   const intro = (
     <div className="space-y-2">
@@ -135,6 +139,12 @@ export function ImportSveaSection({
       onSubmit={onSubmitSvea}
       error={sveaError}
       result={sveaResult}
+      deleteAllOldControl={{
+        checked: deleteAllOld,
+        onChange: onDeleteAllOldChange,
+        labelText:
+          "Remove all existing transactions for this cash account before import",
+      }}
     />
   );
 }

@@ -28,6 +28,8 @@ type ImportDegiroSectionProps = {
   setSelectedIsin: Dispatch<SetStateAction<Record<string, boolean>>>;
   onSubmitDegiro: (e: FormEvent) => void | Promise<void>;
   onConfirmAddAndImport: (e: FormEvent) => void | Promise<void>;
+  deleteAllOld: boolean;
+  onDeleteAllOldChange: (next: boolean) => void;
 };
 
 export function ImportDegiroSection({
@@ -49,6 +51,8 @@ export function ImportDegiroSection({
   setSelectedIsin,
   onSubmitDegiro,
   onConfirmAddAndImport,
+  deleteAllOld,
+  onDeleteAllOldChange,
 }: ImportDegiroSectionProps) {
   const intro = (
     <>
@@ -149,6 +153,10 @@ export function ImportDegiroSection({
       error={error}
       result={result}
       footer={footer}
+      deleteAllOldControl={{
+        checked: deleteAllOld,
+        onChange: onDeleteAllOldChange,
+      }}
     />
   );
 }

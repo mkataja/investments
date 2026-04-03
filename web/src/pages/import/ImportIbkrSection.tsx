@@ -22,6 +22,8 @@ type ImportIbkrSectionProps = {
   ibkrAmbiguousIsins: string[] | null;
   ibkrMissingIsins: string[] | null;
   onSubmitIbkr: (e: FormEvent) => void | Promise<void>;
+  deleteAllOld: boolean;
+  onDeleteAllOldChange: (next: boolean) => void;
 };
 
 export function ImportIbkrSection({
@@ -43,6 +45,8 @@ export function ImportIbkrSection({
   ibkrAmbiguousIsins,
   ibkrMissingIsins,
   onSubmitIbkr,
+  deleteAllOld,
+  onDeleteAllOldChange,
 }: ImportIbkrSectionProps) {
   const intro = (
     <div className="space-y-3">
@@ -162,6 +166,10 @@ export function ImportIbkrSection({
       error={ibkrError}
       errorExtra={errorExtra}
       result={ibkrResult}
+      deleteAllOldControl={{
+        checked: deleteAllOld,
+        onChange: onDeleteAllOldChange,
+      }}
     />
   );
 }

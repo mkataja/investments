@@ -6,6 +6,15 @@ import { FileBrowseButton } from "../../components/FileBrowseButton";
 import type { HomeBroker } from "../home/types";
 import type { DegiroOk } from "./types";
 
+const DEFAULT_DELETE_ALL_OLD_LABEL_TEXT =
+  "Remove all existing transactions for this broker before import";
+
+type ImportDeleteAllOldControl = {
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  labelText?: string;
+};
+
 type ImportBrokerSectionProps = {
   title: string;
   intro: ReactNode;
@@ -36,11 +45,18 @@ type ImportBrokerSectionProps = {
   afterBrokerSelect?: ReactNode;
   /** When false, Import stays disabled even if a file or paste is ready. Default true. */
   additionalSubmitGate?: boolean;
+  /** Shown just before paste/browse when brokers exist, after optional cash-account row (Svea). */
+  deleteAllOldControl?: ImportDeleteAllOldControl;
 };
 
 function ImportSuccessMessage({ result }: { result: DegiroOk }) {
   return (
     <p className="copy-success">
+      {result.deletedOld != null && result.deletedOld > 0
+        ? `Removed ${result.deletedOld} previous transaction${
+            result.deletedOld === 1 ? "" : "s"
+          }. `
+        : null}
       Processed {result.processed} transaction
       {result.processed === 1 ? "" : "s"}: {result.changed} written to the
       database
@@ -81,6 +97,7 @@ export function ImportBrokerSection({
   footer,
   afterBrokerSelect,
   additionalSubmitGate = true,
+  deleteAllOldControl,
 }: ImportBrokerSectionProps) {
   const pasteTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -132,6 +149,24 @@ export function ImportBrokerSection({
           <p className="text-sm text-slate-600">{noImportBrokersMessage}</p>
         )}
         {afterBrokerSelect}
+        {importBrokers.length > 0 && deleteAllOldControl != null ? (
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-1 ml-1"
+              checked={deleteAllOldControl.checked}
+              onChange={(e) => {
+                deleteAllOldControl.onChange(e.target.checked);
+              }}
+            />
+            <span>
+              <span className="font-medium text-slate-900">
+                {deleteAllOldControl.labelText ??
+                  DEFAULT_DELETE_ALL_OLD_LABEL_TEXT}
+              </span>
+            </span>
+          </label>
+        ) : null}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
             <Button type="button" className="w-28" onClick={onPasteOpenToggle}>
