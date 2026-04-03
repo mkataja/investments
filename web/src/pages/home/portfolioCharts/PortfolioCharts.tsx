@@ -14,7 +14,8 @@ const WorldCountryChoropleth = lazy(async () => ({
   default: (await import("./WorldCountryChoropleth")).WorldCountryChoropleth,
 }));
 
-const DIAMOND_HANDS_TOGGLE_TIP = "Simulates HODL: never sell, allow leverage on virtual cash";
+const DIAMOND_HANDS_TOGGLE_TIP =
+  "Simulates HODL: never sell, allow leverage on virtual cash";
 
 export function PortfolioCharts(props: PortfolioChartsProps) {
   const diamondHandsTipId = useId();

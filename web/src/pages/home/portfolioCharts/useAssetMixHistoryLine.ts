@@ -14,7 +14,7 @@ import {
   yTickShort,
 } from "./portfolioHistorySeriesChartUtils";
 
-const VIRTUAL_INPUT_LABEL = "Input money (virtual)";
+const VIRTUAL_LEVERAGE_LABEL = "Leverage (virtual)";
 
 type AssetMixHistoryChartResult = {
   data: ChartData<"line">;
@@ -61,11 +61,11 @@ export function useAssetMixHistoryLine(
         rawSeries.some((v) => Number.isFinite(v) && v > 0),
       );
 
-    const virtualRawSeries = points.map((p) => p.virtualInputMoneyEur ?? 0);
+    const virtualRawSeries = points.map((p) => p.virtualLeverageEur ?? 0);
     const includeVirtualSleeve =
       lineHodlMode && virtualRawSeries.some((v) => Number.isFinite(v) && v < 0);
 
-    const virtualFill = PORTFOLIO_ASSET_MIX_COLORS.virtualInputMoney;
+    const virtualFill = PORTFOLIO_ASSET_MIX_COLORS.virtualLeverage;
 
     type Spec =
       | (typeof filteredSpecs)[number]
@@ -79,7 +79,7 @@ export function useAssetMixHistoryLine(
       ? [
           ...filteredSpecs,
           {
-            row: { name: VIRTUAL_INPUT_LABEL, fill: virtualFill },
+            row: { name: VIRTUAL_LEVERAGE_LABEL, fill: virtualFill },
             rawSeries: virtualRawSeries,
             mapValue: lineChartValueFromRawSeriesNonPositive,
           },
