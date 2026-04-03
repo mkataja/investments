@@ -14,7 +14,7 @@ import {
   parseDegiroImportResponse,
   parseImportOkResponse,
 } from "../api/importResponses";
-import type { PortfolioEntity } from "./home/types";
+import type { HomeBroker, PortfolioEntity } from "./home/types";
 import { ImportDegiroSection } from "./import/ImportDegiroSection";
 import { ImportIbkrSection } from "./import/ImportIbkrSection";
 import {
@@ -23,6 +23,11 @@ import {
 } from "./import/ImportPortfolioPicker";
 import { ImportSeligsonSection } from "./import/ImportSeligsonSection";
 import { ImportSveaSection } from "./import/ImportSveaSection";
+import {
+  IMPORT_DEFAULT_BROKER_HINTS,
+  filterBrokersByType,
+  pickDefaultImportBrokerId,
+} from "./import/importBrokerDefaults";
 import { pastedTextAsImportFile } from "./import/pastedImportFile";
 import {
   type DegiroNeedsInstruments,
@@ -92,22 +97,102 @@ export function ImportPage() {
     null,
   );
 
+  const [brokers, setBrokers] = useState<HomeBroker[]>([]);
+
+  const [degiroBrokerId, setDegiroBrokerId] = useState<number | null>(null);
+  const [ibkrBrokerId, setIbkrBrokerId] = useState<number | null>(null);
+  const [seligsonBrokerId, setSeligsonBrokerId] = useState<number | null>(null);
+  const [sveaBrokerId, setSveaBrokerId] = useState<number | null>(null);
+
   const livePortfolios = useMemo(
     () => portfolios.filter((p) => (p.kind ?? "live") !== "benchmark"),
     [portfolios],
   );
 
+  const exchangeBrokers = useMemo(
+    () => filterBrokersByType(brokers, "exchange"),
+    [brokers],
+  );
+  const seligsonBrokers = useMemo(
+    () => filterBrokersByType(brokers, "seligson"),
+    [brokers],
+  );
+  const cashBrokers = useMemo(
+    () => filterBrokersByType(brokers, "cash_account"),
+    [brokers],
+  );
+
   useEffect(() => {
     void (async () => {
-      try {
-        const list = await apiGet<PortfolioEntity[]>("/portfolios");
+      const [portfoliosRes, brokersRes] = await Promise.allSettled([
+        apiGet<PortfolioEntity[]>("/portfolios"),
+        apiGet<HomeBroker[]>("/brokers"),
+      ]);
+      if (portfoliosRes.status === "fulfilled") {
+        const list = portfoliosRes.value;
         setPortfolios(list);
         setImportPortfolioId(pickInitialImportPortfolioId(list));
-      } catch {
+      } else {
         setPortfolios([]);
+      }
+      if (brokersRes.status === "fulfilled") {
+        setBrokers(brokersRes.value);
+      } else {
+        setBrokers([]);
       }
     })();
   }, []);
+
+  useEffect(() => {
+    setDegiroBrokerId((prev) => {
+      if (exchangeBrokers.length === 0) {
+        return null;
+      }
+      if (prev != null && exchangeBrokers.some((b) => b.id === prev)) {
+        return prev;
+      }
+      return pickDefaultImportBrokerId(
+        exchangeBrokers,
+        IMPORT_DEFAULT_BROKER_HINTS.degiro,
+      );
+    });
+    setIbkrBrokerId((prev) => {
+      if (exchangeBrokers.length === 0) {
+        return null;
+      }
+      if (prev != null && exchangeBrokers.some((b) => b.id === prev)) {
+        return prev;
+      }
+      return pickDefaultImportBrokerId(
+        exchangeBrokers,
+        IMPORT_DEFAULT_BROKER_HINTS.ibkr,
+      );
+    });
+    setSeligsonBrokerId((prev) => {
+      if (seligsonBrokers.length === 0) {
+        return null;
+      }
+      if (prev != null && seligsonBrokers.some((b) => b.id === prev)) {
+        return prev;
+      }
+      return pickDefaultImportBrokerId(
+        seligsonBrokers,
+        IMPORT_DEFAULT_BROKER_HINTS.seligson,
+      );
+    });
+    setSveaBrokerId((prev) => {
+      if (cashBrokers.length === 0) {
+        return null;
+      }
+      if (prev != null && cashBrokers.some((b) => b.id === prev)) {
+        return prev;
+      }
+      return pickDefaultImportBrokerId(
+        cashBrokers,
+        IMPORT_DEFAULT_BROKER_HINTS.svea,
+      );
+    });
+  }, [exchangeBrokers, seligsonBrokers, cashBrokers]);
 
   useEffect(() => {
     if (pending === null) {
@@ -168,6 +253,7 @@ export function ImportPage() {
       const form = buildDegiroImportFormData({
         file: upload,
         portfolioId: importPortfolioId,
+        brokerId: degiroBrokerId,
       });
       const data = await apiPostFormData<
         DegiroOk | DegiroNeedsInstruments | { message?: string }
@@ -215,6 +301,7 @@ export function ImportPage() {
       const form = buildDegiroImportFormData({
         file: upload,
         portfolioId: importPortfolioId,
+        brokerId: degiroBrokerId,
         createInstruments: toCreate.map((p) => ({
           isin: p.isin,
           yahooSymbol: p.yahooSymbol,
@@ -260,7 +347,11 @@ export function ImportPage() {
     }
     setBusy(true);
     try {
-      const form = buildIbkrImportFormData(upload, importPortfolioId);
+      const form = buildIbkrImportFormData({
+        file: upload,
+        portfolioId: importPortfolioId,
+        brokerId: ibkrBrokerId,
+      });
       const data = await apiPostFormData<DegiroOk>("/import/ibkr", form);
       const ok = parseImportOkResponse(data);
       if (ok != null) {
@@ -319,6 +410,7 @@ export function ImportPage() {
       const form = buildSeligsonImportFormData({
         file: fileForUpload,
         portfolioId: importPortfolioId,
+        brokerId: seligsonBrokerId,
         skipMissingInstruments,
       });
       const data = await apiPostFormData<DegiroOk>("/import/seligson", form);
@@ -379,7 +471,11 @@ export function ImportPage() {
     }
     setBusy(true);
     try {
-      const form = buildSveaImportFormData(upload, importPortfolioId);
+      const form = buildSveaImportFormData({
+        file: upload,
+        portfolioId: importPortfolioId,
+        brokerId: sveaBrokerId,
+      });
       const data = await apiPostFormData<DegiroOk>("/import/svea", form);
       const ok = parseImportOkResponse(data);
       if (ok != null) {
@@ -419,6 +515,9 @@ export function ImportPage() {
       />
 
       <ImportDegiroSection
+        importBrokers={exchangeBrokers}
+        importBrokerId={degiroBrokerId}
+        onImportBrokerIdChange={setDegiroBrokerId}
         busy={busy}
         error={error}
         result={result}
@@ -459,6 +558,9 @@ export function ImportPage() {
       />
 
       <ImportIbkrSection
+        importBrokers={exchangeBrokers}
+        importBrokerId={ibkrBrokerId}
+        onImportBrokerIdChange={setIbkrBrokerId}
         busy={busy}
         ibkrError={ibkrError}
         ibkrResult={ibkrResult}
@@ -505,6 +607,9 @@ export function ImportPage() {
       />
 
       <ImportSeligsonSection
+        importBrokers={seligsonBrokers}
+        importBrokerId={seligsonBrokerId}
+        onImportBrokerIdChange={setSeligsonBrokerId}
         busy={busy}
         seligsonError={seligsonError}
         seligsonResult={seligsonResult}
@@ -548,6 +653,9 @@ export function ImportPage() {
       />
 
       <ImportSveaSection
+        importBrokers={cashBrokers}
+        importBrokerId={sveaBrokerId}
+        onImportBrokerIdChange={setSveaBrokerId}
         busy={busy}
         sveaError={sveaError}
         sveaResult={sveaResult}

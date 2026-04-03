@@ -1,9 +1,13 @@
 import type { FormEvent, RefObject } from "react";
 import { Button } from "../../components/Button";
+import type { HomeBroker } from "../home/types";
 import { ImportBrokerSection } from "./ImportBrokerSection";
 import type { DegiroOk } from "./types";
 
 type ImportSeligsonSectionProps = {
+  importBrokers: HomeBroker[];
+  importBrokerId: number | null;
+  onImportBrokerIdChange: (id: number) => void;
   busy: boolean;
   seligsonError: string | null;
   seligsonResult: DegiroOk | null;
@@ -21,6 +25,9 @@ type ImportSeligsonSectionProps = {
 };
 
 export function ImportSeligsonSection({
+  importBrokers,
+  importBrokerId,
+  onImportBrokerIdChange,
   busy,
   seligsonError,
   seligsonResult,
@@ -95,6 +102,11 @@ export function ImportSeligsonSection({
     <ImportBrokerSection
       title="Seligson"
       intro={intro}
+      importBrokers={importBrokers}
+      importBrokerId={importBrokerId}
+      onImportBrokerIdChange={onImportBrokerIdChange}
+      importBrokerSelectId="import-broker-seligson"
+      noImportBrokersMessage="Add a Seligson-type broker under Instruments before importing."
       fileInputId="seligson-tsv"
       fileAriaLabel="Seligson export file"
       file={seligsonFile}

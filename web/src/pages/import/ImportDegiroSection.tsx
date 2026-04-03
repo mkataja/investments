@@ -1,5 +1,6 @@
 import type { Dispatch, FormEvent, RefObject, SetStateAction } from "react";
 import { Button } from "../../components/Button";
+import type { HomeBroker } from "../home/types";
 import { ImportBrokerSection } from "./ImportBrokerSection";
 import {
   type DegiroNeedsInstruments,
@@ -9,6 +10,9 @@ import {
 } from "./types";
 
 type ImportDegiroSectionProps = {
+  importBrokers: HomeBroker[];
+  importBrokerId: number | null;
+  onImportBrokerIdChange: (id: number) => void;
   busy: boolean;
   error: string | null;
   result: DegiroOk | null;
@@ -27,6 +31,9 @@ type ImportDegiroSectionProps = {
 };
 
 export function ImportDegiroSection({
+  importBrokers,
+  importBrokerId,
+  onImportBrokerIdChange,
   busy,
   error,
   result,
@@ -50,7 +57,6 @@ export function ImportDegiroSection({
         Degiro (CSV).
       </p>
       <p>
-        Broker name must be <strong className="font-medium">Degiro</strong>.
         Instruments are matched by ISIN when present in the DB, otherwise looked
         up by Yahoo symbol. Only EUR trades are imported.
       </p>
@@ -121,6 +127,11 @@ export function ImportDegiroSection({
     <ImportBrokerSection
       title="Degiro"
       intro={intro}
+      importBrokers={importBrokers}
+      importBrokerId={importBrokerId}
+      onImportBrokerIdChange={onImportBrokerIdChange}
+      importBrokerSelectId="import-broker-degiro"
+      noImportBrokersMessage="Add an exchange broker under Instruments before importing."
       fileInputId="degiro-csv"
       fileAriaLabel="Degiro CSV file"
       accept=".csv,text/csv"

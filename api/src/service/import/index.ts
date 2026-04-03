@@ -1,10 +1,4 @@
-import {
-  brokers,
-  instruments,
-  seligsonFunds,
-  transactions,
-} from "@investments/db";
-import { USER_ID } from "@investments/lib/appUser";
+import { instruments, seligsonFunds, transactions } from "@investments/db";
 import { normalizeYahooSymbolForStorage } from "@investments/lib/yahooSymbol";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Context } from "hono";
@@ -34,6 +28,7 @@ import { seedIntradayPriceForInstrumentIfMissing } from "../instrument/transacti
 import { resolvePortfolioIdFromImportBody } from "../portfolio/portfolioAccess.js";
 import { insertEtfStockFromYahoo } from "../yahoo/createYahooInstrument.js";
 import { formatYahooUpstreamError } from "../yahoo/yahooUpstream.js";
+import { resolveImportBrokerFromBody } from "./resolveImportBroker.js";
 
 const createDegiroInstrumentsSchema = z.array(
   z.object({
@@ -96,14 +91,18 @@ export async function postImportDegiro(c: Context) {
     return c.json({ message: "No transaction rows to import" }, 400);
   }
 
-  const [degiroBroker] = await db
-    .select()
-    .from(brokers)
-    .where(and(eq(brokers.name, "Degiro"), eq(brokers.userId, USER_ID)))
-    .limit(1);
-  if (!degiroBroker) {
-    return c.json({ message: 'Broker named "Degiro" is not configured' }, 500);
+  const resolvedDegiroBroker = await resolveImportBrokerFromBody(
+    body,
+    "exchange",
+    "Degiro",
+  );
+  if (!resolvedDegiroBroker.ok) {
+    return c.json(
+      { message: resolvedDegiroBroker.message },
+      resolvedDegiroBroker.status,
+    );
   }
+  const degiroBroker = resolvedDegiroBroker.broker;
 
   const resolvedPortfolio = await resolvePortfolioIdFromImportBody(body);
   if (!resolvedPortfolio.ok) {
@@ -293,14 +292,18 @@ export async function postImportIbkr(c: Context) {
     return c.json({ message: "No transaction rows to import" }, 400);
   }
 
-  const [ibkrBroker] = await db
-    .select()
-    .from(brokers)
-    .where(and(eq(brokers.name, "IBKR"), eq(brokers.userId, USER_ID)))
-    .limit(1);
-  if (!ibkrBroker) {
-    return c.json({ message: 'Broker named "IBKR" is not configured' }, 500);
+  const resolvedIbkrBroker = await resolveImportBrokerFromBody(
+    body,
+    "exchange",
+    "IBKR",
+  );
+  if (!resolvedIbkrBroker.ok) {
+    return c.json(
+      { message: resolvedIbkrBroker.message },
+      resolvedIbkrBroker.status,
+    );
   }
+  const ibkrBroker = resolvedIbkrBroker.broker;
 
   const resolvedPortfolioIbkr = await resolvePortfolioIdFromImportBody(body);
   if (!resolvedPortfolioIbkr.ok) {
@@ -446,17 +449,18 @@ export async function postImportSeligson(c: Context) {
     return c.json({ message: "No transaction rows to import" }, 400);
   }
 
-  const [seligsonBroker] = await db
-    .select()
-    .from(brokers)
-    .where(and(eq(brokers.name, "Seligson"), eq(brokers.userId, USER_ID)))
-    .limit(1);
-  if (!seligsonBroker) {
+  const resolvedSeligsonBroker = await resolveImportBrokerFromBody(
+    body,
+    "seligson",
+    "Seligson",
+  );
+  if (!resolvedSeligsonBroker.ok) {
     return c.json(
-      { message: 'Broker named "Seligson" is not configured' },
-      500,
+      { message: resolvedSeligsonBroker.message },
+      resolvedSeligsonBroker.status,
     );
   }
+  const seligsonBroker = resolvedSeligsonBroker.broker;
 
   const resolvedPortfolioSg = await resolvePortfolioIdFromImportBody(body);
   if (!resolvedPortfolioSg.ok) {
@@ -630,9 +634,9 @@ export async function postImportSeligson(c: Context) {
 }
 
 /**
- * Multipart: `file` (UTF-8 text of the account paste), optional `portfolioId`.
- * Expects a broker named `Svea` with `broker_type` `cash_account` and exactly one `cash_account`
- * instrument in EUR for that broker.
+ * Multipart: `file` (UTF-8 text of the account paste), optional `portfolioId`, optional `brokerId`
+ * (`cash_account` broker). Without `brokerId`, falls back to a broker named `Svea Bank`.
+ * Expects exactly one EUR `cash_account` instrument for the chosen broker.
  */
 export async function postImportSvea(c: Context) {
   let body: Record<string, unknown>;
@@ -664,23 +668,18 @@ export async function postImportSvea(c: Context) {
     return c.json({ message: "No transaction rows to import" }, 400);
   }
 
-  const [sveaBroker] = await db
-    .select()
-    .from(brokers)
-    .where(and(eq(brokers.name, "Svea Bank"), eq(brokers.userId, USER_ID)))
-    .limit(1);
-  if (!sveaBroker) {
-    return c.json({ message: 'Broker named "Svea Bank" is not configured' }, 500);
-  }
-  if (sveaBroker.brokerType !== "cash_account") {
+  const resolvedSveaBroker = await resolveImportBrokerFromBody(
+    body,
+    "cash_account",
+    "Svea Bank",
+  );
+  if (!resolvedSveaBroker.ok) {
     return c.json(
-      {
-        message:
-          'Broker "Svea Bank" must have type cash account (not exchange) for this import',
-      },
-      400,
+      { message: resolvedSveaBroker.message },
+      resolvedSveaBroker.status,
     );
   }
+  const sveaBroker = resolvedSveaBroker.broker;
 
   const resolvedPortfolioSv = await resolvePortfolioIdFromImportBody(body);
   if (!resolvedPortfolioSv.ok) {
@@ -708,8 +707,7 @@ export async function postImportSvea(c: Context) {
   if (cashInstRows.length === 0) {
     return c.json(
       {
-        message:
-          'No cash account instrument for Svea. Add one EUR cash account under Instruments, linked to broker "Svea".',
+        message: `No cash account instrument. Add one EUR cash account under Instruments, linked to broker "${sveaBroker.name}".`,
       },
       400,
     );

@@ -3,11 +3,17 @@ import { useEffect, useRef } from "react";
 import { Button } from "../../components/Button";
 import { ErrorAlert } from "../../components/ErrorAlert";
 import { FileBrowseButton } from "../../components/FileBrowseButton";
+import type { HomeBroker } from "../home/types";
 import type { DegiroOk } from "./types";
 
 type ImportBrokerSectionProps = {
   title: string;
   intro: ReactNode;
+  importBrokers: HomeBroker[];
+  importBrokerId: number | null;
+  onImportBrokerIdChange: (id: number) => void;
+  importBrokerSelectId: string;
+  noImportBrokersMessage: string;
   fileInputId: string;
   fileAriaLabel: string;
   accept?: string;
@@ -46,6 +52,11 @@ function ImportSuccessMessage({ result }: { result: DegiroOk }) {
 export function ImportBrokerSection({
   title,
   intro,
+  importBrokers,
+  importBrokerId,
+  onImportBrokerIdChange,
+  importBrokerSelectId,
+  noImportBrokersMessage,
   fileInputId,
   fileAriaLabel,
   accept,
@@ -73,13 +84,46 @@ export function ImportBrokerSection({
     }
   }, [pasteOpen]);
 
-  const canSubmit = file !== null || (pasteOpen && pasteText.trim().length > 0);
+  const hasImportTarget =
+    importBrokers.length === 0 ||
+    (importBrokerId != null &&
+      importBrokers.some((b) => b.id === importBrokerId));
+  const canSubmit =
+    hasImportTarget &&
+    (file !== null || (pasteOpen && pasteText.trim().length > 0));
 
   return (
     <section className="page-section rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <h2>{title}</h2>
       <div className="space-y-2 text-sm text-slate-600">{intro}</div>
-      <form className="mt-3 flex flex-col gap-3" onSubmit={onSubmit}>
+      <form className="flex flex-col gap-3" onSubmit={onSubmit}>
+        {importBrokers.length > 0 ? (
+          <label
+            className="block text-sm text-slate-700"
+            htmlFor={importBrokerSelectId}
+          >
+            Import into broker
+            <select
+              id={importBrokerSelectId}
+              className="mt-1 block w-full max-w-md rounded border border-slate-300 bg-white px-2 py-1.5 text-sm"
+              value={importBrokerId ?? ""}
+              onChange={(e) => {
+                const id = Number.parseInt(e.target.value, 10);
+                if (Number.isFinite(id)) {
+                  onImportBrokerIdChange(id);
+                }
+              }}
+            >
+              {importBrokers.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <p className="text-sm text-slate-600">{noImportBrokersMessage}</p>
+        )}
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
             <Button type="button" className="w-28" onClick={onPasteOpenToggle}>

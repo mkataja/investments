@@ -1,8 +1,12 @@
 import type { FormEvent, RefObject } from "react";
+import type { HomeBroker } from "../home/types";
 import { ImportBrokerSection } from "./ImportBrokerSection";
 import type { DegiroOk } from "./types";
 
 type ImportIbkrSectionProps = {
+  importBrokers: HomeBroker[];
+  importBrokerId: number | null;
+  onImportBrokerIdChange: (id: number) => void;
   busy: boolean;
   ibkrError: string | null;
   ibkrResult: DegiroOk | null;
@@ -21,6 +25,9 @@ type ImportIbkrSectionProps = {
 };
 
 export function ImportIbkrSection({
+  importBrokers,
+  importBrokerId,
+  onImportBrokerIdChange,
   busy,
   ibkrError,
   ibkrResult,
@@ -46,7 +53,6 @@ export function ImportIbkrSection({
         transaction history CSV is not supported.
       </p>
       <p>
-        Broker name must be <strong className="font-medium">IBKR</strong>.
         Instruments are matched by ISIN when present in the DB, otherwise looked
         up by Yahoo symbol.
       </p>
@@ -134,6 +140,11 @@ export function ImportIbkrSection({
     <ImportBrokerSection
       title="Interactive Brokers"
       intro={intro}
+      importBrokers={importBrokers}
+      importBrokerId={importBrokerId}
+      onImportBrokerIdChange={onImportBrokerIdChange}
+      importBrokerSelectId="import-broker-ibkr"
+      noImportBrokersMessage="Add an exchange broker under Instruments before importing."
       fileInputId="ibkr-csv"
       fileAriaLabel="IBKR CSV file"
       accept=".csv,text/csv"

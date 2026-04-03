@@ -1,8 +1,12 @@
 import type { FormEvent, RefObject } from "react";
+import type { HomeBroker } from "../home/types";
 import { ImportBrokerSection } from "./ImportBrokerSection";
 import type { DegiroOk } from "./types";
 
 type ImportSveaSectionProps = {
+  importBrokers: HomeBroker[];
+  importBrokerId: number | null;
+  onImportBrokerIdChange: (id: number) => void;
   busy: boolean;
   sveaError: string | null;
   sveaResult: DegiroOk | null;
@@ -17,6 +21,9 @@ type ImportSveaSectionProps = {
 };
 
 export function ImportSveaSection({
+  importBrokers,
+  importBrokerId,
+  onImportBrokerIdChange,
   busy,
   sveaError,
   sveaResult,
@@ -38,9 +45,8 @@ export function ImportSveaSection({
         save as a <span className="font-medium">.txt</span> file and upload it.
       </p>
       <p>
-        Add broker <span className="font-medium">Svea</span> with type{" "}
-        <span className="font-medium">Cash account</span> and exactly one EUR
-        cash account instrument for that broker (under Instruments).
+        The broker must be <span className="font-medium">Cash account</span>{" "}
+        type with exactly one EUR cash account instrument (under Instruments).
       </p>
     </div>
   );
@@ -49,6 +55,11 @@ export function ImportSveaSection({
     <ImportBrokerSection
       title="Svea Bank"
       intro={intro}
+      importBrokers={importBrokers}
+      importBrokerId={importBrokerId}
+      onImportBrokerIdChange={onImportBrokerIdChange}
+      importBrokerSelectId="import-broker-svea"
+      noImportBrokersMessage="Add a cash account broker under Instruments before importing."
       fileInputId="svea-txt"
       fileAriaLabel="Svea account paste file"
       accept=".txt,text/plain"
