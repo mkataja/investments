@@ -10,7 +10,7 @@ export type PortfolioChartsProps = {
   assetMixHistoryPoints: AssetMixHistoryPoint[];
   /** When set, drives the asset mix line only (e.g. HODL variant). */
   assetMixOverTimeLinePoints?: AssetMixHistoryPoint[];
-  /** When true, chart shows `virtualLeverageEur` sleeve and signed net tooltip. */
+  /** When true, chart shows virtual leverage and loan-interest sleeves and signed net tooltip. */
   assetMixHistoryLineHodlMode?: boolean;
   /** For lazy `variant=hodl` fetch. */
   portfolioId?: number | null;

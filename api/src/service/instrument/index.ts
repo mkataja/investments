@@ -1464,8 +1464,8 @@ export async function getPortfolioDistributionsRoute(c: Context) {
  * `GET /portfolio/asset-mix-history?portfolioId=…&variant=…` — weekly asset mix EUR plus
  * `equitySectorsEur` per date (equity sleeve only; same sector keys as portfolio
  * distributions / sectors bar chart). Optional `variant=hodl`: simulate never selling
- * securities (sells reduce `virtualInputMoneyEur` instead of quantity; cash account sells
- * apply normally). Default `variant` is `actual`.
+ * securities (sells book to virtual leverage after cash is drained; cash account sells
+ * apply normally). Includes cumulative loan interest from EURIBOR + user margin. Default `variant` is `actual`.
  */
 export async function getPortfolioAssetMixHistoryRoute(c: Context) {
   const raw = c.req.query("portfolioId")?.trim();

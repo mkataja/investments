@@ -1,9 +1,11 @@
 import {
   type distributions,
   instruments,
+  interestRates,
   type portfolios,
   type prices,
   transactions,
+  users,
 } from "@investments/db";
 import type { InferSelectModel } from "drizzle-orm";
 import { asc, eq, inArray } from "drizzle-orm";
@@ -15,6 +17,10 @@ import {
   pickDistributionRowForAssetMixHistory,
   pickLatestPriceRowAsOf,
 } from "../instrument/latestPriceDistribution.js";
+import {
+  DIAMOND_HANDS_LOAN_INTEREST_INDEX_NAME,
+  closestObservationRateForDate,
+} from "./diamondHandsLoanInterest.js";
 import { emergencyFundTargetEurFromDb } from "./emergencyFundTargetEurFromDb.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import {
@@ -34,6 +40,9 @@ import {
 } from "./valuation.js";
 
 const STEP_DAYS = 7;
+
+/** Act/365-style daily accrual from annual rate fractions. */
+const ANNUAL_RATE_TO_DAILY = 1 / 365;
 
 export type AssetMixHistoryVariant = "actual" | "hodl";
 
@@ -142,6 +151,8 @@ type AssetMixHistoryPointRow = {
   equitySectorsEur: Record<string, number>;
   /** Cumulative virtual leverage from security sells after cash is depleted (≤ 0); 0 when `variant` is `actual`. */
   virtualLeverageEur: number;
+  /** Cumulative interest on `virtualLeverageEur` principal (≤ 0); 0 when `variant` is `actual`. */
+  virtualLeverageInterestEur: number;
 };
 
 /**
@@ -160,6 +171,10 @@ type AssetMixHistoryPointRow = {
  * credit the remainder to cash. Cash sells remove at most the amount that leaves total cash EUR at
  * or above the emergency fund target (same cap as security-sell drains); any shortfall vs the
  * transaction size, or withdrawal past balance, books to `virtualLeverageEur`.
+ *
+ * `variant=hodl` also accrues simple daily interest on outstanding leverage (after each calendar
+ * day's transactions): annual rate = closest 3-month EURIBOR fixing in `interest_rates` to that day
+ * plus `users.rate_margin`, at 1/365 per day. `virtualLeverageInterestEur` is cumulative (≤ 0).
  *
  * Loads transactions once, walks dates in memory, and batches price and distribution queries.
  */
@@ -180,7 +195,9 @@ export async function getPortfolioAssetMixHistory(
     return { points: [] };
   }
 
-  const emergencyFundTargetEur = emergencyFundTargetEurFromDb(pf.emergencyFundEur);
+  const emergencyFundTargetEur = emergencyFundTargetEurFromDb(
+    pf.emergencyFundEur,
+  );
 
   const txRows: AssetMixHistoryTxRow[] = await db
     .select({
@@ -209,6 +226,37 @@ export async function getPortfolioAssetMixHistory(
   }
 
   const maxDate = candidateDates.reduce((a, b) => (a > b ? a : b));
+
+  let rateMargin = 0;
+  let euriborObservations: { date: string; rate: number }[] = [];
+  if (variant === "hodl") {
+    const [userRow] = await db
+      .select({ rateMargin: users.rateMargin })
+      .from(users)
+      .where(eq(users.id, pf.userId))
+      .limit(1);
+    const parsedMargin = Number(userRow?.rateMargin ?? 0);
+    rateMargin = Number.isFinite(parsedMargin) ? parsedMargin : 0;
+
+    const euriborRateRows = await db
+      .select({
+        observationDate: interestRates.observationDate,
+        rate: interestRates.rate,
+      })
+      .from(interestRates)
+      .where(
+        eq(interestRates.indexName, DIAMOND_HANDS_LOAN_INTEREST_INDEX_NAME),
+      )
+      .orderBy(asc(interestRates.observationDate));
+
+    euriborObservations = euriborRateRows
+      .map((r) => {
+        const s = String(r.observationDate);
+        const dateStr = s.length >= 10 ? s.slice(0, 10) : s;
+        return { date: dateStr, rate: Number(r.rate) };
+      })
+      .filter((o) => Number.isFinite(o.rate));
+  }
 
   const fxInstRows = await db
     .select()
@@ -255,28 +303,42 @@ export async function getPortfolioAssetMixHistory(
   const txState = { i: 0 };
   const virtualLeverageEur = { value: 0 };
   const fxMapByTradeDate = new Map<string, Map<string, number>>();
+  let hodlCursorDay = startDate;
+  let hodlInterestAccruedEur = 0;
 
   for (const d of candidateDates) {
-    const asOfEnd = endOfUtcDay(d);
     if (variant === "hodl") {
-      applyTransactionsUpToHodl(
-        txRows,
-        txState,
-        qty,
-        virtualLeverageEur,
-        asOfEnd,
-        instrumentsById,
-        fxInstRows,
-        fxPricesByInstrument,
-        fxMapByTradeDate,
-        emergencyFundTargetEur,
-      );
+      while (hodlCursorDay <= d) {
+        applyTransactionsUpToHodl(
+          txRows,
+          txState,
+          qty,
+          virtualLeverageEur,
+          endOfUtcDay(hodlCursorDay),
+          instrumentsById,
+          fxInstRows,
+          fxPricesByInstrument,
+          fxMapByTradeDate,
+          emergencyFundTargetEur,
+        );
+        const indexRate = closestObservationRateForDate(
+          euriborObservations,
+          hodlCursorDay,
+        );
+        const annualRate = indexRate + rateMargin;
+        if (virtualLeverageEur.value < 0 && Number.isFinite(annualRate)) {
+          hodlInterestAccruedEur +=
+            -virtualLeverageEur.value * annualRate * ANNUAL_RATE_TO_DAILY;
+        }
+        hodlCursorDay = addDaysUtc(hodlCursorDay, 1);
+      }
     } else {
-      applyTransactionsUpToActual(txRows, txState, qty, asOfEnd);
+      applyTransactionsUpToActual(txRows, txState, qty, endOfUtcDay(d));
     }
 
     const rows = positionRowsFromQty(qty, instrumentsById);
     const virtualEur = variant === "hodl" ? virtualLeverageEur.value : 0;
+    const virtualInterestEur = variant === "hodl" ? -hodlInterestAccruedEur : 0;
 
     if (rows.length === 0) {
       points.push({
@@ -284,6 +346,7 @@ export async function getPortfolioAssetMixHistory(
         ...emptyPointBase,
         equitySectorsEur: {},
         virtualLeverageEur: virtualEur,
+        virtualLeverageInterestEur: virtualInterestEur,
       });
       continue;
     }
@@ -347,6 +410,7 @@ export async function getPortfolioAssetMixHistory(
       cashTotalEur: cashEur,
       equitySectorsEur,
       virtualLeverageEur: virtualEur,
+      virtualLeverageInterestEur: virtualInterestEur,
     });
   }
 

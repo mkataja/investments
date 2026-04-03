@@ -54,6 +54,8 @@ export type AssetMixHistoryPoint = {
   equitySectorsEur: Record<string, number>;
   /** Cumulative virtual leverage when `variant=hodl`; 0 for actual history. */
   virtualLeverageEur: number;
+  /** Cumulative loan interest when `variant=hodl` (≤ 0); 0 for actual history. */
+  virtualLeverageInterestEur?: number;
   /** Cash accounts total EUR (optional on older cached responses). */
   cashTotalEur?: number;
 } & PortfolioDistributions["assetMix"];

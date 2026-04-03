@@ -8,6 +8,8 @@ export const PORTFOLIO_ASSET_MIX_COLORS = {
   cashExcess: "#8BCB7A",
   /** Virtual leverage sleeve (≤ 0) for Diamond hands HODL chart. */
   virtualLeverage: "#94A3B8",
+  /** Accrued interest on virtual leverage — slightly darker than `virtualLeverage`. */
+  virtualLeverageInterest: "#64748B",
 } as const;
 
 /** Bond sleeve mix pie — darker → lighter periwinkle (same hue family as `#6B7FD7`). */

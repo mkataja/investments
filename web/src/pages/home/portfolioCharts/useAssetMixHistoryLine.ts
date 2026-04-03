@@ -1,11 +1,14 @@
 import type { ChartData, ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { CHART_TOOLTIP_STYLE } from "../../../lib/chart/chartTooltipConstants";
-import { rgbaFromHex } from "../../../lib/chart/rgbaFromHex";
 import { PORTFOLIO_ASSET_MIX_COLORS } from "../../../lib/portfolioChartPalette";
 import type { AssetMixHistoryPoint } from "../types";
 import { assetMixPieRowsFromAssetMix } from "./assetMixPieRows";
 import { DISTRIBUTION_BAR_CHART_GRID_STROKE } from "./distributionBarChartOptions";
+import {
+  HISTORY_LINE_LEGEND_LABELS,
+  historyLineAreaFill,
+} from "./historyLineChartStyle";
 import {
   lineChartValueFromRawSeries,
   lineChartValueFromRawSeriesNonPositive,
@@ -26,11 +29,14 @@ function totalPositiveAssetMixEurFromPoint(p: AssetMixHistoryPoint): number {
 
 function netAssetMixEurFromPoint(p: AssetMixHistoryPoint): number {
   return (
-    totalPositiveAssetMixEurFromPoint(p) + (p.virtualLeverageEur ?? 0)
+    totalPositiveAssetMixEurFromPoint(p) +
+    (p.virtualLeverageEur ?? 0) +
+    (p.virtualLeverageInterestEur ?? 0)
   );
 }
 
 const VIRTUAL_LEVERAGE_LABEL = "Leverage (virtual)";
+const VIRTUAL_LEVERAGE_INTEREST_LABEL = "Loan interest (virtual)";
 
 type AssetMixHistoryChartResult = {
   data: ChartData<"line">;
@@ -78,10 +84,18 @@ export function useAssetMixHistoryLine(
       );
 
     const virtualRawSeries = points.map((p) => p.virtualLeverageEur ?? 0);
-    const includeVirtualSleeve =
+    const virtualInterestRawSeries = points.map(
+      (p) => p.virtualLeverageInterestEur ?? 0,
+    );
+    const includeVirtualLeverageSleeve =
       lineHodlMode && virtualRawSeries.some((v) => Number.isFinite(v) && v < 0);
+    const includeVirtualInterestSleeve =
+      lineHodlMode &&
+      virtualInterestRawSeries.some((v) => Number.isFinite(v) && v < 0);
 
     const virtualFill = PORTFOLIO_ASSET_MIX_COLORS.virtualLeverage;
+    const virtualInterestFill =
+      PORTFOLIO_ASSET_MIX_COLORS.virtualLeverageInterest;
 
     type Spec =
       | (typeof filteredSpecs)[number]
@@ -91,16 +105,34 @@ export function useAssetMixHistoryLine(
           mapValue: (raw: readonly number[], j: number) => number | null;
         };
 
-    const allSpecs: Spec[] = includeVirtualSleeve
-      ? [
-          ...filteredSpecs,
-          {
-            row: { name: VIRTUAL_LEVERAGE_LABEL, fill: virtualFill },
-            rawSeries: virtualRawSeries,
-            mapValue: lineChartValueFromRawSeriesNonPositive,
-          },
-        ]
-      : filteredSpecs;
+    const virtualSleeves: Spec[] = [
+      ...(includeVirtualLeverageSleeve
+        ? [
+            {
+              row: { name: VIRTUAL_LEVERAGE_LABEL, fill: virtualFill },
+              rawSeries: virtualRawSeries,
+              mapValue: lineChartValueFromRawSeriesNonPositive,
+            },
+          ]
+        : []),
+      ...(includeVirtualInterestSleeve
+        ? [
+            {
+              row: {
+                name: VIRTUAL_LEVERAGE_INTEREST_LABEL,
+                fill: virtualInterestFill,
+              },
+              rawSeries: virtualInterestRawSeries,
+              mapValue: lineChartValueFromRawSeriesNonPositive,
+            },
+          ]
+        : []),
+    ];
+
+    const allSpecs: Spec[] =
+      virtualSleeves.length > 0
+        ? [...filteredSpecs, ...virtualSleeves]
+        : filteredSpecs;
 
     const xScaleTicks = {
       font: { size: 14 },
@@ -152,15 +184,6 @@ export function useAssetMixHistoryLine(
       footerFont: { size: CHART_TOOLTIP_STYLE.footerSizePx },
     } as const;
 
-    const legendLabels = {
-      boxWidth: 12,
-      boxHeight: 12,
-      padding: 14,
-      font: { size: 14 },
-      usePointStyle: true,
-      pointStyle: "rectRounded" as const,
-    };
-
     const data: ChartData<"line"> = {
       labels: xLabels,
       datasets: allSpecs.map((spec) => {
@@ -180,7 +203,7 @@ export function useAssetMixHistoryLine(
           return typeof v === "number" && Number.isFinite(v);
         };
         const rowFill = spec.row.fill;
-        const areaFill = stacked ? rowFill : rgbaFromHex(rowFill, 0.12);
+        const areaFill = historyLineAreaFill(stacked, rowFill);
         return {
           label: spec.row.name,
           data: series,
@@ -239,7 +262,7 @@ export function useAssetMixHistoryLine(
         legend: {
           position: "top",
           align: "end",
-          labels: legendLabels,
+          labels: HISTORY_LINE_LEGEND_LABELS,
         },
         tooltip: {
           ...tooltipBase,
