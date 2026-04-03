@@ -3,6 +3,6 @@
 When deciding not to address some identified edge case or other issue, write a **terse** bullet point under the appropriate heading below. Start a new heading if necessary.
 
 
-## Multi-currency support
+## Price refreshing
 
-* `nativeToEurStub` only adjusts USD via a fixed rate; other currencies are treated like EUR
+* No reliable check if price updates have been missed for some days since the last update - the only way to be sure is to run full backfill
