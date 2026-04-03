@@ -34,6 +34,29 @@ function valueOrNullForChart(v: number): number | null {
   return Number.isFinite(v) && v > 0 ? v : null;
 }
 
+/**
+ * Line chart: keep positive values; use `0` only next to a positive value so
+ * segments meet the axis without drawing long runs along y = 0.
+ */
+function lineChartValueFromRawSeries(
+  raw: readonly number[],
+  index: number,
+): number | null {
+  const v = raw[index] ?? 0;
+  if (Number.isFinite(v) && v > 0) {
+    return v;
+  }
+  const n = raw.length;
+  const prev = index > 0 ? (raw[index - 1] ?? 0) : Number.NaN;
+  const next = index < n - 1 ? (raw[index + 1] ?? 0) : Number.NaN;
+  const prevPos = index > 0 && Number.isFinite(prev) && prev > 0;
+  const nextPos = index < n - 1 && Number.isFinite(next) && next > 0;
+  if (prevPos || nextPos) {
+    return 0;
+  }
+  return null;
+}
+
 function yTickShort(v: number): string {
   if (!Number.isFinite(v)) {
     return "";
@@ -92,12 +115,12 @@ export function useAssetMixHistoryLine(
 
     const filteredSpecs = templateRows
       .map((row, i) => {
-        const data = rowsByPoint.map((rows) =>
-          valueOrNullForChart(rows[i]?.value ?? 0),
-        );
-        return { row, data };
+        const rawSeries = rowsByPoint.map((rows) => rows[i]?.value ?? 0);
+        return { row, rawSeries };
       })
-      .filter(({ data }) => data.some((v) => v != null));
+      .filter(({ rawSeries }) =>
+        rawSeries.some((v) => Number.isFinite(v) && v > 0),
+      );
 
     const xScaleTicks = {
       font: { size: 14 },
@@ -161,10 +184,10 @@ export function useAssetMixHistoryLine(
     if (stackedBar) {
       const data: ChartData<"bar"> = {
         labels: xLabels,
-        datasets: filteredSpecs.map(({ row, data }) => ({
+        datasets: filteredSpecs.map(({ row, rawSeries }) => ({
           label: row.name,
-          data: [...data, null].map((v) =>
-            v == null || !Number.isFinite(v) ? 0 : v,
+          data: [...rawSeries.map((v) => valueOrNullForChart(v)), null].map(
+            (v) => (v == null || !Number.isFinite(v) ? 0 : v),
           ),
           backgroundColor: row.fill,
           borderWidth: 0,
@@ -248,8 +271,11 @@ export function useAssetMixHistoryLine(
 
     const data: ChartData<"line"> = {
       labels: xLabels,
-      datasets: filteredSpecs.map(({ row, data }) => {
-        const series = [...data, null] as (number | null)[];
+      datasets: filteredSpecs.map(({ row, rawSeries }) => {
+        const series = [
+          ...rawSeries.map((_, j) => lineChartValueFromRawSeries(rawSeries, j)),
+          null,
+        ] as (number | null)[];
         const isLastDot = (ctx: { dataIndex: number }) => {
           const idx = ctx.dataIndex;
           if (idx !== lastDateIndex) {
@@ -314,8 +340,11 @@ export function useAssetMixHistoryLine(
         },
         tooltip: {
           ...tooltipBase,
-          filter: (item) =>
-            typeof item.raw === "number" && Number.isFinite(item.raw),
+          filter: (item) => {
+            const y =
+              typeof item.parsed.y === "number" ? item.parsed.y : Number.NaN;
+            return Number.isFinite(y) && y > 0;
+          },
           callbacks: {
             title: (tooltipItems) => {
               const i = tooltipItems[0]?.dataIndex;
