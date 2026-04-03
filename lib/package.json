@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "i18n-iso-countries": "^7.14.0"
+  },
   "exports": {
     "./package.json": "./package.json",
     "./appUser": "./src/appUser.ts",

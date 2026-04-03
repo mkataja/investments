@@ -104,7 +104,11 @@ importers:
         specifier: ^5.7.3
         version: 5.9.3
 
-  lib: {}
+  lib:
+    dependencies:
+      i18n-iso-countries:
+        specifier: ^7.14.0
+        version: 7.14.0
 
   web:
     dependencies:
@@ -117,9 +121,6 @@ importers:
       chartjs-chart-geo:
         specifier: ^4.3.6
         version: 4.3.6(chart.js@4.5.1)
-      i18n-iso-countries:
-        specifier: ^7.14.0
-        version: 7.14.0
       react:
         specifier: ^18.3.1
         version: 18.3.1

@@ -16,7 +16,6 @@
     "@investments/lib": "workspace:*",
     "chart.js": "^4.5.1",
     "chartjs-chart-geo": "^4.3.6",
-    "i18n-iso-countries": "^7.14.0",
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.3.1",

@@ -1,6 +1,6 @@
+import { alpha2ToNumeric } from "@investments/lib/geo/iso3166Alpha2CountryCodes";
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import type { ChartData, ChartOptions } from "chart.js";
-import { alpha2ToNumeric } from "i18n-iso-countries";
 import { useMemo } from "react";
 import { Chart } from "react-chartjs-2";
 import {

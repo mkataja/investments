@@ -43,7 +43,7 @@ Optional sector breakdown from J.P. Morgan product-data JSON (with JPM XLSX URL)
 
 ## Cash instruments
 
-No external valuation fetch beyond FX — nominal balance in `cash_currency` (`SUPPORTED_CASH_CURRENCY_CODES` in `@investments/lib`). Country required: `cash_geo_key` (`instruments_cash_geo_required_ck`). `POST /instruments` validates ISO 3166-1 alpha-2 (`normalizeCashAccountIsoCountryCode` / `ISO_3166_1_ALPHA2_CODES` in `@investments/lib`); stored uppercase. Legacy rows may predate this. `display_name` unique among cash instruments (case-insensitive, trimmed; partial unique `instruments_cash_account_display_name_uidx`); duplicate → 409 on `POST`. Not used for distribution chart weights — see [Geo buckets](#geo-buckets-and-portfolio-chart-rules).
+No external valuation fetch beyond FX — nominal balance in `cash_currency` (`SUPPORTED_CASH_CURRENCY_CODES` in `@investments/lib`). Country required: `cash_geo_key` (`instruments_cash_geo_required_ck`). `POST /instruments` validates ISO 3166-1 alpha-2 (`normalizeCashAccountIsoCountryCode` / `ISO_3166_1_ALPHA2_CODES` from `i18n-iso-countries` in `@investments/lib`); stored uppercase. Legacy rows may predate this. `display_name` unique among cash instruments (case-insensitive, trimmed; partial unique `instruments_cash_account_display_name_uidx`); duplicate → 409 on `POST`. Not used for distribution chart weights — see [Geo buckets](#geo-buckets-and-portfolio-chart-rules).
 
 ## Listed stocks (single names)
 
