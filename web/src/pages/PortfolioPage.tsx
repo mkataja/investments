@@ -121,7 +121,7 @@ function PortfolioTabPanels({
   );
 }
 
-export function HomePage() {
+export function PortfolioPage() {
   const {
     brokers,
     transactions,

@@ -11,12 +11,12 @@ import {
 import { classNames } from "./lib/css";
 import { useSlidingUnderlineIndicator } from "./lib/useSlidingUnderlineIndicator";
 import { BrokersPage } from "./pages/BrokersPage";
-import { HomePage } from "./pages/HomePage";
 import { ImportPage } from "./pages/ImportPage";
 import {
   EditInstrumentPage,
   NewInstrumentPage,
 } from "./pages/InstrumentFormPage";
+import { PortfolioPage } from "./pages/PortfolioPage";
 import { InstrumentsPage } from "./pages/instruments/InstrumentsPage";
 
 function navActiveIndex(pathname: string): number {
@@ -95,7 +95,7 @@ function AppShell() {
       </nav>
       <main className="w-full min-w-0 px-4 sm:px-6 py-6">
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<PortfolioPage />} />
           <Route path="/instruments" element={<InstrumentsPage />} />
           <Route path="/instruments/new" element={<NewInstrumentPage />} />
           <Route
