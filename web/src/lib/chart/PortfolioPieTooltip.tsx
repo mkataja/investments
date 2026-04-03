@@ -1,4 +1,4 @@
-import { formatToPercentage } from "../numberFormat";
+import { formatIntegerForDisplay, formatToPercentage } from "../numberFormat";
 import type { PortfolioPieTooltipProps } from "./portfolioPieTooltipTypes";
 
 function AssetMixRows(
@@ -21,7 +21,7 @@ function AssetMixRows(
             {formatToPercentage(c.primaryShareOfPortfolio)}
             {" ("}
             <span className="tabular-nums">
-              {c.primaryValueEur.toFixed(0)} EUR
+              {formatIntegerForDisplay(c.primaryValueEur)} EUR
             </span>
             {")"}
           </p>
@@ -31,7 +31,7 @@ function AssetMixRows(
             {formatToPercentage(c.compareShareOfPortfolio)}
             {" ("}
             <span className="tabular-nums">
-              {c.compareValueEur.toFixed(0)} EUR
+              {formatIntegerForDisplay(c.compareValueEur)} EUR
             </span>
             {")"}
           </p>
@@ -50,7 +50,9 @@ function AssetMixRows(
       <p className="chart-tooltip__pie">
         {formatToPercentage(shareOfPortfolio)}
         {" ("}
-        <span className="tabular-nums">{valueEur.toFixed(0)} EUR</span>
+        <span className="tabular-nums">
+          {formatIntegerForDisplay(valueEur)} EUR
+        </span>
         {")"}
       </p>
     </aside>

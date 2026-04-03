@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { APP_LOCALE } from "./locale";
 import {
   formatTransactionTotalValueForDisplay,
   formatTransactionUnitPriceForDisplay,
@@ -7,15 +8,29 @@ import {
 } from "./numberFormat";
 
 describe("formatUnitPriceForDisplay", () => {
+  const unitPriceFormatter = new Intl.NumberFormat(APP_LOCALE, {
+    useGrouping: false,
+    maximumFractionDigits: 3,
+    minimumFractionDigits: 0,
+  });
+
   it("rounds to at most three decimal places", () => {
-    expect(formatUnitPriceForDisplay("12.34567")).toBe("12.346");
-    expect(formatUnitPriceForDisplay("1.2345")).toBe("1.235");
+    expect(formatUnitPriceForDisplay("12.34567")).toBe(
+      unitPriceFormatter.format(12.34567),
+    );
+    expect(formatUnitPriceForDisplay("1.2345")).toBe(
+      unitPriceFormatter.format(1.2345),
+    );
   });
 
   it("drops unnecessary fraction zeros", () => {
-    expect(formatUnitPriceForDisplay("10")).toBe("10");
-    expect(formatUnitPriceForDisplay("10.5")).toBe("10.5");
-    expect(formatUnitPriceForDisplay("10.500")).toBe("10.5");
+    expect(formatUnitPriceForDisplay("10")).toBe(unitPriceFormatter.format(10));
+    expect(formatUnitPriceForDisplay("10.5")).toBe(
+      unitPriceFormatter.format(10.5),
+    );
+    expect(formatUnitPriceForDisplay("10.500")).toBe(
+      unitPriceFormatter.format(10.5),
+    );
   });
 
   it("returns trimmed input when not a finite number", () => {
@@ -25,8 +40,12 @@ describe("formatUnitPriceForDisplay", () => {
 
 describe("formatTransactionUnitPriceForDisplay", () => {
   it("shows buy prices as negative and sell prices as stored", () => {
-    expect(formatTransactionUnitPriceForDisplay("buy", "10.5")).toBe("-10.5");
-    expect(formatTransactionUnitPriceForDisplay("sell", "10.5")).toBe("10.5");
+    expect(formatTransactionUnitPriceForDisplay("buy", "10.5")).toBe(
+      formatUnitPriceForDisplay("-10.5"),
+    );
+    expect(formatTransactionUnitPriceForDisplay("sell", "10.5")).toBe(
+      formatUnitPriceForDisplay("10.5"),
+    );
   });
 
   it("returns trimmed input when not a finite number", () => {
@@ -38,10 +57,10 @@ describe("formatTransactionTotalValueForDisplay", () => {
   it("uses signed notional for non-cash (buy outflow, sell inflow)", () => {
     expect(
       formatTransactionTotalValueForDisplay("buy", "10", "5.5", "EUR"),
-    ).toBe("-55 EUR");
+    ).toBe(`${formatUnitPriceForDisplay("-55")} EUR`);
     expect(
       formatTransactionTotalValueForDisplay("sell", "10", "5.5", "EUR"),
-    ).toBe("55 EUR");
+    ).toBe(`${formatUnitPriceForDisplay("55")} EUR`);
   });
 
   it("uses unsigned sum for cash_account", () => {
@@ -53,7 +72,7 @@ describe("formatTransactionTotalValueForDisplay", () => {
         "USD",
         "cash_account",
       ),
-    ).toBe("100 USD");
+    ).toBe(`${formatUnitPriceForDisplay("100")} USD`);
   });
 
   it("returns em dash when notional is not finite", () => {

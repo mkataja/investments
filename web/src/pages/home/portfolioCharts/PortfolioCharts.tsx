@@ -4,6 +4,7 @@ import { Bar, Doughnut, Line } from "react-chartjs-2";
 import Skeleton from "react-loading-skeleton";
 import { apiGet } from "../../../api/client";
 import { classNames } from "../../../lib/css";
+import { formatIntegerForDisplay } from "../../../lib/numberFormat";
 import type { AssetMixHistoryPoint } from "../types";
 import {
   type PortfolioChartsProps,
@@ -120,9 +121,9 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
           Total estimated portfolio value:{" "}
           <span className="font-semibold">
             <span className="tabular-nums">
-              {(
-                portfolio.totalValueEur - portfolio.emergencyFundSliceEur
-              ).toFixed(0)}
+              {formatIntegerForDisplay(
+                portfolio.totalValueEur - portfolio.emergencyFundSliceEur,
+              )}
             </span>{" "}
             EUR
           </span>{" "}
@@ -130,7 +131,7 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
             <>
               (plus{" "}
               <span className="tabular-nums">
-                {portfolio.emergencyFundSliceEur.toFixed(0)}
+                {formatIntegerForDisplay(portfolio.emergencyFundSliceEur)}
               </span>{" "}
               EUR emergency fund)
             </>

@@ -1,6 +1,7 @@
 import { apiDelete } from "../../api/client";
 import { formatInstantForDisplay } from "../../lib/dateTimeFormat";
 import {
+  formatIntegerForDisplay,
   formatTransactionTotalValueForDisplay,
   formatTransactionUnitPriceForDisplay,
   formatUnitPriceForDisplay,
@@ -96,7 +97,9 @@ export function TransactionsTable({
                 <td className="p-2 text-right">
                   {instrumentById.get(t.instrumentId)?.kind === "cash_account"
                     ? formatUnitPriceForDisplay(t.quantity)
-                    : roundQuantityForDisplay(t.quantity)}
+                    : formatIntegerForDisplay(
+                        roundQuantityForDisplay(t.quantity),
+                      )}
                 </td>
                 <td className="p-2 text-right">
                   {instrumentById.get(t.instrumentId)?.kind ===
@@ -163,7 +166,7 @@ export function TransactionsTable({
       </div>
       {transactions.length > 0 ? (
         <p className="text-sm text-slate-600 tabular-nums">
-          {transactions.length}{" "}
+          {formatIntegerForDisplay(transactions.length)}{" "}
           {transactions.length === 1 ? "transaction" : "transactions"}
         </p>
       ) : null}

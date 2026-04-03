@@ -1,16 +1,49 @@
+import { APP_LOCALE } from "./locale";
+
+function formatNumber(
+  value: number,
+  options: Intl.NumberFormatOptions = {},
+): string {
+  return new Intl.NumberFormat(APP_LOCALE, options).format(value);
+}
+
+export function formatIntegerForDisplay(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return formatNumber(value, { maximumFractionDigits: 0 });
+}
+
+export function formatDecimalForDisplay(
+  value: number,
+  {
+    decimalPlaces = 2,
+    useGrouping = true,
+  }: { decimalPlaces?: number; useGrouping?: boolean } = {},
+): string {
+  if (!Number.isFinite(value)) {
+    return "0";
+  }
+  return formatNumber(value, {
+    useGrouping,
+    maximumFractionDigits: decimalPlaces,
+    minimumFractionDigits: decimalPlaces,
+  });
+}
+
 /**
  * Formats a numeric string for UI: rounds to at most three fraction digits (half-up via Intl).
- * Uses a fixed locale and no grouping so the table stays consistent.
+ * Uses app locale and no grouping so the table stays consistent.
  */
 export function formatUnitPriceForDisplay(raw: string): string {
   const t = raw.trim();
   const n = Number(t);
   if (!Number.isFinite(n)) return t;
-  return new Intl.NumberFormat("en-US", {
+  return formatNumber(n, {
     useGrouping: false,
     maximumFractionDigits: 3,
     minimumFractionDigits: 0,
-  }).format(n);
+  });
 }
 
 /**
@@ -68,4 +101,22 @@ export function roundQuantityForDisplay(raw: string): number {
 export const formatToPercentage = (
   v: number,
   { decimalPlaces }: { decimalPlaces?: number } = {},
-) => `${(v * 100).toFixed(decimalPlaces ?? 1)}%`;
+) => {
+  if (!Number.isFinite(v)) {
+    return "";
+  }
+  const digits = decimalPlaces ?? 1;
+  return formatNumber(v, {
+    style: "percent",
+    maximumFractionDigits: digits,
+    minimumFractionDigits: digits,
+  });
+};
+
+/** Formats a percentage value where `value` is already in percent units (0-100). */
+export function formatPercentageValueForDisplay(
+  value: number,
+  { decimalPlaces }: { decimalPlaces?: number } = {},
+): string {
+  return formatToPercentage(value / 100, { decimalPlaces });
+}

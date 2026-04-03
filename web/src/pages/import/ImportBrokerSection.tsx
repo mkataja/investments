@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { Button } from "../../components/Button";
 import { ErrorAlert } from "../../components/ErrorAlert";
 import { FileBrowseButton } from "../../components/FileBrowseButton";
+import { formatIntegerForDisplay } from "../../lib/numberFormat";
 import type { HomeBroker } from "../home/types";
 import type { DegiroOk } from "./types";
 
@@ -53,16 +54,18 @@ function ImportSuccessMessage({ result }: { result: DegiroOk }) {
   return (
     <p className="copy-success">
       {result.deletedOld != null && result.deletedOld > 0
-        ? `Removed ${result.deletedOld} previous transaction${
+        ? `Removed ${formatIntegerForDisplay(result.deletedOld)} previous transaction${
             result.deletedOld === 1 ? "" : "s"
           }. `
         : null}
-      Processed {result.processed} transaction
-      {result.processed === 1 ? "" : "s"}: {result.changed} written to the
-      database
-      {result.unchanged > 0 ? `, ${result.unchanged} already up to date` : ""}
+      Processed {formatIntegerForDisplay(result.processed)} transaction
+      {result.processed === 1 ? "" : "s"}:{" "}
+      {formatIntegerForDisplay(result.changed)} written to the database
+      {result.unchanged > 0
+        ? `, ${formatIntegerForDisplay(result.unchanged)} already up to date`
+        : ""}
       {result.skippedRows != null && result.skippedRows > 0
-        ? `, ${result.skippedRows} skipped (no matching instrument)`
+        ? `, ${formatIntegerForDisplay(result.skippedRows)} skipped (no matching instrument)`
         : ""}
       .
     </p>

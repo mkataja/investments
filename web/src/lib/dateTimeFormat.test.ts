@@ -5,6 +5,7 @@ import {
   formatLocalDateTimeYmdHm,
   parseLocalDateTimeYmdHm,
 } from "./dateTimeFormat";
+import { APP_LOCALE } from "./locale";
 
 describe("formatDateTimeLocalInputValue", () => {
   it("formats local date and time with zero padding", () => {
@@ -45,19 +46,37 @@ describe("formatLocalDateTimeYmdHm / parseLocalDateTimeYmdHm", () => {
 });
 
 describe("formatInstantForDisplay", () => {
+  const dateOnlyFormatterUtc = new Intl.DateTimeFormat(APP_LOCALE, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "UTC",
+  });
+  const dateTimeFormatter = new Intl.DateTimeFormat(APP_LOCALE, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
   it("shows YYYY-MM-DD only for UTC midnight (calendar-day storage)", () => {
     expect(formatInstantForDisplay("2024-06-15T00:00:00.000Z")).toBe(
-      "2024-06-15",
+      dateOnlyFormatterUtc.format(new Date("2024-06-15T00:00:00.000Z")),
     );
   });
 
   it("shows YYYY-MM-DD only for plain YYYY-MM-DD", () => {
-    expect(formatInstantForDisplay("2024-06-15")).toBe("2024-06-15");
+    expect(formatInstantForDisplay("2024-06-15")).toBe(
+      dateOnlyFormatterUtc.format(new Date(Date.UTC(2024, 5, 15))),
+    );
   });
 
-  it("shows YYYY-MM-DD HH:mm in local time when UTC time is not midnight", () => {
-    const out = formatInstantForDisplay("2026-03-25T15:39:00.000Z");
-    expect(out).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
+  it("shows localized date and time when UTC time is not midnight", () => {
+    const raw = "2026-03-25T15:39:00.000Z";
+    const out = formatInstantForDisplay(raw);
+    expect(out).toBe(dateTimeFormatter.format(new Date(raw)));
   });
 
   it("returns non-parseable input unchanged", () => {

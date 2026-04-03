@@ -6,6 +6,7 @@ import {
 import { useMemo } from "react";
 import type { SeligsonFundPageCompositePreviewRow } from "../../api/seligsonFundPageCompositePreview";
 import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
+import { formatToPercentage } from "../../lib/numberFormat";
 import type { InstrumentListItem } from "../../pages/instruments/types";
 import type { SeligsonCompositeMappedRow } from "./types";
 
@@ -148,7 +149,7 @@ export function SeligsonCompositeAllocationPanel({
                     {row.rawLabel}
                   </td>
                   <td className="px-2 py-2 align-top whitespace-nowrap tabular-nums">
-                    {(row.pctOfFund * 100).toFixed(1)}%
+                    {formatToPercentage(row.pctOfFund, { decimalPlaces: 1 })}
                   </td>
                   <td className="px-2 py-2 align-top min-w-[12rem]">
                     <select

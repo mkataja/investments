@@ -1,6 +1,8 @@
 import type { ChartData, ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { CHART_TOOLTIP_STYLE } from "../../../lib/chart/chartTooltipConstants";
+import { formatInstantForDisplay } from "../../../lib/dateTimeFormat";
+import { formatIntegerForDisplay } from "../../../lib/numberFormat";
 import { PORTFOLIO_ASSET_MIX_COLORS } from "../../../lib/portfolioChartPalette";
 import type { AssetMixHistoryPoint } from "../types";
 import { assetMixPieRowsFromAssetMix } from "./assetMixPieRows";
@@ -49,8 +51,7 @@ export function useAssetMixHistoryLine(
   lineHodlMode = false,
 ): AssetMixHistoryChartResult {
   return useMemo(() => {
-    const formatEur = (n: number) =>
-      `${n.toLocaleString("en-US", { maximumFractionDigits: 0 })} EUR`;
+    const formatEur = (n: number) => `${formatIntegerForDisplay(n)} EUR`;
 
     const empty = (): AssetMixHistoryChartResult => ({
       data: { labels: [], datasets: [] },
@@ -68,7 +69,7 @@ export function useAssetMixHistoryLine(
     const templateRows = assetMixPieRowsFromAssetMix(first);
     const rowsByPoint = points.map((p) => assetMixPieRowsFromAssetMix(p));
 
-    const xLabels = [...points.map((p) => p.date), ""];
+    const xLabels = [...points.map((p) => formatInstantForDisplay(p.date)), ""];
 
     const lastDateIndex = points.length - 1;
     const lastPointRadius = 4;
@@ -279,7 +280,7 @@ export function useAssetMixHistoryLine(
               if (i === undefined || i >= points.length) {
                 return "";
               }
-              return points[i]?.date ?? "";
+              return xLabels[i] ?? "";
             },
             label: (ctx) => {
               if (ctx.raw === null) {

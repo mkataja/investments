@@ -9,6 +9,7 @@ import {
 } from "../../components/InstrumentDistributionSummary";
 import { classNames } from "../../lib/css";
 import { formatInstantForDisplay } from "../../lib/dateTimeFormat";
+import { formatIntegerForDisplay } from "../../lib/numberFormat";
 import type { InstrumentListItem } from "./types";
 
 function lastUpdatedCell(i: InstrumentListItem) {
@@ -35,7 +36,7 @@ function lastUpdatedCell(i: InstrumentListItem) {
       </div>
       <div>
         <span className="text-slate-400">Prices count: </span>
-        {i.pricesRowCount}
+        {formatIntegerForDisplay(i.pricesRowCount)}
       </div>
     </div>
   );

@@ -55,11 +55,6 @@ IMPORTANT! Read and always follow good quality standards!
 - It's important to consider maintainability
 
 
-## General bits
-
-- Web date/time formatting: `web/src/lib/dateTimeFormat.ts` (`YYYY-MM-DD`, or with time `YYYY-MM-DD HH:mm` local 24h)
-
-
 ## Web UI
 
 Small UX wins on forms/flows when obvious: default values, enter to submit, etc. quality of life improvements.

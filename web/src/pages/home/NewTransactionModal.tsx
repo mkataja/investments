@@ -7,7 +7,7 @@ import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { classNames } from "../../lib/css";
 import {
-  formatLocalDateTimeYmdHm,
+  formatDateTimeLocalInputValue,
   parseLocalDateTimeYmdHm,
 } from "../../lib/dateTimeFormat";
 import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
@@ -56,7 +56,7 @@ function buildTxnForm(
   if (edit) {
     return {
       brokerId: edit.brokerId,
-      tradeDate: formatLocalDateTimeYmdHm(new Date(edit.tradeDate)),
+      tradeDate: formatDateTimeLocalInputValue(new Date(edit.tradeDate)),
       side: edit.side === "sell" ? "sell" : "buy",
       instrumentId: edit.instrumentId,
       quantity: edit.quantity,
@@ -66,7 +66,7 @@ function buildTxnForm(
   }
   return {
     brokerId: brokers[0]?.id ?? 1,
-    tradeDate: formatLocalDateTimeYmdHm(new Date()),
+    tradeDate: formatDateTimeLocalInputValue(new Date()),
     side: "buy",
     instrumentId: 0,
     quantity: "1",
@@ -195,7 +195,7 @@ export function NewTransactionModal({
     onError(null);
     const tradeDateParsed = parseLocalDateTimeYmdHm(txnForm.tradeDate);
     if (!tradeDateParsed) {
-      onError("Date and time must be YYYY-MM-DD HH:mm");
+      onError("Date and time is invalid.");
       return;
     }
     try {
@@ -255,10 +255,8 @@ export function NewTransactionModal({
         <label className="block text-sm">
           Date and time
           <input
-            type="text"
+            type="datetime-local"
             className="form-control"
-            autoComplete="off"
-            placeholder="YYYY-MM-DD HH:mm"
             value={txnForm.tradeDate}
             onChange={(e) =>
               setTxnForm({ ...txnForm, tradeDate: e.target.value })

@@ -1,3 +1,5 @@
+import { formatDecimalForDisplay } from "../../../lib/numberFormat";
+
 /**
  * Line chart: keep positive values; use `0` only next to a positive value so
  * segments meet the axis without drawing long runs along y = 0.
@@ -28,12 +30,12 @@ export function yTickShort(v: number): string {
   const sign = v < 0 ? "-" : "";
   const a = Math.abs(v);
   if (a >= 1_000_000) {
-    return `${sign}${(a / 1_000_000).toFixed(1)}M`;
+    return `${sign}${formatDecimalForDisplay(a / 1_000_000, { decimalPlaces: 1, useGrouping: false })}M`;
   }
   if (a >= 1000) {
-    return `${sign}${(a / 1000).toFixed(0)}k`;
+    return `${sign}${formatDecimalForDisplay(a / 1000, { decimalPlaces: 0, useGrouping: false })}k`;
   }
-  return `${sign}${a}`;
+  return `${sign}${formatDecimalForDisplay(a, { decimalPlaces: 0, useGrouping: false })}`;
 }
 
 /**

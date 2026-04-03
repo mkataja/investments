@@ -1,7 +1,9 @@
 import type { ChartData, ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { CHART_TOOLTIP_STYLE } from "../../../lib/chart/chartTooltipConstants";
+import { formatInstantForDisplay } from "../../../lib/dateTimeFormat";
 import { portfolioSectorBarRows } from "../../../lib/distributionDisplay";
+import { formatPercentageValueForDisplay } from "../../../lib/numberFormat";
 import { portfolioSectorChartColorForBucketKey } from "../../../lib/portfolioChartPalette";
 import type { AssetMixHistoryPoint } from "../types";
 import { DISTRIBUTION_BAR_CHART_GRID_STROKE } from "./distributionBarChartOptions";
@@ -40,10 +42,7 @@ export function useSectorDistributionHistoryLine(
   stacked: boolean,
 ): SectorDistributionHistoryChartResult {
   return useMemo(() => {
-    const formatPct = (n: number) => {
-      const t = n.toFixed(1);
-      return t.endsWith(".0") ? `${Math.round(n)}%` : `${t}%`;
-    };
+    const formatPct = (n: number) => formatPercentageValueForDisplay(n);
 
     const empty = (): SectorDistributionHistoryChartResult => ({
       data: { labels: [], datasets: [] },
@@ -68,7 +67,7 @@ export function useSectorDistributionHistoryLine(
       (p) => p.equitySectorsEur ?? ({} as Record<string, number>),
     );
 
-    const xLabels = [...points.map((p) => p.date), ""];
+    const xLabels = [...points.map((p) => formatInstantForDisplay(p.date)), ""];
 
     const filteredSpecs = templateRows
       .map((row) => {
@@ -129,7 +128,7 @@ export function useSectorDistributionHistoryLine(
         if (!Number.isFinite(v)) {
           return "";
         }
-        return `${v}%`;
+        return formatPercentageValueForDisplay(v, { decimalPlaces: 0 });
       },
     };
 
@@ -238,7 +237,7 @@ export function useSectorDistributionHistoryLine(
               if (i === undefined || i >= points.length) {
                 return "";
               }
-              return points[i]?.date ?? "";
+              return xLabels[i] ?? "";
             },
             label: (ctx) => {
               if (ctx.raw === null) {

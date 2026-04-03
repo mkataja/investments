@@ -1,7 +1,23 @@
 /**
  * Shared date/time formatting for UI (tables, forms, cache timestamps).
- * Calendar dates use **YYYY-MM-DD**; with time: **YYYY-MM-DD HH:mm** (local, 24-hour).
  */
+import { APP_LOCALE } from "./locale";
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat(APP_LOCALE, {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+const DATE_ONLY_UTC_FORMATTER = new Intl.DateTimeFormat(APP_LOCALE, {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  timeZone: "UTC",
+});
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -61,10 +77,10 @@ export function parseLocalDateTimeYmdHm(s: string): Date | null {
 
 /**
  * Formats a parseable date string for display:
- * - `YYYY-MM-DD` → same **UTC** calendar date (no time).
+ * - `YYYY-MM-DD` → localized calendar date (same **UTC** day, no time).
  * - An instant at **UTC midnight** → **date only** (avoids bogus local times when the stored
  *   value means “calendar day”, e.g. `normalizeTradeDate` / imports without time of day).
- * - Any other valid instant → **YYYY-MM-DD HH:mm** in the **local** time zone.
+ * - Any other valid instant → localized date + time in the **local** time zone.
  */
 export function formatInstantForDisplay(raw: string): string {
   const t = raw.trim();
@@ -74,11 +90,10 @@ export function formatInstantForDisplay(raw: string): string {
 
   const ymdOnly = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
   if (ymdOnly) {
-    return formatYmdUtc(
-      Number(ymdOnly[1]),
-      Number(ymdOnly[2]),
-      Number(ymdOnly[3]),
-    );
+    const y = Number(ymdOnly[1]);
+    const m = Number(ymdOnly[2]);
+    const d = Number(ymdOnly[3]);
+    return DATE_ONLY_UTC_FORMATTER.format(new Date(Date.UTC(y, m - 1, d)));
   }
 
   const d = new Date(t);
@@ -87,14 +102,10 @@ export function formatInstantForDisplay(raw: string): string {
   }
 
   if (isUtcMidnight(d)) {
-    return formatYmdUtc(
-      d.getUTCFullYear(),
-      d.getUTCMonth() + 1,
-      d.getUTCDate(),
-    );
+    return DATE_ONLY_UTC_FORMATTER.format(d);
   }
 
-  return `${formatYmdUtc(d.getFullYear(), d.getMonth() + 1, d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  return DATE_TIME_FORMATTER.format(d);
 }
 
 function isUtcMidnight(d: Date): boolean {

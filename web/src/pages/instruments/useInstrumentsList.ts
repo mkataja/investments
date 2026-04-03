@@ -6,6 +6,7 @@ import {
   interpretRefreshDistributionResponse,
   userMessageForSkippedRefresh,
 } from "../../api/instrumentRefreshDistribution";
+import { formatIntegerForDisplay } from "../../lib/numberFormat";
 import {
   isSkippedByBackfillAllBackoff,
   isSkippedByRefreshAllBackoff,
@@ -249,7 +250,7 @@ export function useInstrumentsList() {
       await load();
       const parts: string[] = [];
       parts.push(
-        `${rowsUpsertedTotal.toLocaleString()} price rows for ${targets.length} ${targets.length === 1 ? "instrument" : "instruments"}`,
+        `${formatIntegerForDisplay(rowsUpsertedTotal)} price rows for ${formatIntegerForDisplay(targets.length)} ${targets.length === 1 ? "instrument" : "instruments"}`,
       );
       if (skippedBackfillRecent > 0) {
         parts.push(`${skippedBackfillRecent} skipped (recent)`);
@@ -326,7 +327,7 @@ export function useInstrumentsList() {
       await load();
       const parts: string[] = [];
       parts.push(
-        `${rowsUpsertedTotal.toLocaleString()} Seligson CSV price rows for ${targets.length} ${targets.length === 1 ? "instrument" : "instruments"}`,
+        `${formatIntegerForDisplay(rowsUpsertedTotal)} Seligson CSV price rows for ${formatIntegerForDisplay(targets.length)} ${targets.length === 1 ? "instrument" : "instruments"}`,
       );
       if (skippedSeligsonRecent > 0) {
         parts.push(`${skippedSeligsonRecent} skipped (recent)`);

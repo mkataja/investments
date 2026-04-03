@@ -5,6 +5,8 @@ import {
 } from "../../components/HoldingDistributionTooltip";
 import { formatPercentWidth4From01 } from "../../lib/distributionDisplay";
 import {
+  formatDecimalForDisplay,
+  formatIntegerForDisplay,
   formatUnitPriceForDisplay,
   roundQuantityForDisplay,
 } from "../../lib/numberFormat";
@@ -105,7 +107,9 @@ function HoldingsSubtable({
                   {hideQtyAndUnitEur ? null : (
                     <>
                       <td className="p-2 text-right tabular-nums">
-                        {roundQuantityForDisplay(String(p.quantity))}
+                        {formatIntegerForDisplay(
+                          roundQuantityForDisplay(String(p.quantity)),
+                        )}
                       </td>
                       <td className="p-2 text-right tabular-nums">
                         {p.unitPriceEur == null
@@ -115,7 +119,7 @@ function HoldingsSubtable({
                     </>
                   )}
                   <td className="p-2 text-right tabular-nums">
-                    {p.valueEur.toFixed(2)}
+                    {formatDecimalForDisplay(p.valueEur, { decimalPlaces: 2 })}
                   </td>
                   <td className="p-2 text-right tabular-nums">
                     {formatPercentWidth4From01(weightWithinSection)}
