@@ -79,6 +79,8 @@ If necessary, you can run individual CI checks for faster output:
 - `pnpm test`
 - `pnpm ts-prune`
 
+But ALWAYS run full `ci` before claiming you're ready.
+
 
 ## Git commits
 
