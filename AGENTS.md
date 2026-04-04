@@ -23,6 +23,11 @@ HTTP routes live in `api` code only. They are not to be listed in documentation;
 
 Data model lives in `db/src/schema.ts` (and migrations).
 
+Portfolio kinds:
+- `live`: real transactions in `transactions`
+- `static`: synthetic fixed-notional weights (no `transactions` rows)
+- `backtest`: synthetic weights + start date with computed P/L (no `transactions` rows)
+
 
 ## Code style, quality, and performance
 

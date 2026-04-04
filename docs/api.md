@@ -17,6 +17,6 @@
 | `transactions` | Transactions CRUD and intraday price seeding from trades. |
 | `import` | Degiro, IBKR, and Seligson import uploads and instrument resolution. |
 | `instrument` | Instruments CRUD, backfills, distribution refresh, Yahoo lookup, positions, and portfolio distribution or asset-mix history routes. |
-| `portfolio` | Portfolios CRUD and benchmark weights. |
+| `portfolio` | Portfolios CRUD plus static/backtest synthetic weights and backtest creation. |
 
 CORS and validation are in the same entrypoint as routes.
