@@ -37,11 +37,17 @@ app.post(
   zValidator("json", portfolios.portfolioCreateIn),
   portfolios.createPortfolio,
 );
+app.post(
+  "/portfolios/backtest",
+  zValidator("json", portfolios.portfolioBacktestCreateIn),
+  portfolios.createBacktestPortfolio,
+);
 app.patch(
   "/portfolios/:id",
   zValidator("json", portfolios.portfolioPatchIn),
   portfolios.patchPortfolio,
 );
+app.delete("/portfolios/:id", portfolios.deletePortfolio);
 app.get("/portfolios/:id/benchmark-weights", portfolios.getBenchmarkWeights);
 app.put(
   "/portfolios/:id/benchmark-weights",

@@ -14,6 +14,7 @@ import { db } from "../../db.js";
 import { validJson } from "../../lib/honoValidJson.js";
 import { normalizeTradeDateInputToDate } from "../../lib/normalizeTradeDate.js";
 import { seedIntradayPriceForInstrumentIfMissing } from "../instrument/transactionPriceSeed.js";
+import { loadBacktestVirtualTransactions } from "../portfolio/backtestPortfolio.js";
 import { loadPortfolioOwnedByUser } from "../portfolio/portfolioAccess.js";
 
 export const transactionIn = z.object({
@@ -52,6 +53,18 @@ export async function getTransactions(c: Context) {
   const pf = await loadPortfolioOwnedByUser(portfolioId);
   if (!pf) {
     return c.json({ message: "Portfolio not found" }, 404);
+  }
+  if (pf.kind === "backtest") {
+    const virtualRows = await loadBacktestVirtualTransactions(portfolioId);
+    virtualRows.sort(
+      (a, b) =>
+        new Date(b.tradeDate).getTime() - new Date(a.tradeDate).getTime() ||
+        b.id - a.id,
+    );
+    return c.json(virtualRows);
+  }
+  if (pf.kind === "static") {
+    return c.json([]);
   }
   const rows = await db
     .select()
@@ -106,9 +119,9 @@ export async function postTransaction(c: Context) {
   if (!pf) {
     return c.json({ message: "Portfolio not found" }, 404);
   }
-  if (pf.kind === "benchmark") {
+  if (pf.kind === "static" || pf.kind === "backtest") {
     return c.json(
-      { message: "Cannot add transactions to a benchmark portfolio" },
+      { message: "Cannot add transactions to a static/backtest portfolio" },
       400,
     );
   }
@@ -201,9 +214,9 @@ export async function patchTransaction(c: Context) {
   if (!pf) {
     return c.json({ message: "Portfolio not found" }, 404);
   }
-  if (pf.kind === "benchmark") {
+  if (pf.kind === "static" || pf.kind === "backtest") {
     return c.json(
-      { message: "Cannot add transactions to a benchmark portfolio" },
+      { message: "Cannot add transactions to a static/backtest portfolio" },
       400,
     );
   }

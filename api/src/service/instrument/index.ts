@@ -1420,7 +1420,7 @@ export async function getPositions(c: Context) {
   if (!pf) {
     return c.json({ message: "Portfolio not found" }, 404);
   }
-  if (pf.kind === "benchmark") {
+  if (pf.kind === "static" || pf.kind === "backtest") {
     return c.json([]);
   }
   const pos = await loadOpenPositionsForPortfolio(portfolioId);

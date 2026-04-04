@@ -36,7 +36,7 @@ export const users = pgTable("users", {
 
 /**
  * One row per named portfolio bucket; transactions are scoped to a portfolio.
- * `kind = benchmark`: target weights in `portfolio_benchmark_weights`; no transactions.
+ * `kind = static|backtest`: target weights in `portfolio_benchmark_weights`; no transactions.
  */
 export const portfolios = pgTable(
   "portfolios",
@@ -55,7 +55,7 @@ export const portfolios = pgTable(
       .notNull()
       .default("0"),
     /**
-     * Synthetic total EUR for benchmark notionals (`getPortfolioDistributions`); ignored when `kind` is live.
+     * Synthetic total EUR for static/backtest notionals (`getPortfolioDistributions`); ignored when `kind` is live.
      */
     benchmarkTotalEur: numeric("benchmark_total_eur", {
       precision: 24,
@@ -63,6 +63,10 @@ export const portfolios = pgTable(
     })
       .notNull()
       .default("10000"),
+    /**
+     * Anchor date for backtest implied buys. Null for live/static.
+     */
+    simulationStartDate: date("simulation_start_date"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -72,7 +76,10 @@ export const portfolios = pgTable(
   },
   (t) => [
     uniqueIndex("portfolios_user_name_uidx").on(t.userId, t.name),
-    check("portfolios_kind_ck", sql`${t.kind} IN ('live', 'benchmark')`),
+    check(
+      "portfolios_kind_ck",
+      sql`${t.kind} IN ('live', 'static', 'backtest')`,
+    ),
   ],
 );
 
@@ -280,7 +287,7 @@ export const instrumentCompositeConstituents = pgTable(
 );
 
 /**
- * Target weights for `portfolios.kind = benchmark` (fractions; normalized in application).
+ * Target weights for `portfolios.kind = static|backtest` (fractions; normalized in application).
  */
 export const portfolioBenchmarkWeights = pgTable(
   "portfolio_benchmark_weights",

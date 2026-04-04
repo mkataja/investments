@@ -8,6 +8,7 @@ import { type InferSelectModel, inArray } from "drizzle-orm";
 import { db } from "../../db.js";
 import { distributionGeoScaleForCountryMerge } from "../instrument/distributionGeoScale.js";
 import { loadLatestDistributionRowsByInstrumentIds } from "../instrument/latestPriceDistribution.js";
+import { loadBacktestValuedRows } from "./backtestPortfolio.js";
 import {
   BENCHMARK_TOTAL_EUR_DEFAULT,
   loadBenchmarkValuedRows,
@@ -238,7 +239,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     source: string;
   }>;
 
-  if (pfRow?.kind === "benchmark") {
+  if (pfRow?.kind === "static") {
     const notionRaw = Number(pfRow.benchmarkTotalEur);
     const bench = await loadBenchmarkValuedRows(
       portfolioId,
@@ -258,6 +259,20 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       };
     }
     valued = bench;
+  } else if (pfRow?.kind === "backtest") {
+    const backtest = await loadBacktestValuedRows(portfolioId);
+    if (backtest.length === 0) {
+      return {
+        countries: {},
+        regions: {},
+        sectors: {},
+        totalValueEur: 0,
+        ...emptyDistributions(),
+        positions: [],
+        bucketTopHoldings: { regions: {}, sectors: {}, countries: {} },
+      };
+    }
+    valued = backtest;
   } else {
     const pos = await loadOpenPositionsForPortfolio(portfolioId);
     if (pos.length === 0) {

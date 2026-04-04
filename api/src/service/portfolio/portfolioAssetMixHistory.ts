@@ -17,6 +17,7 @@ import {
   pickDistributionRowForAssetMixHistory,
   pickLatestPriceRowAsOf,
 } from "../instrument/latestPriceDistribution.js";
+import { loadBacktestVirtualTransactions } from "./backtestPortfolio.js";
 import {
   DIAMOND_HANDS_LOAN_INTEREST_INDEX_NAME,
   closestObservationRateForDate,
@@ -191,7 +192,7 @@ export async function getPortfolioAssetMixHistory(
   if (!pf || pf.id !== portfolioId) {
     return { points: [] };
   }
-  if (pf.kind === "benchmark") {
+  if (pf.kind === "static") {
     return { points: [] };
   }
 
@@ -199,18 +200,28 @@ export async function getPortfolioAssetMixHistory(
     pf.emergencyFundEur,
   );
 
-  const txRows: AssetMixHistoryTxRow[] = await db
-    .select({
-      tradeDate: transactions.tradeDate,
-      instrumentId: transactions.instrumentId,
-      side: transactions.side,
-      quantity: transactions.quantity,
-      unitPrice: transactions.unitPrice,
-      currency: transactions.currency,
-    })
-    .from(transactions)
-    .where(eq(transactions.portfolioId, portfolioId))
-    .orderBy(asc(transactions.tradeDate));
+  const txRows: AssetMixHistoryTxRow[] =
+    pf.kind === "backtest"
+      ? (await loadBacktestVirtualTransactions(portfolioId)).map((t) => ({
+          tradeDate: new Date(t.tradeDate),
+          instrumentId: t.instrumentId,
+          side: t.side,
+          quantity: t.quantity,
+          unitPrice: t.unitPrice,
+          currency: t.currency,
+        }))
+      : await db
+          .select({
+            tradeDate: transactions.tradeDate,
+            instrumentId: transactions.instrumentId,
+            side: transactions.side,
+            quantity: transactions.quantity,
+            unitPrice: transactions.unitPrice,
+            currency: transactions.currency,
+          })
+          .from(transactions)
+          .where(eq(transactions.portfolioId, portfolioId))
+          .orderBy(asc(transactions.tradeDate));
 
   const [firstRow] = txRows;
   if (!firstRow) {

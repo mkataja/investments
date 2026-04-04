@@ -51,10 +51,10 @@ export async function resolvePortfolioIdFromImportBody(
   if (!row) {
     return { ok: false, message: "Portfolio not found", status: 404 };
   }
-  if (row.kind === "benchmark") {
+  if (row.kind === "static" || row.kind === "backtest") {
     return {
       ok: false,
-      message: "Cannot import into a benchmark portfolio",
+      message: "Cannot import into a static/backtest portfolio",
       status: 400,
     };
   }

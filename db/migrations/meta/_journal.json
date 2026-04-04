@@ -337,6 +337,13 @@
       "when": 1775226529923,
       "tag": "0047_lush_bloodstorm",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1775249424204,
+      "tag": "0049_equal_joshua_kane",
+      "breakpoints": true
     }
   ]
 }

@@ -24,31 +24,58 @@ function mapPortfolioRow(row: InferSelectModel<typeof portfolios>) {
     ...row,
     emergencyFundEur: Number(row.emergencyFundEur),
     benchmarkTotalEur: Number(row.benchmarkTotalEur),
+    simulationStartDate:
+      row.simulationStartDate != null
+        ? String(row.simulationStartDate).slice(0, 10)
+        : null,
   };
 }
 
 export const portfolioCreateIn = z.object({
   name: z.string().trim().min(1),
   emergencyFundEur: z.number().finite().nonnegative().optional(),
-  kind: z.enum(["live", "benchmark"]).optional(),
+  kind: z.enum(["live", "static", "backtest"]).optional(),
   benchmarkTotalEur: z.number().finite().positive().optional(),
+  simulationStartDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 export const portfolioPatchIn = z
   .object({
     name: z.string().trim().min(1).optional(),
     emergencyFundEur: z.number().finite().nonnegative().optional(),
-    kind: z.enum(["live", "benchmark"]).optional(),
+    kind: z.enum(["live", "static", "backtest"]).optional(),
     benchmarkTotalEur: z.number().finite().positive().optional(),
+    simulationStartDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/)
+      .nullable()
+      .optional(),
   })
   .refine(
     (o) =>
       o.name != null ||
       o.emergencyFundEur != null ||
       o.kind != null ||
-      o.benchmarkTotalEur != null,
+      o.benchmarkTotalEur != null ||
+      o.simulationStartDate !== undefined,
     { message: "At least one field is required" },
   );
+
+export const portfolioBacktestCreateIn = z.object({
+  name: z.string().trim().min(1),
+  emergencyFundEur: z.number().finite().nonnegative().optional(),
+  benchmarkTotalEur: z.number().finite().positive(),
+  simulationStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  weights: z.array(
+    z.object({
+      instrumentId: z.number().int().positive(),
+      weight: z.number().finite().positive(),
+    }),
+  ),
+});
 
 export const benchmarkWeightsPutIn = z.object({
   weights: z.array(
@@ -83,6 +110,12 @@ export async function createPortfolio(c: Context) {
     );
   }
   const kind = body.kind ?? "live";
+  if (kind === "backtest" && body.simulationStartDate == null) {
+    return c.json(
+      { message: "Backtest portfolio requires simulationStartDate" },
+      400,
+    );
+  }
   const [row] = await db
     .insert(portfolios)
     .values({
@@ -91,12 +124,79 @@ export async function createPortfolio(c: Context) {
       kind,
       emergencyFundEur: String(body.emergencyFundEur ?? 0),
       benchmarkTotalEur: String(body.benchmarkTotalEur ?? 10_000),
+      simulationStartDate:
+        kind === "backtest" ? body.simulationStartDate : null,
     })
     .returning();
   if (!row) {
     return c.json({ message: "Failed to create portfolio" }, 500);
   }
   return c.json(mapPortfolioRow(row), 201);
+}
+
+export async function createBacktestPortfolio(c: Context) {
+  const body = validJson(c, portfolioBacktestCreateIn);
+  const name = body.name.trim();
+  const [dup] = await db
+    .select({ id: portfolios.id })
+    .from(portfolios)
+    .where(and(eq(portfolios.userId, USER_ID), eq(portfolios.name, name)))
+    .limit(1);
+  if (dup) {
+    return c.json(
+      { message: "A portfolio with this name already exists" },
+      409,
+    );
+  }
+  const seen = new Set<number>();
+  for (const w of body.weights) {
+    if (seen.has(w.instrumentId)) {
+      return c.json({ message: "Duplicate instrumentId in weights" }, 400);
+    }
+    seen.add(w.instrumentId);
+  }
+  const instIds = [...seen];
+  if (instIds.length > 0) {
+    const instRows = await db
+      .select({ id: instruments.id })
+      .from(instruments)
+      .where(inArray(instruments.id, instIds));
+    if (instRows.length !== instIds.length) {
+      return c.json({ message: "One or more instruments not found" }, 400);
+    }
+  }
+  let created: InferSelectModel<typeof portfolios> | null = null;
+  await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(portfolios)
+      .values({
+        userId: USER_ID,
+        name,
+        kind: "backtest",
+        emergencyFundEur: String(body.emergencyFundEur ?? 0),
+        benchmarkTotalEur: String(body.benchmarkTotalEur),
+        simulationStartDate: body.simulationStartDate,
+      })
+      .returning();
+    if (!row) {
+      throw new Error("Failed to create portfolio");
+    }
+    created = row;
+    if (body.weights.length > 0) {
+      await tx.insert(portfolioBenchmarkWeights).values(
+        body.weights.map((w, i) => ({
+          portfolioId: row.id,
+          instrumentId: w.instrumentId,
+          weight: String(w.weight),
+          sortOrder: i,
+        })),
+      );
+    }
+  });
+  if (!created) {
+    return c.json({ message: "Failed to create portfolio" }, 500);
+  }
+  return c.json(mapPortfolioRow(created), 201);
 }
 
 export async function patchPortfolio(c: Context) {
@@ -128,7 +228,19 @@ export async function patchPortfolio(c: Context) {
     }
   }
   if (body.kind != null && body.kind !== existing.kind) {
-    if (body.kind === "benchmark" && existing.kind === "live") {
+    if (
+      (existing.kind === "backtest" && body.kind === "static") ||
+      (existing.kind === "static" && body.kind === "backtest")
+    ) {
+      return c.json(
+        { message: "Cannot convert between static and backtest portfolios" },
+        400,
+      );
+    }
+    if (
+      (body.kind === "static" || body.kind === "backtest") &&
+      existing.kind === "live"
+    ) {
       const [cntRow] = await db
         .select({ n: count() })
         .from(transactions)
@@ -137,17 +249,33 @@ export async function patchPortfolio(c: Context) {
         return c.json(
           {
             message:
-              "Cannot convert a portfolio with transactions to a benchmark",
+              "Cannot convert a portfolio with transactions to static/backtest",
           },
           400,
         );
       }
     }
-    if (body.kind === "live" && existing.kind === "benchmark") {
+    if (
+      body.kind === "live" &&
+      (existing.kind === "static" || existing.kind === "backtest")
+    ) {
       await db
         .delete(portfolioBenchmarkWeights)
         .where(eq(portfolioBenchmarkWeights.portfolioId, id));
     }
+  }
+  const nextKind = body.kind ?? existing.kind;
+  const nextSimulationStartDate =
+    body.simulationStartDate !== undefined
+      ? body.simulationStartDate
+      : nextKind === "backtest"
+        ? existing.simulationStartDate
+        : null;
+  if (nextKind === "backtest" && nextSimulationStartDate == null) {
+    return c.json(
+      { message: "Backtest portfolio requires simulationStartDate" },
+      400,
+    );
   }
   const [row] = await db
     .update(portfolios)
@@ -160,6 +288,7 @@ export async function patchPortfolio(c: Context) {
       ...(body.benchmarkTotalEur != null
         ? { benchmarkTotalEur: String(body.benchmarkTotalEur) }
         : {}),
+      simulationStartDate: nextSimulationStartDate,
     })
     .where(eq(portfolios.id, id))
     .returning();
@@ -178,8 +307,8 @@ export async function getBenchmarkWeights(c: Context) {
   if (!pf) {
     return c.json({ message: "Not found" }, 404);
   }
-  if (pf.kind !== "benchmark") {
-    return c.json({ message: "Portfolio is not a benchmark" }, 400);
+  if (pf.kind !== "static" && pf.kind !== "backtest") {
+    return c.json({ message: "Portfolio is not static/backtest" }, 400);
   }
   const rows = await db
     .select()
@@ -204,8 +333,8 @@ export async function putBenchmarkWeights(c: Context) {
   if (!pf) {
     return c.json({ message: "Not found" }, 404);
   }
-  if (pf.kind !== "benchmark") {
-    return c.json({ message: "Portfolio is not a benchmark" }, 400);
+  if (pf.kind !== "static" && pf.kind !== "backtest") {
+    return c.json({ message: "Portfolio is not static/backtest" }, 400);
   }
   const body = validJson(c, benchmarkWeightsPutIn);
   const seen = new Set<number>();
@@ -240,5 +369,20 @@ export async function putBenchmarkWeights(c: Context) {
       );
     }
   });
+  return c.body(null, 204);
+}
+
+export async function deletePortfolio(c: Context) {
+  const id = Number.parseInt(c.req.param("id") ?? "", 10);
+  if (!Number.isFinite(id) || id < 1) {
+    return c.json({ message: "Invalid id" }, 400);
+  }
+  const [deleted] = await db
+    .delete(portfolios)
+    .where(and(eq(portfolios.id, id), eq(portfolios.userId, USER_ID)))
+    .returning({ id: portfolios.id });
+  if (!deleted) {
+    return c.json({ message: "Not found" }, 404);
+  }
   return c.body(null, 204);
 }
