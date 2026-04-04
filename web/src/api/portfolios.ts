@@ -2,9 +2,10 @@ import type { BenchmarkWeightFormRow } from "../pages/home/types";
 
 export function buildCreatePortfolioBody(args: {
   name: string;
-  kind: "live" | "benchmark";
+  kind: "live" | "static" | "backtest";
   emergencyFundEur: number;
   benchmarkTotalEur?: number;
+  simulationStartDate?: string;
 }): Record<string, unknown> {
   return {
     name: args.name,
@@ -13,6 +14,9 @@ export function buildCreatePortfolioBody(args: {
     ...(args.benchmarkTotalEur != null
       ? { benchmarkTotalEur: args.benchmarkTotalEur }
       : {}),
+    ...(args.simulationStartDate != null
+      ? { simulationStartDate: args.simulationStartDate }
+      : {}),
   };
 }
 
@@ -20,13 +24,35 @@ export function buildPatchPortfolioBody(args: {
   name: string;
   emergencyFundEur: number;
   benchmarkTotalEur?: number;
+  simulationStartDate?: string;
+  kind?: "live" | "static" | "backtest";
 }): Record<string, unknown> {
   return {
     name: args.name,
     emergencyFundEur: args.emergencyFundEur,
+    ...(args.kind != null ? { kind: args.kind } : {}),
     ...(args.benchmarkTotalEur != null
       ? { benchmarkTotalEur: args.benchmarkTotalEur }
       : {}),
+    ...(args.simulationStartDate != null
+      ? { simulationStartDate: args.simulationStartDate }
+      : {}),
+  };
+}
+
+export function buildCreateBacktestPortfolioBody(args: {
+  name: string;
+  emergencyFundEur: number;
+  benchmarkTotalEur: number;
+  simulationStartDate: string;
+  weights: Array<{ instrumentId: number; weight: number }>;
+}): Record<string, unknown> {
+  return {
+    name: args.name,
+    emergencyFundEur: args.emergencyFundEur,
+    benchmarkTotalEur: args.benchmarkTotalEur,
+    simulationStartDate: args.simulationStartDate,
+    weights: args.weights,
   };
 }
 

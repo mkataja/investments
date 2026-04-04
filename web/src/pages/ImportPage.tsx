@@ -118,7 +118,11 @@ export function ImportPage() {
   >(null);
 
   const livePortfolios = useMemo(
-    () => portfolios.filter((p) => (p.kind ?? "live") !== "benchmark"),
+    () =>
+      portfolios.filter(
+        (p) =>
+          (p.kind ?? "live") !== "static" && (p.kind ?? "live") !== "backtest",
+      ),
     [portfolios],
   );
 

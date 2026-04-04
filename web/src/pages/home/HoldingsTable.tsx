@@ -17,7 +17,7 @@ type HoldingsTableProps = {
   portfolio: PortfolioDistributions;
   instrumentById: Map<number, HomeInstrument>;
   instrumentTickerById: Map<number, string | null>;
-  /** Benchmark portfolios use synthetic notionals; hide quantity and unit price columns. */
+  /** Static/backtest portfolios use synthetic notionals; hide quantity and unit price columns. */
   hideQtyAndUnitEur?: boolean;
   /** When true, omit the section h2 (e.g. when a parent tab bar labels the view). */
   hideSectionTitle?: boolean;

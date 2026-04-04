@@ -1,13 +1,20 @@
+import { sortByTransactionInstrumentSelectLabel } from "@investments/lib/instrumentSelectLabel";
 import {
   type FormEvent,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
-import { apiPost } from "../../api/client";
-import { buildCreatePortfolioBody } from "../../api/portfolios";
+import { apiPost, apiPut } from "../../api/client";
+import {
+  buildCreateBacktestPortfolioBody,
+  buildCreatePortfolioBody,
+  normalizeWeightRowsForApi,
+} from "../../api/portfolios";
 import { Button } from "../../components/Button";
+import { ErrorAlert } from "../../components/ErrorAlert";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
 import {
@@ -16,27 +23,44 @@ import {
   PortfolioFormEmergencyFundBlock,
   PortfolioFormNameField,
 } from "./PortfolioFormFields";
-import type { PortfolioEntity } from "./types";
+import { PortfolioWeightRowsEditor } from "./PortfolioWeightRowsEditor";
+import type {
+  BenchmarkWeightFormRow,
+  HomeInstrument,
+  PortfolioEntity,
+} from "./types";
 
 type NewPortfolioModalProps = {
   open: boolean;
   onClose: () => void;
+  instruments: HomeInstrument[];
   onCreated: (portfolio: PortfolioEntity) => void | Promise<void>;
-  onError: (message: string | null) => void;
 };
 
 export function NewPortfolioModal({
   open,
   onClose,
+  instruments,
   onCreated,
-  onError,
 }: NewPortfolioModalProps) {
   const [name, setName] = useState("");
   const [emergencyFund, setEmergencyFund] = useState("0");
-  const [kind, setKind] = useState<"live" | "benchmark">("live");
+  const [kind, setKind] = useState<"live" | "static" | "backtest">("live");
   const [benchmarkTotal, setBenchmarkTotal] = useState("10000");
+  const [simulationStartDate, setSimulationStartDate] = useState(
+    new Date().toISOString().slice(0, 10),
+  );
+  const [weightRows, setWeightRows] = useState<BenchmarkWeightFormRow[]>([
+    { instrumentId: "", weightStr: "" },
+  ]);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const instrumentsSorted = useMemo(
+    () => sortByTransactionInstrumentSelectLabel(instruments),
+    [instruments],
+  );
+  const isSynthetic = kind === "static" || kind === "backtest";
 
   useLayoutEffect(() => {
     if (!open) {
@@ -46,7 +70,10 @@ export function NewPortfolioModal({
     setEmergencyFund("0");
     setKind("live");
     setBenchmarkTotal("10000");
+    setSimulationStartDate(new Date().toISOString().slice(0, 10));
+    setWeightRows([{ instrumentId: "", weightStr: "" }]);
     setBusy(false);
+    setError(null);
   }, [open]);
 
   useEffect(() => {
@@ -63,26 +90,52 @@ export function NewPortfolioModal({
     if (trimmed.length === 0) {
       return;
     }
-    const efParsed =
-      kind === "benchmark"
-        ? 0
-        : Number.parseFloat(emergencyFund.trim().replace(",", "."));
+    const efParsed = isSynthetic
+      ? 0
+      : Number.parseFloat(emergencyFund.trim().replace(",", "."));
     if (!Number.isFinite(efParsed) || efParsed < 0) {
-      onError("Emergency fund must be a non-negative number.");
+      setError("Emergency fund must be a non-negative number.");
       return;
     }
     let benchmarkTotalEur: number | undefined;
-    if (kind === "benchmark") {
+    if (isSynthetic) {
       const bt = Number.parseFloat(benchmarkTotal.trim().replace(",", "."));
       if (!Number.isFinite(bt) || bt <= 0) {
-        onError("Total amount must be a positive number.");
+        setError("Total amount must be a positive number.");
         return;
       }
       benchmarkTotalEur = bt;
     }
+    if (kind === "backtest") {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(simulationStartDate.trim())) {
+        setError("Start date must be YYYY-MM-DD.");
+        return;
+      }
+    }
     setBusy(true);
-    onError(null);
+    setError(null);
     try {
+      if (kind === "backtest") {
+        const apiWeights = normalizeWeightRowsForApi(weightRows);
+        if (apiWeights.length === 0) {
+          setError("Add at least one weight row.");
+          setBusy(false);
+          return;
+        }
+        const row = await apiPost<PortfolioEntity>(
+          "/portfolios/backtest",
+          buildCreateBacktestPortfolioBody({
+            name: trimmed,
+            emergencyFundEur: efParsed,
+            benchmarkTotalEur: benchmarkTotalEur ?? 10_000,
+            simulationStartDate: simulationStartDate.trim(),
+            weights: apiWeights,
+          }),
+        );
+        onClose();
+        await onCreated(row);
+        return;
+      }
       const row = await apiPost<PortfolioEntity>(
         "/portfolios",
         buildCreatePortfolioBody({
@@ -92,10 +145,16 @@ export function NewPortfolioModal({
           ...(benchmarkTotalEur != null ? { benchmarkTotalEur } : {}),
         }),
       );
+      if (kind === "static") {
+        const apiWeights = normalizeWeightRowsForApi(weightRows);
+        await apiPut(`/portfolios/${row.id}/benchmark-weights`, {
+          weights: apiWeights,
+        });
+      }
       onClose();
       await onCreated(row);
     } catch (err) {
-      onError(String(err));
+      setError(String(err));
     } finally {
       setBusy(false);
     }
@@ -104,7 +163,10 @@ export function NewPortfolioModal({
   const dirty =
     name.trim() !== "" ||
     parseDecimalInputLoose(emergencyFund) !== 0 ||
-    kind !== "live";
+    kind !== "live" ||
+    parseDecimalInputLoose(benchmarkTotal) !== 10000 ||
+    simulationStartDate !== new Date().toISOString().slice(0, 10) ||
+    weightRows.some((r) => r.instrumentId !== "" || r.weightStr.trim() !== "");
 
   return (
     <Modal
@@ -114,6 +176,7 @@ export function NewPortfolioModal({
       confirmBeforeClose={dirty}
     >
       <form onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-5">
+        {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         <PortfolioFormNameField
           name={name}
           onNameChange={setName}
@@ -128,20 +191,47 @@ export function NewPortfolioModal({
               value={kind}
               onChange={(e) => {
                 const v = e.target.value;
-                setKind(v === "benchmark" ? "benchmark" : "live");
+                if (v === "static" || v === "backtest") {
+                  setKind(v);
+                  return;
+                }
+                setKind("live");
               }}
             >
               <option value="live">Live (transactions)</option>
-              <option value="benchmark">Benchmark (target weights)</option>
+              <option value="static">Static (target weights)</option>
+              <option value="backtest">Backtest (simulated P/L)</option>
             </select>
           </label>
         </div>
-        {kind === "benchmark" ? (
+        {isSynthetic ? (
           <>
             <PortfolioFormDivider />
+            {kind === "backtest" ? (
+              <label className="block text-sm max-w-xs">
+                Backtest start date
+                <input
+                  className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+                  type="date"
+                  value={simulationStartDate}
+                  onChange={(e) => setSimulationStartDate(e.target.value)}
+                />
+              </label>
+            ) : null}
             <PortfolioFormBenchmarkTotalField
               value={benchmarkTotal}
               onChange={setBenchmarkTotal}
+              label={
+                kind === "backtest"
+                  ? "Initial invested sum (EUR)"
+                  : "Synthetic portfolio total value (EUR)"
+              }
+            />
+            <hr />
+            <PortfolioWeightRowsEditor
+              rows={weightRows}
+              onRowsChange={setWeightRows}
+              instruments={instrumentsSorted}
             />
           </>
         ) : null}

@@ -47,8 +47,8 @@ export function ImportPortfolioPicker({
   if (portfolios.length > 0) {
     return (
       <p className="text-sm text-slate-600">
-        Add a live portfolio before importing (benchmark portfolios cannot hold
-        transactions).
+        Add a live portfolio before importing (static/backtest portfolios cannot
+        hold transactions).
       </p>
     );
   }
@@ -60,7 +60,12 @@ export function pickInitialImportPortfolioId(
 ): number | null {
   const stored = readStoredPortfolioId();
   const storedRow = list.find((p) => p.id === stored);
-  return storedRow && (storedRow.kind ?? "live") !== "benchmark"
+  return storedRow &&
+    (storedRow.kind ?? "live") !== "static" &&
+    (storedRow.kind ?? "live") !== "backtest"
     ? storedRow.id
-    : (list.find((p) => (p.kind ?? "live") !== "benchmark")?.id ?? null);
+    : (list.find(
+        (p) =>
+          (p.kind ?? "live") !== "static" && (p.kind ?? "live") !== "backtest",
+      )?.id ?? null);
 }

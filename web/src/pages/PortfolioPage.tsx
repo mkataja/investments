@@ -34,7 +34,8 @@ type PortfolioTabPanelsProps = {
   assetMixHistoryPoints: AssetMixHistoryPoint[];
   selectedPortfolioId: number | null;
   portfolioHasSellTransactions: boolean;
-  selectedIsBenchmark: boolean;
+  selectedIsStatic: boolean;
+  selectedIsSynthetic: boolean;
   instrumentById: Map<number, HomeInstrument>;
   instrumentTickerById: Map<number, string | null>;
   instrumentNameById: Map<number, string>;
@@ -55,7 +56,8 @@ function PortfolioTabPanels({
   assetMixHistoryPoints,
   selectedPortfolioId,
   portfolioHasSellTransactions,
-  selectedIsBenchmark,
+  selectedIsStatic,
+  selectedIsSynthetic,
   instrumentById,
   instrumentTickerById,
   instrumentNameById,
@@ -98,7 +100,7 @@ function PortfolioTabPanels({
             portfolio={portfolio}
             instrumentById={instrumentById}
             instrumentTickerById={instrumentTickerById}
-            hideQtyAndUnitEur={selectedIsBenchmark}
+            hideQtyAndUnitEur={selectedIsStatic}
             hideSectionTitle
           />
         </div>
@@ -119,6 +121,7 @@ function PortfolioTabPanels({
             onEdit={onEditTransaction}
             onDeleted={load}
             onError={setError}
+            readOnly={selectedIsSynthetic}
             hideSectionTitle
           />
         </div>
@@ -212,7 +215,10 @@ export function PortfolioPage() {
     return portfolioEntities.find((p) => p.id === selectedPortfolioId) ?? null;
   }, [selectedPortfolioId, portfolioEntities]);
 
-  const selectedIsBenchmark = selectedPortfolioEntity?.kind === "benchmark";
+  const selectedIsSynthetic =
+    selectedPortfolioEntity?.kind === "static" ||
+    selectedPortfolioEntity?.kind === "backtest";
+  const selectedIsStatic = selectedPortfolioEntity?.kind === "static";
 
   const [txnModalOpen, setTxnModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] =
@@ -259,9 +265,11 @@ export function PortfolioPage() {
                   >
                     {portfolioEntities.map((pe) => (
                       <option key={pe.id} value={pe.id}>
-                        {(pe.kind ?? "live") === "benchmark"
-                          ? `${pe.name} (benchmark)`
-                          : pe.name}
+                        {(pe.kind ?? "live") === "static"
+                          ? `${pe.name} (static)`
+                          : (pe.kind ?? "live") === "backtest"
+                            ? `${pe.name} (backtest)`
+                            : pe.name}
                       </option>
                     ))}
                   </select>
@@ -287,9 +295,11 @@ export function PortfolioPage() {
                         .filter((pe) => pe.id !== selectedPortfolioId)
                         .map((pe) => (
                           <option key={pe.id} value={pe.id}>
-                            {(pe.kind ?? "live") === "benchmark"
-                              ? `${pe.name} (benchmark)`
-                              : pe.name}
+                            {(pe.kind ?? "live") === "static"
+                              ? `${pe.name} (static)`
+                              : (pe.kind ?? "live") === "backtest"
+                                ? `${pe.name} (backtest)`
+                                : pe.name}
                           </option>
                         ))}
                     </select>
@@ -314,7 +324,7 @@ export function PortfolioPage() {
             >
               Edit portfolio
             </Button>
-            {selectedIsBenchmark ? null : (
+            {selectedIsSynthetic ? null : (
               <>
                 <ButtonLink to="/portfolio/import">
                   Import transactions
@@ -345,14 +355,14 @@ export function PortfolioPage() {
       <NewPortfolioModal
         open={newPortfolioOpen}
         onClose={() => setNewPortfolioOpen(false)}
-        onError={setError}
+        instruments={instruments}
         onCreated={async (row) => {
           setPortfolioEntities((prev) =>
             [...prev, row].sort((a, b) => a.id - b.id),
           );
           setSelectedPortfolioId(row.id);
           writeStoredPortfolioId(row.id);
-          if ((row.kind ?? "live") === "benchmark") {
+          if ((row.kind ?? "live") === "static") {
             setEditPortfolioOpen(true);
           }
         }}
@@ -367,6 +377,24 @@ export function PortfolioPage() {
         portfolio={selectedPortfolioEntity}
         instruments={instruments}
         onSaved={load}
+        onDeleted={async () => {
+          const deletedId = selectedPortfolioId;
+          await load();
+          if (deletedId == null) {
+            return;
+          }
+          const nextList = portfolioEntities.filter((p) => p.id !== deletedId);
+          const nextSelected = nextList[0]?.id ?? null;
+          setSelectedPortfolioId(nextSelected);
+          if (nextSelected != null) {
+            writeStoredPortfolioId(nextSelected);
+          }
+          if (comparePortfolioId === deletedId) {
+            setComparePortfolioId(null);
+            writeStoredComparePortfolioId(null);
+            setComparePortfolio(null);
+          }
+        }}
         onError={setError}
       />
 
@@ -396,7 +424,8 @@ export function PortfolioPage() {
           assetMixHistoryPoints={assetMixHistoryPoints}
           selectedPortfolioId={selectedPortfolioId}
           portfolioHasSellTransactions={portfolioHasSellTransactions}
-          selectedIsBenchmark={selectedIsBenchmark}
+          selectedIsStatic={selectedIsStatic}
+          selectedIsSynthetic={selectedIsSynthetic}
           instrumentById={instrumentById}
           instrumentTickerById={instrumentTickerById}
           instrumentNameById={instrumentNameById}

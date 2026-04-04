@@ -33,7 +33,7 @@ export type HomeTransaction = {
   currency: string;
 };
 
-type PortfolioKind = "live" | "benchmark";
+type PortfolioKind = "live" | "static" | "backtest";
 
 export type PortfolioEntity = {
   id: number;
@@ -41,8 +41,10 @@ export type PortfolioEntity = {
   name: string;
   kind: PortfolioKind;
   emergencyFundEur: number;
-  /** Synthetic total EUR for benchmark distributions; meaningful when `kind === "benchmark"`. */
+  /** Synthetic total EUR for static/backtest distributions; meaningful when `kind !== "live"`. */
   benchmarkTotalEur: number;
+  /** Backtest start date (`YYYY-MM-DD`), null for live/static. */
+  simulationStartDate: string | null;
   createdAt: string;
   updatedAt: string;
 };

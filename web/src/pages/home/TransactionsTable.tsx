@@ -39,6 +39,7 @@ type TransactionsTableProps = {
   onEdit: (t: HomeTransaction) => void;
   onDeleted: () => void | Promise<void>;
   onError: (message: string | null) => void;
+  readOnly?: boolean;
   /** When true, omit the section h2 (e.g. when a parent tab bar labels the view). */
   hideSectionTitle?: boolean;
 };
@@ -52,6 +53,7 @@ export function TransactionsTable({
   onEdit,
   onDeleted,
   onError,
+  readOnly = false,
   hideSectionTitle = false,
 }: TransactionsTableProps) {
   const [filterInstrumentId, setFilterInstrumentId] = useState<number | null>(
@@ -137,7 +139,9 @@ export function TransactionsTable({
               <th className="text-right p-2 font-medium">Price</th>
               <th className="text-right p-2 font-medium">Value</th>
               <th className="text-right p-2 font-medium">Value after</th>
-              <th className="text-right p-2 font-medium w-30">Actions</th>
+              {readOnly ? null : (
+                <th className="text-right p-2 font-medium w-30">Actions</th>
+              )}
             </tr>
           </thead>
           <tbody>
@@ -201,39 +205,41 @@ export function TransactionsTable({
                 <td className="p-2 text-right tabular-nums text-slate-800">
                   {valueAfterByTxnId.get(t.id) ?? "-"}
                 </td>
-                <td className="text-right p-2 space-x-3 whitespace-nowrap">
-                  <button
-                    type="button"
-                    className="action-primary"
-                    onClick={() => onEdit(t)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
-                    className="action-delete"
-                    onClick={() => {
-                      if (
-                        !window.confirm(
-                          "Delete this transaction? This cannot be undone.",
-                        )
-                      ) {
-                        return;
-                      }
-                      onError(null);
-                      void (async () => {
-                        try {
-                          await apiDelete(`/transactions/${t.id}`);
-                          await onDeleted();
-                        } catch (err) {
-                          onError(String(err));
+                {readOnly ? null : (
+                  <td className="text-right p-2 space-x-3 whitespace-nowrap">
+                    <button
+                      type="button"
+                      className="action-primary"
+                      onClick={() => onEdit(t)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="action-delete"
+                      onClick={() => {
+                        if (
+                          !window.confirm(
+                            "Delete this transaction? This cannot be undone.",
+                          )
+                        ) {
+                          return;
                         }
-                      })();
-                    }}
-                  >
-                    Delete
-                  </button>
-                </td>
+                        onError(null);
+                        void (async () => {
+                          try {
+                            await apiDelete(`/transactions/${t.id}`);
+                            await onDeleted();
+                          } catch (err) {
+                            onError(String(err));
+                          }
+                        })();
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

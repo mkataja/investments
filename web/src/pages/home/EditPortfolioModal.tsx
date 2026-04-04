@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { apiGet, apiPatch, apiPut } from "../../api/client";
+import { apiDelete, apiGet, apiPatch, apiPut } from "../../api/client";
 import {
   buildPatchPortfolioBody,
   normalizeWeightRowsForApi,
@@ -15,13 +15,13 @@ import {
 import { Button } from "../../components/Button";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
-import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
 import {
   PortfolioFormBenchmarkTotalField,
   PortfolioFormDivider,
   PortfolioFormEmergencyFundBlock,
   PortfolioFormNameField,
 } from "./PortfolioFormFields";
+import { PortfolioWeightRowsEditor } from "./PortfolioWeightRowsEditor";
 import {
   type BenchmarkWeightFormRow,
   type HomeInstrument,
@@ -35,6 +35,7 @@ type EditPortfolioModalProps = {
   portfolio: PortfolioEntity | null;
   instruments: HomeInstrument[];
   onSaved: () => void | Promise<void>;
+  onDeleted: () => void | Promise<void>;
   onError: (message: string | null) => void;
 };
 
@@ -44,6 +45,7 @@ export function EditPortfolioModal({
   portfolio,
   instruments,
   onSaved,
+  onDeleted,
   onError,
 }: EditPortfolioModalProps) {
   const [name, setName] = useState(() => portfolio?.name ?? "");
@@ -64,11 +66,18 @@ export function EditPortfolioModal({
     BenchmarkWeightFormRow[]
   >([]);
   const [weightsLoadToken, setWeightsLoadToken] = useState(0);
+  const [weightsLoaded, setWeightsLoaded] = useState(false);
+  const [simulationStartDate, setSimulationStartDate] = useState(
+    () =>
+      portfolio?.simulationStartDate ?? new Date().toISOString().slice(0, 10),
+  );
   const [busy, setBusy] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const kind = portfolio?.kind ?? "live";
-  const isBenchmark = kind === "benchmark";
+  const isStatic = kind === "static";
+  const isBacktest = kind === "backtest";
+  const isSynthetic = isStatic || isBacktest;
 
   const instrumentsSorted = useMemo(
     () => sortByTransactionInstrumentSelectLabel(instruments),
@@ -90,16 +99,21 @@ export function EditPortfolioModal({
         ? String(portfolio.benchmarkTotalEur)
         : "10000",
     );
-    if ((portfolio.kind ?? "live") === "benchmark") {
+    setSimulationStartDate(
+      portfolio.simulationStartDate ?? new Date().toISOString().slice(0, 10),
+    );
+    if ((portfolio.kind ?? "live") !== "live") {
+      setWeightsLoaded(false);
       setWeightsLoadToken((t) => t + 1);
     } else {
       setWeightRows([{ instrumentId: "", weightStr: "" }]);
       setInitialWeightRows([]);
+      setWeightsLoaded(true);
     }
   }, [open, portfolio]);
 
   useEffect(() => {
-    if (!open || portfolio == null || !isBenchmark) {
+    if (!open || portfolio == null || !isSynthetic) {
       return;
     }
     let cancelled = false;
@@ -127,16 +141,18 @@ export function EditPortfolioModal({
             weightStr: r.weightStr,
           })),
         );
+        setWeightsLoaded(true);
       } catch (e) {
         if (!cancelled) {
           onError(String(e));
+          setWeightsLoaded(false);
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [open, portfolio, isBenchmark, weightsLoadToken, onError]);
+  }, [open, portfolio, isSynthetic, weightsLoadToken, onError]);
 
   useEffect(() => {
     if (!open) return;
@@ -157,7 +173,13 @@ export function EditPortfolioModal({
     }
     let emergencyFundEurForPatch: number;
     let benchmarkTotalEurForPatch: number | undefined;
-    if (isBenchmark) {
+    let simulationStartDateForPatch: string | undefined;
+    let apiWeights: Array<{ instrumentId: number; weight: number }> = [];
+    if (isSynthetic) {
+      if (!weightsLoaded) {
+        onError("Portfolio weights are still loading. Please wait a moment.");
+        return;
+      }
       const v = portfolio.emergencyFundEur;
       emergencyFundEurForPatch = Number.isFinite(v) ? v : 0;
       const bt = Number.parseFloat(benchmarkTotal.trim().replace(",", "."));
@@ -166,6 +188,23 @@ export function EditPortfolioModal({
         return;
       }
       benchmarkTotalEurForPatch = bt;
+      try {
+        apiWeights = normalizeWeightRowsForApi(weightRows);
+      } catch (err) {
+        onError(String(err));
+        return;
+      }
+      if (apiWeights.length === 0) {
+        onError("Add at least one weight row.");
+        return;
+      }
+      if (isBacktest) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(simulationStartDate.trim())) {
+          onError("Start date must be YYYY-MM-DD.");
+          return;
+        }
+        simulationStartDateForPatch = simulationStartDate.trim();
+      }
     } else {
       const efParsed = Number.parseFloat(
         emergencyFund.trim().replace(",", "."),
@@ -179,29 +218,25 @@ export function EditPortfolioModal({
     setBusy(true);
     onError(null);
     try {
-      if (isBenchmark) {
-        let apiWeights: Array<{ instrumentId: number; weight: number }>;
-        try {
-          apiWeights = normalizeWeightRowsForApi(weightRows);
-        } catch (err) {
-          onError(String(err));
-          setBusy(false);
-          return;
-        }
-        await apiPut(`/portfolios/${portfolio.id}/benchmark-weights`, {
-          weights: apiWeights,
-        });
-      }
       await apiPatch<PortfolioEntity>(
         `/portfolios/${portfolio.id}`,
         buildPatchPortfolioBody({
           name: trimmed,
           emergencyFundEur: emergencyFundEurForPatch,
-          ...(isBenchmark && benchmarkTotalEurForPatch != null
+          ...(isSynthetic ? { kind } : {}),
+          ...(isSynthetic && benchmarkTotalEurForPatch != null
             ? { benchmarkTotalEur: benchmarkTotalEurForPatch }
+            : {}),
+          ...(simulationStartDateForPatch != null
+            ? { simulationStartDate: simulationStartDateForPatch }
             : {}),
         }),
       );
+      if (isSynthetic) {
+        await apiPut(`/portfolios/${portfolio.id}/benchmark-weights`, {
+          weights: apiWeights,
+        });
+      }
       onClose();
       await onSaved();
     } catch (err) {
@@ -219,15 +254,18 @@ export function EditPortfolioModal({
   const portfolioDirty =
     portfolio != null &&
     (name.trim() !== portfolio.name.trim() ||
-      (!isBenchmark &&
+      (!isSynthetic &&
         parseDecimalInputLoose(emergencyFund) !==
           (Number.isFinite(portfolio.emergencyFundEur)
             ? portfolio.emergencyFundEur
             : 0)) ||
-      (isBenchmark &&
+      (isSynthetic &&
         (parseDecimalInputLoose(benchmarkTotal) !==
           portfolioBenchmarkTotalEur ||
-          !weightRowsEqual(weightRows, initialWeightRows))));
+          !weightRowsEqual(weightRows, initialWeightRows))) ||
+      (isBacktest &&
+        simulationStartDate.trim() !==
+          (portfolio.simulationStartDate ?? "").trim()));
 
   return (
     <Modal
@@ -235,7 +273,7 @@ export function EditPortfolioModal({
       open={open}
       onClose={onClose}
       confirmBeforeClose={portfolioDirty}
-      dialogClassName={isBenchmark ? "max-w-3xl" : undefined}
+      dialogClassName={isSynthetic ? "max-w-3xl" : undefined}
     >
       <form onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-5">
         <PortfolioFormNameField
@@ -244,104 +282,32 @@ export function EditPortfolioModal({
           inputRef={nameInputRef}
         />
 
-        {isBenchmark ? (
+        {isSynthetic ? (
           <>
             <PortfolioFormDivider />
             <div className="flex flex-col gap-4">
+              {isBacktest ? (
+                <label className="block text-sm max-w-xs">
+                  Backtest start date
+                  <input
+                    className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
+                    type="date"
+                    value={simulationStartDate}
+                    onChange={(e) => setSimulationStartDate(e.target.value)}
+                  />
+                </label>
+              ) : null}
               <PortfolioFormBenchmarkTotalField
                 value={benchmarkTotal}
                 onChange={setBenchmarkTotal}
+                label="Synthetic portfolio total value (EUR)"
               />
               <hr />
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Target weights for comparison charts. Use any positive numbers;
-                they are normalized to 100%.
-              </p>
-              <div className="flex flex-col gap-3">
-                {weightRows.map((row, idx) => (
-                  <div
-                    key={`${idx}-${row.instrumentId === "" ? "e" : row.instrumentId}`}
-                    className="flex flex-col gap-3 sm:flex-row sm:flex-nowrap sm:items-end sm:gap-3"
-                  >
-                    <label className="block text-sm min-w-0 w-full sm:flex-1">
-                      Instrument
-                      <select
-                        className="mt-1 block w-full min-w-0 border border-slate-300 rounded px-2 py-1 text-sm bg-white"
-                        value={
-                          row.instrumentId === ""
-                            ? ""
-                            : String(row.instrumentId)
-                        }
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setWeightRows((prev) => {
-                            const next = [...prev];
-                            const cur = next[idx];
-                            if (!cur) return prev;
-                            next[idx] = {
-                              ...cur,
-                              instrumentId:
-                                v === "" ? "" : Number.parseInt(v, 10),
-                            };
-                            return next;
-                          });
-                        }}
-                      >
-                        <option value="" />
-                        {instrumentsSorted.map((i) => (
-                          <option key={i.id} value={i.id}>
-                            {instrumentSelectUiLabel(i)}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block text-sm w-full shrink-0 sm:w-28">
-                      Weight
-                      <input
-                        className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
-                        type="text"
-                        inputMode="decimal"
-                        autoComplete="off"
-                        value={row.weightStr}
-                        onChange={(e) => {
-                          const t = e.target.value;
-                          setWeightRows((prev) => {
-                            const next = [...prev];
-                            const cur = next[idx];
-                            if (!cur) return prev;
-                            next[idx] = { ...cur, weightStr: t };
-                            return next;
-                          });
-                        }}
-                      />
-                    </label>
-                    <Button
-                      type="button"
-                      className="shrink-0 w-full sm:w-auto"
-                      onClick={() => {
-                        setWeightRows((prev) =>
-                          prev.filter((_, j) => j !== idx),
-                        );
-                      }}
-                    >
-                      Remove
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <div>
-                <Button
-                  type="button"
-                  onClick={() =>
-                    setWeightRows((prev) => [
-                      ...prev,
-                      { instrumentId: "", weightStr: "" },
-                    ])
-                  }
-                >
-                  Add line
-                </Button>
-              </div>
+              <PortfolioWeightRowsEditor
+                rows={weightRows}
+                onRowsChange={setWeightRows}
+                instruments={instrumentsSorted}
+              />
             </div>
           </>
         ) : (
@@ -352,8 +318,43 @@ export function EditPortfolioModal({
         )}
 
         <PortfolioFormDivider />
-        <div>
-          <Button type="submit" disabled={busy}>
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            type="button"
+            className="action-delete"
+            disabled={busy || portfolio == null}
+            onClick={() => {
+              if (portfolio == null) {
+                return;
+              }
+              if (
+                !window.confirm(
+                  "Delete this portfolio and all its data? This cannot be undone.",
+                )
+              ) {
+                return;
+              }
+              onError(null);
+              void (async () => {
+                try {
+                  setBusy(true);
+                  await apiDelete(`/portfolios/${portfolio.id}`);
+                  onClose();
+                  await onDeleted();
+                } catch (err) {
+                  onError(String(err));
+                } finally {
+                  setBusy(false);
+                }
+              })();
+            }}
+          >
+            Delete
+          </Button>
+          <Button
+            type="submit"
+            disabled={busy || (isSynthetic && !weightsLoaded)}
+          >
             Save
           </Button>
         </div>

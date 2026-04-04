@@ -69,15 +69,17 @@ export function PortfolioFormEmergencyFundBlock({
 type PortfolioFormBenchmarkTotalFieldProps = {
   value: string;
   onChange: (value: string) => void;
+  label?: string;
 };
 
 export function PortfolioFormBenchmarkTotalField({
   value,
   onChange,
+  label = "Synthetic portfolio total value (EUR)",
 }: PortfolioFormBenchmarkTotalFieldProps) {
   return (
     <label className="block text-sm max-w-xs">
-      Synthetic portfolio value total value (EUR)
+      {label}
       <input
         className="mt-1 block w-full border border-slate-300 rounded px-2 py-1 tabular-nums"
         type="text"
