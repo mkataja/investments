@@ -223,7 +223,12 @@ export const instruments = pgTable(
       .on(t.seligsonFundId)
       .where(sql`${t.seligsonFundId} IS NOT NULL`),
     index("instruments_broker_id_idx").on(t.brokerId),
-    index("instruments_isin_idx").on(t.isin),
+    uniqueIndex("instruments_yahoo_symbol_uidx")
+      .on(t.yahooSymbol)
+      .where(sql`${t.yahooSymbol} IS NOT NULL`),
+    uniqueIndex("instruments_isin_uidx")
+      .on(t.isin)
+      .where(sql`${t.isin} IS NOT NULL`),
   ],
 );
 

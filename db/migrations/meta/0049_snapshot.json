@@ -1,6 +1,6 @@
 {
-  "id": "3251f89c-0cb7-4143-8da3-ed2f8cdeb03e",
-  "prevId": "8ee0c4e9-c402-4db9-a868-b258ad4f3b41",
+  "id": "6102761f-89de-4dc3-a82f-583d885bca32",
+  "prevId": "3251f89c-0cb7-4143-8da3-ed2f8cdeb03e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -585,8 +585,24 @@
           "method": "btree",
           "with": {}
         },
-        "instruments_isin_idx": {
-          "name": "instruments_isin_idx",
+        "instruments_yahoo_symbol_uidx": {
+          "name": "instruments_yahoo_symbol_uidx",
+          "columns": [
+            {
+              "expression": "yahoo_symbol",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"instruments\".\"yahoo_symbol\" IS NOT NULL",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "instruments_isin_uidx": {
+          "name": "instruments_isin_uidx",
           "columns": [
             {
               "expression": "isin",
@@ -595,7 +611,8 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
+          "where": "\"instruments\".\"isin\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}

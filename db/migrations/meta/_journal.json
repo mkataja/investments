@@ -344,6 +344,13 @@
       "when": 1775249424204,
       "tag": "0049_equal_joshua_kane",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1775250689128,
+      "tag": "0049_hot_maddog",
+      "breakpoints": true
     }
   ]
 }
