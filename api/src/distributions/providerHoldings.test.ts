@@ -299,18 +299,22 @@ describe("parseIsharesHoldingsCsv", () => {
 });
 
 describe("parseSsgaHoldingsXlsx", () => {
-  it("aggregates SSGA sample from /tmp or repo", () => {
-    const path = join(repoRoot, "holdings-daily-emea-en-spyi-gy.xlsx");
-    let buf: Buffer;
-    try {
-      buf = readFileSync(path);
-    } catch {
-      buf = readFileSync("/tmp/ssga_test.xlsx");
-    }
-    const { countries, sectors } = parseSsgaHoldingsXlsx(new Uint8Array(buf));
-    expect(countries.US).toBeGreaterThan(0.1);
-    expect(Object.keys(sectors).length).toBeGreaterThan(0);
-  });
+  const repoSamplePath = join(repoRoot, "holdings-daily-emea-en-spyi-gy.xlsx");
+  const tmpSamplePath = "/tmp/ssga_test.xlsx";
+  it.skipIf(!existsSync(repoSamplePath) && !existsSync(tmpSamplePath))(
+    "aggregates SSGA sample from /tmp or repo",
+    () => {
+      let buf: Buffer;
+      try {
+        buf = readFileSync(repoSamplePath);
+      } catch {
+        buf = readFileSync(tmpSamplePath);
+      }
+      const { countries, sectors } = parseSsgaHoldingsXlsx(new Uint8Array(buf));
+      expect(countries.US).toBeGreaterThan(0.1);
+      expect(Object.keys(sectors).length).toBeGreaterThan(0);
+    },
+  );
 });
 
 function minimalXtrackersHoldingsXlsx(): Uint8Array {
