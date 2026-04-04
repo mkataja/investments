@@ -13,6 +13,7 @@ import {
   normalizeWeightRowsForApi,
 } from "../../api/portfolios";
 import { Button } from "../../components/Button";
+import { ErrorAlert } from "../../components/ErrorAlert";
 import { Modal } from "../../components/Modal";
 import { parseDecimalInputLoose } from "../../lib/decimalInput";
 import {
@@ -36,7 +37,6 @@ type EditPortfolioModalProps = {
   instruments: HomeInstrument[];
   onSaved: () => void | Promise<void>;
   onDeleted: () => void | Promise<void>;
-  onError: (message: string | null) => void;
 };
 
 export function EditPortfolioModal({
@@ -46,7 +46,6 @@ export function EditPortfolioModal({
   instruments,
   onSaved,
   onDeleted,
-  onError,
 }: EditPortfolioModalProps) {
   const [name, setName] = useState(() => portfolio?.name ?? "");
   const [emergencyFund, setEmergencyFund] = useState(() =>
@@ -72,6 +71,7 @@ export function EditPortfolioModal({
       portfolio?.simulationStartDate ?? new Date().toISOString().slice(0, 10),
   );
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const kind = portfolio?.kind ?? "live";
@@ -102,6 +102,7 @@ export function EditPortfolioModal({
     setSimulationStartDate(
       portfolio.simulationStartDate ?? new Date().toISOString().slice(0, 10),
     );
+    setError(null);
     if ((portfolio.kind ?? "live") !== "live") {
       setWeightsLoaded(false);
       setWeightsLoadToken((t) => t + 1);
@@ -144,7 +145,7 @@ export function EditPortfolioModal({
         setWeightsLoaded(true);
       } catch (e) {
         if (!cancelled) {
-          onError(String(e));
+          setError(String(e));
           setWeightsLoaded(false);
         }
       }
@@ -152,7 +153,7 @@ export function EditPortfolioModal({
     return () => {
       cancelled = true;
     };
-  }, [open, portfolio, isSynthetic, weightsLoadToken, onError]);
+  }, [open, portfolio, isSynthetic, weightsLoadToken]);
 
   useEffect(() => {
     if (!open) return;
@@ -177,30 +178,30 @@ export function EditPortfolioModal({
     let apiWeights: Array<{ instrumentId: number; weight: number }> = [];
     if (isSynthetic) {
       if (!weightsLoaded) {
-        onError("Portfolio weights are still loading. Please wait a moment.");
+        setError("Portfolio weights are still loading. Please wait a moment.");
         return;
       }
       const v = portfolio.emergencyFundEur;
       emergencyFundEurForPatch = Number.isFinite(v) ? v : 0;
       const bt = Number.parseFloat(benchmarkTotal.trim().replace(",", "."));
       if (!Number.isFinite(bt) || bt <= 0) {
-        onError("Total amount must be a positive number.");
+        setError("Total amount must be a positive number.");
         return;
       }
       benchmarkTotalEurForPatch = bt;
       try {
         apiWeights = normalizeWeightRowsForApi(weightRows);
       } catch (err) {
-        onError(String(err));
+        setError(String(err));
         return;
       }
       if (apiWeights.length === 0) {
-        onError("Add at least one weight row.");
+        setError("Add at least one weight row.");
         return;
       }
       if (isBacktest) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(simulationStartDate.trim())) {
-          onError("Start date must be YYYY-MM-DD.");
+          setError("Start date must be YYYY-MM-DD.");
           return;
         }
         simulationStartDateForPatch = simulationStartDate.trim();
@@ -210,14 +211,21 @@ export function EditPortfolioModal({
         emergencyFund.trim().replace(",", "."),
       );
       if (!Number.isFinite(efParsed) || efParsed < 0) {
-        onError("Emergency fund must be a non-negative number.");
+        setError("Emergency fund must be a non-negative number.");
         return;
       }
       emergencyFundEurForPatch = efParsed;
     }
     setBusy(true);
-    onError(null);
+    setError(null);
     try {
+      // Backtest date validation on PATCH uses currently stored weights.
+      // Save weights first so date validation evaluates the latest edited set.
+      if (isBacktest) {
+        await apiPut(`/portfolios/${portfolio.id}/benchmark-weights`, {
+          weights: apiWeights,
+        });
+      }
       await apiPatch<PortfolioEntity>(
         `/portfolios/${portfolio.id}`,
         buildPatchPortfolioBody({
@@ -232,7 +240,7 @@ export function EditPortfolioModal({
             : {}),
         }),
       );
-      if (isSynthetic) {
+      if (isSynthetic && !isBacktest) {
         await apiPut(`/portfolios/${portfolio.id}/benchmark-weights`, {
           weights: apiWeights,
         });
@@ -240,7 +248,7 @@ export function EditPortfolioModal({
       onClose();
       await onSaved();
     } catch (err) {
-      onError(String(err));
+      setError(String(err));
     } finally {
       setBusy(false);
     }
@@ -318,6 +326,7 @@ export function EditPortfolioModal({
         )}
 
         <PortfolioFormDivider />
+        {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         <div className="flex items-center justify-between gap-3">
           <Button
             type="button"
@@ -334,7 +343,7 @@ export function EditPortfolioModal({
               ) {
                 return;
               }
-              onError(null);
+              setError(null);
               void (async () => {
                 try {
                   setBusy(true);
@@ -342,7 +351,7 @@ export function EditPortfolioModal({
                   onClose();
                   await onDeleted();
                 } catch (err) {
-                  onError(String(err));
+                  setError(String(err));
                 } finally {
                   setBusy(false);
                 }

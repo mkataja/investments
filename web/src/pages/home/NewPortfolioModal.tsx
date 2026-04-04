@@ -27,6 +27,7 @@ import { PortfolioWeightRowsEditor } from "./PortfolioWeightRowsEditor";
 import type {
   BenchmarkWeightFormRow,
   HomeInstrument,
+  PortfolioDistributions,
   PortfolioEntity,
 } from "./types";
 
@@ -34,6 +35,7 @@ type NewPortfolioModalProps = {
   open: boolean;
   onClose: () => void;
   instruments: HomeInstrument[];
+  currentPortfolio: PortfolioDistributions | null;
   onCreated: (portfolio: PortfolioEntity) => void | Promise<void>;
 };
 
@@ -41,6 +43,7 @@ export function NewPortfolioModal({
   open,
   onClose,
   instruments,
+  currentPortfolio,
   onCreated,
 }: NewPortfolioModalProps) {
   const [name, setName] = useState("");
@@ -61,6 +64,31 @@ export function NewPortfolioModal({
     [instruments],
   );
   const isSynthetic = kind === "static" || kind === "backtest";
+
+  function copyWeightsFromCurrentPortfolio(): void {
+    if (!currentPortfolio || currentPortfolio.positions.length === 0) {
+      setError("Current portfolio has no positions to copy.");
+      return;
+    }
+    const validInstrumentIds = new Set(instruments.map((i) => i.id));
+    const nextRows: BenchmarkWeightFormRow[] = currentPortfolio.positions
+      .filter(
+        (p) =>
+          Number.isFinite(p.weight) &&
+          p.weight > 0 &&
+          validInstrumentIds.has(p.instrumentId),
+      )
+      .map((p) => ({
+        instrumentId: p.instrumentId,
+        weightStr: String(p.weight),
+      }));
+    if (nextRows.length === 0) {
+      setError("Current portfolio has no copyable instrument weights.");
+      return;
+    }
+    setWeightRows(nextRows);
+    setError(null);
+  }
 
   useLayoutEffect(() => {
     if (!open) {
@@ -174,6 +202,7 @@ export function NewPortfolioModal({
       open={open}
       onClose={onClose}
       confirmBeforeClose={dirty}
+      dialogClassName="max-w-3xl"
     >
       <form onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-5">
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
@@ -228,6 +257,15 @@ export function NewPortfolioModal({
               }
             />
             <hr />
+            <div>
+              <Button
+                type="button"
+                disabled={busy}
+                onClick={copyWeightsFromCurrentPortfolio}
+              >
+                Copy weights from current portfolio
+              </Button>
+            </div>
             <PortfolioWeightRowsEditor
               rows={weightRows}
               onRowsChange={setWeightRows}

@@ -2,6 +2,7 @@ import {
   instruments,
   portfolioBenchmarkWeights,
   portfolios,
+  prices,
   transactions,
 } from "@investments/db";
 import { USER_ID } from "@investments/lib/appUser";
@@ -12,12 +13,120 @@ import {
   count,
   eq,
   inArray,
+  sql,
 } from "drizzle-orm";
 import type { Context } from "hono";
 import { z } from "zod";
 import { db } from "../../db.js";
 import { validJson } from "../../lib/honoValidJson.js";
+import {
+  loadPriceRowsByInstrumentIdsUpToDate,
+  pickLatestPriceRowAsOf,
+} from "../instrument/latestPriceDistribution.js";
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
+
+type WeightInput = {
+  instrumentId: number;
+  weight: number;
+};
+
+type ValidationResult = {
+  status: 400;
+  message: string;
+} | null;
+
+async function validateBacktestWeightsAndDate(
+  weights: WeightInput[],
+  simulationStartDate: string,
+): Promise<ValidationResult> {
+  if (weights.length === 0) {
+    return {
+      status: 400,
+      message: "Backtest portfolio requires at least one weight",
+    };
+  }
+  const seen = new Set<number>();
+  for (const w of weights) {
+    if (seen.has(w.instrumentId)) {
+      return { status: 400, message: "Duplicate instrumentId in weights" };
+    }
+    seen.add(w.instrumentId);
+  }
+  const instIds = [...seen];
+  const weightedInstRows = await db
+    .select({
+      id: instruments.id,
+      displayName: instruments.displayName,
+      kind: instruments.kind,
+      yahooSymbol: instruments.yahooSymbol,
+      isin: instruments.isin,
+    })
+    .from(instruments)
+    .where(inArray(instruments.id, instIds));
+  if (weightedInstRows.length !== instIds.length) {
+    return { status: 400, message: "One or more instruments not found" };
+  }
+  if (weightedInstRows.some((r) => r.kind === "fx")) {
+    return {
+      status: 400,
+      message: "Backtest does not support FX instruments in weights.",
+    };
+  }
+  const pricedRows = weightedInstRows.filter((r) => r.kind !== "cash_account");
+  if (pricedRows.length === 0) {
+    return null;
+  }
+  const pricesByInstrument = await loadPriceRowsByInstrumentIdsUpToDate(
+    db,
+    pricedRows.map((r) => r.id),
+    simulationStartDate,
+  );
+  const missingNames = pricedRows.filter(
+    (r) =>
+      pickLatestPriceRowAsOf(
+        pricesByInstrument.get(r.id) ?? [],
+        simulationStartDate,
+      ) == null,
+  );
+  if (missingNames.length > 0) {
+    const missingIds = missingNames.map((r) => r.id);
+    const oldestRows = await db
+      .select({
+        instrumentId: prices.instrumentId,
+        oldestPriceDate: sql<string>`min(${prices.priceDate})`,
+      })
+      .from(prices)
+      .where(inArray(prices.instrumentId, missingIds))
+      .groupBy(prices.instrumentId);
+    const oldestByInstrumentId = new Map(
+      oldestRows.map((r) => [r.instrumentId, String(r.oldestPriceDate)]),
+    );
+    const details = missingNames.map((r) => {
+      const ticker = r.yahooSymbol ?? r.isin ?? "-";
+      const oldestPriceDate = oldestByInstrumentId.get(r.id) ?? "none";
+      return `${r.displayName}, ticker: ${ticker}, oldest known price: ${oldestPriceDate}`;
+    });
+    return {
+      status: 400,
+      message: `Missing price history on ${simulationStartDate}: ${details.join("; ")}`,
+    };
+  }
+  return null;
+}
+
+async function loadPortfolioWeightInputs(portfolioId: number) {
+  const rows = await db
+    .select({
+      instrumentId: portfolioBenchmarkWeights.instrumentId,
+      weight: portfolioBenchmarkWeights.weight,
+    })
+    .from(portfolioBenchmarkWeights)
+    .where(eq(portfolioBenchmarkWeights.portfolioId, portfolioId));
+  return rows.map((r) => ({
+    instrumentId: r.instrumentId,
+    weight: Number.parseFloat(String(r.weight)),
+  }));
+}
 
 function mapPortfolioRow(row: InferSelectModel<typeof portfolios>) {
   return {
@@ -148,22 +257,12 @@ export async function createBacktestPortfolio(c: Context) {
       409,
     );
   }
-  const seen = new Set<number>();
-  for (const w of body.weights) {
-    if (seen.has(w.instrumentId)) {
-      return c.json({ message: "Duplicate instrumentId in weights" }, 400);
-    }
-    seen.add(w.instrumentId);
-  }
-  const instIds = [...seen];
-  if (instIds.length > 0) {
-    const instRows = await db
-      .select({ id: instruments.id })
-      .from(instruments)
-      .where(inArray(instruments.id, instIds));
-    if (instRows.length !== instIds.length) {
-      return c.json({ message: "One or more instruments not found" }, 400);
-    }
+  const validation = await validateBacktestWeightsAndDate(
+    body.weights,
+    body.simulationStartDate,
+  );
+  if (validation) {
+    return c.json({ message: validation.message }, validation.status);
   }
   let created: InferSelectModel<typeof portfolios> | null = null;
   await db.transaction(async (tx) => {
@@ -271,11 +370,23 @@ export async function patchPortfolio(c: Context) {
       : nextKind === "backtest"
         ? existing.simulationStartDate
         : null;
-  if (nextKind === "backtest" && nextSimulationStartDate == null) {
-    return c.json(
-      { message: "Backtest portfolio requires simulationStartDate" },
-      400,
-    );
+  if (nextKind === "backtest") {
+    if (nextSimulationStartDate == null) {
+      return c.json(
+        { message: "Backtest portfolio requires simulationStartDate" },
+        400,
+      );
+    }
+    if (body.simulationStartDate !== undefined || body.kind === "backtest") {
+      const existingWeights = await loadPortfolioWeightInputs(id);
+      const validation = await validateBacktestWeightsAndDate(
+        existingWeights,
+        nextSimulationStartDate,
+      );
+      if (validation) {
+        return c.json({ message: validation.message }, validation.status);
+      }
+    }
   }
   const [row] = await db
     .update(portfolios)
@@ -337,21 +448,37 @@ export async function putBenchmarkWeights(c: Context) {
     return c.json({ message: "Portfolio is not static/backtest" }, 400);
   }
   const body = validJson(c, benchmarkWeightsPutIn);
-  const seen = new Set<number>();
-  for (const w of body.weights) {
-    if (seen.has(w.instrumentId)) {
-      return c.json({ message: "Duplicate instrumentId in weights" }, 400);
+  if (pf.kind === "backtest") {
+    if (pf.simulationStartDate == null) {
+      return c.json(
+        { message: "Backtest portfolio requires simulationStartDate" },
+        400,
+      );
     }
-    seen.add(w.instrumentId);
-  }
-  const instIds = [...seen];
-  if (instIds.length > 0) {
-    const instRows = await db
-      .select({ id: instruments.id })
-      .from(instruments)
-      .where(inArray(instruments.id, instIds));
-    if (instRows.length !== instIds.length) {
-      return c.json({ message: "One or more instruments not found" }, 400);
+    const validation = await validateBacktestWeightsAndDate(
+      body.weights,
+      String(pf.simulationStartDate).slice(0, 10),
+    );
+    if (validation) {
+      return c.json({ message: validation.message }, validation.status);
+    }
+  } else {
+    const seen = new Set<number>();
+    for (const w of body.weights) {
+      if (seen.has(w.instrumentId)) {
+        return c.json({ message: "Duplicate instrumentId in weights" }, 400);
+      }
+      seen.add(w.instrumentId);
+    }
+    const instIds = [...seen];
+    if (instIds.length > 0) {
+      const instRows = await db
+        .select({ id: instruments.id })
+        .from(instruments)
+        .where(inArray(instruments.id, instIds));
+      if (instRows.length !== instIds.length) {
+        return c.json({ message: "One or more instruments not found" }, 400);
+      }
     }
   }
   await db.transaction(async (tx) => {

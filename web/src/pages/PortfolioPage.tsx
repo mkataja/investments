@@ -356,6 +356,7 @@ export function PortfolioPage() {
         open={newPortfolioOpen}
         onClose={() => setNewPortfolioOpen(false)}
         instruments={instruments}
+        currentPortfolio={portfolio}
         onCreated={async (row) => {
           setPortfolioEntities((prev) =>
             [...prev, row].sort((a, b) => a.id - b.id),
@@ -395,7 +396,6 @@ export function PortfolioPage() {
             setComparePortfolio(null);
           }
         }}
-        onError={setError}
       />
 
       <NewTransactionModal

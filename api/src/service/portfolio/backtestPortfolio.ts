@@ -283,4 +283,3 @@ export async function loadBacktestVirtualTransactions(
   const result = await loadBacktestComputed(portfolioId);
   return result.virtualTransactions;
 }
-
