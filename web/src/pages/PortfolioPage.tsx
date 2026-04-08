@@ -280,8 +280,8 @@ export function PortfolioPage() {
           <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 min-w-0">
             <h1 className="shrink-0">Portfolio</h1>
             {portfolioEntities.length > 0 ? (
-              <div className="flex flex-wrap items-baseline gap-2">
-                <label className="text-sm text-slate-700 flex items-baseline gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-sm text-slate-700 flex items-center gap-2">
                   <span className="whitespace-nowrap">View</span>
                   <select
                     className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[10rem]"
@@ -316,7 +316,7 @@ export function PortfolioPage() {
                   </select>
                 </label>
                 {portfolioEntities.length > 1 ? (
-                  <label className="text-sm text-slate-700 flex items-baseline gap-2">
+                  <label className="text-sm text-slate-700 flex items-center gap-2">
                     <span className="whitespace-nowrap">Compare</span>
                     <select
                       className="border border-slate-300 rounded px-2 py-1 text-sm bg-white min-w-[10rem]"
