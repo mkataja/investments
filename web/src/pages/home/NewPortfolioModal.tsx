@@ -127,9 +127,7 @@ export function NewPortfolioModal({
     if (trimmed.length === 0) {
       return;
     }
-    const efParsed = isSynthetic
-      ? 0
-      : Number.parseFloat(emergencyFund.trim().replace(",", "."));
+    const efParsed = Number.parseFloat(emergencyFund.trim().replace(",", "."));
     if (!Number.isFinite(efParsed) || efParsed < 0) {
       setError("Emergency fund must be a non-negative number.");
       return;
@@ -242,6 +240,7 @@ export function NewPortfolioModal({
             </select>
           </label>
         </div>
+
         {isSynthetic ? (
           <>
             <PortfolioFormDivider />
@@ -282,13 +281,14 @@ export function NewPortfolioModal({
             />
           </>
         ) : null}
-        {kind === "live" ? (
-          <PortfolioFormEmergencyFundBlock
-            value={emergencyFund}
-            onChange={setEmergencyFund}
-          />
-        ) : null}
+
+        <PortfolioFormEmergencyFundBlock
+          value={emergencyFund}
+          onChange={setEmergencyFund}
+        />
+
         <PortfolioFormDivider />
+
         <div>
           <Button type="submit" disabled={busy}>
             Create

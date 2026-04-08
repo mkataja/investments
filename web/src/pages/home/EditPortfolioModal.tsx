@@ -172,7 +172,12 @@ export function EditPortfolioModal({
     if (trimmed.length === 0) {
       return;
     }
-    let emergencyFundEurForPatch: number;
+    const efParsed = Number.parseFloat(emergencyFund.trim().replace(",", "."));
+    if (!Number.isFinite(efParsed) || efParsed < 0) {
+      setError("Emergency fund must be a non-negative number.");
+      return;
+    }
+    const emergencyFundEurForPatch = efParsed;
     let benchmarkTotalEurForPatch: number | undefined;
     let simulationStartDateForPatch: string | undefined;
     let apiWeights: Array<{ instrumentId: number; weight: number }> = [];
@@ -181,8 +186,6 @@ export function EditPortfolioModal({
         setError("Portfolio weights are still loading. Please wait a moment.");
         return;
       }
-      const v = portfolio.emergencyFundEur;
-      emergencyFundEurForPatch = Number.isFinite(v) ? v : 0;
       const bt = Number.parseFloat(benchmarkTotal.trim().replace(",", "."));
       if (!Number.isFinite(bt) || bt <= 0) {
         setError("Total amount must be a positive number.");
@@ -206,15 +209,6 @@ export function EditPortfolioModal({
         }
         simulationStartDateForPatch = simulationStartDate.trim();
       }
-    } else {
-      const efParsed = Number.parseFloat(
-        emergencyFund.trim().replace(",", "."),
-      );
-      if (!Number.isFinite(efParsed) || efParsed < 0) {
-        setError("Emergency fund must be a non-negative number.");
-        return;
-      }
-      emergencyFundEurForPatch = efParsed;
     }
     setBusy(true);
     setError(null);
@@ -262,11 +256,10 @@ export function EditPortfolioModal({
   const portfolioDirty =
     portfolio != null &&
     (name.trim() !== portfolio.name.trim() ||
-      (!isSynthetic &&
-        parseDecimalInputLoose(emergencyFund) !==
-          (Number.isFinite(portfolio.emergencyFundEur)
-            ? portfolio.emergencyFundEur
-            : 0)) ||
+      parseDecimalInputLoose(emergencyFund) !==
+        (Number.isFinite(portfolio.emergencyFundEur)
+          ? portfolio.emergencyFundEur
+          : 0) ||
       (isSynthetic &&
         (parseDecimalInputLoose(benchmarkTotal) !==
           portfolioBenchmarkTotalEur ||
@@ -310,7 +303,7 @@ export function EditPortfolioModal({
                 onChange={setBenchmarkTotal}
                 label="Synthetic portfolio total value (EUR)"
               />
-              <hr />
+              <PortfolioFormDivider />
               <PortfolioWeightRowsEditor
                 rows={weightRows}
                 onRowsChange={setWeightRows}
@@ -318,14 +311,15 @@ export function EditPortfolioModal({
               />
             </div>
           </>
-        ) : (
-          <PortfolioFormEmergencyFundBlock
-            value={emergencyFund}
-            onChange={setEmergencyFund}
-          />
-        )}
+        ) : null}
+
+        <PortfolioFormEmergencyFundBlock
+          value={emergencyFund}
+          onChange={setEmergencyFund}
+        />
 
         <PortfolioFormDivider />
+
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         <div className="flex items-center justify-between gap-3">
           <Button
