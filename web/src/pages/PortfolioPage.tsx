@@ -199,6 +199,17 @@ export function PortfolioPage() {
     return m;
   }, [brokers]);
 
+  const portfolioEntitiesSortedAlphabetically = useMemo(
+    () =>
+      [...portfolioEntities].sort((a, b) => {
+        const byName = a.name.localeCompare(b.name, undefined, {
+          sensitivity: "base",
+        });
+        return byName !== 0 ? byName : a.id - b.id;
+      }),
+    [portfolioEntities],
+  );
+
   const showDistributionCompare =
     comparePortfolioId != null && comparePortfolioId !== selectedPortfolioId;
 
@@ -309,7 +320,7 @@ export function PortfolioPage() {
                       setSelectedPortfolioId(nextId);
                     }}
                   >
-                    {portfolioEntities.map((pe) => (
+                    {portfolioEntitiesSortedAlphabetically.map((pe) => (
                       <option key={pe.id} value={pe.id}>
                         {(pe.kind ?? "live") === "static"
                           ? `${pe.name} (static)`
@@ -337,7 +348,7 @@ export function PortfolioPage() {
                       }}
                     >
                       <option value="">None</option>
-                      {portfolioEntities
+                      {portfolioEntitiesSortedAlphabetically
                         .filter((pe) => pe.id !== selectedPortfolioId)
                         .map((pe) => (
                           <option key={pe.id} value={pe.id}>
