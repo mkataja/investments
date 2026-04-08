@@ -6,19 +6,19 @@
   },
   "packageManager": "pnpm@9.15.4",
   "scripts": {
-    "lint": "biome check .",
-    "ts-prune": "ts-prune --error -p api/tsconfig.json && ts-prune --error -p web/tsconfig.json && ts-prune --error -p tsconfig.lib-prune.json -i '^(api|web|db)/'",
-    "lint:fix": "biome check --write --unsafe .",
-    "format": "biome check --write .",
+    "ci": "concurrently -n lint,ts-prune,test,web,api -c cyan,magenta,yellow,blue,green \"pnpm lint\" \"pnpm ts-prune\" \"pnpm test\" \"pnpm --filter @investments/web build\" \"pnpm --filter @investments/api build\"",
     "dev": "concurrently -n api,web -c blue,green \"pnpm --filter @investments/api dev\" \"pnpm --filter @investments/web dev\"",
     "db:generate": "pnpm --filter @investments/db generate",
     "db:migrate": "pnpm --filter @investments/db migrate",
     "db:studio": "pnpm --filter @investments/db studio",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
+    "format": "biome check --write .",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write --unsafe .",
+    "loc": "sloc api db lib web -e \"(node_modules|dist|\\\\.turbo|\\\\.data|coverage)\"",
     "test": "pnpm --filter @investments/api test && pnpm --filter @investments/web test",
-    "ci": "concurrently -n lint,ts-prune,test,web,api -c cyan,magenta,yellow,blue,green \"pnpm lint\" \"pnpm ts-prune\" \"pnpm test\" \"pnpm --filter @investments/web build\" \"pnpm --filter @investments/api build\"",
-    "loc": "sloc api db lib web -e \"(node_modules|dist|\\\\.turbo|\\\\.data|coverage)\""
+    "ts-prune": "ts-prune --error -p api/tsconfig.json && ts-prune --error -p web/tsconfig.json && ts-prune --error -p tsconfig.lib-prune.json -i '^(api|web|db)/'"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
