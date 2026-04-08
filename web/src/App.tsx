@@ -18,15 +18,21 @@ import {
 } from "./pages/InstrumentFormPage";
 import { PortfolioPage } from "./pages/PortfolioPage";
 import { InstrumentsPage } from "./pages/instruments/InstrumentsPage";
+import {
+  pathnameIsUnderInstruments,
+  pathnameIsUnderPortfolio,
+  pattern,
+  routes,
+} from "./routes";
 
 function navActiveIndex(pathname: string): number {
-  if (pathname.startsWith("/portfolio") || pathname === "/") {
+  if (pathnameIsUnderPortfolio(pathname)) {
     return 0;
   }
-  if (pathname.startsWith("/instruments")) {
+  if (pathnameIsUnderInstruments(pathname)) {
     return 1;
   }
-  if (pathname === "/brokers") {
+  if (pathname === routes.brokers) {
     return 2;
   }
   return 0;
@@ -34,8 +40,7 @@ function navActiveIndex(pathname: string): number {
 
 function AppShell() {
   const { pathname } = useLocation();
-  const portfolioNavActive =
-    pathname.startsWith("/portfolio") || pathname === "/";
+  const portfolioNavActive = pathnameIsUnderPortfolio(pathname);
   const navRef = useRef<HTMLElement>(null);
   const portfolioRef = useRef<HTMLAnchorElement>(null);
   const instrumentsRef = useRef<HTMLAnchorElement>(null);
@@ -65,7 +70,7 @@ function AppShell() {
         )}
         <Link
           ref={portfolioRef}
-          to="/portfolio/distributions"
+          to={routes.portfolio.distributions}
           className={classNames(
             "nav-bar-link",
             portfolioNavActive && "nav-bar-link-active",
@@ -75,7 +80,7 @@ function AppShell() {
         </Link>
         <NavLink
           ref={instrumentsRef}
-          to="/instruments"
+          to={routes.instruments.list}
           className={({ isActive }) =>
             classNames("nav-bar-link", isActive && "nav-bar-link-active")
           }
@@ -84,7 +89,7 @@ function AppShell() {
         </NavLink>
         <NavLink
           ref={brokersRef}
-          to="/brokers"
+          to={routes.brokers}
           end
           className={({ isActive }) =>
             classNames("nav-bar-link", isActive && "nav-bar-link-active")
@@ -96,26 +101,29 @@ function AppShell() {
       <main className="w-full min-w-0 px-4 sm:px-6 py-6">
         <Routes>
           <Route
-            path="/"
-            element={<Navigate to="/portfolio/distributions" replace />}
+            path={pattern.root}
+            element={<Navigate to={routes.portfolio.distributions} replace />}
           />
-          <Route path="/instruments" element={<InstrumentsPage />} />
-          <Route path="/instruments/new" element={<NewInstrumentPage />} />
+          <Route path={pattern.instrumentsList} element={<InstrumentsPage />} />
           <Route
-            path="/instruments/:id/edit"
+            path={pattern.instrumentsNew}
+            element={<NewInstrumentPage />}
+          />
+          <Route
+            path={pattern.instrumentEdit}
             element={<EditInstrumentPage />}
           />
-          <Route path="/brokers" element={<BrokersPage />} />
-          <Route path="/portfolio/import" element={<ImportPage />} />
+          <Route path={pattern.brokers} element={<BrokersPage />} />
+          <Route path={pattern.portfolioImport} element={<ImportPage />} />
           <Route
-            path="/import"
-            element={<Navigate to="/portfolio/import" replace />}
+            path={pattern.importLegacy}
+            element={<Navigate to={routes.portfolio.import} replace />}
           />
           <Route
-            path="/portfolio"
-            element={<Navigate to="/portfolio/distributions" replace />}
+            path={pattern.portfolioIndex}
+            element={<Navigate to={routes.portfolio.distributions} replace />}
           />
-          <Route path="/portfolio/:section" element={<PortfolioPage />} />
+          <Route path={pattern.portfolioSection} element={<PortfolioPage />} />
         </Routes>
       </main>
     </div>

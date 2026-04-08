@@ -6,14 +6,12 @@ import {
   writeStoredComparePortfolioId,
   writeStoredPortfolioId,
 } from "../lib/portfolioSelection";
+import { type PortfolioSection, isPortfolioSection, routes } from "../routes";
 import { EditPortfolioModal } from "./home/EditPortfolioModal";
 import { HoldingsTable } from "./home/HoldingsTable";
 import { NewPortfolioModal } from "./home/NewPortfolioModal";
 import { NewTransactionModal } from "./home/NewTransactionModal";
-import {
-  type PortfolioSubTab,
-  PortfolioTabStrip,
-} from "./home/PortfolioTabStrip";
+import { PortfolioTabStrip } from "./home/PortfolioTabStrip";
 import { TransactionsTable } from "./home/TransactionsTable";
 import { buildInstrumentTickerById } from "./home/instrumentTickerCell";
 import { PortfolioCharts } from "./home/portfolioCharts/PortfolioCharts";
@@ -25,12 +23,8 @@ import type {
 } from "./home/types";
 import { useHomeData } from "./home/useHomeData";
 
-function isPortfolioSubTab(s: string | undefined): s is PortfolioSubTab {
-  return s === "distributions" || s === "holdings" || s === "transactions";
-}
-
 type PortfolioTabPanelsProps = {
-  activeTab: PortfolioSubTab;
+  activeTab: PortfolioSection;
   portfolio: PortfolioDistributions;
   comparePortfolio: PortfolioDistributions | null;
   showDistributionCompare: boolean;
@@ -240,18 +234,18 @@ export function PortfolioPage() {
       selectedPortfolioId != null &&
       prev !== selectedPortfolioId
     ) {
-      navigate("/portfolio/distributions", { replace: true });
+      navigate(routes.portfolio.distributions, { replace: true });
     }
     prevSelectedPortfolioId.current = selectedPortfolioId;
   }, [selectedPortfolioId, navigate]);
 
   const showTransactionsTab = transactions.length > 0;
 
-  if (!isPortfolioSubTab(section)) {
-    return <Navigate to="/portfolio/distributions" replace />;
+  if (!isPortfolioSection(section)) {
+    return <Navigate to={routes.portfolio.distributions} replace />;
   }
 
-  const activeTab: PortfolioSubTab = section;
+  const activeTab: PortfolioSection = section;
 
   if (
     activeTab === "transactions" &&
@@ -259,7 +253,7 @@ export function PortfolioPage() {
     portfolio != null &&
     !showTransactionsTab
   ) {
-    return <Navigate to="/portfolio/distributions" replace />;
+    return <Navigate to={routes.portfolio.distributions} replace />;
   }
 
   return (
@@ -356,7 +350,7 @@ export function PortfolioPage() {
             </Button>
             {selectedIsSynthetic ? null : (
               <>
-                <ButtonLink to="/portfolio/import">
+                <ButtonLink to={routes.portfolio.import}>
                   Import transactions
                 </ButtonLink>
                 <Button

@@ -10,6 +10,7 @@ import {
 import { classNames } from "../../lib/css";
 import { formatInstantForDisplay } from "../../lib/dateTimeFormat";
 import { formatIntegerForDisplay } from "../../lib/numberFormat";
+import { instrumentEditPath } from "../../routes";
 import type { InstrumentListItem } from "./types";
 
 function lastUpdatedCell(i: InstrumentListItem) {
@@ -168,7 +169,7 @@ export function InstrumentsTable({
                         i.kind === "stock" ||
                         i.kind === "commodity") && (
                         <Link
-                          to={`/instruments/${i.id}/edit`}
+                          to={instrumentEditPath(i.id)}
                           className="action-primary"
                         >
                           Edit

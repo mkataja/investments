@@ -23,6 +23,7 @@ import {
   postSeligsonFundPageCompositePreview,
 } from "../../api/seligsonFundPageCompositePreview";
 import { mapYahooInstrumentFormError } from "../../lib/yahooInstrumentFormError";
+import { routes } from "../../routes";
 import type {
   InstrumentDetail,
   InstrumentKind,
@@ -294,7 +295,7 @@ export async function submitNewInstrument(params: {
       setError("Choose an instrument type.");
       return;
     }
-    navigate("/instruments", { replace: true });
+    navigate(routes.instruments.list, { replace: true });
   } catch (err) {
     if (kind === "etf" || kind === "stock" || kind === "commodity") {
       setYahooPreviewError(mapYahooInstrumentFormError(err));
@@ -351,13 +352,13 @@ export async function submitEditCash(params: {
     return;
   }
   if (Object.keys(built.patch).length === 0) {
-    navigate("/instruments");
+    navigate(routes.instruments.list);
     return;
   }
 
   try {
     await apiPatch(`/instruments/${editInstrumentId}`, built.patch);
-    navigate("/instruments");
+    navigate(routes.instruments.list);
   } catch (err) {
     setError(String(err));
   }
@@ -418,7 +419,7 @@ export async function submitEditEtfStock(params: {
   const prevB = initial.providerBreakdownDataUrl ?? null;
   const nextB = breakdownV.normalized;
   if (prevH === nextH && prevB === nextB) {
-    navigate("/instruments");
+    navigate(routes.instruments.list);
     return;
   }
   try {
@@ -429,7 +430,7 @@ export async function submitEditEtfStock(params: {
         providerBreakdownDataUrl: nextB,
       }),
     );
-    navigate("/instruments");
+    navigate(routes.instruments.list);
   } catch (err) {
     setError(String(err));
   }
@@ -471,12 +472,12 @@ export async function submitEditCommodity(params: {
     return;
   }
   if (Object.keys(built.patch).length === 0) {
-    navigate("/instruments");
+    navigate(routes.instruments.list);
     return;
   }
   try {
     await apiPatch(`/instruments/${editInstrumentId}`, built.patch);
-    navigate("/instruments");
+    navigate(routes.instruments.list);
   } catch (err) {
     setError(String(err));
   }

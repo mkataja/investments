@@ -11,6 +11,7 @@ import { NewCustomSeligsonSection } from "../components/instrumentForm/NewCustom
 import { NewYahooEtfStockSection } from "../components/instrumentForm/NewYahooEtfStockSection";
 import type { InstrumentFormPageProps } from "../components/instrumentForm/types";
 import { useInstrumentFormPage } from "../components/instrumentForm/useInstrumentFormPage";
+import { routes } from "../routes";
 
 function preventEnterFromSubmittingForm(e: KeyboardEvent<HTMLFormElement>) {
   if (e.key !== "Enter") {
@@ -68,7 +69,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
   return (
     <div className="page-form-max page-stack">
       <header className="page-header-stack">
-        <Link to="/instruments" className="action-link">
+        <Link to={routes.instruments.list} className="action-link">
           ← Instruments
         </Link>
         <h1>New instrument</h1>
@@ -194,7 +195,7 @@ function InstrumentFormPage(props: InstrumentFormPageProps) {
               "Create instrument"
             )}
           </button>
-          <Link to="/instruments" className="button-cancel">
+          <Link to={routes.instruments.list} className="button-cancel">
             Cancel
           </Link>
         </div>
@@ -215,7 +216,9 @@ export function EditInstrumentPage() {
     return (
       <div className="page-form-max page-section">
         <ErrorAlert>Invalid instrument id.</ErrorAlert>
-        <ButtonLink to="/instruments">Back to instruments</ButtonLink>
+        <ButtonLink to={routes.instruments.list}>
+          Back to instruments
+        </ButtonLink>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import { Button, ButtonLink } from "../../components/Button";
 import { ErrorAlert } from "../../components/ErrorAlert";
 import { InstrumentsTableSkeleton } from "../../components/listPageSkeletons";
+import { routes } from "../../routes";
 import { InstrumentsTable } from "./InstrumentsTable";
 import { useInstrumentsList } from "./useInstrumentsList";
 
@@ -84,7 +85,7 @@ export function InstrumentsPage() {
               ? `${refreshAllProgress?.done ?? 0}/${refreshAllProgress?.total ?? 0} refreshed`
               : "Refresh all"}
           </Button>
-          <ButtonLink to="/instruments/new">New instrument</ButtonLink>
+          <ButtonLink to={routes.instruments.new}>New instrument</ButtonLink>
         </div>
       </header>
 

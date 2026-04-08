@@ -3,6 +3,7 @@ import type { CashCurrencyCode } from "@investments/lib/currencies";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { sortedIsoCountryOptions } from "../../lib/isoCountrySelectOptions";
+import { routes } from "../../routes";
 import { ButtonLink } from "../Button";
 import { ErrorAlert } from "../ErrorAlert";
 import { CashAccountFormFields } from "./CashAccountFormFields";
@@ -74,7 +75,9 @@ export function EditInstrumentMode({
     return (
       <div className="page-form-max page-section">
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
-        <ButtonLink to="/instruments">Back to instruments</ButtonLink>
+        <ButtonLink to={routes.instruments.list}>
+          Back to instruments
+        </ButtonLink>
       </div>
     );
   }
@@ -83,7 +86,7 @@ export function EditInstrumentMode({
     return (
       <div className="page-form-max page-stack">
         <header className="page-header-stack">
-          <Link to="/instruments" className="action-link">
+          <Link to={routes.instruments.list} className="action-link">
             ← Instruments
           </Link>
           <h1>Edit instrument</h1>
@@ -91,7 +94,9 @@ export function EditInstrumentMode({
         <p className="text-slate-700 text-sm max-w-lg">
           Seligson-linked instruments are not edited here.
         </p>
-        <ButtonLink to="/instruments">Back to instruments</ButtonLink>
+        <ButtonLink to={routes.instruments.list}>
+          Back to instruments
+        </ButtonLink>
       </div>
     );
   }
@@ -100,7 +105,7 @@ export function EditInstrumentMode({
     return (
       <div className="page-form-max page-stack">
         <header className="page-header-stack">
-          <Link to="/instruments" className="action-link">
+          <Link to={routes.instruments.list} className="action-link">
             ← Instruments
           </Link>
           <h1>Edit {initial.kind === "etf" ? "ETF" : "stock"}</h1>
@@ -140,7 +145,7 @@ export function EditInstrumentMode({
             <button type="submit" className="button-primary">
               Save
             </button>
-            <Link to="/instruments" className="button-cancel">
+            <Link to={routes.instruments.list} className="button-cancel">
               Cancel
             </Link>
           </div>
@@ -153,7 +158,7 @@ export function EditInstrumentMode({
     return (
       <div className="page-form-max page-stack">
         <header className="page-header-stack">
-          <Link to="/instruments" className="action-link">
+          <Link to={routes.instruments.list} className="action-link">
             ← Instruments
           </Link>
           <h1>Edit commodity</h1>
@@ -217,7 +222,7 @@ export function EditInstrumentMode({
             <button type="submit" className="button-primary">
               Save
             </button>
-            <Link to="/instruments" className="button-cancel">
+            <Link to={routes.instruments.list} className="button-cancel">
               Cancel
             </Link>
           </div>
@@ -230,7 +235,7 @@ export function EditInstrumentMode({
     return (
       <div className="page-form-max page-stack">
         <header className="page-header-stack">
-          <Link to="/instruments" className="action-link">
+          <Link to={routes.instruments.list} className="action-link">
             ← Instruments
           </Link>
           <h1>Edit instrument</h1>
@@ -238,7 +243,9 @@ export function EditInstrumentMode({
         <p className="text-slate-700 text-sm max-w-lg">
           This instrument type cannot be edited here.
         </p>
-        <ButtonLink to="/instruments">Back to instruments</ButtonLink>
+        <ButtonLink to={routes.instruments.list}>
+          Back to instruments
+        </ButtonLink>
       </div>
     );
   }
@@ -247,7 +254,7 @@ export function EditInstrumentMode({
     return (
       <div className="page-form-max page-stack">
         <header className="page-header-stack">
-          <Link to="/instruments" className="action-link">
+          <Link to={routes.instruments.list} className="action-link">
             ← Instruments
           </Link>
           <h1>Edit cash account</h1>
@@ -276,7 +283,7 @@ export function EditInstrumentMode({
             >
               Save
             </button>
-            <Link to="/instruments" className="button-cancel">
+            <Link to={routes.instruments.list} className="button-cancel">
               Cancel
             </Link>
           </div>

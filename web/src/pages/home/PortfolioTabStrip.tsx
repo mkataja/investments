@@ -2,11 +2,10 @@ import { useMemo, useRef } from "react";
 import { NavLink } from "react-router-dom";
 import { classNames } from "../../lib/css";
 import { useSlidingUnderlineIndicator } from "../../lib/useSlidingUnderlineIndicator";
-
-export type PortfolioSubTab = "distributions" | "holdings" | "transactions";
+import { type PortfolioSection, routes } from "../../routes";
 
 type PortfolioTabStripProps = {
-  activeTab: PortfolioSubTab;
+  activeTab: PortfolioSection;
   showTransactionsTab: boolean;
 };
 
@@ -64,7 +63,7 @@ export function PortfolioTabStrip({
       ) : null}
       <NavLink
         ref={distributionsTabRef}
-        to="/portfolio/distributions"
+        to={routes.portfolio.distributions}
         role="tab"
         id="portfolio-tab-distributions"
         aria-selected={activeTab === "distributions"}
@@ -74,7 +73,7 @@ export function PortfolioTabStrip({
       </NavLink>
       <NavLink
         ref={holdingsTabRef}
-        to="/portfolio/holdings"
+        to={routes.portfolio.holdings}
         role="tab"
         id="portfolio-tab-holdings"
         aria-selected={activeTab === "holdings"}
@@ -85,7 +84,7 @@ export function PortfolioTabStrip({
       {showTransactionsTab ? (
         <NavLink
           ref={transactionsTabRef}
-          to="/portfolio/transactions"
+          to={routes.portfolio.transactions}
           role="tab"
           id="portfolio-tab-transactions"
           aria-selected={activeTab === "transactions"}
