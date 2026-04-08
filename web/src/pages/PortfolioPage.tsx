@@ -160,6 +160,11 @@ export function PortfolioPage() {
     useState<NewPortfolioPrefill | null>(null);
   const [editPortfolioOpen, setEditPortfolioOpen] = useState(false);
 
+  const closeNewPortfolioModal = useCallback(() => {
+    setNewPortfolioOpen(false);
+    setNewPortfolioPrefill(null);
+  }, []);
+
   const portfolioHasSellTransactions = useMemo(
     () => transactions.some((t) => t.side === "sell"),
     [transactions],
@@ -412,19 +417,16 @@ export function PortfolioPage() {
 
       <NewPortfolioModal
         open={newPortfolioOpen}
-        onClose={() => setNewPortfolioOpen(false)}
+        onClose={closeNewPortfolioModal}
         instruments={instruments}
         currentPortfolio={portfolio}
         prefill={newPortfolioPrefill}
-        onCreated={async (row) => {
+        onCreated={(row) => {
           setPortfolioEntities((prev) =>
             [...prev, row].sort((a, b) => a.id - b.id),
           );
           setSelectedPortfolioId(row.id);
           writeStoredPortfolioId(row.id);
-          if ((row.kind ?? "live") === "static") {
-            setEditPortfolioOpen(true);
-          }
         }}
       />
 
