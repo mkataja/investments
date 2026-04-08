@@ -1,4 +1,7 @@
-import { sortByTransactionInstrumentSelectLabel } from "@investments/lib/instrumentSelectLabel";
+import {
+  compareTransactionInstrumentSelectLabel,
+  sortByTransactionInstrumentSelectLabel,
+} from "@investments/lib/instrumentSelectLabel";
 import {
   type FormEvent,
   useEffect,
@@ -46,7 +49,8 @@ export function buildBenchmarkWeightRowsFromCurrentPortfolio(
   instruments: HomeInstrument[],
 ): BenchmarkWeightFormRow[] {
   const validInstrumentIds = new Set(instruments.map((i) => i.id));
-  return currentPortfolio.positions.flatMap((p) => {
+  const instrumentById = new Map(instruments.map((i) => [i.id, i] as const));
+  const rows = currentPortfolio.positions.flatMap((p) => {
     if (
       !Number.isFinite(p.weight) ||
       p.weight <= 0 ||
@@ -64,6 +68,20 @@ export function buildBenchmarkWeightRowsFromCurrentPortfolio(
         weightStr: (pctHundredths / 100).toFixed(2),
       } satisfies BenchmarkWeightFormRow,
     ];
+  });
+  return [...rows].sort((a, b) => {
+    const ia = instrumentById.get(a.instrumentId);
+    const ib = instrumentById.get(b.instrumentId);
+    if (ia == null && ib == null) {
+      return 0;
+    }
+    if (ia == null) {
+      return 1;
+    }
+    if (ib == null) {
+      return -1;
+    }
+    return compareTransactionInstrumentSelectLabel(ia, ib);
   });
 }
 
