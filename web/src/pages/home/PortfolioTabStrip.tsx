@@ -1,4 +1,5 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
+import { NavLink } from "react-router-dom";
 import { classNames } from "../../lib/css";
 import { useSlidingUnderlineIndicator } from "../../lib/useSlidingUnderlineIndicator";
 
@@ -6,26 +7,43 @@ export type PortfolioSubTab = "distributions" | "holdings" | "transactions";
 
 type PortfolioTabStripProps = {
   activeTab: PortfolioSubTab;
-  onTabChange: (tab: PortfolioSubTab) => void;
+  showTransactionsTab: boolean;
 };
 
 export function PortfolioTabStrip({
   activeTab,
-  onTabChange,
+  showTransactionsTab,
 }: PortfolioTabStripProps) {
   const subTabListRef = useRef<HTMLDivElement>(null);
-  const distributionsTabRef = useRef<HTMLButtonElement>(null);
-  const holdingsTabRef = useRef<HTMLButtonElement>(null);
-  const transactionsTabRef = useRef<HTMLButtonElement>(null);
+  const distributionsTabRef = useRef<HTMLAnchorElement>(null);
+  const holdingsTabRef = useRef<HTMLAnchorElement>(null);
+  const transactionsTabRef = useRef<HTMLAnchorElement>(null);
+
+  const itemRefs = useMemo(
+    () =>
+      showTransactionsTab
+        ? [distributionsTabRef, holdingsTabRef, transactionsTabRef]
+        : [distributionsTabRef, holdingsTabRef],
+    [showTransactionsTab],
+  );
 
   const subTabIndex =
-    activeTab === "distributions" ? 0 : activeTab === "holdings" ? 1 : 2;
+    activeTab === "distributions"
+      ? 0
+      : activeTab === "holdings"
+        ? 1
+        : showTransactionsTab
+          ? 2
+          : 0;
 
   const subTabIndicator = useSlidingUnderlineIndicator(
     subTabListRef,
-    [distributionsTabRef, holdingsTabRef, transactionsTabRef],
+    itemRefs,
     subTabIndex,
   );
+
+  const subTabClass = ({ isActive }: { isActive: boolean }) =>
+    classNames("page-subtab", isActive && "page-subtab-active");
 
   return (
     <div
@@ -44,48 +62,38 @@ export function PortfolioTabStrip({
           aria-hidden
         />
       ) : null}
-      <button
+      <NavLink
         ref={distributionsTabRef}
-        type="button"
+        to="/portfolio/distributions"
         role="tab"
         id="portfolio-tab-distributions"
         aria-selected={activeTab === "distributions"}
-        className={classNames(
-          "page-subtab",
-          activeTab === "distributions" && "page-subtab-active",
-        )}
-        onClick={() => onTabChange("distributions")}
+        className={subTabClass}
       >
         Distributions
-      </button>
-      <button
+      </NavLink>
+      <NavLink
         ref={holdingsTabRef}
-        type="button"
+        to="/portfolio/holdings"
         role="tab"
         id="portfolio-tab-holdings"
         aria-selected={activeTab === "holdings"}
-        className={classNames(
-          "page-subtab",
-          activeTab === "holdings" && "page-subtab-active",
-        )}
-        onClick={() => onTabChange("holdings")}
+        className={subTabClass}
       >
         Holdings
-      </button>
-      <button
-        ref={transactionsTabRef}
-        type="button"
-        role="tab"
-        id="portfolio-tab-transactions"
-        aria-selected={activeTab === "transactions"}
-        className={classNames(
-          "page-subtab",
-          activeTab === "transactions" && "page-subtab-active",
-        )}
-        onClick={() => onTabChange("transactions")}
-      >
-        Transactions
-      </button>
+      </NavLink>
+      {showTransactionsTab ? (
+        <NavLink
+          ref={transactionsTabRef}
+          to="/portfolio/transactions"
+          role="tab"
+          id="portfolio-tab-transactions"
+          aria-selected={activeTab === "transactions"}
+          className={subTabClass}
+        >
+          Transactions
+        </NavLink>
+      ) : null}
     </div>
   );
 }

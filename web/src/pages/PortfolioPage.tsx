@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import {
@@ -23,6 +24,10 @@ import type {
   PortfolioDistributions,
 } from "./home/types";
 import { useHomeData } from "./home/useHomeData";
+
+function isPortfolioSubTab(s: string | undefined): s is PortfolioSubTab {
+  return s === "distributions" || s === "holdings" || s === "transactions";
+}
 
 type PortfolioTabPanelsProps = {
   activeTab: PortfolioSubTab;
@@ -131,6 +136,10 @@ function PortfolioTabPanels({
 }
 
 export function PortfolioPage() {
+  const { section } = useParams<{ section: string }>();
+  const navigate = useNavigate();
+  const prevSelectedPortfolioId = useRef<number | null>(null);
+
   const {
     brokers,
     transactions,
@@ -224,13 +233,34 @@ export function PortfolioPage() {
   const [editingTransaction, setEditingTransaction] =
     useState<HomeTransaction | null>(null);
 
-  const [portfolioSubTab, setPortfolioSubTab] =
-    useState<PortfolioSubTab>("distributions");
-
   useEffect(() => {
-    void selectedPortfolioId;
-    setPortfolioSubTab("distributions");
-  }, [selectedPortfolioId]);
+    const prev = prevSelectedPortfolioId.current;
+    if (
+      prev != null &&
+      selectedPortfolioId != null &&
+      prev !== selectedPortfolioId
+    ) {
+      navigate("/portfolio/distributions", { replace: true });
+    }
+    prevSelectedPortfolioId.current = selectedPortfolioId;
+  }, [selectedPortfolioId, navigate]);
+
+  const showTransactionsTab = transactions.length > 0;
+
+  if (!isPortfolioSubTab(section)) {
+    return <Navigate to="/portfolio/distributions" replace />;
+  }
+
+  const activeTab: PortfolioSubTab = section;
+
+  if (
+    activeTab === "transactions" &&
+    selectedPortfolioId != null &&
+    portfolio != null &&
+    !showTransactionsTab
+  ) {
+    return <Navigate to="/portfolio/distributions" replace />;
+  }
 
   return (
     <div className="w-full min-w-0 page-stack">
@@ -346,8 +376,8 @@ export function PortfolioPage() {
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         {portfolio && selectedPortfolioId != null ? (
           <PortfolioTabStrip
-            activeTab={portfolioSubTab}
-            onTabChange={setPortfolioSubTab}
+            activeTab={activeTab}
+            showTransactionsTab={showTransactionsTab}
           />
         ) : null}
       </header>
@@ -415,7 +445,7 @@ export function PortfolioPage() {
       {portfolio && selectedPortfolioId != null ? (
         <PortfolioTabPanels
           key={selectedPortfolioId}
-          activeTab={portfolioSubTab}
+          activeTab={activeTab}
           portfolio={portfolio}
           comparePortfolio={comparePortfolio}
           showDistributionCompare={showDistributionCompare}

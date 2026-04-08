@@ -20,7 +20,7 @@ import { PortfolioPage } from "./pages/PortfolioPage";
 import { InstrumentsPage } from "./pages/instruments/InstrumentsPage";
 
 function navActiveIndex(pathname: string): number {
-  if (pathname === "/" || pathname.startsWith("/portfolio")) {
+  if (pathname.startsWith("/portfolio") || pathname === "/") {
     return 0;
   }
   if (pathname.startsWith("/instruments")) {
@@ -35,7 +35,7 @@ function navActiveIndex(pathname: string): number {
 function AppShell() {
   const { pathname } = useLocation();
   const portfolioNavActive =
-    pathname === "/" || pathname.startsWith("/portfolio");
+    pathname.startsWith("/portfolio") || pathname === "/";
   const navRef = useRef<HTMLElement>(null);
   const portfolioRef = useRef<HTMLAnchorElement>(null);
   const instrumentsRef = useRef<HTMLAnchorElement>(null);
@@ -65,7 +65,7 @@ function AppShell() {
         )}
         <Link
           ref={portfolioRef}
-          to="/"
+          to="/portfolio/distributions"
           className={classNames(
             "nav-bar-link",
             portfolioNavActive && "nav-bar-link-active",
@@ -95,7 +95,10 @@ function AppShell() {
       </nav>
       <main className="w-full min-w-0 px-4 sm:px-6 py-6">
         <Routes>
-          <Route path="/" element={<PortfolioPage />} />
+          <Route
+            path="/"
+            element={<Navigate to="/portfolio/distributions" replace />}
+          />
           <Route path="/instruments" element={<InstrumentsPage />} />
           <Route path="/instruments/new" element={<NewInstrumentPage />} />
           <Route
@@ -108,6 +111,11 @@ function AppShell() {
             path="/import"
             element={<Navigate to="/portfolio/import" replace />}
           />
+          <Route
+            path="/portfolio"
+            element={<Navigate to="/portfolio/distributions" replace />}
+          />
+          <Route path="/portfolio/:section" element={<PortfolioPage />} />
         </Routes>
       </main>
     </div>
