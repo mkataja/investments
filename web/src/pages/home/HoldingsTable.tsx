@@ -1,4 +1,5 @@
 import { type Dispatch, type SetStateAction, useMemo, useState } from "react";
+import { Button } from "../../components/Button";
 import {
   HoldingDistributionTooltipLayer,
   type HoldingDistributionTooltipState,
@@ -10,6 +11,7 @@ import {
   formatUnitPriceForDisplay,
   roundQuantityForDisplay,
 } from "../../lib/numberFormat";
+import { ExportHoldingsModal } from "./ExportHoldingsModal";
 import { instrumentTickerCell } from "./instrumentTickerCell";
 import type { HomeInstrument, PortfolioDistributions } from "./types";
 
@@ -182,6 +184,7 @@ export function HoldingsTable({
 }: HoldingsTableProps) {
   const [holdingTooltip, setHoldingTooltip] =
     useState<HoldingDistributionTooltipState | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const { equities, bonds, commodities, cashAccounts, totalPortfolioValueEur } =
     useMemo(() => {
@@ -213,7 +216,19 @@ export function HoldingsTable({
 
   return (
     <section className="page-section">
-      {hideSectionTitle ? null : <h2>Holdings</h2>}
+      <div className="flex flex-wrap items-baseline justify-start gap-3 mb-3">
+        <Button type="button" onClick={() => setExportOpen(true)}>
+          Export holdings
+        </Button>
+        {hideSectionTitle ? null : <h2>Holdings</h2>}
+      </div>
+      <ExportHoldingsModal
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        positions={portfolio.positions}
+        instrumentById={instrumentById}
+        instrumentTickerById={instrumentTickerById}
+      />
       <HoldingsSubtable
         title="Cash accounts"
         rows={cashAccounts}
