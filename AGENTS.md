@@ -69,17 +69,11 @@ Minimal copy unless asked.
 CSS/Tailwind patterns: [`web/design-system.md`](web/design-system.md).
 
 
-## Before committing or signing off work
+## Verification before you finish (commits, PRs, or "done")
 
-- `pnpm run ci` — run *all* CI checks *in parallel*
+Required: run `pnpm run ci` after substantive code changes, before you tell the user the work is ready, or before you commit.
 
-If necessary, you can run individual CI checks for faster output:
-- `pnpm lint`
-- `pnpm --filter @investments/web build` and `pnpm --filter @investments/api build`
-- `pnpm test`
-- `pnpm ts-prune`
-
-But ALWAYS run full `ci` before claiming you're ready.
+Optional while iterating: the same commands as in root [`package.json`](package.json) script `ci`, run individually.
 
 
 ## Git commits
