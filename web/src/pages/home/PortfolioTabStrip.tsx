@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useRef } from "react";
 import { NavLink } from "react-router-dom";
 import { classNames } from "../../lib/css";
 import { useSlidingUnderlineIndicator } from "../../lib/useSlidingUnderlineIndicator";
@@ -6,34 +6,22 @@ import { type PortfolioSection, routes } from "../../routes";
 
 type PortfolioTabStripProps = {
   activeTab: PortfolioSection;
-  showTransactionsTab: boolean;
 };
 
-export function PortfolioTabStrip({
-  activeTab,
-  showTransactionsTab,
-}: PortfolioTabStripProps) {
+export function PortfolioTabStrip({ activeTab }: PortfolioTabStripProps) {
   const subTabListRef = useRef<HTMLDivElement>(null);
   const distributionsTabRef = useRef<HTMLAnchorElement>(null);
   const holdingsTabRef = useRef<HTMLAnchorElement>(null);
   const transactionsTabRef = useRef<HTMLAnchorElement>(null);
 
-  const itemRefs = useMemo(
-    () =>
-      showTransactionsTab
-        ? [distributionsTabRef, holdingsTabRef, transactionsTabRef]
-        : [distributionsTabRef, holdingsTabRef],
-    [showTransactionsTab],
-  );
+  const itemRefs = [
+    distributionsTabRef,
+    holdingsTabRef,
+    transactionsTabRef,
+  ] as const;
 
   const subTabIndex =
-    activeTab === "distributions"
-      ? 0
-      : activeTab === "holdings"
-        ? 1
-        : showTransactionsTab
-          ? 2
-          : 0;
+    activeTab === "distributions" ? 0 : activeTab === "holdings" ? 1 : 2;
 
   const subTabIndicator = useSlidingUnderlineIndicator(
     subTabListRef,
@@ -81,18 +69,16 @@ export function PortfolioTabStrip({
       >
         Holdings
       </NavLink>
-      {showTransactionsTab ? (
-        <NavLink
-          ref={transactionsTabRef}
-          to={routes.portfolio.transactions}
-          role="tab"
-          id="portfolio-tab-transactions"
-          aria-selected={activeTab === "transactions"}
-          className={subTabClass}
-        >
-          Transactions
-        </NavLink>
-      ) : null}
+      <NavLink
+        ref={transactionsTabRef}
+        to={routes.portfolio.transactions}
+        role="tab"
+        id="portfolio-tab-transactions"
+        aria-selected={activeTab === "transactions"}
+        className={subTabClass}
+      >
+        Transactions
+      </NavLink>
     </div>
   );
 }

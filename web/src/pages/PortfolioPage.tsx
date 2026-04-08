@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { useMemo, useState } from "react";
+import { Navigate, useParams } from "react-router-dom";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
 import {
@@ -131,8 +131,6 @@ function PortfolioTabPanels({
 
 export function PortfolioPage() {
   const { section } = useParams<{ section: string }>();
-  const navigate = useNavigate();
-  const prevSelectedPortfolioId = useRef<number | null>(null);
 
   const {
     brokers,
@@ -227,34 +225,11 @@ export function PortfolioPage() {
   const [editingTransaction, setEditingTransaction] =
     useState<HomeTransaction | null>(null);
 
-  useEffect(() => {
-    const prev = prevSelectedPortfolioId.current;
-    if (
-      prev != null &&
-      selectedPortfolioId != null &&
-      prev !== selectedPortfolioId
-    ) {
-      navigate(routes.portfolio.distributions, { replace: true });
-    }
-    prevSelectedPortfolioId.current = selectedPortfolioId;
-  }, [selectedPortfolioId, navigate]);
-
-  const showTransactionsTab = transactions.length > 0;
-
   if (!isPortfolioSection(section)) {
     return <Navigate to={routes.portfolio.distributions} replace />;
   }
 
   const activeTab: PortfolioSection = section;
-
-  if (
-    activeTab === "transactions" &&
-    selectedPortfolioId != null &&
-    portfolio != null &&
-    !showTransactionsTab
-  ) {
-    return <Navigate to={routes.portfolio.distributions} replace />;
-  }
 
   return (
     <div className="w-full min-w-0 page-stack">
@@ -369,10 +344,7 @@ export function PortfolioPage() {
         </div>
         {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         {portfolio && selectedPortfolioId != null ? (
-          <PortfolioTabStrip
-            activeTab={activeTab}
-            showTransactionsTab={showTransactionsTab}
-          />
+          <PortfolioTabStrip activeTab={activeTab} />
         ) : null}
       </header>
 
