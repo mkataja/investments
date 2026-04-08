@@ -71,17 +71,26 @@ export function NewPortfolioModal({
       return;
     }
     const validInstrumentIds = new Set(instruments.map((i) => i.id));
-    const nextRows: BenchmarkWeightFormRow[] = currentPortfolio.positions
-      .filter(
-        (p) =>
-          Number.isFinite(p.weight) &&
-          p.weight > 0 &&
-          validInstrumentIds.has(p.instrumentId),
-      )
-      .map((p) => ({
-        instrumentId: p.instrumentId,
-        weightStr: String(p.weight),
-      }));
+    const nextRows: BenchmarkWeightFormRow[] =
+      currentPortfolio.positions.flatMap((p) => {
+        if (
+          !Number.isFinite(p.weight) ||
+          p.weight <= 0 ||
+          !validInstrumentIds.has(p.instrumentId)
+        ) {
+          return [];
+        }
+        const pctHundredths = Math.round(p.weight * 10000);
+        if (pctHundredths <= 0) {
+          return [];
+        }
+        return [
+          {
+            instrumentId: p.instrumentId,
+            weightStr: (pctHundredths / 100).toFixed(2),
+          } satisfies BenchmarkWeightFormRow,
+        ];
+      });
     if (nextRows.length === 0) {
       setError("Current portfolio has no copyable instrument weights.");
       return;
