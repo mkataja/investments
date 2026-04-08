@@ -320,46 +320,48 @@ export function EditPortfolioModal({
 
         <PortfolioFormDivider />
 
-        {error ? <ErrorAlert>{error}</ErrorAlert> : null}
-        <div className="flex items-center justify-between gap-3">
-          <Button
-            type="button"
-            className="action-delete"
-            disabled={busy || portfolio == null}
-            onClick={() => {
-              if (portfolio == null) {
-                return;
-              }
-              if (
-                !window.confirm(
-                  "Delete this portfolio and all its data? This cannot be undone.",
-                )
-              ) {
-                return;
-              }
-              setError(null);
-              void (async () => {
-                try {
-                  setBusy(true);
-                  await apiDelete(`/portfolios/${portfolio.id}`);
-                  onClose();
-                  await onDeleted();
-                } catch (err) {
-                  setError(String(err));
-                } finally {
-                  setBusy(false);
+        <div className="flex flex-col gap-3">
+          {error ? <ErrorAlert>{error}</ErrorAlert> : null}
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              type="button"
+              className="action-delete"
+              disabled={busy || portfolio == null}
+              onClick={() => {
+                if (portfolio == null) {
+                  return;
                 }
-              })();
-            }}
-          >
-            Delete
-          </Button>
-          <Button
-            type="submit"
-            disabled={busy || (isSynthetic && !weightsLoaded)}
-          >
-            Save
-          </Button>
+                if (
+                  !window.confirm(
+                    "Delete this portfolio and all its data? This cannot be undone.",
+                  )
+                ) {
+                  return;
+                }
+                setError(null);
+                void (async () => {
+                  try {
+                    setBusy(true);
+                    await apiDelete(`/portfolios/${portfolio.id}`);
+                    onClose();
+                    await onDeleted();
+                  } catch (err) {
+                    setError(String(err));
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
+              }}
+            >
+              Delete
+            </Button>
+            <Button
+              type="submit"
+              disabled={busy || (isSynthetic && !weightsLoaded)}
+            >
+              Save
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>

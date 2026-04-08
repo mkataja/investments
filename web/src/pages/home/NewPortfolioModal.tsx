@@ -265,7 +265,6 @@ export function NewPortfolioModal({
       dialogClassName="max-w-3xl"
     >
       <form onSubmit={(e) => void onSubmit(e)} className="flex flex-col gap-5">
-        {error ? <ErrorAlert>{error}</ErrorAlert> : null}
         <PortfolioFormNameField
           name={name}
           onNameChange={setName}
@@ -342,10 +341,13 @@ export function NewPortfolioModal({
 
         <PortfolioFormDivider />
 
-        <div>
-          <Button type="submit" disabled={busy}>
-            Create
-          </Button>
+        <div className="flex flex-col gap-3">
+          {error ? <ErrorAlert>{error}</ErrorAlert> : null}
+          <div>
+            <Button type="submit" disabled={busy}>
+              Create
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>
