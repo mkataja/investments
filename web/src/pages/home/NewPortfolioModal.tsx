@@ -42,6 +42,10 @@ export type NewPortfolioPrefill = {
   emergencyFundEur: number;
   benchmarkTotalEur: number;
   weightRows: BenchmarkWeightFormRow[];
+  /** Copy source is backtest; otherwise static (including when copying a live portfolio). */
+  targetKind: "static" | "backtest";
+  /** YYYY-MM-DD when {@link targetKind} is backtest. */
+  simulationStartDate?: string;
 };
 
 export function buildBenchmarkWeightRowsFromCurrentPortfolio(
@@ -90,7 +94,7 @@ type NewPortfolioModalProps = {
   onClose: () => void;
   instruments: HomeInstrument[];
   currentPortfolio: PortfolioDistributions | null;
-  /** When set while opening, seeds static portfolio fields (copy portfolio flow). */
+  /** When set while opening, seeds new portfolio fields (copy portfolio flow). */
   prefill: NewPortfolioPrefill | null;
   onCreated: (portfolio: PortfolioEntity) => void | Promise<void>;
 };
@@ -148,9 +152,15 @@ export function NewPortfolioModal({
     if (prefill != null) {
       setName(prefill.name);
       setEmergencyFund(formatEurAmountForInput(prefill.emergencyFundEur));
-      setKind("static");
+      setKind(prefill.targetKind);
       setBenchmarkTotal(formatEurAmountForInput(prefill.benchmarkTotalEur));
-      setSimulationStartDate(new Date().toISOString().slice(0, 10));
+      const start =
+        prefill.targetKind === "backtest" &&
+        prefill.simulationStartDate != null &&
+        /^\d{4}-\d{2}-\d{2}$/.test(prefill.simulationStartDate.trim())
+          ? prefill.simulationStartDate.trim()
+          : new Date().toISOString().slice(0, 10);
+      setSimulationStartDate(start);
       setWeightRows(
         prefill.weightRows.length > 0
           ? prefill.weightRows

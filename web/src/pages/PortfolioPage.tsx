@@ -257,6 +257,15 @@ export function PortfolioPage() {
       if (weightRows.length === 0 || totalEur == null) {
         return null;
       }
+      const sourceKind = selectedPortfolioEntity.kind ?? "live";
+      const simulationStartDate =
+        sourceKind === "backtest" &&
+        selectedPortfolioEntity.simulationStartDate != null &&
+        /^\d{4}-\d{2}-\d{2}$/.test(
+          selectedPortfolioEntity.simulationStartDate.trim(),
+        )
+          ? selectedPortfolioEntity.simulationStartDate.trim()
+          : undefined;
       return {
         name: `${selectedPortfolioEntity.name} (copy)`,
         emergencyFundEur: Number.isFinite(
@@ -266,6 +275,8 @@ export function PortfolioPage() {
           : 0,
         benchmarkTotalEur: totalEur,
         weightRows,
+        targetKind: sourceKind === "backtest" ? "backtest" : "static",
+        simulationStartDate,
       };
     }, [portfolio, selectedPortfolioEntity, instruments]);
 
