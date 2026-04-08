@@ -39,6 +39,7 @@ type PortfolioTabPanelsProps = {
   portfolioHasSellTransactions: boolean;
   selectedIsStatic: boolean;
   selectedIsSynthetic: boolean;
+  backtestInitialTotalEur: number | null;
   instrumentById: Map<number, HomeInstrument>;
   instrumentTickerById: Map<number, string | null>;
   instrumentNameById: Map<number, string>;
@@ -61,6 +62,7 @@ function PortfolioTabPanels({
   portfolioHasSellTransactions,
   selectedIsStatic,
   selectedIsSynthetic,
+  backtestInitialTotalEur,
   instrumentById,
   instrumentTickerById,
   instrumentNameById,
@@ -89,6 +91,7 @@ function PortfolioTabPanels({
             portfolioId={selectedPortfolioId}
             portfolioHasSellTransactions={portfolioHasSellTransactions}
             hideSectionTitle
+            backtestInitialTotalEur={backtestInitialTotalEur}
           />
         </div>
       ) : null}
@@ -289,6 +292,13 @@ export function PortfolioPage() {
     selectedPortfolioEntity?.kind === "static" ||
     selectedPortfolioEntity?.kind === "backtest";
   const selectedIsStatic = selectedPortfolioEntity?.kind === "static";
+  const backtestInitialTotalEur = useMemo(() => {
+    if (selectedPortfolioEntity?.kind !== "backtest") {
+      return null;
+    }
+    const n = selectedPortfolioEntity.benchmarkTotalEur;
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [selectedPortfolioEntity]);
 
   const [txnModalOpen, setTxnModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] =
@@ -509,6 +519,7 @@ export function PortfolioPage() {
           portfolioHasSellTransactions={portfolioHasSellTransactions}
           selectedIsStatic={selectedIsStatic}
           selectedIsSynthetic={selectedIsSynthetic}
+          backtestInitialTotalEur={backtestInitialTotalEur}
           instrumentById={instrumentById}
           instrumentTickerById={instrumentTickerById}
           instrumentNameById={instrumentNameById}

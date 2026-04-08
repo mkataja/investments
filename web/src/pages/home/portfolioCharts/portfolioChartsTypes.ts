@@ -20,4 +20,6 @@ export type PortfolioChartsProps = {
   distributionBarYAxisTickCount?: number;
   /** When true, omit the section h2 (e.g. when a parent tab bar labels the view). */
   hideSectionTitle?: boolean;
+  /** Backtest starting EUR notional; when set, shown in parens after the estimated total. */
+  backtestInitialTotalEur?: number | null;
 };

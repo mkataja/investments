@@ -126,7 +126,19 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
               )}
             </span>{" "}
             EUR
-          </span>{" "}
+          </span>
+          {props.backtestInitialTotalEur != null &&
+          Number.isFinite(props.backtestInitialTotalEur) &&
+          props.backtestInitialTotalEur > 0 ? (
+            <>
+              {" "}
+              (initial{" "}
+              <span className="tabular-nums">
+                {formatIntegerForDisplay(props.backtestInitialTotalEur)}
+              </span>{" "}
+              EUR)
+            </>
+          ) : null}{" "}
           {portfolio.emergencyFundSliceEur > 0 ? (
             <>
               (plus{" "}
