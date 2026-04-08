@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { Button, ButtonLink } from "../components/Button";
 import { ErrorAlert } from "../components/ErrorAlert";
@@ -9,7 +9,11 @@ import {
 import { type PortfolioSection, isPortfolioSection, routes } from "../routes";
 import { EditPortfolioModal } from "./home/EditPortfolioModal";
 import { HoldingsTable } from "./home/HoldingsTable";
-import { NewPortfolioModal } from "./home/NewPortfolioModal";
+import {
+  NewPortfolioModal,
+  type NewPortfolioPrefill,
+  buildBenchmarkWeightRowsFromCurrentPortfolio,
+} from "./home/NewPortfolioModal";
 import { NewTransactionModal } from "./home/NewTransactionModal";
 import { PortfolioTabStrip } from "./home/PortfolioTabStrip";
 import { TransactionsTable } from "./home/TransactionsTable";
@@ -152,6 +156,8 @@ export function PortfolioPage() {
   } = useHomeData();
 
   const [newPortfolioOpen, setNewPortfolioOpen] = useState(false);
+  const [newPortfolioPrefill, setNewPortfolioPrefill] =
+    useState<NewPortfolioPrefill | null>(null);
   const [editPortfolioOpen, setEditPortfolioOpen] = useState(false);
 
   const portfolioHasSellTransactions = useMemo(
@@ -215,6 +221,42 @@ export function PortfolioPage() {
     if (selectedPortfolioId == null) return null;
     return portfolioEntities.find((p) => p.id === selectedPortfolioId) ?? null;
   }, [selectedPortfolioId, portfolioEntities]);
+
+  const buildCopyPortfolioPrefill =
+    useCallback((): NewPortfolioPrefill | null => {
+      if (portfolio == null || selectedPortfolioEntity == null) {
+        return null;
+      }
+      const weightRows = buildBenchmarkWeightRowsFromCurrentPortfolio(
+        portfolio,
+        instruments,
+      );
+      const totalEur =
+        Number.isFinite(portfolio.totalValueEur) && portfolio.totalValueEur > 0
+          ? portfolio.totalValueEur
+          : Number.isFinite(selectedPortfolioEntity.benchmarkTotalEur) &&
+              selectedPortfolioEntity.benchmarkTotalEur > 0
+            ? selectedPortfolioEntity.benchmarkTotalEur
+            : null;
+      if (weightRows.length === 0 || totalEur == null) {
+        return null;
+      }
+      return {
+        name: `${selectedPortfolioEntity.name} (copy)`,
+        emergencyFundEur: Number.isFinite(
+          selectedPortfolioEntity.emergencyFundEur,
+        )
+          ? selectedPortfolioEntity.emergencyFundEur
+          : 0,
+        benchmarkTotalEur: totalEur,
+        weightRows,
+      };
+    }, [portfolio, selectedPortfolioEntity, instruments]);
+
+  const copyPortfolioEnabled = useMemo(
+    () => buildCopyPortfolioPrefill() != null,
+    [buildCopyPortfolioPrefill],
+  );
 
   const selectedIsSynthetic =
     selectedPortfolioEntity?.kind === "static" ||
@@ -308,8 +350,28 @@ export function PortfolioPage() {
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" onClick={() => setNewPortfolioOpen(true)}>
+            <Button
+              type="button"
+              onClick={() => {
+                setNewPortfolioPrefill(null);
+                setNewPortfolioOpen(true);
+              }}
+            >
               New portfolio
+            </Button>
+            <Button
+              type="button"
+              disabled={!copyPortfolioEnabled}
+              onClick={() => {
+                const prefill = buildCopyPortfolioPrefill();
+                if (prefill == null) {
+                  return;
+                }
+                setNewPortfolioPrefill(prefill);
+                setNewPortfolioOpen(true);
+              }}
+            >
+              Copy portfolio
             </Button>
             <Button
               type="button"
@@ -353,6 +415,7 @@ export function PortfolioPage() {
         onClose={() => setNewPortfolioOpen(false)}
         instruments={instruments}
         currentPortfolio={portfolio}
+        prefill={newPortfolioPrefill}
         onCreated={async (row) => {
           setPortfolioEntities((prev) =>
             [...prev, row].sort((a, b) => a.id - b.id),

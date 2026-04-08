@@ -16,7 +16,10 @@ import {
 import { Button } from "../../components/Button";
 import { ErrorAlert } from "../../components/ErrorAlert";
 import { Modal } from "../../components/Modal";
-import { parseDecimalInputLoose } from "../../lib/decimalInput";
+import {
+  formatEurAmountForInput,
+  parseDecimalInputLoose,
+} from "../../lib/decimalInput";
 import {
   PortfolioFormBenchmarkTotalField,
   PortfolioFormDivider,
@@ -31,11 +34,46 @@ import type {
   PortfolioEntity,
 } from "./types";
 
+export type NewPortfolioPrefill = {
+  name: string;
+  emergencyFundEur: number;
+  benchmarkTotalEur: number;
+  weightRows: BenchmarkWeightFormRow[];
+};
+
+export function buildBenchmarkWeightRowsFromCurrentPortfolio(
+  currentPortfolio: PortfolioDistributions,
+  instruments: HomeInstrument[],
+): BenchmarkWeightFormRow[] {
+  const validInstrumentIds = new Set(instruments.map((i) => i.id));
+  return currentPortfolio.positions.flatMap((p) => {
+    if (
+      !Number.isFinite(p.weight) ||
+      p.weight <= 0 ||
+      !validInstrumentIds.has(p.instrumentId)
+    ) {
+      return [];
+    }
+    const pctHundredths = Math.round(p.weight * 10000);
+    if (pctHundredths <= 0) {
+      return [];
+    }
+    return [
+      {
+        instrumentId: p.instrumentId,
+        weightStr: (pctHundredths / 100).toFixed(2),
+      } satisfies BenchmarkWeightFormRow,
+    ];
+  });
+}
+
 type NewPortfolioModalProps = {
   open: boolean;
   onClose: () => void;
   instruments: HomeInstrument[];
   currentPortfolio: PortfolioDistributions | null;
+  /** When set while opening, seeds static portfolio fields (copy portfolio flow). */
+  prefill: NewPortfolioPrefill | null;
   onCreated: (portfolio: PortfolioEntity) => void | Promise<void>;
 };
 
@@ -44,6 +82,7 @@ export function NewPortfolioModal({
   onClose,
   instruments,
   currentPortfolio,
+  prefill,
   onCreated,
 }: NewPortfolioModalProps) {
   const [name, setName] = useState("");
@@ -70,27 +109,10 @@ export function NewPortfolioModal({
       setError("Current portfolio has no positions to copy.");
       return;
     }
-    const validInstrumentIds = new Set(instruments.map((i) => i.id));
-    const nextRows: BenchmarkWeightFormRow[] =
-      currentPortfolio.positions.flatMap((p) => {
-        if (
-          !Number.isFinite(p.weight) ||
-          p.weight <= 0 ||
-          !validInstrumentIds.has(p.instrumentId)
-        ) {
-          return [];
-        }
-        const pctHundredths = Math.round(p.weight * 10000);
-        if (pctHundredths <= 0) {
-          return [];
-        }
-        return [
-          {
-            instrumentId: p.instrumentId,
-            weightStr: (pctHundredths / 100).toFixed(2),
-          } satisfies BenchmarkWeightFormRow,
-        ];
-      });
+    const nextRows = buildBenchmarkWeightRowsFromCurrentPortfolio(
+      currentPortfolio,
+      instruments,
+    );
     if (nextRows.length === 0) {
       setError("Current portfolio has no copyable instrument weights.");
       return;
@@ -103,15 +125,28 @@ export function NewPortfolioModal({
     if (!open) {
       return;
     }
+    setBusy(false);
+    setError(null);
+    if (prefill != null) {
+      setName(prefill.name);
+      setEmergencyFund(formatEurAmountForInput(prefill.emergencyFundEur));
+      setKind("static");
+      setBenchmarkTotal(formatEurAmountForInput(prefill.benchmarkTotalEur));
+      setSimulationStartDate(new Date().toISOString().slice(0, 10));
+      setWeightRows(
+        prefill.weightRows.length > 0
+          ? prefill.weightRows
+          : [{ instrumentId: "", weightStr: "" }],
+      );
+      return;
+    }
     setName("");
     setEmergencyFund("0");
     setKind("live");
     setBenchmarkTotal("10000");
     setSimulationStartDate(new Date().toISOString().slice(0, 10));
     setWeightRows([{ instrumentId: "", weightStr: "" }]);
-    setBusy(false);
-    setError(null);
-  }, [open]);
+  }, [open, prefill]);
 
   useEffect(() => {
     if (!open) return;
