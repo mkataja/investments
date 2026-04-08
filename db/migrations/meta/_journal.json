@@ -351,6 +351,13 @@
       "when": 1775250689128,
       "tag": "0049_hot_maddog",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1775675463144,
+      "tag": "0050_early_namora",
+      "breakpoints": true
     }
   ]
 }

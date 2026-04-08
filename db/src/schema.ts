@@ -75,7 +75,7 @@ export const portfolios = pgTable(
       .defaultNow(),
   },
   (t) => [
-    uniqueIndex("portfolios_user_name_uidx").on(t.userId, t.name),
+    uniqueIndex("portfolios_user_name_kind_uidx").on(t.userId, t.name, t.kind),
     check(
       "portfolios_kind_ck",
       sql`${t.kind} IN ('live', 'static', 'backtest')`,

@@ -13,6 +13,7 @@ import {
   count,
   eq,
   inArray,
+  ne,
   sql,
 } from "drizzle-orm";
 import type { Context } from "hono";
@@ -207,10 +208,17 @@ export async function listPortfolios(c: Context) {
 export async function createPortfolio(c: Context) {
   const body = validJson(c, portfolioCreateIn);
   const name = body.name.trim();
+  const kind = body.kind ?? "live";
   const [dup] = await db
     .select({ id: portfolios.id })
     .from(portfolios)
-    .where(and(eq(portfolios.userId, USER_ID), eq(portfolios.name, name)))
+    .where(
+      and(
+        eq(portfolios.userId, USER_ID),
+        eq(portfolios.name, name),
+        eq(portfolios.kind, kind),
+      ),
+    )
     .limit(1);
   if (dup) {
     return c.json(
@@ -218,7 +226,6 @@ export async function createPortfolio(c: Context) {
       409,
     );
   }
-  const kind = body.kind ?? "live";
   if (kind === "backtest" && body.simulationStartDate == null) {
     return c.json(
       { message: "Backtest portfolio requires simulationStartDate" },
@@ -249,7 +256,13 @@ export async function createBacktestPortfolio(c: Context) {
   const [dup] = await db
     .select({ id: portfolios.id })
     .from(portfolios)
-    .where(and(eq(portfolios.userId, USER_ID), eq(portfolios.name, name)))
+    .where(
+      and(
+        eq(portfolios.userId, USER_ID),
+        eq(portfolios.name, name),
+        eq(portfolios.kind, "backtest"),
+      ),
+    )
     .limit(1);
   if (dup) {
     return c.json(
@@ -313,18 +326,24 @@ export async function patchPortfolio(c: Context) {
     return c.json({ message: "Not found" }, 404);
   }
   const nextName = body.name?.trim() ?? existing.name;
-  if (nextName !== existing.name) {
-    const [nameDup] = await db
-      .select({ id: portfolios.id })
-      .from(portfolios)
-      .where(and(eq(portfolios.userId, USER_ID), eq(portfolios.name, nextName)))
-      .limit(1);
-    if (nameDup && nameDup.id !== id) {
-      return c.json(
-        { message: "A portfolio with this name already exists" },
-        409,
-      );
-    }
+  const nextKind = body.kind ?? existing.kind;
+  const [nameKindDup] = await db
+    .select({ id: portfolios.id })
+    .from(portfolios)
+    .where(
+      and(
+        eq(portfolios.userId, USER_ID),
+        eq(portfolios.name, nextName),
+        eq(portfolios.kind, nextKind),
+        ne(portfolios.id, id),
+      ),
+    )
+    .limit(1);
+  if (nameKindDup) {
+    return c.json(
+      { message: "A portfolio with this name already exists" },
+      409,
+    );
   }
   if (body.kind != null && body.kind !== existing.kind) {
     if (
@@ -363,7 +382,6 @@ export async function patchPortfolio(c: Context) {
         .where(eq(portfolioBenchmarkWeights.portfolioId, id));
     }
   }
-  const nextKind = body.kind ?? existing.kind;
   const nextSimulationStartDate =
     body.simulationStartDate !== undefined
       ? body.simulationStartDate
