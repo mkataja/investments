@@ -29,9 +29,33 @@ function sortByValueDesc(rows: PortfolioPosition[]): PortfolioPosition[] {
   return [...rows].sort((a, b) => b.valueEur - a.valueEur);
 }
 
+function HoldingsColGroup({
+  hideQtyAndUnitEur,
+}: {
+  hideQtyAndUnitEur: boolean;
+}) {
+  return (
+    <colgroup>
+      <col />
+      <col className="holdings-col-ticker" />
+      {hideQtyAndUnitEur ? null : (
+        <>
+          <col className="holdings-col-qty" />
+          <col className="holdings-col-unit" />
+        </>
+      )}
+      <col className="holdings-col-value" />
+      <col className="holdings-col-pct" />
+      <col className="holdings-col-pct" />
+    </colgroup>
+  );
+}
+
 function HoldingsSubtable({
   title,
   rows,
+  sectionWeightHeader,
+  totalPortfolioValueEur,
   instrumentById,
   instrumentTickerById,
   setHoldingTooltip,
@@ -39,6 +63,8 @@ function HoldingsSubtable({
 }: {
   title: string;
   rows: PortfolioPosition[];
+  sectionWeightHeader: string;
+  totalPortfolioValueEur: number;
   instrumentById: Map<number, HomeInstrument>;
   instrumentTickerById: Map<number, string | null>;
   setHoldingTooltip: Dispatch<
@@ -56,7 +82,8 @@ function HoldingsSubtable({
     <div className="subsection-stack">
       <h3>{title}</h3>
       <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white shadow-sm text-sm">
-        <table className="min-w-full">
+        <table className="holdings-table min-w-full">
+          <HoldingsColGroup hideQtyAndUnitEur={!!hideQtyAndUnitEur} />
           <thead className="bg-slate-100 text-slate-700">
             <tr>
               <th className="text-left p-2 font-medium">Instrument</th>
@@ -68,7 +95,12 @@ function HoldingsSubtable({
                 </>
               )}
               <th className="text-right p-2 font-medium">Value EUR</th>
-              <th className="text-right p-2 font-medium">Weight</th>
+              <th className="table-col-compact-pct-th">
+                {sectionWeightHeader}
+              </th>
+              <th className="table-col-compact-pct-th table-col-compact-pct-trailing">
+                Weight (total)
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -80,6 +112,10 @@ function HoldingsSubtable({
               );
               const weightWithinSection =
                 sectionValueEur > 0 ? p.valueEur / sectionValueEur : 0;
+              const weightOfTotal =
+                totalPortfolioValueEur > 0
+                  ? p.valueEur / totalPortfolioValueEur
+                  : 0;
               return (
                 <tr
                   key={p.instrumentId}
@@ -98,7 +134,7 @@ function HoldingsSubtable({
                     );
                   }}
                 >
-                  <td className="p-2 text-left min-w-[12rem] font-medium text-slate-900">
+                  <td className="p-2 text-left min-w-0 font-medium text-slate-900">
                     {p.displayName}
                   </td>
                   <td className="p-2 text-left tabular-nums text-slate-700">
@@ -121,8 +157,11 @@ function HoldingsSubtable({
                   <td className="p-2 text-right tabular-nums">
                     {formatDecimalForDisplay(p.valueEur, { decimalPlaces: 2 })}
                   </td>
-                  <td className="p-2 text-right tabular-nums">
+                  <td className="table-col-compact-pct">
                     {formatPercentWidth4From01(weightWithinSection)}
+                  </td>
+                  <td className="table-col-compact-pct table-col-compact-pct-trailing">
+                    {formatPercentWidth4From01(weightOfTotal)}
                   </td>
                 </tr>
               );
@@ -144,29 +183,33 @@ export function HoldingsTable({
   const [holdingTooltip, setHoldingTooltip] =
     useState<HoldingDistributionTooltipState | null>(null);
 
-  const { equities, bonds, commodities, cashAccounts } = useMemo(() => {
-    const eq: PortfolioPosition[] = [];
-    const bd: PortfolioPosition[] = [];
-    const cm: PortfolioPosition[] = [];
-    const cash: PortfolioPosition[] = [];
-    for (const p of portfolio.positions) {
-      if (p.assetClass === "cash_account") {
-        cash.push(p);
-      } else if (p.assetClass === "bond") {
-        bd.push(p);
-      } else if (p.assetClass === "commodity") {
-        cm.push(p);
-      } else {
-        eq.push(p);
+  const { equities, bonds, commodities, cashAccounts, totalPortfolioValueEur } =
+    useMemo(() => {
+      const eq: PortfolioPosition[] = [];
+      const bd: PortfolioPosition[] = [];
+      const cm: PortfolioPosition[] = [];
+      const cash: PortfolioPosition[] = [];
+      let totalPortfolioValueEur = 0;
+      for (const p of portfolio.positions) {
+        totalPortfolioValueEur += p.valueEur;
+        if (p.assetClass === "cash_account") {
+          cash.push(p);
+        } else if (p.assetClass === "bond") {
+          bd.push(p);
+        } else if (p.assetClass === "commodity") {
+          cm.push(p);
+        } else {
+          eq.push(p);
+        }
       }
-    }
-    return {
-      equities: sortByValueDesc(eq),
-      bonds: sortByValueDesc(bd),
-      commodities: sortByValueDesc(cm),
-      cashAccounts: sortByValueDesc(cash),
-    };
-  }, [portfolio.positions]);
+      return {
+        equities: sortByValueDesc(eq),
+        bonds: sortByValueDesc(bd),
+        commodities: sortByValueDesc(cm),
+        cashAccounts: sortByValueDesc(cash),
+        totalPortfolioValueEur,
+      };
+    }, [portfolio.positions]);
 
   return (
     <section className="page-section">
@@ -174,6 +217,8 @@ export function HoldingsTable({
       <HoldingsSubtable
         title="Cash accounts"
         rows={cashAccounts}
+        sectionWeightHeader="Weight (cash)"
+        totalPortfolioValueEur={totalPortfolioValueEur}
         instrumentById={instrumentById}
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}
@@ -182,6 +227,8 @@ export function HoldingsTable({
       <HoldingsSubtable
         title="Equities"
         rows={equities}
+        sectionWeightHeader="Weight (equities)"
+        totalPortfolioValueEur={totalPortfolioValueEur}
         instrumentById={instrumentById}
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}
@@ -190,6 +237,8 @@ export function HoldingsTable({
       <HoldingsSubtable
         title="Commodities"
         rows={commodities}
+        sectionWeightHeader="Weight (commodities)"
+        totalPortfolioValueEur={totalPortfolioValueEur}
         instrumentById={instrumentById}
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}
@@ -198,6 +247,8 @@ export function HoldingsTable({
       <HoldingsSubtable
         title="Bonds"
         rows={bonds}
+        sectionWeightHeader="Weight"
+        totalPortfolioValueEur={totalPortfolioValueEur}
         instrumentById={instrumentById}
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}

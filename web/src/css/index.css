@@ -6,6 +6,7 @@
 @import "./feedback.css";
 @import "./transactions.css";
 @import "./charts.css";
+@import "./holdingsTable.css";
 
 @tailwind base;
 @tailwind components;

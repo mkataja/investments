@@ -1,0 +1,47 @@
+:root {
+  --holdings-table-ticker-col-width: 5.5rem;
+  --holdings-table-qty-col-width: 4rem;
+  --holdings-table-price-col-width: 7rem;
+  --holdings-table-weight-col-width: 6rem;
+}
+
+@layer components {
+  /* Shared across all holdings subtables so columns line up section to section. */
+  .holdings-table {
+    @apply w-full table-fixed;
+  }
+
+  .holdings-col-ticker {
+    width: var(--holdings-table-ticker-col-width);
+  }
+
+  .holdings-col-qty {
+    width: var(--holdings-table-qty-col-width);
+  }
+
+  .holdings-col-unit {
+    width: var(--holdings-table-price-col-width);
+  }
+
+  .holdings-col-value {
+    width: var(--holdings-table-price-col-width);
+  }
+
+  .holdings-col-pct {
+    width: var(--holdings-table-weight-col-width);
+  }
+
+  /* Percentage cells: width comes from `holdings-col-pct` on `<col>`. */
+  .table-col-compact-pct {
+    @apply box-border px-1 py-2 text-right tabular-nums;
+  }
+
+  .table-col-compact-pct-th {
+    @apply box-border px-1 py-2 text-right font-medium whitespace-normal leading-tight align-top;
+  }
+
+  /* Rightmost percentage column: extra inset from table / card edge. */
+  .table-col-compact-pct-trailing {
+    @apply pr-3;
+  }
+}
