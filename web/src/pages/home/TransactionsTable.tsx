@@ -8,7 +8,6 @@ import {
   formatQuantityForDisplay,
   formatTransactionTotalValueForDisplay,
   formatTransactionUnitPriceForDisplay,
-  formatUnitPriceForDisplay,
 } from "../../lib/numberFormat";
 import { instrumentTickerCell } from "./instrumentTickerCell";
 import { positionValueAfterLabelByTransactionId } from "./transactionsPositionValueAfter";
@@ -172,7 +171,7 @@ export function TransactionsTable({
                 </td>
                 <td className="p-2 text-right">
                   {instrumentById.get(t.instrumentId)?.kind === "cash_account"
-                    ? formatUnitPriceForDisplay(t.quantity)
+                    ? "-"
                     : formatQuantityForDisplay(t.quantity)}
                 </td>
                 <td className="p-2 text-right">
