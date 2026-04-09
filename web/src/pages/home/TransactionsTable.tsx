@@ -5,10 +5,10 @@ import { formatInstantForDisplay } from "../../lib/dateTimeFormat";
 import { instrumentSelectUiLabel } from "../../lib/instrumentSelectUiLabel";
 import {
   formatIntegerForDisplay,
+  formatQuantityForDisplay,
   formatTransactionTotalValueForDisplay,
   formatTransactionUnitPriceForDisplay,
   formatUnitPriceForDisplay,
-  roundQuantityForDisplay,
 } from "../../lib/numberFormat";
 import { instrumentTickerCell } from "./instrumentTickerCell";
 import { positionValueAfterLabelByTransactionId } from "./transactionsPositionValueAfter";
@@ -173,9 +173,7 @@ export function TransactionsTable({
                 <td className="p-2 text-right">
                   {instrumentById.get(t.instrumentId)?.kind === "cash_account"
                     ? formatUnitPriceForDisplay(t.quantity)
-                    : formatIntegerForDisplay(
-                        roundQuantityForDisplay(t.quantity),
-                      )}
+                    : formatQuantityForDisplay(t.quantity)}
                 </td>
                 <td className="p-2 text-right">
                   {instrumentById.get(t.instrumentId)?.kind ===

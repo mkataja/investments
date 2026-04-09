@@ -7,9 +7,8 @@ import {
 import { formatPercentWidth4From01 } from "../../lib/distributionDisplay";
 import {
   formatDecimalForDisplay,
-  formatIntegerForDisplay,
+  formatQuantityForDisplay,
   formatUnitPriceForDisplay,
-  roundQuantityForDisplay,
 } from "../../lib/numberFormat";
 import { ExportHoldingsModal } from "./ExportHoldingsModal";
 import { instrumentTickerCell } from "./instrumentTickerCell";
@@ -145,9 +144,7 @@ function HoldingsSubtable({
                   {hideQtyAndUnitEur ? null : (
                     <>
                       <td className="p-2 text-right tabular-nums">
-                        {formatIntegerForDisplay(
-                          roundQuantityForDisplay(String(p.quantity)),
-                        )}
+                        {formatQuantityForDisplay(String(p.quantity))}
                       </td>
                       <td className="p-2 text-right tabular-nums">
                         {p.unitPriceEur == null

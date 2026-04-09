@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { APP_LOCALE } from "./locale";
 import {
+  QUANTITY_NEAR_INTEGER_EPS,
+  formatQuantityForDisplay,
   formatTransactionTotalValueForDisplay,
   formatTransactionUnitPriceForDisplay,
   formatUnitPriceForDisplay,
-  roundQuantityForDisplay,
 } from "./numberFormat";
 
 describe("formatUnitPriceForDisplay", () => {
@@ -82,29 +83,35 @@ describe("formatTransactionTotalValueForDisplay", () => {
   });
 });
 
-describe("roundQuantityForDisplay", () => {
-  it("parses visually whole decimal strings via integer part (no float drift)", () => {
-    expect(roundQuantityForDisplay("10")).toBe(10);
-    expect(roundQuantityForDisplay("10.0")).toBe(10);
-    expect(roundQuantityForDisplay("-3.000")).toBe(-3);
-    expect(roundQuantityForDisplay("  42  ")).toBe(42);
+describe("formatQuantityForDisplay", () => {
+  it("formats as an integer when within eps of a whole number", () => {
+    expect(formatQuantityForDisplay("10")).toBe("10");
+    expect(formatQuantityForDisplay("3")).toBe("3");
+    expect(formatQuantityForDisplay("10.00001")).toBe("10");
+    expect(
+      formatQuantityForDisplay(String(10 + QUANTITY_NEAR_INTEGER_EPS)),
+    ).toBe("10");
   });
 
-  it("rounds fractional values (nearest integer, not truncation)", () => {
-    expect(roundQuantityForDisplay("10.7")).toBe(11);
-    expect(roundQuantityForDisplay("10.4")).toBe(10);
-    expect(roundQuantityForDisplay("10.5")).toBe(11);
-    expect(roundQuantityForDisplay("-2.5")).toBe(-2);
+  it("keeps fraction digits just outside the integer tolerance", () => {
+    expect(formatQuantityForDisplay("10.000015")).toBe(
+      formatUnitPriceForDisplay("10.000015"),
+    );
   });
 
-  it("handles non-decimal numeric strings", () => {
-    expect(roundQuantityForDisplay("1e2")).toBe(100);
+  it("keeps fraction digits when not near a whole number", () => {
+    expect(formatQuantityForDisplay("12.3456")).toBe(
+      formatUnitPriceForDisplay("12.3456"),
+    );
+    expect(formatQuantityForDisplay("10.7")).toBe(
+      formatUnitPriceForDisplay("10.7"),
+    );
+    expect(formatQuantityForDisplay("0.25")).toBe(
+      formatUnitPriceForDisplay("0.25"),
+    );
   });
 
-  it("returns 0 for non-finite numbers", () => {
-    expect(roundQuantityForDisplay("")).toBe(0);
-    expect(roundQuantityForDisplay("not a number")).toBe(0);
-    expect(roundQuantityForDisplay("Infinity")).toBe(0);
-    expect(roundQuantityForDisplay("-Infinity")).toBe(0);
+  it("returns trimmed input when not a finite number", () => {
+    expect(formatQuantityForDisplay("  n/a  ")).toBe("n/a");
   });
 });

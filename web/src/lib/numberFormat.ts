@@ -82,20 +82,24 @@ export function formatTransactionTotalValueForDisplay(
 }
 
 /**
- * Whole-share display: nearest integer via Math.round (ties toward +∞), not truncating
- * (not Math.trunc, |0, or parseInt on fractional strings).
- * Decimal strings that are visually whole numbers use the integer part only to avoid FP drift.
+ * If a quantity is within this distance of {@link Math.round}, it is shown as that integer
+ * (avoids floating-point noise; fractional shares and fund units use decimals otherwise).
  */
-export function roundQuantityForDisplay(raw: string): number {
+export const QUANTITY_NEAR_INTEGER_EPS = 1e-5;
+
+/**
+ * Formats a quantity string for tables: integers when numerically near a whole number,
+ * otherwise up to three fraction digits (same rules as {@link formatUnitPriceForDisplay}).
+ */
+export function formatQuantityForDisplay(raw: string): string {
   const t = raw.trim();
-  if (/^-?\d+(\.0+)?$/.test(t)) {
-    const dot = t.indexOf(".");
-    const intPart = dot === -1 ? t : t.slice(0, dot);
-    return Number.parseInt(intPart, 10);
-  }
   const n = Number(t);
-  if (!Number.isFinite(n)) return 0;
-  return Math.round(n);
+  if (!Number.isFinite(n)) return t;
+  const nearest = Math.round(n);
+  if (Math.abs(n - nearest) <= QUANTITY_NEAR_INTEGER_EPS) {
+    return formatIntegerForDisplay(nearest);
+  }
+  return formatUnitPriceForDisplay(t);
 }
 
 export const formatToPercentage = (
