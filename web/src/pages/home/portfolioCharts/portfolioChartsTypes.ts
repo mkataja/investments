@@ -22,4 +22,9 @@ export type PortfolioChartsProps = {
   hideSectionTitle?: boolean;
   /** Backtest starting EUR notional; when set, shown in parens after the estimated total. */
   backtestInitialTotalEur?: number | null;
+  /**
+   * Display names by instrument id (e.g. from `GET /instruments`). Used for holding-over-time
+   * labels for ids not in current `portfolio.positions` (e.g. sold holdings still in history).
+   */
+  instrumentDisplayNameById?: ReadonlyMap<number, string>;
 };

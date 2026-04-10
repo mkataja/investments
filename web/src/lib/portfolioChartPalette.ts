@@ -50,6 +50,32 @@ const PORTFOLIO_SECTOR_CHART_COLORS_BY_BUCKET_KEY: Record<string, string> = {
 
 const PORTFOLIO_SECTOR_CHART_FALLBACK_COLOR = "#94A3B8";
 
+/** Arbitrary holdings over time — cycle for stable legend order by max EUR. */
+const PORTFOLIO_HOLDING_LINE_COLORS = [
+  "#3B7FD4",
+  "#6B7FD7",
+  "#8BCB7A",
+  "#C41E3A",
+  "#E8C4B8",
+  "#9A7B5C",
+  "#FFE600",
+  "#D4A574",
+  "#C2EABA",
+  "#E8880E",
+  "#B0B8C8",
+  "#2D6A4F",
+  "#94A3B8",
+] as const;
+
+/** Color for a holding line chart series by index (0-based). */
+export function portfolioHoldingChartColorForIndex(index: number): string {
+  const palette = PORTFOLIO_HOLDING_LINE_COLORS;
+  const n = palette.length;
+  const i = ((index % n) + n) % n;
+  const c = palette[i];
+  return c ?? palette[0];
+}
+
 /** Color for a sector bar / timeseries line by canonical sector id. */
 export function portfolioSectorChartColorForBucketKey(
   bucketKey: string,

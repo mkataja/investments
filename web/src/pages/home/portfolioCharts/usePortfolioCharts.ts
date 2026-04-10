@@ -1,5 +1,6 @@
 import type { PortfolioChartsProps } from "./portfolioChartsTypes";
 import { useAssetMixHistoryLine } from "./useAssetMixHistoryLine";
+import { useHoldingDistributionHistoryLine } from "./useHoldingDistributionHistoryLine";
 import { usePortfolioDistributionBarCharts } from "./usePortfolioDistributionBarCharts";
 import { usePortfolioPieCharts } from "./usePortfolioPieCharts";
 import { useSectorDistributionHistoryLine } from "./useSectorDistributionHistoryLine";
@@ -11,6 +12,9 @@ export function usePortfolioCharts(
   options?: {
     assetMixHistoryStacked?: boolean;
     sectorDistributionHistoryStacked?: boolean;
+    holdingDistributionHistoryStacked?: boolean;
+    /** When true, y-axis and tooltips use % of total equity value; when false (default), EUR. */
+    holdingDistributionHistoryAsPercentage?: boolean;
   },
 ) {
   const bars = usePortfolioDistributionBarCharts(props);
@@ -26,6 +30,13 @@ export function usePortfolioCharts(
     props.assetMixHistoryPoints,
     options?.sectorDistributionHistoryStacked ?? false,
   );
+  const holdingDistributionHistory = useHoldingDistributionHistoryLine(
+    props.assetMixHistoryPoints,
+    options?.holdingDistributionHistoryStacked ?? false,
+    props.portfolio.positions,
+    props.instrumentDisplayNameById,
+    options?.holdingDistributionHistoryAsPercentage ?? false,
+  );
   return {
     portfolio: props.portfolio,
     comparePortfolio: props.comparePortfolio,
@@ -35,6 +46,9 @@ export function usePortfolioCharts(
     sectorDistributionLineData: sectorDistributionHistory.data,
     sectorDistributionLineOptions: sectorDistributionHistory.options,
     sectorDistributionHistoryHasData: sectorDistributionHistory.hasData,
+    holdingDistributionLineData: holdingDistributionHistory.data,
+    holdingDistributionLineOptions: holdingDistributionHistory.options,
+    holdingDistributionHistoryHasData: holdingDistributionHistory.hasData,
     ...bars,
     ...pies,
   };

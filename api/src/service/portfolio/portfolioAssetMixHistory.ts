@@ -4,8 +4,10 @@ import {
   interestRates,
   type portfolios,
   type prices,
+  seligsonFunds,
   transactions,
   users,
+  yahooFinanceCache,
 } from "@investments/db";
 import type { InferSelectModel } from "drizzle-orm";
 import { asc, eq, inArray } from "drizzle-orm";
@@ -27,6 +29,7 @@ import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import {
   buildMergedSectorsForAssetMix,
   computeAssetMixEur,
+  equityHoldingsEurFromValuedPositions,
   equitySectorsEurFromSnapshot,
 } from "./portfolioAssetMix.js";
 import {
@@ -150,6 +153,8 @@ type AssetMixHistoryPointRow = {
   /** Sum of cash-account position values in EUR (same basis as `cashExcessEur` split). */
   cashTotalEur: number;
   equitySectorsEur: Record<string, number>;
+  /** Equity-class position value in EUR per instrument id string (same classification as positions table). */
+  holdingsEur: Record<string, number>;
   /** Cumulative virtual leverage from security sells after cash is depleted (≤ 0); 0 when `variant` is `actual`. */
   virtualLeverageEur: number;
   /** Cumulative interest on `virtualLeverageEur` principal (≤ 0); 0 when `variant` is `actual`. */
@@ -160,7 +165,8 @@ type AssetMixHistoryPointRow = {
  * Weekly samples from first portfolio trade, plus a trailing point for **today** (UTC calendar)
  * when the weekly grid does not land on today. Each point matches **asset mix** slices from
  * `computeAssetMixEur` (same sleeves as the asset mix pie), including emergency fund split for cash
- * in accounts, plus `equitySectorsEur` (equity sleeve only, same sector keys as the sectors bar chart).
+ * in accounts, plus `equitySectorsEur` (equity sleeve only, same sector keys as the sectors bar chart)
+ * and `holdingsEur` (EUR per equity-class instrument id; bonds, commodities, cash excluded).
  * Stops when any non-cash position lacks a price on or before the date. Distribution
  * snapshots: earliest `snapshot_date >= asOf` per instrument (next snapshot fills gaps); if as-of is
  * after all snapshots, the newest snapshot is used. Prices still use latest `price_date <= asOf`.
@@ -292,14 +298,54 @@ export async function getPortfolioAssetMixHistory(
     .filter((i) => i.kind !== "cash_account")
     .map((i) => i.id);
 
-  const [pricesByInstrument, distByInstrument] = await Promise.all([
-    loadPriceRowsByInstrumentIdsUpToDate(db, nonCashInstrumentIds, maxDate),
-    loadDistributionRowsByInstrumentIdsUpToDate(
-      db,
-      nonCashInstrumentIds,
-      maxDate,
+  const yahooCacheInstrumentIds = [
+    ...new Set(
+      instRows
+        .filter(
+          (i) =>
+            i.kind === "etf" || i.kind === "stock" || i.kind === "commodity",
+        )
+        .map((i) => i.id),
     ),
-  ]);
+  ];
+  const seligsonIdsForClassification = [
+    ...new Set(
+      instRows
+        .filter((i) => i.kind === "custom" && i.seligsonFundId != null)
+        .map((i) => i.seligsonFundId as number),
+    ),
+  ];
+
+  const [pricesByInstrument, distByInstrument, yfcRows, sfRows] =
+    await Promise.all([
+      loadPriceRowsByInstrumentIdsUpToDate(db, nonCashInstrumentIds, maxDate),
+      loadDistributionRowsByInstrumentIdsUpToDate(
+        db,
+        nonCashInstrumentIds,
+        maxDate,
+      ),
+      yahooCacheInstrumentIds.length === 0
+        ? Promise.resolve([])
+        : db
+            .select()
+            .from(yahooFinanceCache)
+            .where(
+              inArray(yahooFinanceCache.instrumentId, yahooCacheInstrumentIds),
+            ),
+      seligsonIdsForClassification.length === 0
+        ? Promise.resolve([])
+        : db
+            .select()
+            .from(seligsonFunds)
+            .where(inArray(seligsonFunds.id, seligsonIdsForClassification)),
+    ]);
+
+  const yahooRawByIdForHoldings = new Map(
+    yfcRows.map((r) => [r.instrumentId, r.raw]),
+  );
+  const seligsonNameByIdForHoldings = new Map(
+    sfRows.map((s) => [s.id, s.name] as const),
+  );
 
   const emptyMix = computeAssetMixEur({
     nonCashPrincipalEur: 0,
@@ -356,6 +402,7 @@ export async function getPortfolioAssetMixHistory(
         date: d,
         ...emptyPointBase,
         equitySectorsEur: {},
+        holdingsEur: {},
         virtualLeverageEur: virtualEur,
         virtualLeverageInterestEur: virtualInterestEur,
       });
@@ -415,11 +462,17 @@ export async function getPortfolioAssetMixHistory(
       cashInFundsEur,
       cashExcessEur,
     });
+    const holdingsEur = equityHoldingsEurFromValuedPositions(
+      valuedFull,
+      yahooRawByIdForHoldings,
+      seligsonNameByIdForHoldings,
+    );
     points.push({
       date: d,
       ...mix,
       cashTotalEur: cashEur,
       equitySectorsEur,
+      holdingsEur,
       virtualLeverageEur: virtualEur,
       virtualLeverageInterestEur: virtualInterestEur,
     });

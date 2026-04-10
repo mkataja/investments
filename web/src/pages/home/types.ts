@@ -54,6 +54,8 @@ export type AssetMixHistoryPoint = {
   date: string;
   /** Equity sleeve EUR per sector key (same breakdown as the sectors bar chart). */
   equitySectorsEur: Record<string, number>;
+  /** EUR per instrument id string, equity-class positions only (optional on older API responses). */
+  holdingsEur?: Record<string, number>;
   /** Cumulative virtual leverage when `variant=hodl`; 0 for actual history. */
   virtualLeverageEur: number;
   /** Cumulative loan interest when `variant=hodl` (≤ 0); 0 for actual history. */

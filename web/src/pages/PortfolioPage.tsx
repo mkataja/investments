@@ -92,6 +92,7 @@ function PortfolioTabPanels({
             portfolioHasSellTransactions={portfolioHasSellTransactions}
             hideSectionTitle
             backtestInitialTotalEur={backtestInitialTotalEur}
+            instrumentDisplayNameById={instrumentNameById}
           />
         </div>
       ) : null}

@@ -2,6 +2,8 @@ import { equitySectorsForDisplay } from "@investments/lib/distribution/equitySec
 import type { DistributionPayload } from "@investments/lib/distributionPayload";
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import type { InferSelectModel } from "drizzle-orm";
+import { classifyNonCashInstrument } from "./nonCashAssetClass.js";
+import type { InstrumentRow } from "./valuation.js";
 
 type DistributionRow = InferSelectModel<
   typeof import("@investments/db").distributions
@@ -262,6 +264,40 @@ export function buildMergedSectorsForAssetMix(
     nonCashPrincipalEur,
     cashInFundsEur,
   };
+}
+
+/**
+ * Equity sleeve only: position value in EUR per instrument, keyed by instrument id string.
+ * Same `classifyNonCashInstrument` rules as portfolio `positions[].assetClass` (Yahoo bond ETFs, etc.).
+ */
+export function equityHoldingsEurFromValuedPositions(
+  valued: Array<{ inst: InstrumentRow; valueEur: number }>,
+  yahooRawById: ReadonlyMap<number, unknown>,
+  seligsonNameById: ReadonlyMap<number, string>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const { inst, valueEur } of valued) {
+    if (inst.kind === "cash_account") {
+      continue;
+    }
+    if (
+      typeof valueEur !== "number" ||
+      !Number.isFinite(valueEur) ||
+      valueEur <= 0
+    ) {
+      continue;
+    }
+    const yahooRaw = yahooRawById.get(inst.id) ?? null;
+    const seligsonName =
+      inst.seligsonFundId != null
+        ? (seligsonNameById.get(inst.seligsonFundId) ?? null)
+        : null;
+    if (classifyNonCashInstrument(inst, yahooRaw, seligsonName) !== "equity") {
+      continue;
+    }
+    out[String(inst.id)] = valueEur;
+  }
+  return out;
 }
 
 /**

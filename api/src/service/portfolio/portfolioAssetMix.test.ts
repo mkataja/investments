@@ -4,10 +4,12 @@ import {
   commodityPrincipalShareFromMergedSectors,
   computeAssetMixEur,
   computeBondMix,
+  equityHoldingsEurFromValuedPositions,
   equitySectorsEurFromSnapshot,
   sumBondSectorWeights,
   sumCommoditySectorWeights,
 } from "./portfolioAssetMix.js";
+import type { InstrumentRow } from "./valuation.js";
 
 describe("sumBondSectorWeights", () => {
   it("sums the four bond distribution keys", () => {
@@ -208,5 +210,42 @@ describe("equitySectorsEurFromSnapshot", () => {
         cashExcessEur: 0,
       }),
     ).toEqual({});
+  });
+});
+
+describe("equityHoldingsEurFromValuedPositions", () => {
+  const yahooEmpty = new Map<number, unknown>();
+  const seligEmpty = new Map<number, string>();
+
+  it("records equity stock positions and skips commodity and cash", () => {
+    const stock = {
+      id: 1,
+      kind: "stock",
+      displayName: "ACME",
+      seligsonFundId: null,
+    } as InstrumentRow;
+    const commodity = {
+      id: 2,
+      kind: "commodity",
+      displayName: "Gold",
+      seligsonFundId: null,
+    } as InstrumentRow;
+    const cash = {
+      id: 3,
+      kind: "cash_account",
+      displayName: "EUR cash",
+      seligsonFundId: null,
+    } as InstrumentRow;
+    expect(
+      equityHoldingsEurFromValuedPositions(
+        [
+          { inst: stock, valueEur: 100 },
+          { inst: commodity, valueEur: 50 },
+          { inst: cash, valueEur: 999 },
+        ],
+        yahooEmpty,
+        seligEmpty,
+      ),
+    ).toEqual({ "1": 100 });
   });
 });
