@@ -16,6 +16,7 @@
     "./distributionPayload": "./src/distributionPayload.ts",
     "./distribution/equitySectorsForDisplay": "./src/distribution/equitySectorsForDisplay.ts",
     "./distribution/sectorIds": "./src/distribution/sectorIds.ts",
+    "./float": "./src/float.ts",
     "./fxYahooEurLeg": "./src/fxYahooEurLeg.ts",
     "./geo/countryIso": "./src/geo/countryIso.ts",
     "./geo/geoBuckets": "./src/geo/geoBuckets.ts",

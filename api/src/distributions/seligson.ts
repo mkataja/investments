@@ -1,5 +1,6 @@
 import type { DistributionSectorId } from "@investments/lib/distribution/sectorIds";
 import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import { NEAR_WHOLE_EPSILON } from "@investments/lib/float";
 import {
   normLabel,
   resolveRegionKeyToIso,
@@ -294,7 +295,11 @@ function parseBondAllocationSectors(html: string): {
     });
   });
 
-  if (korkoTotal === null || cash === null || korkoTotal <= 1e-9) {
+  if (
+    korkoTotal === null ||
+    cash === null ||
+    korkoTotal <= NEAR_WHOLE_EPSILON
+  ) {
     return null;
   }
 
@@ -348,7 +353,7 @@ function parseBondAllocationSectors(html: string): {
   }
 
   const innerSum = longCorp + longGovt + shortPart;
-  if (innerSum < 1e-9) {
+  if (innerSum < NEAR_WHOLE_EPSILON) {
     return null;
   }
 
@@ -423,7 +428,7 @@ function parseSeligsonBondCountryRows(countryHtml: string): {
   });
 
   const sum = Object.values(countries).reduce((a, b) => a + b, 0);
-  if (sum > 1e-9) {
+  if (sum > NEAR_WHOLE_EPSILON) {
     for (const k of Object.keys(countries)) {
       const v = countries[k];
       if (v !== undefined) {

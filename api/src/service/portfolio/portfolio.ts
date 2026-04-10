@@ -1,5 +1,6 @@
 import { instruments, seligsonFunds, yahooFinanceCache } from "@investments/db";
 import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import { NEAR_WHOLE_EPSILON } from "@investments/lib/float";
 import { resolveRegionKeyToIso } from "@investments/lib/geo/countryIso";
 import { aggregateRegionsToGeoBuckets } from "@investments/lib/geo/geoBuckets";
 import { instrumentTickerDisplay } from "@investments/lib/instrumentKind";
@@ -478,7 +479,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     const qty = row.qty;
     const valueEur = row.valueEur;
     const unitPriceEur =
-      Math.abs(qty) > 1e-12 && Number.isFinite(valueEur)
+      Math.abs(qty) > NEAR_WHOLE_EPSILON && Number.isFinite(valueEur)
         ? valueEur / qty
         : null;
     const assetClass: NonCashAssetClass | "cash_account" =

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { APP_LOCALE } from "./locale";
 import {
-  QUANTITY_NEAR_INTEGER_EPSILON,
+  NEAR_WHOLE_EPSILON,
   formatPercentageValueForDisplay,
   formatQuantityForDisplay,
   formatToPercentage,
@@ -98,9 +98,9 @@ describe("formatQuantityForDisplay", () => {
     expect(formatQuantityForDisplay("10")).toBe("10");
     expect(formatQuantityForDisplay("3")).toBe("3");
     expect(formatQuantityForDisplay("10.00001")).toBe("10");
-    expect(
-      formatQuantityForDisplay(String(10 + QUANTITY_NEAR_INTEGER_EPSILON)),
-    ).toBe("10");
+    expect(formatQuantityForDisplay(String(10 + NEAR_WHOLE_EPSILON))).toBe(
+      "10",
+    );
   });
 
   it("keeps fraction digits just outside the integer tolerance", () => {
@@ -145,8 +145,8 @@ describe("formatToPercentage", () => {
     );
   });
 
-  it("formats within QUANTITY_NEAR_INTEGER_EPS of zero as a plain percent zero", () => {
-    const half = QUANTITY_NEAR_INTEGER_EPSILON / 2;
+  it("formats within NEAR_WHOLE_EPSILON of zero as a plain percent zero", () => {
+    const half = NEAR_WHOLE_EPSILON / 2;
     expect(formatPercentageValueForDisplay(half)).toBe(formatPercentIntl(0, 0));
     expect(formatToPercentage(0)).toBe(formatPercentIntl(0, 0));
   });

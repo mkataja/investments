@@ -1,4 +1,7 @@
+import { NEAR_WHOLE_EPSILON } from "@investments/lib/float";
 import { APP_LOCALE } from "./locale";
+
+export { NEAR_WHOLE_EPSILON };
 
 function formatNumber(
   value: number,
@@ -82,12 +85,6 @@ export function formatTransactionTotalValueForDisplay(
 }
 
 /**
- * If a quantity is within this distance of {@link Math.round}, it is shown as that integer
- * to avoid floating-point noise.
- */
-export const QUANTITY_NEAR_INTEGER_EPSILON = 1e-6;
-
-/**
  * Formats a quantity string for tables: integers when numerically near a whole number,
  * otherwise up to three fraction digits (same rules as {@link formatUnitPriceForDisplay}).
  */
@@ -96,7 +93,7 @@ export function formatQuantityForDisplay(raw: string): string {
   const n = Number(t);
   if (!Number.isFinite(n)) return t;
   const nearest = Math.round(n);
-  if (Math.abs(n - nearest) <= QUANTITY_NEAR_INTEGER_EPSILON) {
+  if (Math.abs(n - nearest) <= NEAR_WHOLE_EPSILON) {
     return formatIntegerForDisplay(nearest);
   }
   return formatUnitPriceForDisplay(t);
@@ -116,7 +113,7 @@ export const formatToPercentage = (
     minimumFractionDigits: digits,
   };
   const absPercent = Math.abs(v * 100);
-  if (absPercent <= QUANTITY_NEAR_INTEGER_EPSILON) {
+  if (absPercent <= NEAR_WHOLE_EPSILON) {
     return formatNumber(0, {
       style: "percent",
       maximumFractionDigits: 0,

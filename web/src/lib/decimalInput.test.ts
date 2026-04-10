@@ -1,3 +1,4 @@
+import { NEAR_WHOLE_EPSILON } from "@investments/lib/float";
 import { describe, expect, it } from "vitest";
 import {
   formatEurAmountForInput,
@@ -22,7 +23,9 @@ describe("formatEurAmountForInput", () => {
 
   it("avoids binary float noise in the string", () => {
     expect(formatEurAmountForInput(0.1 + 0.2)).toBe("0.30");
-    expect(formatEurAmountForInput(12345.67 + 1e-12)).toBe("12345.67");
+    expect(formatEurAmountForInput(12345.67 + NEAR_WHOLE_EPSILON)).toBe(
+      "12345.67",
+    );
   });
 
   it("handles negatives", () => {

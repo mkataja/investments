@@ -1,3 +1,4 @@
+import { NEAR_WHOLE_EPSILON } from "@investments/lib/float";
 import * as cheerio from "cheerio";
 import { parseFiPercent } from "./seligson.js";
 
@@ -127,7 +128,7 @@ export function parseSeligsonPharosAllocationTable(html: string): {
   }
 
   const sum = rows.reduce((s, r) => s + r.pctOfFund, 0);
-  if (sum > 1e-6 && (sum < 0.97 || sum > 1.03)) {
+  if (sum > NEAR_WHOLE_EPSILON && (sum < 0.97 || sum > 1.03)) {
     notes.push(
       `Fund share column sums to ${(sum * 100).toFixed(1)}% — normalizing weights to 100%.`,
     );
