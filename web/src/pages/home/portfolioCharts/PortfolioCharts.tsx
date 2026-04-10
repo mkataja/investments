@@ -6,6 +6,7 @@ import { apiGet } from "../../../api/client";
 import { classNames } from "../../../lib/css";
 import { formatIntegerForDisplay } from "../../../lib/numberFormat";
 import type { AssetMixHistoryPoint } from "../types";
+import { CompareMapDivergingLegend } from "./CompareMapDivergingLegend";
 import {
   type PortfolioChartsProps,
   usePortfolioCharts,
@@ -39,6 +40,7 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
   );
   const [hodlLoading, setHodlLoading] = useState(false);
   const [hodlErr, setHodlErr] = useState<string | null>(null);
+  const [worldMapCompareMode, setWorldMapCompareMode] = useState(false);
 
   const portfolioId = props.portfolioId ?? null;
   const hasSells = props.portfolioHasSellTransactions ?? false;
@@ -48,6 +50,12 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
     void emergencyFundTargetEur;
     setHodlPoints(null);
   }, [emergencyFundTargetEur]);
+
+  useEffect(() => {
+    if (!props.showDistributionCompare) {
+      setWorldMapCompareMode(false);
+    }
+  }, [props.showDistributionCompare]);
 
   useEffect(() => {
     if (!diamondHandsEnabled || portfolioId == null || hodlPoints !== null) {
@@ -213,6 +221,34 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
           >
             <Bar data={countryBarData} options={countryBarOptions} />
           </div>
+          {props.showDistributionCompare ? (
+            <div className="mt-3 flex min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <label className="inline-flex cursor-pointer items-center gap-2 select-none text-sm text-slate-600">
+                <span className="relative inline-block h-6 w-11 shrink-0">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={worldMapCompareMode}
+                    onChange={(e) => setWorldMapCompareMode(e.target.checked)}
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full bg-slate-200 transition peer-checked:bg-emerald-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500"
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-[1.25rem]"
+                  />
+                </span>
+                <span>Relative exposure comparison</span>
+              </label>
+              {worldMapCompareMode ? (
+                <div className="shrink-0">
+                  <CompareMapDivergingLegend />
+                </div>
+              ) : null}
+            </div>
+          ) : null}
           <Suspense
             fallback={
               <div className="relative left-1/2 w-screen max-w-[100vw] -translate-x-1/2 mt-4">
@@ -226,6 +262,7 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
               countries={portfolio.countries}
               compareCountries={props.comparePortfolio?.countries ?? {}}
               showDistributionCompare={props.showDistributionCompare}
+              worldMapCompareMode={worldMapCompareMode}
               selectedPortfolioLabel={props.selectedPortfolioLabel}
               comparePortfolioLabel={props.comparePortfolioLabel}
               bucketTopHoldingsPrimary={

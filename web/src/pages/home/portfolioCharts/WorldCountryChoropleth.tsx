@@ -13,6 +13,7 @@ import {
 } from "../../../lib/distributionDisplay";
 import { PORTFOLIO_DISTRIBUTION_BAR_COLORS } from "../../../lib/portfolioChartPalette";
 import type { BucketTopHolding } from "../types";
+import { DIVERGING_RGB_STOPS } from "./worldCountryChoroplethDivergingStops";
 import {
   WORLD_COUNTRY_FEATURES,
   WORLD_LAND_OUTLINE,
@@ -29,10 +30,64 @@ function portfolioChoroplethBlueInterpolator(t: number): string {
   return `rgb(${r},${g},${b})`;
 }
 
+/** γ < 1 stretches mid-range: modest % gaps read as color while large gaps still reach full hue. */
+const COMPARE_MAP_LOG_RATIO_COLOR_GAMMA = 0.62;
+
+/** Map signed log ratio to a symmetric axis value (0 stays 0). */
+function compareMapLogRatioToColorAxis(logRatio: number): number {
+  const a = Math.abs(logRatio);
+  if (a === 0) return 0;
+  return Math.sign(logRatio) * a ** COMPARE_MAP_LOG_RATIO_COLOR_GAMMA;
+}
+
+/**
+ * Symmetric color scale on normalized position `t`.
+ * Compare mode uses log weight ratio `log((wP+ε)/(wC+ε))`, then γ so modest gaps read as color;
+ * axis min/max are ±max|axis| so the largest country-level gap always uses the full diverging ramp.
+ */
+function portfolioChoroplethDivergingInterpolator(t: number): string {
+  const u = Math.min(1, Math.max(0, t));
+  const stops = DIVERGING_RGB_STOPS;
+  let i = 0;
+  while (i < stops.length - 1) {
+    const next = stops[i + 1];
+    if (next === undefined || next.t >= u) break;
+    i += 1;
+  }
+  const a = stops[i];
+  const b = stops[i + 1];
+  if (a === undefined) {
+    return "rgb(255, 255, 255)";
+  }
+  if (b === undefined) {
+    return `rgb(${a.r},${a.g},${a.b})`;
+  }
+  const span = b.t - a.t;
+  const k = span > 0 ? (u - a.t) / span : 0;
+  const r = Math.round(a.r + (b.r - a.r) * k);
+  const g = Math.round(a.g + (b.g - a.g) * k);
+  const bl = Math.round(a.b + (b.b - a.b) * k);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function weightByAtlasIdFromNormalized(
+  norm: Record<string, number>,
+): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const [iso, w] of Object.entries(norm)) {
+    if (iso === UNMAPPED_COUNTRY_KEY) continue;
+    const numericId = alpha2ToNumeric(iso);
+    if (numericId === undefined) continue;
+    m.set(String(numericId), w);
+  }
+  return m;
+}
+
 type WorldCountryChoroplethProps = {
   countries: Record<string, number>;
   compareCountries: Record<string, number>;
   showDistributionCompare: boolean;
+  worldMapCompareMode: boolean;
   selectedPortfolioLabel: string;
   comparePortfolioLabel: string;
   bucketTopHoldingsPrimary: Record<string, BucketTopHolding[]>;
@@ -46,68 +101,114 @@ export function WorldCountryChoropleth({
   countries,
   compareCountries,
   showDistributionCompare,
+  worldMapCompareMode,
   selectedPortfolioLabel,
   comparePortfolioLabel,
   bucketTopHoldingsPrimary,
   bucketTopHoldingsCompare,
 }: WorldCountryChoroplethProps) {
   const { data, options } = useMemo(() => {
-    const norm = normalizeCountryWeightsForDisplay(countries);
-    const weightByAtlasId = new Map<string, number>();
-    for (const [iso, w] of Object.entries(norm)) {
-      if (iso === UNMAPPED_COUNTRY_KEY) continue;
-      const numericId = alpha2ToNumeric(iso);
-      if (numericId === undefined) continue;
-      weightByAtlasId.set(String(numericId), w);
-    }
-    const weights = [...weightByAtlasId.values()].filter((w) => w > 0);
-    const maxW = weights.length ? Math.max(...weights) : 0;
-    const minPos =
-      weights.length > 0
-        ? Math.max(Math.min(...weights), MIN_PORTFOLIO_ALLOCATION_FRACTION)
-        : MIN_PORTFOLIO_ALLOCATION_FRACTION;
-    const colorLogMin = minPos;
-    let colorLogMax = maxW > 0 ? maxW : minPos;
-    if (colorLogMax <= colorLogMin) {
-      colorLogMax = colorLogMin * 10;
-    }
-
     const labels = WORLD_COUNTRY_FEATURES.map(
       (f) => (f.properties as { name?: string } | null)?.name ?? "",
     );
-    const dataPoints = WORLD_COUNTRY_FEATURES.map((feature) => {
-      const id = String(feature.id);
-      const w = weightByAtlasId.get(id) ?? 0;
-      // Log color scale cannot use 0; NaN yields the `missing` fill for non-held countries.
-      const value = w > 0 ? w : Number.NaN;
-      return { feature, value };
-    });
+    const normPrimary = normalizeCountryWeightsForDisplay(countries);
+    const normCompare = normalizeCountryWeightsForDisplay(compareCountries);
+    const compareMapMode = worldMapCompareMode && showDistributionCompare;
 
-    const data: ChartData<"choropleth"> = {
-      labels,
-      datasets: [
-        {
-          label: "Share of portfolio",
-          data: dataPoints,
-          outline: [WORLD_LAND_OUTLINE],
-          showOutline: true,
-          outlineBorderColor: "#94a3b8",
-          outlineBorderWidth: 0.6,
-          outlineBackgroundColor: "#e2e8f0",
-        },
-      ],
+    const projectionScale = {
+      axis: "x" as const,
+      display: false,
+      projection: "equalEarth" as const,
+      projectionScale: 1,
+      padding: 10,
     };
 
-    const options: ChartOptions<"choropleth"> = {
-      maintainAspectRatio: false,
-      scales: {
-        projection: {
+    const baseDataset = {
+      outline: [WORLD_LAND_OUTLINE],
+      showOutline: true,
+      outlineBorderColor: "#94a3b8",
+      outlineBorderWidth: 0.6,
+      outlineBackgroundColor: "#e2e8f0",
+    };
+
+    let data: ChartData<"choropleth">;
+    let colorOptions: ChartOptions<"choropleth">["scales"];
+
+    if (compareMapMode) {
+      const wPrimary = weightByAtlasIdFromNormalized(normPrimary);
+      const wCompare = weightByAtlasIdFromNormalized(normCompare);
+      const eps = MIN_PORTFOLIO_ALLOCATION_FRACTION;
+      const logWeightRatio = (wP: number, wC: number) =>
+        Math.log((wP + eps) / (wC + eps));
+      const axisValues = WORLD_COUNTRY_FEATURES.map((feature) => {
+        const id = String(feature.id);
+        const wP = wPrimary.get(id) ?? 0;
+        const wC = wCompare.get(id) ?? 0;
+        return compareMapLogRatioToColorAxis(logWeightRatio(wP, wC));
+      });
+      const maxAbsAxis = axisValues.reduce(
+        (m, v) => Math.max(m, Math.abs(v)),
+        0,
+      );
+      const M = maxAbsAxis > 0 ? maxAbsAxis : 1e-9;
+      const dataPoints = WORLD_COUNTRY_FEATURES.map((feature, i) => ({
+        feature,
+        value: axisValues[i] ?? 0,
+      }));
+      data = {
+        labels,
+        datasets: [
+          {
+            label: "Log ratio selected / compare",
+            data: dataPoints,
+            ...baseDataset,
+          },
+        ],
+      };
+      colorOptions = {
+        projection: projectionScale,
+        color: {
+          type: "color",
           axis: "x",
           display: false,
-          projection: "equalEarth",
-          projectionScale: 1,
-          padding: 10,
+          interpolate: portfolioChoroplethDivergingInterpolator,
+          missing: "rgba(226, 232, 240, 0.75)",
+          min: -M,
+          max: M,
         },
+      };
+    } else {
+      const weightByAtlasId = weightByAtlasIdFromNormalized(normPrimary);
+      const weights = [...weightByAtlasId.values()].filter((w) => w > 0);
+      const maxW = weights.length ? Math.max(...weights) : 0;
+      const minPos =
+        weights.length > 0
+          ? Math.max(Math.min(...weights), MIN_PORTFOLIO_ALLOCATION_FRACTION)
+          : MIN_PORTFOLIO_ALLOCATION_FRACTION;
+      const colorLogMin = minPos;
+      let colorLogMax = maxW > 0 ? maxW : minPos;
+      if (colorLogMax <= colorLogMin) {
+        colorLogMax = colorLogMin * 10;
+      }
+      const dataPoints = WORLD_COUNTRY_FEATURES.map((feature) => {
+        const id = String(feature.id);
+        const w = weightByAtlasId.get(id) ?? 0;
+        // Log color scale cannot use 0; NaN yields the `missing` fill for non-held countries.
+        const value = w > 0 ? w : Number.NaN;
+        return { feature, value };
+      });
+      data = {
+        labels,
+        datasets: [
+          {
+            label: "Share of portfolio",
+            data: dataPoints,
+            ...baseDataset,
+          },
+        ],
+      };
+      colorOptions = {
+        projection: projectionScale,
         color: {
           type: "colorLogarithmic",
           axis: "x",
@@ -117,14 +218,16 @@ export function WorldCountryChoropleth({
           min: colorLogMin,
           max: colorLogMax,
         },
-      },
+      };
+    }
+
+    const options: ChartOptions<"choropleth"> = {
+      maintainAspectRatio: false,
+      scales: colorOptions,
       plugins: {
         legend: { display: false },
       },
     };
-
-    const normPrimary = normalizeCountryWeightsForDisplay(countries);
-    const normCompare = normalizeCountryWeightsForDisplay(compareCountries);
 
     return {
       data,
@@ -154,6 +257,7 @@ export function WorldCountryChoropleth({
     countries,
     compareCountries,
     showDistributionCompare,
+    worldMapCompareMode,
     selectedPortfolioLabel,
     comparePortfolioLabel,
     bucketTopHoldingsPrimary,
@@ -161,10 +265,12 @@ export function WorldCountryChoropleth({
   ]);
 
   return (
-    <div role="img" aria-label="World map of portfolio allocation by country">
-      <div className="w-full h-[min(52vh,520px)] min-h-[320px]">
-        <Chart type="choropleth" data={data} options={options} />
-      </div>
+    <div
+      role="img"
+      aria-label="World map of portfolio allocation by country"
+      className="w-full h-[min(52vh,520px)] min-h-[320px]"
+    >
+      <Chart type="choropleth" data={data} options={options} />
     </div>
   );
 }
