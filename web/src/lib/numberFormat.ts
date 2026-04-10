@@ -83,9 +83,9 @@ export function formatTransactionTotalValueForDisplay(
 
 /**
  * If a quantity is within this distance of {@link Math.round}, it is shown as that integer
- * (avoids floating-point noise; fractional shares and fund units use decimals otherwise).
+ * to avoid floating-point noise.
  */
-export const QUANTITY_NEAR_INTEGER_EPS = 1e-5;
+export const QUANTITY_NEAR_INTEGER_EPSILON = 1e-6;
 
 /**
  * Formats a quantity string for tables: integers when numerically near a whole number,
@@ -96,7 +96,7 @@ export function formatQuantityForDisplay(raw: string): string {
   const n = Number(t);
   if (!Number.isFinite(n)) return t;
   const nearest = Math.round(n);
-  if (Math.abs(n - nearest) <= QUANTITY_NEAR_INTEGER_EPS) {
+  if (Math.abs(n - nearest) <= QUANTITY_NEAR_INTEGER_EPSILON) {
     return formatIntegerForDisplay(nearest);
   }
   return formatUnitPriceForDisplay(t);
@@ -110,10 +110,28 @@ export const formatToPercentage = (
     return "";
   }
   const digits = decimalPlaces ?? 1;
-  return formatNumber(v, {
+  const options: Intl.NumberFormatOptions = {
     style: "percent",
     maximumFractionDigits: digits,
     minimumFractionDigits: digits,
+  };
+  const absPercent = Math.abs(v * 100);
+  if (absPercent <= QUANTITY_NEAR_INTEGER_EPSILON) {
+    return formatNumber(0, {
+      style: "percent",
+      maximumFractionDigits: 0,
+      minimumFractionDigits: 0,
+    });
+  }
+  const zeroStr = formatNumber(0, options);
+  const absFormatted = formatNumber(Math.abs(v), options);
+  if (absFormatted !== zeroStr) {
+    return formatNumber(v, options);
+  }
+  return formatNumber(v, {
+    style: "percent",
+    maximumFractionDigits: digits + 1,
+    minimumFractionDigits: digits + 1,
   });
 };
 
