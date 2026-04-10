@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@investments/lib": "workspace:*",
-    "drizzle-orm": "^0.38.4",
+    "drizzle-orm": "^0.45.2",
     "pg": "^8.13.1"
   },
   "devDependencies": {
