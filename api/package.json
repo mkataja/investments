@@ -14,7 +14,7 @@
   },
   "dependencies": {
     "@investments/lib": "workspace:*",
-    "@hono/node-server": "^1.13.7",
+    "@hono/node-server": "^1.19.13",
     "@hono/zod-validator": "^0.4.3",
     "@investments/db": "workspace:*",
     "cheerio": "^1.0.0",
