@@ -1,3 +1,4 @@
+import { NEAR_WHOLE_EPSILON } from "@investments/lib/float";
 import {
   alpha2ToNumeric,
   numericAtlasIdToAlpha2Upper,
@@ -33,11 +34,32 @@ function portfolioChoroplethBlueInterpolator(t: number): string {
 /** γ < 1 stretches mid-range: modest % gaps read as color while large gaps still reach full hue. */
 const COMPARE_MAP_LOG_RATIO_COLOR_GAMMA = 0.62;
 
+/** 0.1% of portfolio; if both sides are below this, log-ratio color is attenuated toward neutral. */
+const COMPARE_MAP_SMALL_EXPOSURE_LEEWAY_THRESHOLD = 0.001;
+
 /** Map signed log ratio to a symmetric axis value (0 stays 0). */
 function compareMapLogRatioToColorAxis(logRatio: number): number {
   const a = Math.abs(logRatio);
   if (a === 0) return 0;
   return Math.sign(logRatio) * a ** COMPARE_MAP_LOG_RATIO_COLOR_GAMMA;
+}
+
+/** Pulls the diverging color toward center when both exposures are negligible (e.g. 0.03% vs 0%). */
+function compareMapAxisWithSmallExposureLeeway(
+  axis: number,
+  wP: number,
+  wC: number,
+): number {
+  if (
+    wP >= COMPARE_MAP_SMALL_EXPOSURE_LEEWAY_THRESHOLD ||
+    wC >= COMPARE_MAP_SMALL_EXPOSURE_LEEWAY_THRESHOLD
+  ) {
+    return axis;
+  }
+  const m = Math.max(wP, wC);
+  const scale =
+    m <= 0 ? 0 : Math.min(1, m / COMPARE_MAP_SMALL_EXPOSURE_LEEWAY_THRESHOLD);
+  return axis * scale;
 }
 
 /**
@@ -144,13 +166,17 @@ export function WorldCountryChoropleth({
         const id = String(feature.id);
         const wP = wPrimary.get(id) ?? 0;
         const wC = wCompare.get(id) ?? 0;
-        return compareMapLogRatioToColorAxis(logWeightRatio(wP, wC));
+        return compareMapAxisWithSmallExposureLeeway(
+          compareMapLogRatioToColorAxis(logWeightRatio(wP, wC)),
+          wP,
+          wC,
+        );
       });
       const maxAbsAxis = axisValues.reduce(
         (m, v) => Math.max(m, Math.abs(v)),
         0,
       );
-      const M = maxAbsAxis > 0 ? maxAbsAxis : 1e-9;
+      const M = maxAbsAxis > 0 ? maxAbsAxis : NEAR_WHOLE_EPSILON;
       const dataPoints = WORLD_COUNTRY_FEATURES.map((feature, i) => ({
         feature,
         value: axisValues[i] ?? 0,
