@@ -57,7 +57,8 @@ export function choroplethDistributionTooltipPlugin(config: {
     tooltip: {
       ...CHART_TOOLTIP_BASE_CHOROPLETH,
       mode: "nearest",
-      intersect: false,
+      // With intersect false, "nearest" picks by centroid distance over the whole map (bad for large countries).
+      intersect: true,
     },
   };
 }
