@@ -23,6 +23,10 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
   const diamondHandsTipId = useId();
   const [assetMixHistoryStacked, setAssetMixHistoryStacked] = useState(false);
   const [
+    regionDistributionHistoryStacked,
+    setRegionDistributionHistoryStacked,
+  ] = useState(false);
+  const [
     sectorDistributionHistoryStacked,
     setSectorDistributionHistoryStacked,
   ] = useState(false);
@@ -119,6 +123,9 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
     countryBarOptions,
     assetMixLineData,
     assetMixLineOptions,
+    regionDistributionLineData,
+    regionDistributionLineOptions,
+    regionDistributionHistoryHasData,
     sectorDistributionLineData,
     sectorDistributionLineOptions,
     sectorDistributionHistoryHasData,
@@ -127,6 +134,7 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
     holdingDistributionHistoryHasData,
   } = usePortfolioCharts(chartProps, {
     assetMixHistoryStacked,
+    regionDistributionHistoryStacked,
     sectorDistributionHistoryStacked,
     holdingDistributionHistoryStacked,
     holdingDistributionHistoryAsPercentage,
@@ -401,6 +409,41 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
               <Line
                 data={holdingDistributionLineData}
                 options={holdingDistributionLineOptions}
+              />
+            </div>
+          </div>
+        ) : null}
+        {props.assetMixHistoryPoints.length > 0 &&
+        regionDistributionHistoryHasData ? (
+          <div className="subsection-stack w-full min-w-0">
+            <div className="flex flex-wrap items-center gap-3 mb-1">
+              <h3 className="mb-0 shrink-0">Region distribution over time</h3>
+              <label className="inline-flex cursor-pointer items-center gap-2 select-none text-sm text-slate-600">
+                <span className="relative inline-block h-6 w-11 shrink-0">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={regionDistributionHistoryStacked}
+                    onChange={(e) =>
+                      setRegionDistributionHistoryStacked(e.target.checked)
+                    }
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full bg-slate-200 transition peer-checked:bg-emerald-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500"
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-[1.25rem]"
+                  />
+                </span>
+                <span>Stacked areas</span>
+              </label>
+            </div>
+            <div className="w-full h-[448px] min-w-0">
+              <Line
+                data={regionDistributionLineData}
+                options={regionDistributionLineOptions}
               />
             </div>
           </div>

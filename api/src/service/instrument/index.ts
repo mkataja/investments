@@ -1463,7 +1463,8 @@ export async function getPortfolioDistributionsRoute(c: Context) {
 /**
  * `GET /portfolio/asset-mix-history?portfolioId=…&variant=…` — weekly asset mix EUR plus
  * `equitySectorsEur` per date (equity sleeve only; same sector keys as portfolio
- * distributions / sectors bar chart) and `holdingsEur` (EUR per equity-class instrument id).
+ * distributions / sectors bar chart), `portfolioRegionsEur` (same geo buckets as the regions bar
+ * chart), and `holdingsEur` (EUR per equity-class instrument id).
  * Optional `variant=hodl`: simulate never selling
  * securities (sells book to virtual leverage after cash is drained; cash account sells
  * apply normally). Includes cumulative loan interest from EURIBOR + user margin. Default `variant` is `actual`.

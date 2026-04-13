@@ -1,7 +1,9 @@
 import { equitySectorsForDisplay } from "@investments/lib/distribution/equitySectorsForDisplay";
 import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import { aggregateRegionsToGeoBuckets } from "@investments/lib/geo/geoBuckets";
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
 import type { InferSelectModel } from "drizzle-orm";
+import { distributionGeoScaleForCountryMerge } from "../instrument/distributionGeoScale.js";
 import { classifyNonCashInstrument } from "./nonCashAssetClass.js";
 import type { InstrumentRow } from "./valuation.js";
 
@@ -11,6 +13,9 @@ type DistributionRow = InferSelectModel<
 
 /** Unknown sector bucket for value-weighted portfolio sector merge. */
 const PORTFOLIO_UNKNOWN_SECTOR = "__portfolio_unknown__";
+
+/** Matches `PORTFOLIO_UNKNOWN_COUNTRY` in `portfolio.ts` (country merge / geo buckets). */
+const PORTFOLIO_UNKNOWN_COUNTRY = "__portfolio_unknown__";
 
 function stripCashFromSectorWeights(
   sectors: Record<string, number> | undefined,
@@ -315,6 +320,71 @@ export function equitySectorsEurFromSnapshot(input: {
   const out: Record<string, number> = {};
   for (const [k, w] of Object.entries(weights)) {
     const eur = mix.equitiesEur * w;
+    if (typeof eur === "number" && Number.isFinite(eur) && eur > 0) {
+      out[k] = eur;
+    }
+  }
+  return out;
+}
+
+/**
+ * Value-weighted merged country keys (same merge as `getPortfolioDistributions`), for geo bucketing
+ * and the regions bar chart. Caller supplies `valued` and per-instrument distribution snapshots.
+ */
+export function buildPortfolioCountryWeightsForDisplay(
+  valued: Array<{ inst: { kind: string; id: number }; valueEur: number }>,
+  distMap: Map<number, DistributionRow>,
+): Record<string, number> {
+  const nonCashValueEur = valued.reduce(
+    (s, x) => s + (x.inst.kind === "cash_account" ? 0 : x.valueEur),
+    0,
+  );
+
+  const countryWeights: Record<string, number> = {};
+  let missingCountryW = 0;
+
+  for (const row of valued) {
+    const { inst } = row;
+    if (inst.kind === "cash_account") {
+      continue;
+    }
+    const w = nonCashValueEur > 0 ? row.valueEur / nonCashValueEur : 0;
+    const cached = distMap.get(inst.id);
+    const payload = cached?.payload as DistributionPayload | undefined;
+    const { cashFrac } = embeddedCashAndPrincipalEur(row.valueEur, payload);
+    const geoScale = distributionGeoScaleForCountryMerge(payload, cashFrac);
+    if (inst.kind === "commodity") {
+      continue;
+    }
+    if (payload?.countries && Object.keys(payload.countries).length > 0) {
+      mergeWeighted(countryWeights, payload.countries, w * geoScale);
+    } else {
+      missingCountryW += w * geoScale;
+    }
+  }
+
+  if (missingCountryW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
+    countryWeights[PORTFOLIO_UNKNOWN_COUNTRY] = missingCountryW;
+  }
+
+  return countryWeights;
+}
+
+/**
+ * EUR per geographic bucket (same keys as web `portfolioRegionBarRows` on merged regions),
+ * using non-cash portfolio value as the scale (same basis as the regions bar chart).
+ */
+export function portfolioRegionsEurFromCountryWeights(
+  countryWeights: Record<string, number>,
+  nonCashValueEur: number,
+): Record<string, number> {
+  const merged = aggregateRegionsToGeoBuckets(countryWeights);
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(merged)) {
+    if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) {
+      continue;
+    }
+    const eur = v * nonCashValueEur;
     if (typeof eur === "number" && Number.isFinite(eur) && eur > 0) {
       out[k] = eur;
     }

@@ -3,6 +3,7 @@ import { useAssetMixHistoryLine } from "./useAssetMixHistoryLine";
 import { useHoldingDistributionHistoryLine } from "./useHoldingDistributionHistoryLine";
 import { usePortfolioDistributionBarCharts } from "./usePortfolioDistributionBarCharts";
 import { usePortfolioPieCharts } from "./usePortfolioPieCharts";
+import { useRegionDistributionHistoryLine } from "./useRegionDistributionHistoryLine";
 import { useSectorDistributionHistoryLine } from "./useSectorDistributionHistoryLine";
 
 export type { PortfolioChartsProps } from "./portfolioChartsTypes";
@@ -11,6 +12,7 @@ export function usePortfolioCharts(
   props: PortfolioChartsProps,
   options?: {
     assetMixHistoryStacked?: boolean;
+    regionDistributionHistoryStacked?: boolean;
     sectorDistributionHistoryStacked?: boolean;
     holdingDistributionHistoryStacked?: boolean;
     /** When true, y-axis and tooltips use % of total equity value; when false (default), EUR. */
@@ -25,6 +27,10 @@ export function usePortfolioCharts(
     assetMixOverTimePoints,
     options?.assetMixHistoryStacked ?? false,
     props.assetMixHistoryLineHodlMode ?? false,
+  );
+  const regionDistributionHistory = useRegionDistributionHistoryLine(
+    props.assetMixHistoryPoints,
+    options?.regionDistributionHistoryStacked ?? false,
   );
   const sectorDistributionHistory = useSectorDistributionHistoryLine(
     props.assetMixHistoryPoints,
@@ -43,6 +49,9 @@ export function usePortfolioCharts(
     showDistributionCompare: props.showDistributionCompare,
     assetMixLineData: assetMixHistory.data,
     assetMixLineOptions: assetMixHistory.options,
+    regionDistributionLineData: regionDistributionHistory.data,
+    regionDistributionLineOptions: regionDistributionHistory.options,
+    regionDistributionHistoryHasData: regionDistributionHistory.hasData,
     sectorDistributionLineData: sectorDistributionHistory.data,
     sectorDistributionLineOptions: sectorDistributionHistory.options,
     sectorDistributionHistoryHasData: sectorDistributionHistory.hasData,

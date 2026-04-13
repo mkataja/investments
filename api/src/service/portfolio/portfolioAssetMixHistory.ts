@@ -28,9 +28,11 @@ import { emergencyFundTargetEurFromDb } from "./emergencyFundTargetEurFromDb.js"
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import {
   buildMergedSectorsForAssetMix,
+  buildPortfolioCountryWeightsForDisplay,
   computeAssetMixEur,
   equityHoldingsEurFromValuedPositions,
   equitySectorsEurFromSnapshot,
+  portfolioRegionsEurFromCountryWeights,
 } from "./portfolioAssetMix.js";
 import {
   type AssetMixHistoryTxRow,
@@ -153,6 +155,8 @@ type AssetMixHistoryPointRow = {
   /** Sum of cash-account position values in EUR (same basis as `cashExcessEur` split). */
   cashTotalEur: number;
   equitySectorsEur: Record<string, number>;
+  /** EUR per geographic bucket (same keys as the regions bar chart). */
+  portfolioRegionsEur: Record<string, number>;
   /** Equity-class position value in EUR per instrument id string (same classification as positions table). */
   holdingsEur: Record<string, number>;
   /** Cumulative virtual leverage from security sells after cash is depleted (≤ 0); 0 when `variant` is `actual`. */
@@ -165,8 +169,9 @@ type AssetMixHistoryPointRow = {
  * Weekly samples from first portfolio trade, plus a trailing point for **today** (UTC calendar)
  * when the weekly grid does not land on today. Each point matches **asset mix** slices from
  * `computeAssetMixEur` (same sleeves as the asset mix pie), including emergency fund split for cash
- * in accounts, plus `equitySectorsEur` (equity sleeve only, same sector keys as the sectors bar chart)
- * and `holdingsEur` (EUR per equity-class instrument id; bonds, commodities, cash excluded).
+ * in accounts, plus `equitySectorsEur` (equity sleeve only, same sector keys as the sectors bar chart),
+ * `portfolioRegionsEur` (same geo buckets as the regions bar chart), and `holdingsEur` (EUR per
+ * equity-class instrument id; bonds, commodities, cash excluded).
  * Stops when any non-cash position lacks a price on or before the date. Distribution
  * snapshots: earliest `snapshot_date >= asOf` per instrument (next snapshot fills gaps); if as-of is
  * after all snapshots, the newest snapshot is used. Prices still use latest `price_date <= asOf`.
@@ -402,6 +407,7 @@ export async function getPortfolioAssetMixHistory(
         date: d,
         ...emptyPointBase,
         equitySectorsEur: {},
+        portfolioRegionsEur: {},
         holdingsEur: {},
         virtualLeverageEur: virtualEur,
         virtualLeverageInterestEur: virtualInterestEur,
@@ -462,6 +468,18 @@ export async function getPortfolioAssetMixHistory(
       cashInFundsEur,
       cashExcessEur,
     });
+    const nonCashValueEur = valuedFull.reduce(
+      (s, x) => s + (x.inst.kind === "cash_account" ? 0 : x.valueEur),
+      0,
+    );
+    const countryWeightsForRegions = buildPortfolioCountryWeightsForDisplay(
+      valuedFull,
+      distMap,
+    );
+    const portfolioRegionsEur = portfolioRegionsEurFromCountryWeights(
+      countryWeightsForRegions,
+      nonCashValueEur,
+    );
     const holdingsEur = equityHoldingsEurFromValuedPositions(
       valuedFull,
       yahooRawByIdForHoldings,
@@ -472,6 +490,7 @@ export async function getPortfolioAssetMixHistory(
       ...mix,
       cashTotalEur: cashEur,
       equitySectorsEur,
+      portfolioRegionsEur,
       holdingsEur,
       virtualLeverageEur: virtualEur,
       virtualLeverageInterestEur: virtualInterestEur,

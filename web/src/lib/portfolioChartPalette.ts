@@ -86,6 +86,29 @@ export function portfolioSectorChartColorForBucketKey(
   );
 }
 
+/** Same order as `GEO_BUCKET_ORDER` in `@investments/lib/geo/geoBuckets`. */
+const PORTFOLIO_REGION_CHART_COLORS_BY_BUCKET_KEY: Record<string, string> = {
+  finland: "#3B7FD4",
+  europe: "#6B7FD7",
+  north_america: "#8BCB7A",
+  asia: "#C41E3A",
+  china: "#E8C4B8",
+  emerging_markets: "#9A7B5C",
+  unknown: "#94A3B8",
+};
+
+const PORTFOLIO_REGION_CHART_FALLBACK_COLOR = "#64748B";
+
+/** Color for a region bar / timeseries line by geo bucket id. */
+export function portfolioRegionChartColorForBucketKey(
+  bucketKey: string,
+): string {
+  return (
+    PORTFOLIO_REGION_CHART_COLORS_BY_BUCKET_KEY[bucketKey] ??
+    PORTFOLIO_REGION_CHART_FALLBACK_COLOR
+  );
+}
+
 /** Lighten factor for compare portfolio sector bars (primary uses full sector color). */
 export const PORTFOLIO_SECTOR_BAR_COMPARE_LIGHTEN = 0.42;
 

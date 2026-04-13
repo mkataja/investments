@@ -22,6 +22,7 @@ import {
 import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import {
   applyValuedRowToMergedSectors,
+  buildPortfolioCountryWeightsForDisplay,
   computeAssetMixEur,
   computeBondMix,
   embeddedCashAndPrincipalEur,
@@ -67,16 +68,6 @@ function filterWeightsByMinFraction(
     }
   }
   return out;
-}
-
-function mergeWeighted(
-  acc: Record<string, number>,
-  weights: Record<string, number>,
-  w: number,
-): void {
-  for (const [k, v] of Object.entries(weights)) {
-    acc[k] = (acc[k] ?? 0) + w * v;
-  }
 }
 
 function scaleCountryWeights(
@@ -368,9 +359,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     0,
   );
 
-  const countryWeights: Record<string, number> = {};
   const sectors: Record<string, number> = {};
-  let missingCountryW = 0;
   let missingSectorW = 0;
 
   const regionContrib: ContribMap = new Map();
@@ -413,7 +402,6 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     const geoScale = distributionGeoScaleForCountryMerge(payload, cashFrac);
     if (inst.kind !== "commodity") {
       if (payload?.countries && Object.keys(payload.countries).length > 0) {
-        mergeWeighted(countryWeights, payload.countries, w * geoScale);
         const scaledCountries = scaleCountryWeights(
           payload.countries,
           w * geoScale,
@@ -431,7 +419,6 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
           }
         }
       } else {
-        missingCountryW += w * geoScale;
         const instUnknown: Record<string, number> = {
           [PORTFOLIO_UNKNOWN_COUNTRY]: w * geoScale,
         };
@@ -466,9 +453,10 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
   const cashBelowEmergencyTarget =
     emergencyFundTargetEur > 0 && cashTotalEur < emergencyFundTargetEur;
 
-  if (missingCountryW >= MIN_PORTFOLIO_ALLOCATION_FRACTION) {
-    countryWeights[PORTFOLIO_UNKNOWN_COUNTRY] = missingCountryW;
-  }
+  const countryWeights = buildPortfolioCountryWeightsForDisplay(
+    valued,
+    distMap,
+  );
 
   const sectorsForResponse = finalizeMergedSectorWeights(
     sectors,
