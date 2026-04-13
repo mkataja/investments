@@ -64,8 +64,12 @@ describe("parseIbkrTransactionsCsv", () => {
     expect(spyi?.isin).toBe("IE00B3YLTY66");
     expect(spyi?.side).toBe("buy");
     expect(spyi?.quantity).toBe("50");
+    expect(spyi?.tradeDate).toBe("2026-03-27T15:51:58.000Z");
+    const spyl = result.rows.find((r) => r.symbolRaw === "SPYL");
+    expect(spyl?.tradeDate).toBe("2025-11-14T16:36:04.000Z");
     const brk = result.rows.find((r) => r.symbolRaw === "BRK B");
     expect(brk?.isin).toBe("US0846707026");
+    expect(brk?.tradeDate).toBe("2025-10-13T18:45:07.000Z");
   });
 
   it("parses flat trades CSV (Date/Time, Buy/Sell, Price, CurrencyPrimary)", () => {
@@ -86,6 +90,7 @@ describe("parseIbkrTransactionsCsv", () => {
     expect(spyi.quantity).toBe("50");
     expect(spyi.unitPrice).toBe("9.76");
     expect(spyi.currency).toBe("EUR");
+    expect(spyi.tradeDate).toBe("2026-03-30T15:23:43.000Z");
   });
 });
 

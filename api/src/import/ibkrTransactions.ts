@@ -64,14 +64,79 @@ function formatPlainDecimal(n: number): string {
   return out === "" ? "0" : out;
 }
 
-/** `2026-03-27 11:51:58 EDT` → calendar ISO (time zone name is ignored). */
-function parseIbkrCalendarDateFromDateTime(raw: string): string | null {
+/**
+ * IBKR exports use `YYYY-MM-DD HH:mm:ss TZ` with a space between date and time and a
+ * trailing zone abbreviation (e.g. EDT, EST, CET). Map common abbreviations to fixed UTC
+ * offsets; unknown abbreviations fall back to `Date.parse` (works for many US zones in V8).
+ */
+const IBKR_TZ_ABBR_TO_ISO_OFFSET: Record<string, string> = {
+  GMT: "+00:00",
+  UTC: "+00:00",
+  UT: "+00:00",
+  WET: "+00:00",
+  WEST: "+01:00",
+  BST: "+01:00",
+  CET: "+01:00",
+  MET: "+01:00",
+  IST: "+05:30",
+  CEST: "+02:00",
+  MEST: "+02:00",
+  EET: "+02:00",
+  EEST: "+03:00",
+  MSK: "+03:00",
+  HKT: "+08:00",
+  SGT: "+08:00",
+  JST: "+09:00",
+  AEST: "+10:00",
+  AEDT: "+11:00",
+  AKST: "-09:00",
+  AKDT: "-08:00",
+  PST: "-08:00",
+  PDT: "-07:00",
+  MST: "-07:00",
+  MDT: "-06:00",
+  CST: "-06:00",
+  CDT: "-05:00",
+  EST: "-05:00",
+  EDT: "-04:00",
+  HST: "-10:00",
+};
+
+/** Parses IBKR `DateTime` / `Date/Time` into UTC ISO for `timestamptz` storage. */
+function parseIbkrDateTimeToUtcIso(raw: string): string | null {
   const s = trimCell(raw);
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return `${s}T00:00:00.000Z`;
+  }
+  const m =
+    /^(\d{4}-\d{2}-\d{2})\s+(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(?:\s+([A-Za-z]{2,5}))?$/.exec(
+      s,
+    );
   if (!m) {
     return null;
   }
-  return `${m[1]}-${m[2]}-${m[3]}`;
+  const [, ymd, hh, mm, ss, frac, tzAbbr] = m;
+  if (tzAbbr === undefined || tzAbbr === "") {
+    return null;
+  }
+  const mappedOffset = IBKR_TZ_ABBR_TO_ISO_OFFSET[tzAbbr.toUpperCase()];
+  if (mappedOffset !== undefined) {
+    const subsec =
+      frac !== undefined && frac.length > 0
+        ? `.${frac.padEnd(3, "0").slice(0, 3)}`
+        : "";
+    const isoLocal = `${ymd}T${hh}:${mm}:${ss}${subsec}${mappedOffset}`;
+    const ms = Date.parse(isoLocal);
+    if (!Number.isFinite(ms)) {
+      return null;
+    }
+    return new Date(ms).toISOString();
+  }
+  const parsed = Date.parse(s);
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+  return new Date(parsed).toISOString();
 }
 
 function headerKey(cell: string): string {
@@ -267,12 +332,11 @@ function parseIbkrFlatActivityCsv(records: string[][]): ParseIbkrCsvResult {
       continue;
     }
 
-    const calendarIso = parseIbkrCalendarDateFromDateTime(dateTimeRaw);
-    if (!calendarIso) {
+    const tradeDate = parseIbkrDateTimeToUtcIso(dateTimeRaw);
+    if (!tradeDate) {
       errors.push(`Line ${line}: invalid DateTime "${dateTimeRaw}"`);
       continue;
     }
-    const tradeDate = `${calendarIso}T00:00:00.000Z`;
 
     const currency = trimCell(curCell).toUpperCase();
     if (currency.length === 0 || currency === "-") {
@@ -400,12 +464,11 @@ function parseIbkrFlatTradesCsv(records: string[][]): ParseIbkrCsvResult {
       continue;
     }
 
-    const calendarIso = parseIbkrCalendarDateFromDateTime(dateTimeRaw);
-    if (!calendarIso) {
+    const tradeDate = parseIbkrDateTimeToUtcIso(dateTimeRaw);
+    if (!tradeDate) {
       errors.push(`Line ${line}: invalid Date/Time "${dateTimeRaw}"`);
       continue;
     }
-    const tradeDate = `${calendarIso}T00:00:00.000Z`;
 
     const currency = trimCell(curCell).toUpperCase();
     if (currency.length === 0 || currency === "-") {
