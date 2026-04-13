@@ -340,6 +340,11 @@ export function NewPortfolioModal({
               rows={weightRows}
               onRowsChange={setWeightRows}
               instruments={instrumentsSorted}
+              showEurColumn={isSynthetic}
+              benchmarkTotalStr={benchmarkTotal}
+              onBenchmarkTotalChange={setBenchmarkTotal}
+              disabled={busy}
+              onEurSyncError={setError}
             />
           </>
         ) : null}

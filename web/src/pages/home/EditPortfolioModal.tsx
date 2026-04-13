@@ -308,6 +308,11 @@ export function EditPortfolioModal({
                 rows={weightRows}
                 onRowsChange={setWeightRows}
                 instruments={instrumentsSorted}
+                showEurColumn
+                benchmarkTotalStr={benchmarkTotal}
+                onBenchmarkTotalChange={setBenchmarkTotal}
+                disabled={busy || !weightsLoaded}
+                onEurSyncError={setError}
               />
             </div>
           </>

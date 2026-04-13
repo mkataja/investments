@@ -3,11 +3,19 @@ import { describe, expect, it } from "vitest";
 import {
   formatEurAmountForInput,
   parseDecimalInputLoose,
+  roundEurToCents,
 } from "./decimalInput";
 
 describe("parseDecimalInputLoose", () => {
   it("parses comma decimals", () => {
     expect(parseDecimalInputLoose("1,5")).toBe(1.5);
+  });
+});
+
+describe("roundEurToCents", () => {
+  it("rounds to two decimal places", () => {
+    expect(roundEurToCents(1.234)).toBe(1.23);
+    expect(roundEurToCents(10.006)).toBe(10.01);
   });
 });
 
