@@ -6,6 +6,7 @@ import { resolveRegionKeyToIso } from "@investments/lib/geo/countryIso";
 import {
   type GeoBucketId,
   countryIsoToFlagEmoji,
+  geoBucketDisplayIcon,
   geoBucketDisplayTitle,
 } from "@investments/lib/geo/geoBuckets";
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
@@ -53,6 +54,27 @@ export function normalizeCountryWeightsForDisplay(
     out[k] = (out[k] ?? 0) + w;
   }
   return out;
+}
+
+/**
+ * ISO alpha-2 codes grouped on the world choropleth: mainland China, Hong Kong, and Macau
+ * share one color and tooltip (map topology does not show SARs distinctly).
+ */
+export const CHINA_MAP_CLUSTER_ALPHA2 = ["CN", "HK", "MO"] as const;
+
+export function chinaMapClusterCombinedWeightFromNorm(
+  norm: Record<string, number>,
+): number {
+  return CHINA_MAP_CLUSTER_ALPHA2.reduce((s, iso) => s + (norm[iso] ?? 0), 0);
+}
+
+export function isChinaMapClusterIso(iso: string | null | undefined): boolean {
+  if (iso == null || iso === UNMAPPED_COUNTRY_KEY) return false;
+  return (CHINA_MAP_CLUSTER_ALPHA2 as readonly string[]).includes(iso);
+}
+
+export function chinaMapClusterTooltipHeading(): string {
+  return `${geoBucketDisplayIcon("china")} ${geoBucketDisplayTitle("china")}`;
 }
 
 type CountrySegment = {

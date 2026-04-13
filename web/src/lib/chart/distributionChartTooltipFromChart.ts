@@ -7,9 +7,14 @@ import type {
 } from "chart.js";
 import type { BucketTopHolding } from "../../pages/home/types";
 import {
+  CHINA_MAP_CLUSTER_ALPHA2,
   COUNTRY_BAR_CHART_UNKNOWN_LABEL,
   UNMAPPED_COUNTRY_KEY,
+  chinaMapClusterCombinedWeightFromNorm,
+  chinaMapClusterTooltipHeading,
   countryBarTooltipHeading,
+  isChinaMapClusterIso,
+  mergeRestCountryTopHoldings,
 } from "../distributionDisplay";
 import { CHART_TOOLTIP_VIEWPORT_PAD_PX } from "./chartTooltipConstants";
 import type {
@@ -57,6 +62,32 @@ function colorAt(
   return fallback;
 }
 
+function choroplethNormRecord(
+  raw: Record<string, number | undefined> | undefined,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  if (!raw) return out;
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v === "number" && Number.isFinite(v)) {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+function choroplethCountryTopHoldingsRecord(
+  raw: unknown,
+): Record<string, BucketTopHolding[]> {
+  const out: Record<string, BucketTopHolding[]> = {};
+  if (raw == null || typeof raw !== "object") return out;
+  for (const [k, v] of Object.entries(raw)) {
+    if (Array.isArray(v)) {
+      out[k] = bucketTopHoldingListFromUnknown(v);
+    }
+  }
+  return out;
+}
+
 function borderAt(
   c: ChartDataset["borderColor"],
   dataIndex: number,
@@ -90,46 +121,66 @@ export function distributionChartTooltipPropsFromChart(
     const lab = chart.data.labels?.[dataIndex];
     const fallbackLabel = typeof lab === "string" ? lab : "";
 
-    const normP = chCfg.normPrimary ?? {};
-    const normC = chCfg.normCompare ?? {};
-    const wP =
-      iso != null &&
-      typeof normP[iso] === "number" &&
-      Number.isFinite(normP[iso])
+    const normP = choroplethNormRecord(chCfg.normPrimary);
+    const normC = choroplethNormRecord(chCfg.normCompare);
+    const cluster = iso != null && isChinaMapClusterIso(iso);
+    const wP = cluster
+      ? chinaMapClusterCombinedWeightFromNorm(normP)
+      : iso != null &&
+          typeof normP[iso] === "number" &&
+          Number.isFinite(normP[iso])
         ? normP[iso]
         : 0;
-    const wC =
-      iso != null &&
-      typeof normC[iso] === "number" &&
-      Number.isFinite(normC[iso])
+    const wC = cluster
+      ? chinaMapClusterCombinedWeightFromNorm(normC)
+      : iso != null &&
+          typeof normC[iso] === "number" &&
+          Number.isFinite(normC[iso])
         ? normC[iso]
         : 0;
 
     const showCompare = chCfg.showCompare ?? false;
-    const heading = iso != null ? countryBarTooltipHeading(iso) : fallbackLabel;
+    const heading =
+      cluster && iso != null
+        ? chinaMapClusterTooltipHeading()
+        : iso != null
+          ? countryBarTooltipHeading(iso)
+          : fallbackLabel;
 
     const rowName =
       iso === UNMAPPED_COUNTRY_KEY
         ? COUNTRY_BAR_CHART_UNKNOWN_LABEL
-        : (iso ?? fallbackLabel);
+        : cluster
+          ? "china_cluster"
+          : (iso ?? fallbackLabel);
 
-    const thP = chCfg.topHoldingsPrimary ?? {};
-    const thC = chCfg.topHoldingsCompare ?? {};
+    const thP = choroplethCountryTopHoldingsRecord(chCfg.topHoldingsPrimary);
+    const thC = choroplethCountryTopHoldingsRecord(chCfg.topHoldingsCompare);
 
+    const clusterKeys = [...CHINA_MAP_CLUSTER_ALPHA2];
     const row: DistributionBarChartRow = showCompare
       ? {
           name: rowName,
           tooltipHeading: heading,
-          topHoldingsPrimary:
-            iso != null ? bucketTopHoldingListFromUnknown(thP[iso]) : [],
-          topHoldingsCompare:
-            iso != null ? bucketTopHoldingListFromUnknown(thC[iso]) : [],
+          topHoldingsPrimary: cluster
+            ? mergeRestCountryTopHoldings(clusterKeys, thP, normP)
+            : iso != null
+              ? bucketTopHoldingListFromUnknown(thP[iso])
+              : [],
+          topHoldingsCompare: cluster
+            ? mergeRestCountryTopHoldings(clusterKeys, thC, normC)
+            : iso != null
+              ? bucketTopHoldingListFromUnknown(thC[iso])
+              : [],
         }
       : {
           name: rowName,
           tooltipHeading: heading,
-          topHoldings:
-            iso != null ? bucketTopHoldingListFromUnknown(thP[iso]) : [],
+          topHoldings: cluster
+            ? mergeRestCountryTopHoldings(clusterKeys, thP, normP)
+            : iso != null
+              ? bucketTopHoldingListFromUnknown(thP[iso])
+              : [],
         };
 
     const primaryLabel = chCfg.primaryLabel ?? "";

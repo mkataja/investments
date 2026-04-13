@@ -9,7 +9,9 @@ import { useMemo } from "react";
 import { Chart } from "react-chartjs-2";
 import { choroplethDistributionTooltipPlugin } from "../../../components/PortfolioChartTooltips";
 import {
+  CHINA_MAP_CLUSTER_ALPHA2,
   UNMAPPED_COUNTRY_KEY,
+  chinaMapClusterCombinedWeightFromNorm,
   normalizeCountryWeightsForDisplay,
 } from "../../../lib/distributionDisplay";
 import { PORTFOLIO_DISTRIBUTION_BAR_COLORS } from "../../../lib/portfolioChartPalette";
@@ -105,6 +107,20 @@ function weightByAtlasIdFromNormalized(
   return m;
 }
 
+/** CN/HK/MO each use the combined cluster weight so the choropleth matches the tooltip. */
+function weightByAtlasIdForMapChoropleth(
+  norm: Record<string, number>,
+): Map<string, number> {
+  const m = weightByAtlasIdFromNormalized(norm);
+  const cluster = chinaMapClusterCombinedWeightFromNorm(norm);
+  for (const iso of CHINA_MAP_CLUSTER_ALPHA2) {
+    const numericId = alpha2ToNumeric(iso);
+    if (numericId === undefined) continue;
+    m.set(String(numericId), cluster);
+  }
+  return m;
+}
+
 type WorldCountryChoroplethProps = {
   countries: Record<string, number>;
   compareCountries: Record<string, number>;
@@ -157,8 +173,8 @@ export function WorldCountryChoropleth({
     let colorOptions: ChartOptions<"choropleth">["scales"];
 
     if (compareMapMode) {
-      const wPrimary = weightByAtlasIdFromNormalized(normPrimary);
-      const wCompare = weightByAtlasIdFromNormalized(normCompare);
+      const wPrimary = weightByAtlasIdForMapChoropleth(normPrimary);
+      const wCompare = weightByAtlasIdForMapChoropleth(normCompare);
       const eps = MIN_PORTFOLIO_ALLOCATION_FRACTION;
       const logWeightRatio = (wP: number, wC: number) =>
         Math.log((wP + eps) / (wC + eps));
@@ -204,7 +220,7 @@ export function WorldCountryChoropleth({
         },
       };
     } else {
-      const weightByAtlasId = weightByAtlasIdFromNormalized(normPrimary);
+      const weightByAtlasId = weightByAtlasIdForMapChoropleth(normPrimary);
       const weights = [...weightByAtlasId.values()].filter((w) => w > 0);
       const maxW = weights.length ? Math.max(...weights) : 0;
       const minPos =
