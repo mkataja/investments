@@ -13,6 +13,7 @@ How geographic and sector weights are produced. Implementation under `api`; deta
 | J.P. Morgan daily ETF XLSX | [jpm-holdings.md](./data-sources/jpm-holdings.md) |
 | SEC 13F information table XML | [sec-13f.md](./data-sources/sec-13f.md) |
 | Vanguard UK GPX | [vanguard-uk.md](./data-sources/vanguard-uk.md) |
+| Amundi ETF product page (composition API) | [amundi.md](./data-sources/amundi.md) |
 | J.P. Morgan product-data JSON (sectors) | [jpm-product-data.md](./data-sources/jpm-product-data.md) |
 | Seligson (fund name, NAV, FundViewer scrape, Yahoo resolution) | [seligson.md](./data-sources/seligson.md) |
 
@@ -38,6 +39,7 @@ Cash / cash-equivalent rows → `sectors.cash`, omitted from `countries` (column
 | J.P. Morgan (daily ETF holdings XLSX) | [jpm-holdings.md](./data-sources/jpm-holdings.md) |
 | SEC EDGAR Form 13F (information table XML) | [sec-13f.md](./data-sources/sec-13f.md) |
 | Vanguard UK Professional (GPX GraphQL) | [vanguard-uk.md](./data-sources/vanguard-uk.md) |
+| Amundi ETF (`getProductsData` composition) | [amundi.md](./data-sources/amundi.md) |
 
 Optional sector breakdown from J.P. Morgan product-data JSON (with JPM XLSX URL): [jpm-product-data.md](./data-sources/jpm-product-data.md).
 

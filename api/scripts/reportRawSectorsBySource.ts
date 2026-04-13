@@ -17,6 +17,7 @@ import { asc, eq } from "drizzle-orm";
 import * as XLSX from "xlsx";
 import { db, pool } from "../src/db.js";
 import { fetchJpmProductDataJson } from "../src/distributions/fetchJpmProductData.js";
+import { extractAmundiRawSectorLabels } from "../src/distributions/parseAmundiHoldingsComposition.js";
 import { extractJpmProductDataRawSectorNames } from "../src/distributions/parseJpmProductDataSectorBreakdown.js";
 import { mergeYahooWeightRows } from "../src/distributions/types.js";
 
@@ -374,6 +375,8 @@ async function main() {
           m,
           "(no sector strings in cached XML — resolved via Yahoo assetProfile in pipeline)",
         );
+      } else if (row.source === "amundi_etf_composition_api") {
+        mergeIntoGlobal(m, extractAmundiRawSectorLabels(row.raw));
       }
     } catch (e) {
       console.warn(
@@ -418,6 +421,7 @@ async function main() {
     "xtrackers_holdings_xlsx",
     "jpm_holdings_xlsx",
     "sec_13f_infotable_xml",
+    "amundi_etf_composition_api",
   ];
   for (const src of sourceOrder) {
     const m = bySource.get(src);

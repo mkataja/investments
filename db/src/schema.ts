@@ -157,7 +157,7 @@ export const instruments = pgTable(
     cashCurrency: text("cash_currency"),
     cashInterestType: text("cash_interest_type"),
     /**
-     * Optional HTTPS URL to provider holdings (iShares CSV, SSGA XLSX, DWS Xtrackers XLSX, JPM XLSX, SEC 13F XML, or Vanguard UK Professional product page).
+     * Optional HTTPS URL to provider holdings (iShares CSV, SSGA XLSX, DWS Xtrackers XLSX, JPM XLSX, SEC 13F XML, Vanguard UK Professional product page, or Amundi ETF product page).
      * Parser is chosen from the URL hostname/path — see `validateHoldingsDistributionUrl` in `@investments/lib`.
      */
     holdingsDistributionUrl: text("holdings_distribution_url"),

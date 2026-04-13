@@ -11,9 +11,11 @@ import {
 import { eq } from "drizzle-orm";
 import { db } from "../../db.js";
 import { buildDistributionFromSec13FInfoTableXml } from "../../distributions/buildSec13fDistribution.js";
+import { fetchAmundiHoldingsCompositionJson } from "../../distributions/fetchAmundiHoldingsComposition.js";
 import { fetchJpmProductDataJson } from "../../distributions/fetchJpmProductData.js";
 import { fetchProviderHoldingsBytes } from "../../distributions/fetchProviderHoldings.js";
 import { fetchVanguardUkGpxHoldings } from "../../distributions/fetchVanguardUkGpxHoldings.js";
+import { parseAmundiHoldingsCompositionJson } from "../../distributions/parseAmundiHoldingsComposition.js";
 import { parseIsharesHoldingsCsv } from "../../distributions/parseIsharesHoldingsCsv.js";
 import {
   parseJpmHoldingsXlsx,
@@ -89,6 +91,17 @@ export async function writeProviderHoldingsDistributionCache(
     payload = parseVanguardUkGpxHoldingsJson(items);
     source = "vanguard_uk_gpx";
     raw = JSON.stringify(snapshot);
+  } else if (v.provider === "amundi_etf_api") {
+    const { json, rawText } = await fetchAmundiHoldingsCompositionJson(
+      v.normalized,
+    );
+    assertProviderDocumentMatchesInstrument(
+      matchFields,
+      extractHoldingsUrlIdentifiers(v.normalized, "amundi_etf_api"),
+    );
+    payload = parseAmundiHoldingsCompositionJson(json);
+    source = "amundi_etf_composition_api";
+    raw = rawText;
   } else {
     const bytes = await fetchProviderHoldingsBytes(v.normalized);
 

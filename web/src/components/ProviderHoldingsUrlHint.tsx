@@ -1,4 +1,5 @@
 import {
+  AMUNDI_ETF_HOLDINGS_EXAMPLE_URL,
   ISHARES_HOLDINGS_EXAMPLE_URL,
   JPM_HOLDINGS_EXAMPLE_URL,
   SEC_13F_HOLDINGS_EXAMPLE_URL,
@@ -45,12 +46,17 @@ export function ProviderHoldingsUrlHint({
           </span>
           {VANGUARD_UK_HOLDINGS_EXAMPLE_URL}
         </p>
+        <p className="font-mono break-all">
+          <span className="text-slate-500">Amundi ETF example: </span>
+          {AMUNDI_ETF_HOLDINGS_EXAMPLE_URL}
+        </p>
       </div>
       {showClearToYahooNote ? (
         <p className="text-xs text-slate-500">
           When set, country/sector distributions are built from this file
           (iShares CSV, SPDR XLSX, Xtrackers XLSX, J.P. Morgan XLSX, SEC 13F
-          XML, or Vanguard UK GPX). Clear the field to use Yahoo only.
+          XML, Vanguard UK GPX, or Amundi ETF product page). Clear the field to
+          use Yahoo only.
         </p>
       ) : null}
     </>

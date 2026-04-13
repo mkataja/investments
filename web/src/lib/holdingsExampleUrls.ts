@@ -23,3 +23,7 @@ export const JPM_PRODUCT_DATA_BREAKDOWN_EXAMPLE_URL =
 /** SEC EDGAR 13F information table XML (filename varies per filing). */
 export const SEC_13F_HOLDINGS_EXAMPLE_URL =
   "https://www.sec.gov/Archives/edgar/data/1067983/000119312526054580/50240.xml";
+
+/** Amundi ETF product page (composition from `getProductsData`; any amundietf.* country site). */
+export const AMUNDI_ETF_HOLDINGS_EXAMPLE_URL =
+  "https://www.amundietf.nl/en/individual/products/equity/amundi-prime-all-country-world-ucits-etf-acc/ie0003xja0j9";

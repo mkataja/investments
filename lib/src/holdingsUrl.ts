@@ -1,10 +1,18 @@
+import {
+  isAmundiEtfProductSiteHostname,
+  parseAmundiEtfProductPageIsin,
+} from "./amundiEtfProductUrl.js";
+
 export type HoldingsProviderKind =
   | "ishares_csv"
   | "ssga_xlsx"
   | "xtrackers_xlsx"
   | "jpm_xlsx"
   | "sec_13f_xml"
-  | "vanguard_uk_gpx";
+  | "vanguard_uk_gpx"
+  | "amundi_etf_api";
+
+export { isAmundiEtfProductSiteHostname, parseAmundiEtfProductPageIsin };
 
 /** UK Professional fund page path: `/professional/product/{etf|fund|mf}/{assetClass}/{portId}/{slug}`. */
 const VANGUARD_UK_PROFESSIONAL_PRODUCT_PATH =
@@ -78,6 +86,12 @@ export function resolveHoldingsProviderKind(
       ? "vanguard_uk_gpx"
       : null;
   }
+  if (
+    isAmundiEtfProductSiteHostname(host) &&
+    parseAmundiEtfProductPageIsin(u.href)
+  ) {
+    return "amundi_etf_api";
+  }
   return null;
 }
 
@@ -115,8 +129,7 @@ export function validateHoldingsDistributionUrl(
   if (!provider) {
     return {
       ok: false,
-      message:
-        "Unsupported holdings URL host. Use iShares (ishares.com), SPDR / SSGA (ssga.com), Xtrackers / DWS (dws.com), J.P. Morgan (am.jpmorgan.com), SEC EDGAR 13F information table XML (sec.gov .../Archives/edgar/data/.../*.xml), or a Vanguard UK Professional fund page (https://www.vanguard.co.uk/professional/product/...).",
+      message: "Unsupported holdings URL",
     };
   }
   return { ok: true, normalized: u.toString(), provider };

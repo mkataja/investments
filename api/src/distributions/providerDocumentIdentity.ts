@@ -1,4 +1,5 @@
 import type { HoldingsProviderKind } from "@investments/lib/holdingsUrl";
+import { parseAmundiEtfProductPageIsin } from "@investments/lib/holdingsUrl";
 import { normalizeIsinForStorage } from "@investments/lib/isin";
 import { normalizeYahooSymbolForStorage } from "@investments/lib/yahooSymbol";
 import * as XLSX from "xlsx";
@@ -193,6 +194,29 @@ export function extractHoldingsUrlIdentifiers(
     return mergeProviderDocumentIdentifiers({ isins, tickers, names });
   }
 
+  if (provider === "amundi_etf_api") {
+    const isin = parseAmundiEtfProductPageIsin(normalizedUrl);
+    if (isin) {
+      isins.push(isin);
+    }
+    const parts = u.pathname.split("/").filter(Boolean);
+    if (parts.length >= 2) {
+      const lastSeg = parts[parts.length - 1] ?? "";
+      const lastIsIsin = normalizeIsinFromText(lastSeg) !== null;
+      const slug = lastIsIsin ? (parts[parts.length - 2] ?? "") : lastSeg;
+      if (slug.length >= 6) {
+        const phrase = slug
+          .replace(/-/g, " ")
+          .replace(/\bucits\b/gi, "UCITS")
+          .trim();
+        if (phrase.length >= 6) {
+          names.push(phrase);
+        }
+      }
+    }
+    return mergeProviderDocumentIdentifiers({ isins, tickers, names });
+  }
+
   return { isins, tickers, names };
 }
 
@@ -381,11 +405,9 @@ export function documentMatchesInstrument(
   }
 
   const instIsin = normalizeIsinForStorage(instrument.isin);
-  if (instIsin && doc.isins.length > 0) {
-    if (doc.isins.includes(instIsin)) {
-      return true;
-    }
-    return false;
+
+  if (instIsin && doc.isins.length > 0 && doc.isins.includes(instIsin)) {
+    return true;
   }
 
   if (tickersMatch(instrument.yahooSymbol, doc.tickers)) {
@@ -397,6 +419,10 @@ export function documentMatchesInstrument(
     if (namesLikelyMatch(dn, n)) {
       return true;
     }
+  }
+
+  if (instIsin && doc.isins.length > 0) {
+    return false;
   }
 
   return false;
@@ -414,7 +440,13 @@ export function assertProviderDocumentMatchesInstrument(
   }
   const name = instrument.displayName.trim() || "(empty name)";
   const ticker = instrument.yahooSymbol?.trim() || "—";
+  const instIsin = normalizeIsinForStorage(instrument.isin);
+  const docIsins = doc.isins.length > 0 ? doc.isins.join(", ") : null;
+  const isinHint =
+    instIsin && docIsins
+      ? ` Instrument ISIN: ${instIsin}. Document/URL ISIN(s): ${docIsins}.`
+      : "";
   throw new Error(
-    `Holdings document does not match this instrument. Instrument name: ${name}. Ticker: ${ticker}. Check that the URL or file is for the same fund (name, symbol, or ISIN).`,
+    `Holdings document does not match this instrument. Instrument name: ${name}. Ticker: ${ticker}.${isinHint} Check that the URL or file is for the same fund (name, symbol, or ISIN). If the URL is correct, fix the instrument ISIN (e.g. Yahoo sometimes differs from the share class in the URL).`,
   );
 }

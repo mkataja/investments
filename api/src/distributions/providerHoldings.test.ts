@@ -2,12 +2,14 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  parseAmundiEtfProductPageIsin,
   parseVanguardUkProfessionalHoldingsPortId,
   validateHoldingsDistributionUrl,
   validateProviderBreakdownDataUrl,
 } from "@investments/lib/holdingsUrl";
 import { describe, expect, it } from "vitest";
 import * as XLSX from "xlsx";
+import { parseAmundiHoldingsCompositionJson } from "./parseAmundiHoldingsComposition.js";
 import { parseIsharesHoldingsCsv } from "./parseIsharesHoldingsCsv.js";
 import { parseJpmHoldingsXlsx } from "./parseJpmHoldingsXlsx.js";
 import {
@@ -80,11 +82,48 @@ describe("validateHoldingsDistributionUrl", () => {
       expect(r.provider).toBe("vanguard_uk_gpx");
     }
   });
+  it("accepts Amundi ETF product page URL (any country site)", () => {
+    const r = validateHoldingsDistributionUrl(
+      "https://www.amundietf.co.uk/en/professional/products/equity/amundi-prime-all-country-world-ucits-etf-acc/ie0003xja0j9",
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.provider).toBe("amundi_etf_api");
+    }
+  });
+  it("rejects Amundi host without products path or ISIN", () => {
+    expect(
+      validateHoldingsDistributionUrl("https://www.amundietf.nl/en/individual/")
+        .ok,
+    ).toBe(false);
+  });
   it("rejects Vanguard host without professional product path", () => {
     const r = validateHoldingsDistributionUrl(
       "https://www.vanguard.co.uk/professional/",
     );
     expect(r.ok).toBe(false);
+  });
+});
+
+describe("parseAmundiEtfProductPageIsin", () => {
+  it("extracts ISIN from NL and UK product URLs", () => {
+    expect(
+      parseAmundiEtfProductPageIsin(
+        "https://www.amundietf.nl/en/individual/products/equity/foo/ie0003xja0j9",
+      ),
+    ).toBe("IE0003XJA0J9");
+    expect(
+      parseAmundiEtfProductPageIsin(
+        "https://www.amundietf.co.uk/en/professional/products/equity/foo/ie0003xja0j9",
+      ),
+    ).toBe("IE0003XJA0J9");
+  });
+  it("returns null for corporate amundietf.com", () => {
+    expect(
+      parseAmundiEtfProductPageIsin(
+        "https://amundietf.com/en/products/equity/foo/ie0003xja0j9",
+      ),
+    ).toBeNull();
   });
 });
 
@@ -102,6 +141,42 @@ describe("parseVanguardUkProfessionalHoldingsPortId", () => {
         "https://www.ie.vanguard/products/etf/equity/9678/foo",
       ),
     ).toBeNull();
+  });
+});
+
+describe("parseAmundiHoldingsCompositionJson", () => {
+  it("aggregates countryOfRisk and sector weights", () => {
+    const { countries, sectors } = parseAmundiHoldingsCompositionJson({
+      products: [
+        {
+          composition: {
+            compositionData: [
+              {
+                weight: 0.5,
+                compositionCharacteristics: {
+                  type: "EQUITY_ORDINARY",
+                  sector: "Information Technology",
+                  countryOfRisk: "United States",
+                },
+              },
+              {
+                weight: 0.5,
+                compositionCharacteristics: {
+                  type: "EQUITY_ORDINARY",
+                  sector: "Financials",
+                  countryOfRisk: "United Kingdom",
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+    expect(Object.keys(countries).length).toBeGreaterThan(0);
+    expect((sectors.technology ?? 0) + (sectors.financials ?? 0)).toBeCloseTo(
+      1,
+      5,
+    );
   });
 });
 

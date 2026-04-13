@@ -23,6 +23,17 @@ describe("extractHoldingsUrlIdentifiers", () => {
     );
     expect(ids.names.some((n) => n.includes("emerging"))).toBe(true);
   });
+
+  it("adds Amundi product slug as a name phrase", () => {
+    const ids = extractHoldingsUrlIdentifiers(
+      "https://www.amundietf.nl/en/individual/products/equity/amundi-prime-all-country-world-ucits-etf-acc/ie0003xja0j9",
+      "amundi_etf_api",
+    );
+    expect(ids.isins).toContain("IE0003XJA0J9");
+    expect(
+      ids.names.some((n) => n.toLowerCase().includes("prime all country")),
+    ).toBe(true);
+  });
 });
 
 describe("assertProviderDocumentMatchesInstrument", () => {
@@ -71,6 +82,22 @@ describe("assertProviderDocumentMatchesInstrument", () => {
 });
 
 describe("documentMatchesInstrument", () => {
+  it("matches Amundi URL to instrument when Yahoo ISIN differs but name matches slug", () => {
+    const doc = extractHoldingsUrlIdentifiers(
+      "https://www.amundietf.nl/en/individual/products/equity/amundi-prime-all-country-world-ucits-etf-acc/ie0003xja0j9",
+      "amundi_etf_api",
+    );
+    const ok = documentMatchesInstrument(
+      {
+        displayName: "Amundi Prime All Country World UCITS ETF Acc",
+        yahooSymbol: "WEBN.DE",
+        isin: "IE00BBBBBBBB",
+      },
+      doc,
+    );
+    expect(ok).toBe(true);
+  });
+
   it("matches on fund name overlap", () => {
     const ok = documentMatchesInstrument(
       {
