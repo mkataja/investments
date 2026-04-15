@@ -3,7 +3,10 @@ import { useMemo } from "react";
 import { CHART_TOOLTIP_STYLE } from "../../../lib/chart/chartTooltipConstants";
 import { formatInstantForDisplay } from "../../../lib/dateTimeFormat";
 import { portfolioSectorBarRows } from "../../../lib/distributionDisplay";
-import { formatPercentageValueForDisplay } from "../../../lib/numberFormat";
+import {
+  formatIntegerForDisplay,
+  formatPercentageValueForDisplay,
+} from "../../../lib/numberFormat";
 import { portfolioSectorChartColorForBucketKey } from "../../../lib/portfolioChartPalette";
 import type { AssetMixHistoryPoint } from "../types";
 import { DISTRIBUTION_BAR_CHART_GRID_STROKE } from "./distributionBarChartOptions";
@@ -92,6 +95,7 @@ export function useSectorDistributionHistoryLine(
 
     const pctSpecs = filteredSpecs.map(({ row, rawSeries }) => ({
       row,
+      rawSeries,
       pctSeries: rawSeries.map((eur, j) => {
         const t = totalEurAtDate[j] ?? 0;
         if (!(t > 0) || !Number.isFinite(eur) || eur <= 0) {
@@ -156,7 +160,7 @@ export function useSectorDistributionHistoryLine(
 
     const data: ChartData<"line"> = {
       labels: xLabels,
-      datasets: pctSpecs.map(({ row, pctSeries }) => {
+      datasets: pctSpecs.map(({ row, rawSeries, pctSeries }) => {
         const fill = portfolioSectorChartColorForBucketKey(row.bucketKey);
         const series = [
           ...pctSeries.map((_, j) => lineChartValueFromRawSeries(pctSeries, j)),
@@ -165,6 +169,7 @@ export function useSectorDistributionHistoryLine(
         return {
           label: row.name,
           data: series,
+          eurSeries: rawSeries,
           ...(stacked
             ? {
                 stack: "sectorDist",
@@ -247,7 +252,15 @@ export function useSectorDistributionHistoryLine(
               if (typeof n !== "number" || !Number.isFinite(n)) {
                 return "";
               }
-              return `${ctx.dataset.label ?? ""}: ${formatPct(n)}`;
+              const ds = ctx.dataset as typeof ctx.dataset & {
+                eurSeries?: number[];
+              };
+              const eur = ds.eurSeries?.[ctx.dataIndex];
+              const eurSuffix =
+                typeof eur === "number" && Number.isFinite(eur) && eur > 0
+                  ? ` (${formatIntegerForDisplay(eur)} EUR)`
+                  : "";
+              return `${ctx.dataset.label ?? ""}: ${formatPct(n)}${eurSuffix}`;
             },
             footer: (tooltipItems) => {
               const sum = tooltipItems.reduce((acc, it) => {

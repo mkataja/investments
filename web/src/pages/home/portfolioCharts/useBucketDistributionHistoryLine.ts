@@ -2,7 +2,10 @@ import type { ChartData, ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { CHART_TOOLTIP_STYLE } from "../../../lib/chart/chartTooltipConstants";
 import { formatInstantForDisplay } from "../../../lib/dateTimeFormat";
-import { formatPercentageValueForDisplay } from "../../../lib/numberFormat";
+import {
+  formatIntegerForDisplay,
+  formatPercentageValueForDisplay,
+} from "../../../lib/numberFormat";
 import {
   PORTFOLIO_ASSET_MIX_COLORS,
   portfolioHoldingChartColorForIndex,
@@ -174,11 +177,15 @@ export function useBucketDistributionHistoryLine(
       }),
     }));
 
-    const chartSpecs = pctSpecs.map((s) => ({
-      bucketKey: s.bucketKey,
-      idx: s.idx,
-      valueSeries: s.pctSeries,
-    }));
+    const chartSpecs = pctSpecs.map((s) => {
+      const raw = filteredSpecs.find((f) => f.bucketKey === s.bucketKey);
+      return {
+        bucketKey: s.bucketKey,
+        idx: s.idx,
+        valueSeries: s.pctSeries,
+        eurSeries: raw?.rawSeries ?? [],
+      };
+    });
 
     const xScaleTicks = {
       font: { size: 14 },
@@ -235,7 +242,7 @@ export function useBucketDistributionHistoryLine(
 
     const data: ChartData<"line"> = {
       labels: xLabels,
-      datasets: chartSpecs.map(({ bucketKey, idx, valueSeries }) => {
+      datasets: chartSpecs.map(({ bucketKey, idx, valueSeries, eurSeries }) => {
         const fill =
           bucketKey === "Cash"
             ? PORTFOLIO_ASSET_MIX_COLORS.cashExcess
@@ -251,6 +258,7 @@ export function useBucketDistributionHistoryLine(
         return {
           label: bucketKey,
           data: series,
+          eurSeries,
           ...(stacked
             ? {
                 stack: "bucketDist",
@@ -333,7 +341,15 @@ export function useBucketDistributionHistoryLine(
               if (typeof n !== "number" || !Number.isFinite(n)) {
                 return "";
               }
-              return `${ctx.dataset.label ?? ""}: ${formatPct(n)}`;
+              const ds = ctx.dataset as typeof ctx.dataset & {
+                eurSeries?: number[];
+              };
+              const eur = ds.eurSeries?.[ctx.dataIndex];
+              const eurSuffix =
+                typeof eur === "number" && Number.isFinite(eur) && eur > 0
+                  ? ` (${formatIntegerForDisplay(eur)} EUR)`
+                  : "";
+              return `${ctx.dataset.label ?? ""}: ${formatPct(n)}${eurSuffix}`;
             },
             footer: (tooltipItems) => {
               const sum = tooltipItems.reduce((acc, it) => {
