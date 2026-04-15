@@ -1,11 +1,20 @@
 import { formatUnitPriceForDisplay } from "../../lib/numberFormat";
 import type { HomeInstrument, HomeTransaction } from "./types";
 
+/** JSON may expose numeric columns as numbers; DB strings may use comma decimals. */
+export function parseTransactionNumericField(raw: string | number): number {
+  if (typeof raw === "number") {
+    return raw;
+  }
+  const s = raw.trim().replace(/\s+/g, "").replace(",", ".");
+  return Number.parseFloat(s);
+}
+
 /**
  * For each transaction (in chronological order), the approximate position value in trade
  * currency right after that row: running quantity times this row's unit price for non-cash
- * (mark to last trade); running cash balance for cash accounts (quantity deltas, same as
- * backend positions).
+ * (mark to last trade); running cash balance for cash accounts (signed sum of quantity ×
+ * unit price per row, matching the Value column and cash notional).
  */
 export function positionValueAfterLabelByTransactionId(
   transactions: HomeTransaction[],
@@ -21,16 +30,21 @@ export function positionValueAfterLabelByTransactionId(
     runningQty: Map<number, number>;
   }>(
     (acc, t) => {
-      const q = Number(t.quantity.trim());
-      const p = Number(t.unitPrice.trim());
+      const q = parseTransactionNumericField(t.quantity);
+      const p = parseTransactionNumericField(t.unitPrice);
       const prev = acc.runningQty.get(t.instrumentId) ?? 0;
+      const kind = instrumentById.get(t.instrumentId)?.kind;
       let next = prev;
       if (Number.isFinite(q) && Number.isFinite(p)) {
-        next = prev + (t.side === "buy" ? q : -q);
+        if (kind === "cash_account") {
+          const delta = q * p;
+          next = prev + (t.side === "buy" ? delta : -delta);
+        } else {
+          next = prev + (t.side === "buy" ? q : -q);
+        }
         acc.runningQty.set(t.instrumentId, next);
       }
 
-      const kind = instrumentById.get(t.instrumentId)?.kind;
       let label: string;
       if (!Number.isFinite(next)) {
         label = "-";
