@@ -93,6 +93,8 @@ export type DegiroParsedRow = {
    * Upsert key: Degiro Order ID (lowercase UUID) when present; otherwise full-row sha256.
    */
   externalId: string;
+  /** Best-effort display order within a calendar day; set at import. */
+  tradeOrderKey?: string;
 };
 
 type DegiroFill = {

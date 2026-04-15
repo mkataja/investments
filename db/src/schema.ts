@@ -348,6 +348,11 @@ export const transactions = pgTable(
     externalSource: text("external_source"),
     /** Stable id within `external_source` (e.g. row fingerprint). Null for manual rows. */
     externalId: text("external_id"),
+    /**
+     * Best-effort display sort within the same `trade_date` (lexicographic; e.g. zero-padded
+     * encounter index per day). Not part of identity; may change; never used in unique keys.
+     */
+    tradeOrderKey: text("trade_order_key"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -370,6 +375,11 @@ export const transactions = pgTable(
     index("transactions_portfolio_id_trade_date_idx").on(
       t.portfolioId,
       t.tradeDate,
+    ),
+    index("transactions_portfolio_id_trade_date_order_idx").on(
+      t.portfolioId,
+      t.tradeDate,
+      t.tradeOrderKey,
     ),
     index("transactions_instrument_id_idx").on(t.instrumentId),
   ],

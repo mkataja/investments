@@ -31,6 +31,8 @@ export type HomeTransaction = {
   quantity: string;
   unitPrice: string;
   currency: string;
+  /** Best-effort list sort within `tradeDate`; optional on older rows. */
+  tradeOrderKey?: string | null;
 };
 
 type PortfolioKind = "live" | "static" | "backtest";

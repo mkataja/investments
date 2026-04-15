@@ -27,6 +27,7 @@
     "./instrumentSelectLabel": "./src/instrumentSelectLabel.ts",
     "./isin": "./src/isin.ts",
     "./minPortfolioAllocationFraction": "./src/minPortfolioAllocationFraction.ts",
-    "./yahooSymbol": "./src/yahooSymbol.ts"
+    "./yahooSymbol": "./src/yahooSymbol.ts",
+    "./transactionSort": "./src/transactionSort.ts"
   }
 }

@@ -73,6 +73,7 @@ type SveaParsedRow = {
   unitPrice: string;
   currency: string;
   externalId: string;
+  tradeOrderKey?: string;
 };
 
 type ParseSveaPasteResult =

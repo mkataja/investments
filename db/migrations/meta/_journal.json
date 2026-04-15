@@ -358,6 +358,13 @@
       "when": 1775675463144,
       "tag": "0050_early_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1776283091862,
+      "tag": "0051_outstanding_namora",
+      "breakpoints": true
     }
   ]
 }

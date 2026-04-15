@@ -177,6 +177,7 @@ type SeligsonParsedRow = {
   unitPrice: string;
   currency: string;
   externalId: string;
+  tradeOrderKey?: string;
 };
 
 type ParseSeligsonTsvResult =

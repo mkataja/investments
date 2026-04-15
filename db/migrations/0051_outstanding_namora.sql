@@ -1,0 +1,2 @@
+ALTER TABLE "transactions" ADD COLUMN "trade_order_key" text;--> statement-breakpoint
+CREATE INDEX "transactions_portfolio_id_trade_date_order_idx" ON "transactions" USING btree ("portfolio_id","trade_date","trade_order_key");

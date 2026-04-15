@@ -10,7 +10,7 @@ import {
   yahooFinanceCache,
 } from "@investments/db";
 import type { InferSelectModel } from "drizzle-orm";
-import { asc, eq, inArray } from "drizzle-orm";
+import { asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../../db.js";
 import { calendarDateUtcFromInstant } from "../../lib/calendarDateUtc.js";
 import {
@@ -232,7 +232,11 @@ export async function getPortfolioAssetMixHistory(
           })
           .from(transactions)
           .where(eq(transactions.portfolioId, portfolioId))
-          .orderBy(asc(transactions.tradeDate));
+          .orderBy(
+            asc(transactions.tradeDate),
+            sql`${transactions.tradeOrderKey} DESC NULLS LAST`,
+            asc(transactions.id),
+          );
 
   const [firstRow] = txRows;
   if (!firstRow) {

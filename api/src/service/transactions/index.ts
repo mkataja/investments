@@ -7,7 +7,8 @@ import {
 import { USER_ID } from "@investments/lib/appUser";
 import { isInstrumentKindAllowedForBrokerType } from "@investments/lib/brokerInstrumentRules";
 import type { BrokerType } from "@investments/lib/brokerTypes";
-import { and, desc, eq } from "drizzle-orm";
+import { compareTransactionsNewestFirst } from "@investments/lib/transactionSort";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import { z } from "zod";
 import { db } from "../../db.js";
@@ -56,10 +57,19 @@ export async function getTransactions(c: Context) {
   }
   if (pf.kind === "backtest") {
     const virtualRows = await loadBacktestVirtualTransactions(portfolioId);
-    virtualRows.sort(
-      (a, b) =>
-        new Date(b.tradeDate).getTime() - new Date(a.tradeDate).getTime() ||
-        b.id - a.id,
+    virtualRows.sort((a, b) =>
+      compareTransactionsNewestFirst(
+        {
+          tradeDate: a.tradeDate,
+          tradeOrderKey: null,
+          id: a.id,
+        },
+        {
+          tradeDate: b.tradeDate,
+          tradeOrderKey: null,
+          id: b.id,
+        },
+      ),
     );
     return c.json(virtualRows);
   }
@@ -70,7 +80,11 @@ export async function getTransactions(c: Context) {
     .select()
     .from(transactions)
     .where(eq(transactions.portfolioId, portfolioId))
-    .orderBy(desc(transactions.tradeDate));
+    .orderBy(
+      desc(transactions.tradeDate),
+      sql`${transactions.tradeOrderKey} ASC NULLS LAST`,
+      desc(transactions.id),
+    );
   return c.json(rows);
 }
 

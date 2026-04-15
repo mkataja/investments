@@ -1,3 +1,4 @@
+import { compareTransactionsChronological } from "@investments/lib/transactionSort";
 import { formatUnitPriceForDisplay } from "../../lib/numberFormat";
 import type { HomeInstrument, HomeTransaction } from "./types";
 
@@ -20,10 +21,20 @@ export function positionValueAfterLabelByTransactionId(
   transactions: HomeTransaction[],
   instrumentById: Map<number, HomeInstrument>,
 ): Map<number, string> {
-  const sorted = [...transactions].sort((a, b) => {
-    const c = a.tradeDate.localeCompare(b.tradeDate);
-    return c !== 0 ? c : a.id - b.id;
-  });
+  const sorted = [...transactions].sort((a, b) =>
+    compareTransactionsChronological(
+      {
+        tradeDate: a.tradeDate,
+        tradeOrderKey: a.tradeOrderKey ?? null,
+        id: a.id,
+      },
+      {
+        tradeDate: b.tradeDate,
+        tradeOrderKey: b.tradeOrderKey ?? null,
+        id: b.id,
+      },
+    ),
+  );
 
   return sorted.reduce<{
     labels: Map<number, string>;

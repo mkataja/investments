@@ -21,6 +21,8 @@ type IbkrParsedRow = {
   currency: string;
   /** Stable upsert key: sha256 of canonical fields (see builders below). */
   externalId: string;
+  /** Best-effort display order within a calendar day; set at import. */
+  tradeOrderKey?: string;
 };
 
 function trimCell(s: string): string {
