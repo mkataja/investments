@@ -35,7 +35,7 @@ export function formatDecimalForDisplay(
 }
 
 /**
- * Formats a numeric string for UI: rounds to at most three fraction digits (half-up via Intl).
+ * Formats a numeric string for UI: rounds to at most two fraction digits (half-up via Intl).
  * Uses app locale and no grouping so the table stays consistent.
  */
 export function formatUnitPriceForDisplay(raw: string): string {
@@ -44,7 +44,7 @@ export function formatUnitPriceForDisplay(raw: string): string {
   if (!Number.isFinite(n)) return t;
   return formatNumber(n, {
     useGrouping: false,
-    maximumFractionDigits: 3,
+    maximumFractionDigits: 2,
     minimumFractionDigits: 0,
   });
 }
@@ -86,7 +86,7 @@ export function formatTransactionTotalValueForDisplay(
 
 /**
  * Formats a quantity string for tables: integers when numerically near a whole number,
- * otherwise up to three fraction digits (same rules as {@link formatUnitPriceForDisplay}).
+ * otherwise up to three fraction digits (half-up via Intl, no grouping).
  */
 export function formatQuantityForDisplay(raw: string): string {
   const t = raw.trim();
@@ -96,7 +96,11 @@ export function formatQuantityForDisplay(raw: string): string {
   if (Math.abs(n - nearest) <= NEAR_WHOLE_EPSILON) {
     return formatIntegerForDisplay(nearest);
   }
-  return formatUnitPriceForDisplay(t);
+  return formatNumber(n, {
+    useGrouping: false,
+    maximumFractionDigits: 3,
+    minimumFractionDigits: 0,
+  });
 }
 
 export const formatToPercentage = (

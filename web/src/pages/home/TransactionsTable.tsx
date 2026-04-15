@@ -146,8 +146,10 @@ export function TransactionsTable({
           <tbody>
             {visibleTransactions.map((t) => (
               <tr key={t.id} className="border-t border-slate-100">
-                <td className="p-2">{formatInstantForDisplay(t.tradeDate)}</td>
-                <td className="p-2">
+                <td className="p-2 xl:min-w-[9rem]">
+                  {formatInstantForDisplay(t.tradeDate)}
+                </td>
+                <td className="p-2 w-[6rem]">
                   <span className={sideAccentClass(t.side)}>
                     {transactionSideLabel(
                       t.side,
@@ -166,15 +168,15 @@ export function TransactionsTable({
                     instrumentTickerById,
                   )}
                 </td>
-                <td className="p-2 text-left min-w-[8rem]">
+                <td className="p-2 text-left min-w-[7rem]">
                   {brokerNameById.get(t.brokerId) ?? `#${t.brokerId}`}
                 </td>
-                <td className="p-2 text-right">
+                <td className="p-2 text-right min-w-[3rem]">
                   {instrumentById.get(t.instrumentId)?.kind === "cash_account"
                     ? "-"
                     : formatQuantityForDisplay(t.quantity)}
                 </td>
-                <td className="p-2 text-right">
+                <td className="p-2 text-right tabular-nums xl:min-w-[7rem]">
                   {instrumentById.get(t.instrumentId)?.kind ===
                   "cash_account" ? (
                     "-"
@@ -188,7 +190,7 @@ export function TransactionsTable({
                     </span>
                   )}
                 </td>
-                <td className="p-2 text-right tabular-nums">
+                <td className="p-2 text-right tabular-nums xl:min-w-[7rem]">
                   <span className={sideAccentClass(t.side)}>
                     {formatTransactionTotalValueForDisplay(
                       t.side,
@@ -199,7 +201,7 @@ export function TransactionsTable({
                     )}
                   </span>
                 </td>
-                <td className="p-2 text-right tabular-nums text-slate-800">
+                <td className="p-2 text-right tabular-nums xl:min-w-[7rem]">
                   {valueAfterByTxnId.get(t.id) ?? "-"}
                 </td>
                 {readOnly ? null : (

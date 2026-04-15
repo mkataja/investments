@@ -21,11 +21,11 @@ function formatPercentIntl(v: number, fractionDigits: number): string {
 describe("formatUnitPriceForDisplay", () => {
   const unitPriceFormatter = new Intl.NumberFormat(APP_LOCALE, {
     useGrouping: false,
-    maximumFractionDigits: 3,
+    maximumFractionDigits: 2,
     minimumFractionDigits: 0,
   });
 
-  it("rounds to at most three decimal places", () => {
+  it("rounds to at most two decimal places", () => {
     expect(formatUnitPriceForDisplay("12.34567")).toBe(
       unitPriceFormatter.format(12.34567),
     );
@@ -94,6 +94,12 @@ describe("formatTransactionTotalValueForDisplay", () => {
 });
 
 describe("formatQuantityForDisplay", () => {
+  const quantityFractionFormatter = new Intl.NumberFormat(APP_LOCALE, {
+    useGrouping: false,
+    maximumFractionDigits: 3,
+    minimumFractionDigits: 0,
+  });
+
   it("formats as an integer when within eps of a whole number", () => {
     expect(formatQuantityForDisplay("10")).toBe("10");
     expect(formatQuantityForDisplay("3")).toBe("3");
@@ -105,19 +111,19 @@ describe("formatQuantityForDisplay", () => {
 
   it("keeps fraction digits just outside the integer tolerance", () => {
     expect(formatQuantityForDisplay("10.000015")).toBe(
-      formatUnitPriceForDisplay("10.000015"),
+      quantityFractionFormatter.format(10.000015),
     );
   });
 
   it("keeps fraction digits when not near a whole number", () => {
     expect(formatQuantityForDisplay("12.3456")).toBe(
-      formatUnitPriceForDisplay("12.3456"),
+      quantityFractionFormatter.format(12.3456),
     );
     expect(formatQuantityForDisplay("10.7")).toBe(
-      formatUnitPriceForDisplay("10.7"),
+      quantityFractionFormatter.format(10.7),
     );
     expect(formatQuantityForDisplay("0.25")).toBe(
-      formatUnitPriceForDisplay("0.25"),
+      quantityFractionFormatter.format(0.25),
     );
   });
 
