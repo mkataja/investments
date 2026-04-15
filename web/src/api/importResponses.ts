@@ -29,7 +29,9 @@ export function parseDegiroImportResponse(
     (data as { ok: unknown }).ok === true &&
     "processed" in data &&
     "changed" in data &&
-    "unchanged" in data
+    "unchanged" in data &&
+    "added" in data &&
+    "updated" in data
   ) {
     return { outcome: "ok", value: data as DegiroOk };
   }
@@ -45,7 +47,9 @@ export function parseImportOkResponse(data: unknown): DegiroOk | null {
     (data as { ok: unknown }).ok === true &&
     "processed" in data &&
     "changed" in data &&
-    "unchanged" in data
+    "unchanged" in data &&
+    "added" in data &&
+    "updated" in data
   ) {
     return data as DegiroOk;
   }

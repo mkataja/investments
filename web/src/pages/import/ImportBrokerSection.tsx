@@ -51,6 +51,15 @@ type ImportBrokerSectionProps = {
 };
 
 function ImportSuccessMessage({ result }: { result: DegiroOk }) {
+  const writtenParts: string[] = [];
+  if (result.added > 0) {
+    writtenParts.push(`${formatIntegerForDisplay(result.added)} added`);
+  }
+  if (result.updated > 0) {
+    writtenParts.push(`${formatIntegerForDisplay(result.updated)} updated`);
+  }
+  const writtenBreakdown =
+    writtenParts.length > 0 ? ` (${writtenParts.join(", ")})` : "";
   return (
     <p className="copy-success">
       {result.deletedOld != null && result.deletedOld > 0
@@ -61,6 +70,7 @@ function ImportSuccessMessage({ result }: { result: DegiroOk }) {
       Processed {formatIntegerForDisplay(result.processed)} transaction
       {result.processed === 1 ? "" : "s"}:{" "}
       {formatIntegerForDisplay(result.changed)} written to the database
+      {writtenBreakdown}
       {result.unchanged > 0
         ? `, ${formatIntegerForDisplay(result.unchanged)} already up to date`
         : ""}

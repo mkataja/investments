@@ -3,6 +3,10 @@ export type DegiroOk = {
   processed: number;
   changed: number;
   unchanged: number;
+  /** Rows inserted (new external id for this broker/source). */
+  added: number;
+  /** Existing rows whose data was updated. */
+  updated: number;
   skippedRows?: number;
   /** Present when import ran with delete-all-old for this broker or Svea account. */
   deletedOld?: number;

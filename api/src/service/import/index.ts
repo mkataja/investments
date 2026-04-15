@@ -1,4 +1,5 @@
 import { instruments, seligsonFunds, transactions } from "@investments/db";
+import { assignTradeOrderKeysInEncounterOrder } from "@investments/lib/transactionSort";
 import { normalizeYahooSymbolForStorage } from "@investments/lib/yahooSymbol";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Context } from "hono";
@@ -67,6 +68,7 @@ async function insertImportTransactions(
         quantity: sql`excluded.quantity`,
         unitPrice: sql`excluded.unit_price`,
         currency: sql`excluded.currency`,
+        tradeOrderKey: sql`excluded.trade_order_key`,
       },
       setWhere: sql`(
         ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
@@ -76,9 +78,84 @@ async function insertImportTransactions(
         OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
         OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
         OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
+        OR ${transactions.tradeOrderKey} IS DISTINCT FROM ${sql.raw("excluded.trade_order_key")}
       )`,
     })
-    .returning({ id: transactions.id });
+    .returning({ id: transactions.id, externalId: transactions.externalId });
+}
+
+async function upsertImportTransactionsWithCounts(
+  client: DbOrTx,
+  values: TransactionInsertRow[],
+): Promise<{
+  processed: number;
+  changed: number;
+  unchanged: number;
+  added: number;
+  updated: number;
+}> {
+  const first = values[0];
+  if (first === undefined) {
+    throw new Error("upsertImportTransactionsWithCounts: empty values");
+  }
+  const brokerId = first.brokerId;
+  const externalSource = first.externalSource;
+  if (brokerId == null || externalSource == null) {
+    throw new Error(
+      "upsertImportTransactionsWithCounts: missing brokerId or externalSource",
+    );
+  }
+  const uniqueIds = [
+    ...new Set(
+      values.map((v) => v.externalId).filter((id): id is string => id != null),
+    ),
+  ];
+  const existingRows =
+    uniqueIds.length === 0
+      ? []
+      : await client
+          .select({ externalId: transactions.externalId })
+          .from(transactions)
+          .where(
+            and(
+              eq(transactions.brokerId, brokerId),
+              eq(transactions.externalSource, externalSource),
+              inArray(transactions.externalId, uniqueIds),
+            ),
+          );
+  const existingBefore = new Set(
+    existingRows
+      .map((r) => r.externalId)
+      .filter((id): id is string => id != null),
+  );
+  const written = await insertImportTransactions(client, values);
+  const returned = new Set(
+    written.map((w) => w.externalId).filter((id): id is string => id != null),
+  );
+  let added = 0;
+  let updated = 0;
+  for (const v of values) {
+    const ext = v.externalId;
+    if (ext == null) {
+      continue;
+    }
+    if (returned.has(ext)) {
+      if (existingBefore.has(ext)) {
+        updated++;
+      } else {
+        added++;
+      }
+    }
+  }
+  const processed = values.length;
+  const changed = written.length;
+  return {
+    processed,
+    changed,
+    unchanged: processed - changed,
+    added,
+    updated,
+  };
 }
 
 /** Multipart: `file`, optional `deleteAllOld` (remove all transactions for the import broker before upsert). */
@@ -243,6 +320,8 @@ export async function postImportDegiro(c: Context) {
 
   const { instrumentIdByIsin } = resolved;
 
+  assignTradeOrderKeysInEncounterOrder(parsed.rows);
+
   const values = parsed.rows.map((r) => {
     const instrumentId = instrumentIdByIsin.get(r.isin);
     if (instrumentId === undefined) {
@@ -260,12 +339,13 @@ export async function postImportDegiro(c: Context) {
       currency: r.currency,
       externalSource: DEGIRO_CSV_EXTERNAL_SOURCE,
       externalId: r.externalId,
+      tradeOrderKey: r.tradeOrderKey,
     };
   });
 
   const deleteAllOld = parseMultipartBooleanField(body, "deleteAllOld");
   let deletedOld: number | undefined;
-  let written: { id: number }[];
+  let counts: Awaited<ReturnType<typeof upsertImportTransactionsWithCounts>>;
   if (deleteAllOld) {
     const out = await db.transaction(async (tx) => {
       const n = await deleteTransactionsForBrokerImport(
@@ -273,18 +353,16 @@ export async function postImportDegiro(c: Context) {
         degiroBroker.id,
         degiroBroker.userId,
       );
-      const w = await insertImportTransactions(tx, values);
-      return { n, w };
+      const c = await upsertImportTransactionsWithCounts(tx, values);
+      return { n, c };
     });
     deletedOld = out.n;
-    written = out.w;
+    counts = out.c;
   } else {
-    written = await insertImportTransactions(db, values);
+    counts = await upsertImportTransactionsWithCounts(db, values);
   }
 
-  const processed = values.length;
-  const changed = written.length;
-  const unchanged = processed - changed;
+  const { processed, changed, unchanged, added, updated } = counts;
 
   for (const v of values) {
     await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
@@ -300,6 +378,8 @@ export async function postImportDegiro(c: Context) {
     processed,
     changed,
     unchanged,
+    added,
+    updated,
     ...(deletedOld !== undefined ? { deletedOld } : {}),
   });
 }
@@ -387,6 +467,8 @@ export async function postImportIbkr(c: Context) {
 
   const { instrumentIds } = resolved;
 
+  assignTradeOrderKeysInEncounterOrder(parsed.rows);
+
   const values = parsed.rows.map((r, i) => {
     const instrumentId = instrumentIds[i];
     if (instrumentId === undefined) {
@@ -404,12 +486,15 @@ export async function postImportIbkr(c: Context) {
       currency: r.currency,
       externalSource: IBKR_CSV_EXTERNAL_SOURCE,
       externalId: r.externalId,
+      tradeOrderKey: r.tradeOrderKey,
     };
   });
 
   const deleteAllOldIbkr = parseMultipartBooleanField(body, "deleteAllOld");
   let deletedOldIbkr: number | undefined;
-  let writtenIbkr: { id: number }[];
+  let countsIbkr: Awaited<
+    ReturnType<typeof upsertImportTransactionsWithCounts>
+  >;
   if (deleteAllOldIbkr) {
     const outIbkr = await db.transaction(async (tx) => {
       const n = await deleteTransactionsForBrokerImport(
@@ -417,18 +502,16 @@ export async function postImportIbkr(c: Context) {
         ibkrBroker.id,
         ibkrBroker.userId,
       );
-      const w = await insertImportTransactions(tx, values);
-      return { n, w };
+      const c = await upsertImportTransactionsWithCounts(tx, values);
+      return { n, c };
     });
     deletedOldIbkr = outIbkr.n;
-    writtenIbkr = outIbkr.w;
+    countsIbkr = outIbkr.c;
   } else {
-    writtenIbkr = await insertImportTransactions(db, values);
+    countsIbkr = await upsertImportTransactionsWithCounts(db, values);
   }
 
-  const processed = values.length;
-  const changed = writtenIbkr.length;
-  const unchanged = processed - changed;
+  const { processed, changed, unchanged, added, updated } = countsIbkr;
 
   for (const v of values) {
     await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
@@ -444,6 +527,8 @@ export async function postImportIbkr(c: Context) {
     processed,
     changed,
     unchanged,
+    added,
+    updated,
     ...(deletedOldIbkr !== undefined ? { deletedOld: deletedOldIbkr } : {}),
   });
 }
@@ -593,6 +678,8 @@ export async function postImportSeligson(c: Context) {
     }
   }
 
+  assignTradeOrderKeysInEncounterOrder(rowsForImport);
+
   const values = rowsForImport.map((r) => {
     const instrumentId = instrumentIdByFundName.get(
       normalizeSeligsonFundNameForMatch(r.fundName),
@@ -612,12 +699,13 @@ export async function postImportSeligson(c: Context) {
       currency: r.currency,
       externalSource: SELIGSON_TSV_EXTERNAL_SOURCE,
       externalId: r.externalId,
+      tradeOrderKey: r.tradeOrderKey,
     };
   });
 
   const deleteAllOldSg = parseMultipartBooleanField(body, "deleteAllOld");
   let deletedOldSg: number | undefined;
-  let writtenSg: { id: number }[];
+  let countsSg: Awaited<ReturnType<typeof upsertImportTransactionsWithCounts>>;
   if (deleteAllOldSg) {
     const outSg = await db.transaction(async (tx) => {
       const n = await deleteTransactionsForBrokerImport(
@@ -625,18 +713,16 @@ export async function postImportSeligson(c: Context) {
         seligsonBroker.id,
         seligsonBroker.userId,
       );
-      const w = await insertImportTransactions(tx, values);
-      return { n, w };
+      const c = await upsertImportTransactionsWithCounts(tx, values);
+      return { n, c };
     });
     deletedOldSg = outSg.n;
-    writtenSg = outSg.w;
+    countsSg = outSg.c;
   } else {
-    writtenSg = await insertImportTransactions(db, values);
+    countsSg = await upsertImportTransactionsWithCounts(db, values);
   }
 
-  const processed = values.length;
-  const changed = writtenSg.length;
-  const unchanged = processed - changed;
+  const { processed, changed, unchanged, added, updated } = countsSg;
 
   for (const v of values) {
     await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
@@ -652,6 +738,8 @@ export async function postImportSeligson(c: Context) {
     processed,
     changed,
     unchanged,
+    added,
+    updated,
     ...(skippedRows > 0 ? { skippedRows } : {}),
     ...(deletedOldSg !== undefined ? { deletedOld: deletedOldSg } : {}),
   });
@@ -792,6 +880,8 @@ export async function postImportSvea(c: Context) {
 
   const instrumentId = cashInst.id;
 
+  assignTradeOrderKeysInEncounterOrder(parsed.rows);
+
   const values = parsed.rows.map((r) => ({
     userId: sveaBroker.userId,
     portfolioId: importPortfolioIdSv,
@@ -804,11 +894,12 @@ export async function postImportSvea(c: Context) {
     currency: r.currency,
     externalSource: SVEA_PASTE_EXTERNAL_SOURCE,
     externalId: r.externalId,
+    tradeOrderKey: r.tradeOrderKey,
   }));
 
   const deleteAllOldSv = parseMultipartBooleanField(body, "deleteAllOld");
   let deletedOldSv: number | undefined;
-  let writtenSv: { id: number }[];
+  let countsSv: Awaited<ReturnType<typeof upsertImportTransactionsWithCounts>>;
   if (deleteAllOldSv) {
     const outSv = await db.transaction(async (tx) => {
       const n = await deleteTransactionsForSveaCashAccountImport(
@@ -817,18 +908,16 @@ export async function postImportSvea(c: Context) {
         sveaBroker.userId,
         instrumentId,
       );
-      const w = await insertImportTransactions(tx, values);
-      return { n, w };
+      const c = await upsertImportTransactionsWithCounts(tx, values);
+      return { n, c };
     });
     deletedOldSv = outSv.n;
-    writtenSv = outSv.w;
+    countsSv = outSv.c;
   } else {
-    writtenSv = await insertImportTransactions(db, values);
+    countsSv = await upsertImportTransactionsWithCounts(db, values);
   }
 
-  const processed = values.length;
-  const changed = writtenSv.length;
-  const unchanged = processed - changed;
+  const { processed, changed, unchanged, added, updated } = countsSv;
 
   for (const v of values) {
     await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
@@ -844,6 +933,8 @@ export async function postImportSvea(c: Context) {
     processed,
     changed,
     unchanged,
+    added,
+    updated,
     ...(deletedOldSv !== undefined ? { deletedOld: deletedOldSv } : {}),
   });
 }
