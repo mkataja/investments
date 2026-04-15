@@ -38,6 +38,14 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
     holdingDistributionHistoryAsPercentage,
     setHoldingDistributionHistoryAsPercentage,
   ] = useState(false);
+  const [
+    bucketDistributionHistoryStacked,
+    setBucketDistributionHistoryStacked,
+  ] = useState(false);
+  const [
+    bucketDistributionHistoryIncludeCash,
+    setBucketDistributionHistoryIncludeCash,
+  ] = useState(false);
   const [diamondHandsEnabled, setDiamondHandsEnabled] = useState(false);
   const [hodlPoints, setHodlPoints] = useState<AssetMixHistoryPoint[] | null>(
     null,
@@ -132,12 +140,17 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
     holdingDistributionLineData,
     holdingDistributionLineOptions,
     holdingDistributionHistoryHasData,
+    bucketDistributionLineData,
+    bucketDistributionLineOptions,
+    bucketDistributionHistoryHasData,
   } = usePortfolioCharts(chartProps, {
     assetMixHistoryStacked,
     regionDistributionHistoryStacked,
     sectorDistributionHistoryStacked,
     holdingDistributionHistoryStacked,
     holdingDistributionHistoryAsPercentage,
+    bucketDistributionHistoryStacked,
+    bucketDistributionHistoryIncludeCash,
   });
 
   return (
@@ -479,6 +492,62 @@ export function PortfolioCharts(props: PortfolioChartsProps) {
               <Line
                 data={sectorDistributionLineData}
                 options={sectorDistributionLineOptions}
+              />
+            </div>
+          </div>
+        ) : null}
+        {props.assetMixHistoryPoints.length > 0 &&
+        bucketDistributionHistoryHasData ? (
+          <div className="subsection-stack w-full min-w-0">
+            <div className="flex flex-wrap items-center gap-3 mb-1">
+              <h3 className="mb-0 shrink-0">Bucket distribution over time</h3>
+              <label className="inline-flex cursor-pointer items-center gap-2 select-none text-sm text-slate-600">
+                <span className="relative inline-block h-6 w-11 shrink-0">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={bucketDistributionHistoryStacked}
+                    onChange={(e) =>
+                      setBucketDistributionHistoryStacked(e.target.checked)
+                    }
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full bg-slate-200 transition peer-checked:bg-emerald-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500"
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-[1.25rem]"
+                  />
+                </span>
+                <span>Stacked areas</span>
+              </label>
+              <label className="inline-flex cursor-pointer items-center gap-2 select-none text-sm text-slate-600">
+                <span className="relative inline-block h-6 w-11 shrink-0">
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={bucketDistributionHistoryIncludeCash}
+                    onChange={(e) =>
+                      setBucketDistributionHistoryIncludeCash(e.target.checked)
+                    }
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute inset-0 rounded-full bg-slate-200 transition peer-checked:bg-emerald-500 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-emerald-500"
+                  />
+                  <span
+                    aria-hidden
+                    className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-[1.25rem]"
+                  />
+                </span>
+                <span>Include cash accounts</span>
+              </label>
+            </div>
+            <div className="w-full h-[448px] min-w-0">
+              <Line
+                data={bucketDistributionLineData}
+                options={bucketDistributionLineOptions}
               />
             </div>
           </div>

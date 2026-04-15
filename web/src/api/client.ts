@@ -75,6 +75,24 @@ export async function apiPut(path: string, body?: unknown): Promise<void> {
   }
 }
 
+export async function apiPutJson<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(`${base}${path}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(messageFromErrorResponse(res.status, text));
+  }
+  const text = await res.text();
+  if (text.trim().length === 0) {
+    return undefined as T;
+  }
+  return JSON.parse(text) as T;
+}
+
 export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`${base}${path}`, {
     method: "POST",

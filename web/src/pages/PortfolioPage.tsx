@@ -21,6 +21,7 @@ import { buildInstrumentTickerById } from "./home/instrumentTickerCell";
 import { PortfolioCharts } from "./home/portfolioCharts/PortfolioCharts";
 import type {
   AssetMixHistoryPoint,
+  HoldingBucketOption,
   HomeInstrument,
   HomeTransaction,
   PortfolioDistributions,
@@ -35,7 +36,7 @@ type PortfolioTabPanelsProps = {
   selectedPortfolioLabel: string;
   comparePortfolioLabel: string;
   assetMixHistoryPoints: AssetMixHistoryPoint[];
-  selectedPortfolioId: number | null;
+  selectedPortfolioId: number;
   portfolioHasSellTransactions: boolean;
   selectedIsStatic: boolean;
   selectedIsSynthetic: boolean;
@@ -48,6 +49,9 @@ type PortfolioTabPanelsProps = {
   load: () => void | Promise<void>;
   setError: (message: string | null) => void;
   onEditTransaction: (t: HomeTransaction) => void;
+  holdingBuckets: HoldingBucketOption[];
+  removedBucketNameHints: string[];
+  registerRemovedBucketNames: (names: string[]) => void;
 };
 
 function PortfolioTabPanels({
@@ -71,6 +75,9 @@ function PortfolioTabPanels({
   load,
   setError,
   onEditTransaction,
+  holdingBuckets,
+  removedBucketNameHints,
+  registerRemovedBucketNames,
 }: PortfolioTabPanelsProps) {
   return (
     <div className="page-section">
@@ -105,8 +112,14 @@ function PortfolioTabPanels({
         >
           <HoldingsTable
             portfolio={portfolio}
+            portfolioId={selectedPortfolioId}
+            holdingBuckets={holdingBuckets}
+            removedBucketNameHints={removedBucketNameHints}
+            registerRemovedBucketNames={registerRemovedBucketNames}
             instrumentById={instrumentById}
             instrumentTickerById={instrumentTickerById}
+            load={load}
+            setError={setError}
             hideQtyAndUnitEur={selectedIsStatic}
             hideSectionTitle
           />
@@ -157,6 +170,9 @@ export function PortfolioPage() {
     error,
     setError,
     load,
+    holdingBuckets,
+    removedBucketNameHints,
+    registerRemovedBucketNames,
   } = useHomeData();
 
   const [newPortfolioOpen, setNewPortfolioOpen] = useState(false);
@@ -528,6 +544,9 @@ export function PortfolioPage() {
           transactions={transactions}
           load={load}
           setError={setError}
+          holdingBuckets={holdingBuckets}
+          removedBucketNameHints={removedBucketNameHints}
+          registerRemovedBucketNames={registerRemovedBucketNames}
           onEditTransaction={(t) => {
             setEditingTransaction(t);
             setTxnModalOpen(true);

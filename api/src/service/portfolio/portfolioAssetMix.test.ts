@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bondPrincipalShareFromMergedSectors,
+  commodityHoldingsEurFromValuedPositions,
   commodityPrincipalShareFromMergedSectors,
   computeAssetMixEur,
   computeBondMix,
@@ -247,5 +248,42 @@ describe("equityHoldingsEurFromValuedPositions", () => {
         seligEmpty,
       ),
     ).toEqual({ "1": 100 });
+  });
+});
+
+describe("commodityHoldingsEurFromValuedPositions", () => {
+  const yahooEmpty = new Map<number, unknown>();
+  const seligEmpty = new Map<number, string>();
+
+  it("records commodity positions and skips equity and cash", () => {
+    const stock = {
+      id: 1,
+      kind: "stock",
+      displayName: "ACME",
+      seligsonFundId: null,
+    } as InstrumentRow;
+    const commodity = {
+      id: 2,
+      kind: "commodity",
+      displayName: "Gold",
+      seligsonFundId: null,
+    } as InstrumentRow;
+    const cash = {
+      id: 3,
+      kind: "cash_account",
+      displayName: "EUR cash",
+      seligsonFundId: null,
+    } as InstrumentRow;
+    expect(
+      commodityHoldingsEurFromValuedPositions(
+        [
+          { inst: stock, valueEur: 100 },
+          { inst: commodity, valueEur: 50 },
+          { inst: cash, valueEur: 999 },
+        ],
+        yahooEmpty,
+        seligEmpty,
+      ),
+    ).toEqual({ "2": 50 });
   });
 });

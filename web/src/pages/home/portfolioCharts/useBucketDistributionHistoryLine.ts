@@ -2,41 +2,54 @@ import type { ChartData, ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { CHART_TOOLTIP_STYLE } from "../../../lib/chart/chartTooltipConstants";
 import { formatInstantForDisplay } from "../../../lib/dateTimeFormat";
+import { formatPercentageValueForDisplay } from "../../../lib/numberFormat";
 import {
-  formatIntegerForDisplay,
-  formatPercentageValueForDisplay,
-} from "../../../lib/numberFormat";
-import { portfolioHoldingChartColorForIndex } from "../../../lib/portfolioChartPalette";
+  PORTFOLIO_ASSET_MIX_COLORS,
+  portfolioHoldingChartColorForIndex,
+} from "../../../lib/portfolioChartPalette";
 import type { AssetMixHistoryPoint, PortfolioDistributions } from "../types";
 import { DISTRIBUTION_BAR_CHART_GRID_STROKE } from "./distributionBarChartOptions";
 import { HISTORY_LINE_LEGEND_LABELS } from "./historyLineChartStyle";
-import {
-  lineChartValueFromRawSeries,
-  yTickShort,
-} from "./portfolioHistorySeriesChartUtils";
+import { lineChartValueFromRawSeries } from "./portfolioHistorySeriesChartUtils";
 
-type HoldingDistributionHistoryChartResult = {
+type BucketDistributionHistoryChartResult = {
   data: ChartData<"line">;
   options: ChartOptions<"line">;
   hasData: boolean;
 };
 
-function holdingsEurMergedFromPoint(
-  p: AssetMixHistoryPoint,
-): Record<string, number> {
-  return {
-    ...(p.holdingsEur ?? {}),
-    ...(p.commodityHoldingsEur ?? {}),
-  };
+function bucketLabelForPosition(
+  p: PortfolioDistributions["positions"][number],
+): string {
+  if (p.customBucketName != null) {
+    return p.customBucketName;
+  }
+  if (p.assetClass === "cash_account") {
+    return "Cash";
+  }
+  if (p.assetClass === "commodity") {
+    return "Commodities";
+  }
+  return "Other";
 }
 
-function instrumentKeysOrderedByMaxEur(
+function instrumentIdToBucketLabel(
+  positions: PortfolioDistributions["positions"],
+): Map<number, string> {
+  return new Map(
+    positions.map((p) => [p.instrumentId, bucketLabelForPosition(p)] as const),
+  );
+}
+
+function bucketKeysOrderedByMaxEur(
   points: AssetMixHistoryPoint[],
+  idToBucket: Map<number, string>,
+  includeCashAccounts: boolean,
 ): string[] {
   const maxEur = points.reduce(
     (acc, p) => {
-      const m = holdingsEurMergedFromPoint(p);
-      return Object.entries(m).reduce((inner, [k, v]) => {
+      const row = bucketTotalsPerPoint(p, idToBucket, includeCashAccounts);
+      return Object.entries(row).reduce((inner, [k, v]) => {
         if (typeof v === "number" && Number.isFinite(v) && v > 0) {
           inner[k] = Math.max(inner[k] ?? 0, v);
         }
@@ -51,43 +64,52 @@ function instrumentKeysOrderedByMaxEur(
     .map(([k]) => k);
 }
 
-function holdingLabelForInstrumentKey(
-  key: string,
-  nameById: ReadonlyMap<number, string>,
-): string {
-  const id = Number.parseInt(key, 10);
-  if (!Number.isFinite(id)) {
-    return key;
+function bucketTotalsPerPoint(
+  p: AssetMixHistoryPoint,
+  idToBucket: Map<number, string>,
+  includeCashAccounts: boolean,
+): Record<string, number> {
+  const row: Record<string, number> = {};
+  const mergeHoldings = (rec: Record<string, number>) => {
+    for (const [k, v] of Object.entries(rec)) {
+      if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) {
+        continue;
+      }
+      const id = Number.parseInt(k, 10);
+      if (!Number.isFinite(id)) {
+        continue;
+      }
+      const bucket = idToBucket.get(id) ?? "Other";
+      row[bucket] = (row[bucket] ?? 0) + v;
+    }
+  };
+  mergeHoldings(p.holdingsEur ?? {});
+  mergeHoldings(p.commodityHoldingsEur ?? {});
+  if (includeCashAccounts) {
+    const cash = p.cashTotalEur;
+    if (typeof cash === "number" && Number.isFinite(cash) && cash > 0) {
+      row.Cash = (row.Cash ?? 0) + cash;
+    }
   }
-  const n = nameById.get(id);
-  return n !== undefined && n !== "" ? n : `#${id}`;
+  return row;
 }
 
-export function useHoldingDistributionHistoryLine(
+export function useBucketDistributionHistoryLine(
   points: AssetMixHistoryPoint[],
   stacked: boolean,
   positions: PortfolioDistributions["positions"],
-  instrumentDisplayNameById: ReadonlyMap<number, string> | undefined,
-  asPercentage: boolean,
-): HoldingDistributionHistoryChartResult {
-  const nameById = useMemo(() => {
-    const m = new Map<number, string>();
-    if (instrumentDisplayNameById !== undefined) {
-      for (const [id, name] of instrumentDisplayNameById) {
-        m.set(id, name);
-      }
-    }
-    for (const p of positions) {
-      m.set(p.instrumentId, p.displayName);
-    }
-    return m;
-  }, [positions, instrumentDisplayNameById]);
+  /** When false (default), omits aggregate cash-account EUR (`cashTotalEur`) from the series. */
+  includeCashAccounts: boolean,
+): BucketDistributionHistoryChartResult {
+  const idToBucket = useMemo(
+    () => instrumentIdToBucketLabel(positions),
+    [positions],
+  );
 
   return useMemo(() => {
     const formatPct = (n: number) => formatPercentageValueForDisplay(n);
-    const formatEur = (n: number) => `${formatIntegerForDisplay(n)} EUR`;
 
-    const empty = (): HoldingDistributionHistoryChartResult => ({
+    const empty = (): BucketDistributionHistoryChartResult => ({
       data: { labels: [], datasets: [] },
       options: {
         responsive: true,
@@ -100,20 +122,26 @@ export function useHoldingDistributionHistoryLine(
       return empty();
     }
 
-    const orderedKeys = instrumentKeysOrderedByMaxEur(points);
+    const orderedKeys = bucketKeysOrderedByMaxEur(
+      points,
+      idToBucket,
+      includeCashAccounts,
+    );
     if (orderedKeys.length === 0) {
       return empty();
     }
 
-    const rowsByPoint = points.map((p) => holdingsEurMergedFromPoint(p));
+    const rowsByPoint = points.map((p) =>
+      bucketTotalsPerPoint(p, idToBucket, includeCashAccounts),
+    );
 
     const xLabels = [...points.map((p) => formatInstantForDisplay(p.date)), ""];
 
     const filteredSpecs = orderedKeys
-      .map((instrumentKey, idx) => {
-        const rawSeries = rowsByPoint.map((m) => m[instrumentKey] ?? 0);
+      .map((bucketKey, idx) => {
+        const rawSeries = rowsByPoint.map((m) => m[bucketKey] ?? 0);
         return {
-          instrumentKey,
+          bucketKey,
           idx,
           rawSeries,
         };
@@ -134,8 +162,8 @@ export function useHoldingDistributionHistoryLine(
       ),
     );
 
-    const pctSpecs = filteredSpecs.map(({ instrumentKey, idx, rawSeries }) => ({
-      instrumentKey,
+    const pctSpecs = filteredSpecs.map(({ bucketKey, idx, rawSeries }) => ({
+      bucketKey,
       idx,
       pctSeries: rawSeries.map((eur, j) => {
         const t = totalEurAtDate[j] ?? 0;
@@ -146,17 +174,11 @@ export function useHoldingDistributionHistoryLine(
       }),
     }));
 
-    const chartSpecs = asPercentage
-      ? pctSpecs.map((s) => ({
-          instrumentKey: s.instrumentKey,
-          idx: s.idx,
-          valueSeries: s.pctSeries,
-        }))
-      : filteredSpecs.map((s) => ({
-          instrumentKey: s.instrumentKey,
-          idx: s.idx,
-          valueSeries: s.rawSeries,
-        }));
+    const chartSpecs = pctSpecs.map((s) => ({
+      bucketKey: s.bucketKey,
+      idx: s.idx,
+      valueSeries: s.pctSeries,
+    }));
 
     const xScaleTicks = {
       font: { size: 14 },
@@ -185,9 +207,7 @@ export function useHoldingDistributionHistoryLine(
         if (!Number.isFinite(v)) {
           return "";
         }
-        return asPercentage
-          ? formatPercentageValueForDisplay(v, { decimalPlaces: 0 })
-          : yTickShort(v);
+        return formatPercentageValueForDisplay(v, { decimalPlaces: 0 });
       },
     };
 
@@ -215,8 +235,13 @@ export function useHoldingDistributionHistoryLine(
 
     const data: ChartData<"line"> = {
       labels: xLabels,
-      datasets: chartSpecs.map(({ instrumentKey, idx, valueSeries }) => {
-        const fill = portfolioHoldingChartColorForIndex(idx);
+      datasets: chartSpecs.map(({ bucketKey, idx, valueSeries }) => {
+        const fill =
+          bucketKey === "Cash"
+            ? PORTFOLIO_ASSET_MIX_COLORS.cashExcess
+            : bucketKey === "Commodities"
+              ? PORTFOLIO_ASSET_MIX_COLORS.commodityOther
+              : portfolioHoldingChartColorForIndex(idx);
         const series = [
           ...valueSeries.map((_, j) =>
             lineChartValueFromRawSeries(valueSeries, j),
@@ -224,11 +249,11 @@ export function useHoldingDistributionHistoryLine(
           null,
         ] as (number | null)[];
         return {
-          label: holdingLabelForInstrumentKey(instrumentKey, nameById),
+          label: bucketKey,
           data: series,
           ...(stacked
             ? {
-                stack: "holdingDist",
+                stack: "bucketDist",
                 backgroundColor: fill,
                 fill: true,
               }
@@ -271,7 +296,7 @@ export function useHoldingDistributionHistoryLine(
         y: {
           stacked,
           min: 0,
-          ...(stacked && asPercentage ? { max: 100 } : {}),
+          ...(stacked ? { max: 100 } : {}),
           ticks: yScaleTicks,
           grid: yGrid,
           border: { display: false },
@@ -308,7 +333,7 @@ export function useHoldingDistributionHistoryLine(
               if (typeof n !== "number" || !Number.isFinite(n)) {
                 return "";
               }
-              return `${ctx.dataset.label ?? ""}: ${asPercentage ? formatPct(n) : formatEur(n)}`;
+              return `${ctx.dataset.label ?? ""}: ${formatPct(n)}`;
             },
             footer: (tooltipItems) => {
               const sum = tooltipItems.reduce((acc, it) => {
@@ -319,7 +344,7 @@ export function useHoldingDistributionHistoryLine(
               if (!(sum > 0)) {
                 return "";
               }
-              return `Total: ${asPercentage ? formatPct(sum) : formatEur(sum)}`;
+              return `Total: ${formatPct(sum)}`;
             },
           },
         },
@@ -327,5 +352,5 @@ export function useHoldingDistributionHistoryLine(
     };
 
     return { data, options, hasData: true };
-  }, [points, stacked, nameById, asPercentage]);
+  }, [points, stacked, idToBucket, includeCashAccounts]);
 }

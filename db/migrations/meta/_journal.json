@@ -365,6 +365,13 @@
       "when": 1776283091862,
       "tag": "0051_outstanding_namora",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1776287228455,
+      "tag": "0052_stiff_silvermane",
+      "breakpoints": true
     }
   ]
 }

@@ -29,6 +29,7 @@ import { loadPortfolioOwnedByUser } from "./portfolioAccess.js";
 import {
   buildMergedSectorsForAssetMix,
   buildPortfolioCountryWeightsForDisplay,
+  commodityHoldingsEurFromValuedPositions,
   computeAssetMixEur,
   equityHoldingsEurFromValuedPositions,
   equitySectorsEurFromSnapshot,
@@ -159,6 +160,8 @@ type AssetMixHistoryPointRow = {
   portfolioRegionsEur: Record<string, number>;
   /** Equity-class position value in EUR per instrument id string (same classification as positions table). */
   holdingsEur: Record<string, number>;
+  /** Commodity-class position value in EUR per instrument id string. */
+  commodityHoldingsEur: Record<string, number>;
   /** Cumulative virtual leverage from security sells after cash is depleted (≤ 0); 0 when `variant` is `actual`. */
   virtualLeverageEur: number;
   /** Cumulative interest on `virtualLeverageEur` principal (≤ 0); 0 when `variant` is `actual`. */
@@ -170,8 +173,9 @@ type AssetMixHistoryPointRow = {
  * when the weekly grid does not land on today. Each point matches **asset mix** slices from
  * `computeAssetMixEur` (same sleeves as the asset mix pie), including emergency fund split for cash
  * in accounts, plus `equitySectorsEur` (equity sleeve only, same sector keys as the sectors bar chart),
- * `portfolioRegionsEur` (same geo buckets as the regions bar chart), and `holdingsEur` (EUR per
- * equity-class instrument id; bonds, commodities, cash excluded).
+ * `portfolioRegionsEur` (same geo buckets as the regions bar chart), `holdingsEur` (EUR per
+ * equity-class instrument id; bonds and cash excluded), and `commodityHoldingsEur` (commodity-class
+ * instruments only).
  * Stops when any non-cash position lacks a price on or before the date. Distribution
  * snapshots: earliest `snapshot_date >= asOf` per instrument (next snapshot fills gaps); if as-of is
  * after all snapshots, the newest snapshot is used. Prices still use latest `price_date <= asOf`.
@@ -413,6 +417,7 @@ export async function getPortfolioAssetMixHistory(
         equitySectorsEur: {},
         portfolioRegionsEur: {},
         holdingsEur: {},
+        commodityHoldingsEur: {},
         virtualLeverageEur: virtualEur,
         virtualLeverageInterestEur: virtualInterestEur,
       });
@@ -489,6 +494,11 @@ export async function getPortfolioAssetMixHistory(
       yahooRawByIdForHoldings,
       seligsonNameByIdForHoldings,
     );
+    const commodityHoldingsEur = commodityHoldingsEurFromValuedPositions(
+      valuedFull,
+      yahooRawByIdForHoldings,
+      seligsonNameByIdForHoldings,
+    );
     points.push({
       date: d,
       ...mix,
@@ -496,6 +506,7 @@ export async function getPortfolioAssetMixHistory(
       equitySectorsEur,
       portfolioRegionsEur,
       holdingsEur,
+      commodityHoldingsEur,
       virtualLeverageEur: virtualEur,
       virtualLeverageInterestEur: virtualInterestEur,
     });

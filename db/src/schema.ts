@@ -323,6 +323,61 @@ export const portfolioBenchmarkWeights = pgTable(
   ],
 );
 
+/**
+ * User-defined labels for grouping holdings (Holdings tab bucket column).
+ */
+export const holdingCustomBuckets = pgTable(
+  "holding_custom_buckets",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("holding_custom_buckets_user_name_uidx").on(t.userId, t.name),
+    check(
+      "holding_custom_buckets_name_trim_ck",
+      sql`length(trim(${t.name})) > 0`,
+    ),
+  ],
+);
+
+/**
+ * Which custom bucket a position belongs to for a portfolio (unassigned = UI "Other").
+ */
+export const portfolioHoldingBucketAssignments = pgTable(
+  "portfolio_holding_bucket_assignments",
+  {
+    portfolioId: integer("portfolio_id")
+      .notNull()
+      .references(() => portfolios.id, { onDelete: "cascade" }),
+    instrumentId: integer("instrument_id")
+      .notNull()
+      .references(() => instruments.id, { onDelete: "restrict" }),
+    bucketId: integer("bucket_id")
+      .notNull()
+      .references(() => holdingCustomBuckets.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.portfolioId, t.instrumentId] }),
+    index("portfolio_holding_bucket_assignments_bucket_id_idx").on(t.bucketId),
+  ],
+);
+
 export const transactions = pgTable(
   "transactions",
   {
@@ -598,6 +653,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   brokers: many(brokers),
   transactions: many(transactions),
   portfolios: many(portfolios),
+  holdingCustomBuckets: many(holdingCustomBuckets),
 }));
 
 export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
@@ -607,6 +663,7 @@ export const portfoliosRelations = relations(portfolios, ({ one, many }) => ({
   }),
   transactions: many(transactions),
   benchmarkWeights: many(portfolioBenchmarkWeights),
+  holdingBucketAssignments: many(portfolioHoldingBucketAssignments),
 }));
 
 export const portfolioBenchmarkWeightsRelations = relations(
@@ -619,6 +676,35 @@ export const portfolioBenchmarkWeightsRelations = relations(
     instrument: one(instruments, {
       fields: [portfolioBenchmarkWeights.instrumentId],
       references: [instruments.id],
+    }),
+  }),
+);
+
+export const holdingCustomBucketsRelations = relations(
+  holdingCustomBuckets,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [holdingCustomBuckets.userId],
+      references: [users.id],
+    }),
+    assignments: many(portfolioHoldingBucketAssignments),
+  }),
+);
+
+export const portfolioHoldingBucketAssignmentsRelations = relations(
+  portfolioHoldingBucketAssignments,
+  ({ one }) => ({
+    portfolio: one(portfolios, {
+      fields: [portfolioHoldingBucketAssignments.portfolioId],
+      references: [portfolios.id],
+    }),
+    instrument: one(instruments, {
+      fields: [portfolioHoldingBucketAssignments.instrumentId],
+      references: [instruments.id],
+    }),
+    bucket: one(holdingCustomBuckets, {
+      fields: [portfolioHoldingBucketAssignments.bucketId],
+      references: [holdingCustomBuckets.id],
     }),
   }),
 );
@@ -656,6 +742,7 @@ export const instrumentsRelations = relations(instruments, ({ one, many }) => ({
     relationName: "compositeConstituentsParent",
   }),
   portfolioBenchmarkWeights: many(portfolioBenchmarkWeights),
+  holdingBucketAssignments: many(portfolioHoldingBucketAssignments),
   transactions: many(transactions),
   yahooFinanceCache: one(yahooFinanceCache, {
     fields: [instruments.id],

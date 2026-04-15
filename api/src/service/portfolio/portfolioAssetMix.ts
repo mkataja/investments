@@ -306,6 +306,42 @@ export function equityHoldingsEurFromValuedPositions(
 }
 
 /**
+ * Commodity sleeve only: position value in EUR per instrument id string.
+ * Same `classifyNonCashInstrument` rules as portfolio `positions[].assetClass`.
+ */
+export function commodityHoldingsEurFromValuedPositions(
+  valued: Array<{ inst: InstrumentRow; valueEur: number }>,
+  yahooRawById: ReadonlyMap<number, unknown>,
+  seligsonNameById: ReadonlyMap<number, string>,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const { inst, valueEur } of valued) {
+    if (inst.kind === "cash_account") {
+      continue;
+    }
+    if (
+      typeof valueEur !== "number" ||
+      !Number.isFinite(valueEur) ||
+      valueEur <= 0
+    ) {
+      continue;
+    }
+    const yahooRaw = yahooRawById.get(inst.id) ?? null;
+    const seligsonName =
+      inst.seligsonFundId != null
+        ? (seligsonNameById.get(inst.seligsonFundId) ?? null)
+        : null;
+    if (
+      classifyNonCashInstrument(inst, yahooRaw, seligsonName) !== "commodity"
+    ) {
+      continue;
+    }
+    out[String(inst.id)] = valueEur;
+  }
+  return out;
+}
+
+/**
  * EUR per equity-sector bucket (same keys as web `equitySectorsForDisplay` on merged sectors),
  * using the equity sleeve from `computeAssetMixEur`.
  */

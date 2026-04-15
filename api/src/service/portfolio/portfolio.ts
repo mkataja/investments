@@ -1,11 +1,17 @@
-import { instruments, seligsonFunds, yahooFinanceCache } from "@investments/db";
+import {
+  holdingCustomBuckets,
+  instruments,
+  portfolioHoldingBucketAssignments,
+  seligsonFunds,
+  yahooFinanceCache,
+} from "@investments/db";
 import type { DistributionPayload } from "@investments/lib/distributionPayload";
 import { NEAR_WHOLE_EPSILON } from "@investments/lib/float";
 import { resolveRegionKeyToIso } from "@investments/lib/geo/countryIso";
 import { aggregateRegionsToGeoBuckets } from "@investments/lib/geo/geoBuckets";
 import { instrumentTickerDisplay } from "@investments/lib/instrumentKind";
 import { MIN_PORTFOLIO_ALLOCATION_FRACTION } from "@investments/lib/minPortfolioAllocationFraction";
-import { type InferSelectModel, inArray } from "drizzle-orm";
+import { type InferSelectModel, eq, inArray } from "drizzle-orm";
 import { db } from "../../db.js";
 import { distributionGeoScaleForCountryMerge } from "../instrument/distributionGeoScale.js";
 import { loadLatestDistributionRowsByInstrumentIds } from "../instrument/latestPriceDistribution.js";
@@ -28,7 +34,7 @@ import {
   embeddedCashAndPrincipalEur,
   finalizeMergedSectorWeights,
 } from "./portfolioAssetMix.js";
-import { loadOpenPositionsForPortfolio } from "./positions.js";
+import { loadNetPositionsForPortfolio } from "./positions.js";
 import { valuePortfolioRowsEur } from "./valuation.js";
 
 const PORTFOLIO_UNKNOWN_COUNTRY = "__portfolio_unknown__";
@@ -190,6 +196,11 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     valuationSource: string;
     /** UI grouping (Yahoo/Seligson heuristics); not used for merged distribution charts. */
     assetClass: NonCashAssetClass | "cash_account";
+    /**
+     * User-defined bucket label from DB, or defaults when unassigned: `"Cash"` for cash accounts,
+     * `"Commodities"` for commodity instruments. Null means UI default "Other" (elsewhere).
+     */
+    customBucketName: string | null;
   }>;
   /** Top holdings per distribution bucket (region / sector / country key). */
   bucketTopHoldings: {
@@ -266,7 +277,7 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     }
     valued = backtest;
   } else {
-    const pos = await loadOpenPositionsForPortfolio(portfolioId);
+    const pos = await loadNetPositionsForPortfolio(portfolioId);
     if (pos.length === 0) {
       return {
         countries: {},
@@ -463,6 +474,22 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
     missingSectorW,
   );
 
+  const assignmentRows = await db
+    .select({
+      instrumentId: portfolioHoldingBucketAssignments.instrumentId,
+      name: holdingCustomBuckets.name,
+    })
+    .from(portfolioHoldingBucketAssignments)
+    .innerJoin(
+      holdingCustomBuckets,
+      eq(portfolioHoldingBucketAssignments.bucketId, holdingCustomBuckets.id),
+    )
+    .where(eq(portfolioHoldingBucketAssignments.portfolioId, portfolioId));
+
+  const customBucketByInstrumentId = new Map(
+    assignmentRows.map((r) => [r.instrumentId, r.name] as const),
+  );
+
   const positions = valued.map((row) => {
     const qty = row.qty;
     const valueEur = row.valueEur;
@@ -489,6 +516,13 @@ export async function getPortfolioDistributions(portfolioId: number): Promise<{
       valueEur,
       valuationSource: row.source,
       assetClass,
+      customBucketName:
+        customBucketByInstrumentId.get(row.inst.id) ??
+        (row.inst.kind === "cash_account"
+          ? "Cash"
+          : assetClass === "commodity"
+            ? "Commodities"
+            : null),
     };
   });
 

@@ -11,13 +11,24 @@ import {
   formatUnitPriceForDisplay,
 } from "../../lib/numberFormat";
 import { ExportHoldingsModal } from "./ExportHoldingsModal";
+import { HoldingBucketCell } from "./HoldingBucketCell";
 import { instrumentTickerCell } from "./instrumentTickerCell";
-import type { HomeInstrument, PortfolioDistributions } from "./types";
+import type {
+  HoldingBucketOption,
+  HomeInstrument,
+  PortfolioDistributions,
+} from "./types";
 
 type HoldingsTableProps = {
   portfolio: PortfolioDistributions;
+  portfolioId: number;
+  holdingBuckets: HoldingBucketOption[];
+  removedBucketNameHints: string[];
+  registerRemovedBucketNames: (names: string[]) => void;
   instrumentById: Map<number, HomeInstrument>;
   instrumentTickerById: Map<number, string | null>;
+  load: () => void | Promise<void>;
+  setError: (message: string | null) => void;
   /** Static/backtest portfolios use synthetic notionals; hide quantity and unit price columns. */
   hideQtyAndUnitEur?: boolean;
   /** When true, omit the section h2 (e.g. when a parent tab bar labels the view). */
@@ -39,6 +50,7 @@ function HoldingsColGroup({
     <colgroup>
       <col />
       <col className="holdings-col-ticker" />
+      <col className="holdings-col-bucket" />
       {hideQtyAndUnitEur ? null : (
         <>
           <col className="holdings-col-qty" />
@@ -61,6 +73,12 @@ function HoldingsSubtable({
   instrumentTickerById,
   setHoldingTooltip,
   hideQtyAndUnitEur,
+  portfolioId,
+  holdingBuckets,
+  removedBucketNameHints,
+  registerRemovedBucketNames,
+  load,
+  setError,
 }: {
   title: string;
   rows: PortfolioPosition[];
@@ -72,6 +90,12 @@ function HoldingsSubtable({
     SetStateAction<HoldingDistributionTooltipState | null>
   >;
   hideQtyAndUnitEur?: boolean;
+  portfolioId: number;
+  holdingBuckets: HoldingBucketOption[];
+  removedBucketNameHints: string[];
+  registerRemovedBucketNames: (names: string[]) => void;
+  load: () => void | Promise<void>;
+  setError: (message: string | null) => void;
 }) {
   if (rows.length === 0) {
     return null;
@@ -89,6 +113,7 @@ function HoldingsSubtable({
             <tr>
               <th className="text-left p-2 font-medium">Instrument</th>
               <th className="text-left p-2 font-medium">Ticker</th>
+              <th className="text-left p-2 font-medium">Bucket</th>
               {hideQtyAndUnitEur ? null : (
                 <>
                   <th className="text-right p-2 font-medium">Qty</th>
@@ -141,6 +166,18 @@ function HoldingsSubtable({
                   <td className="p-2 text-left tabular-nums text-slate-700">
                     {ticker}
                   </td>
+                  <td className="p-1 align-middle min-w-0">
+                    <HoldingBucketCell
+                      portfolioId={portfolioId}
+                      instrumentId={p.instrumentId}
+                      customBucketName={p.customBucketName}
+                      buckets={holdingBuckets}
+                      removedBucketNameHints={removedBucketNameHints}
+                      onUpdated={load}
+                      onRemovedBucketNames={registerRemovedBucketNames}
+                      onError={setError}
+                    />
+                  </td>
                   {hideQtyAndUnitEur ? null : (
                     <>
                       <td className="p-2 text-right tabular-nums">
@@ -174,8 +211,14 @@ function HoldingsSubtable({
 
 export function HoldingsTable({
   portfolio,
+  portfolioId,
+  holdingBuckets,
+  removedBucketNameHints,
+  registerRemovedBucketNames,
   instrumentById,
   instrumentTickerById,
+  load,
+  setError,
   hideQtyAndUnitEur = false,
   hideSectionTitle = false,
 }: HoldingsTableProps) {
@@ -235,6 +278,12 @@ export function HoldingsTable({
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}
         hideQtyAndUnitEur={hideQtyAndUnitEur}
+        portfolioId={portfolioId}
+        holdingBuckets={holdingBuckets}
+        removedBucketNameHints={removedBucketNameHints}
+        registerRemovedBucketNames={registerRemovedBucketNames}
+        load={load}
+        setError={setError}
       />
       <HoldingsSubtable
         title="Equities"
@@ -245,6 +294,12 @@ export function HoldingsTable({
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}
         hideQtyAndUnitEur={hideQtyAndUnitEur}
+        portfolioId={portfolioId}
+        holdingBuckets={holdingBuckets}
+        removedBucketNameHints={removedBucketNameHints}
+        registerRemovedBucketNames={registerRemovedBucketNames}
+        load={load}
+        setError={setError}
       />
       <HoldingsSubtable
         title="Commodities"
@@ -255,6 +310,12 @@ export function HoldingsTable({
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}
         hideQtyAndUnitEur={hideQtyAndUnitEur}
+        portfolioId={portfolioId}
+        holdingBuckets={holdingBuckets}
+        removedBucketNameHints={removedBucketNameHints}
+        registerRemovedBucketNames={registerRemovedBucketNames}
+        load={load}
+        setError={setError}
       />
       <HoldingsSubtable
         title="Bonds"
@@ -265,6 +326,12 @@ export function HoldingsTable({
         instrumentTickerById={instrumentTickerById}
         setHoldingTooltip={setHoldingTooltip}
         hideQtyAndUnitEur={hideQtyAndUnitEur}
+        portfolioId={portfolioId}
+        holdingBuckets={holdingBuckets}
+        removedBucketNameHints={removedBucketNameHints}
+        registerRemovedBucketNames={registerRemovedBucketNames}
+        load={load}
+        setError={setError}
       />
       <HoldingDistributionTooltipLayer
         tooltip={holdingTooltip}

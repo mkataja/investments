@@ -6,6 +6,7 @@ import { runDevMigrations } from "./runDevMigrations.js";
 import * as brokers from "./service/brokers/index.js";
 import { refreshStaleDistributionCaches } from "./service/distributionCache/refreshDistribution.js";
 import { processFxBackfillQueue } from "./service/fx/fxEurPriceBackfill.js";
+import * as holdingBuckets from "./service/holdingBuckets/index.js";
 import {
   postImportDegiro,
   postImportIbkr,
@@ -119,6 +120,12 @@ app.post(
 app.delete("/instruments/:id", instruments.deleteInstrument);
 
 app.get("/positions", instruments.getPositions);
+app.get("/holding-buckets", holdingBuckets.listHoldingBuckets);
+app.put(
+  "/portfolio/holding-bucket",
+  zValidator("json", holdingBuckets.portfolioHoldingBucketPutIn),
+  holdingBuckets.putPortfolioHoldingBucket,
+);
 app.get("/portfolio/distributions", instruments.getPortfolioDistributionsRoute);
 app.get(
   "/portfolio/asset-mix-history",

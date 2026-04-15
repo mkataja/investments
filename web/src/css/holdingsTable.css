@@ -1,5 +1,6 @@
 :root {
-  --holdings-table-ticker-col-width: 5.5rem;
+  --holdings-table-ticker-col-width: 9rem;
+  --holdings-table-bucket-col-width: 10rem;
   --holdings-table-qty-col-width: 4rem;
   --holdings-table-price-col-width: 7rem;
   --holdings-table-weight-col-width: 6rem;
@@ -13,6 +14,10 @@
 
   .holdings-col-ticker {
     width: var(--holdings-table-ticker-col-width);
+  }
+
+  .holdings-col-bucket {
+    width: var(--holdings-table-bucket-col-width);
   }
 
   .holdings-col-qty {
@@ -43,5 +48,18 @@
   /* Rightmost percentage column: extra inset from table / card edge. */
   .table-col-compact-pct-trailing {
     @apply pr-3;
+  }
+
+  /* Position (top/left) set inline; `fixed` so it is not clipped by table overflow. */
+  .holding-bucket-popover {
+    @apply fixed z-[100] flex min-w-[12rem] max-w-[min(18rem,calc(100vw-2rem))] flex-col overflow-hidden rounded border border-slate-200 bg-white shadow-lg;
+  }
+
+  .holding-bucket-popover-list {
+    @apply max-h-40 overflow-y-auto py-1;
+  }
+
+  .holding-bucket-popover-option {
+    @apply block w-full px-2 py-1.5 text-left text-sm text-slate-800 hover:bg-slate-50;
   }
 }

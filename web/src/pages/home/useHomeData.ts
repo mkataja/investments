@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { apiGet } from "../../api/client";
 import {
   readStoredComparePortfolioId,
@@ -8,6 +8,7 @@ import {
 } from "../../lib/portfolioSelection";
 import type {
   AssetMixHistoryPoint,
+  HoldingBucketOption,
   HomeBroker,
   HomeInstrument,
   HomeTransaction,
@@ -37,6 +38,31 @@ export function useHomeData() {
     () => readStoredComparePortfolioId(),
   );
   const [error, setError] = useState<string | null>(null);
+  const [holdingBuckets, setHoldingBuckets] = useState<HoldingBucketOption[]>(
+    [],
+  );
+  /** Names of buckets removed from the DB this session; merged into picker until portfolio change or the name reappears from the API. */
+  const [removedBucketNamesCache, setRemovedBucketNamesCache] = useState<
+    string[]
+  >([]);
+
+  const registerRemovedBucketNames = useCallback((names: string[]) => {
+    if (names.length === 0) {
+      return;
+    }
+    setRemovedBucketNamesCache((prev) => {
+      const next = new Set([...prev, ...names]);
+      return [...next].sort((a, b) => a.localeCompare(b));
+    });
+  }, []);
+
+  const removedBucketNameHints = useMemo(
+    () =>
+      removedBucketNamesCache.filter(
+        (n) => !holdingBuckets.some((b) => b.name === n),
+      ),
+    [removedBucketNamesCache, holdingBuckets],
+  );
 
   const load = useCallback(async () => {
     setError(null);
@@ -76,10 +102,11 @@ export function useHomeData() {
         setPortfolio(null);
         setComparePortfolio(null);
         setAssetMixHistoryPoints([]);
+        setHoldingBuckets([]);
         return;
       }
       writeStoredPortfolioId(pid);
-      const [b, t, inst, p, pCmp, mixHist] = await Promise.all([
+      const [b, t, inst, p, pCmp, mixHist, hb] = await Promise.all([
         apiGet<HomeBroker[]>("/brokers"),
         apiGet<HomeTransaction[]>(`/transactions?portfolioId=${pid}`),
         apiGet<HomeInstrument[]>("/instruments"),
@@ -94,6 +121,7 @@ export function useHomeData() {
         apiGet<{ points: AssetMixHistoryPoint[] }>(
           `/portfolio/asset-mix-history?portfolioId=${pid}`,
         ),
+        apiGet<{ buckets: HoldingBucketOption[] }>("/holding-buckets"),
       ]);
       setBrokers(b);
       setTransactions(t);
@@ -101,6 +129,7 @@ export function useHomeData() {
       setPortfolio(p);
       setComparePortfolio(pCmp);
       setAssetMixHistoryPoints(mixHist.points);
+      setHoldingBuckets(hb.buckets);
     } catch (e) {
       setError(String(e));
     }
@@ -109,6 +138,11 @@ export function useHomeData() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    void selectedPortfolioId;
+    setRemovedBucketNamesCache([]);
+  }, [selectedPortfolioId]);
 
   return {
     brokers,
@@ -127,5 +161,8 @@ export function useHomeData() {
     error,
     setError,
     load,
+    holdingBuckets,
+    removedBucketNameHints,
+    registerRemovedBucketNames,
   };
 }

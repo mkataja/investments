@@ -58,12 +58,13 @@ function buildHoldingsExportText(
   instrumentById: Map<number, HomeInstrument>,
   instrumentTickerById: Map<number, string | null>,
 ): string {
-  if (positions.length === 0) {
+  const open = positions.filter((p) => Math.abs(p.valueEur) >= 0.01);
+  if (open.length === 0) {
     return "No holdings.";
   }
-  const totalEur = positions.reduce((s, p) => s + p.valueEur, 0);
+  const totalEur = open.reduce((s, p) => s + p.valueEur, 0);
   const rows = buildHoldingsExportRows(
-    positions,
+    open,
     instrumentById,
     instrumentTickerById,
   );

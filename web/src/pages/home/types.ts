@@ -21,6 +21,12 @@ export type HomeInstrument = {
   } | null;
 };
 
+/** Custom holding bucket options from `GET /holding-buckets`. */
+export type HoldingBucketOption = {
+  id: number;
+  name: string;
+};
+
 export type HomeTransaction = {
   id: number;
   portfolioId: number;
@@ -60,6 +66,8 @@ export type AssetMixHistoryPoint = {
   portfolioRegionsEur?: Record<string, number>;
   /** EUR per instrument id string, equity-class positions only (optional on older API responses). */
   holdingsEur?: Record<string, number>;
+  /** EUR per instrument id string, commodity-class positions only (optional on older API responses). */
+  commodityHoldingsEur?: Record<string, number>;
   /** Cumulative virtual leverage when `variant=hodl`; 0 for actual history. */
   virtualLeverageEur: number;
   /** Cumulative loan interest when `variant=hodl` (≤ 0); 0 for actual history. */
@@ -109,6 +117,11 @@ export type PortfolioDistributions = {
     valueEur: number;
     valuationSource: string;
     assetClass: "equity" | "bond" | "commodity" | "cash_account";
+    /**
+     * From API: assigned name, or `"Cash"` / `"Commodities"` for cash account / commodity when
+     * unassigned; null means Other.
+     */
+    customBucketName: string | null;
   }>;
   bucketTopHoldings: {
     regions: Record<string, BucketTopHolding[]>;

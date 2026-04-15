@@ -1,5 +1,6 @@
 import type { PortfolioChartsProps } from "./portfolioChartsTypes";
 import { useAssetMixHistoryLine } from "./useAssetMixHistoryLine";
+import { useBucketDistributionHistoryLine } from "./useBucketDistributionHistoryLine";
 import { useHoldingDistributionHistoryLine } from "./useHoldingDistributionHistoryLine";
 import { usePortfolioDistributionBarCharts } from "./usePortfolioDistributionBarCharts";
 import { usePortfolioPieCharts } from "./usePortfolioPieCharts";
@@ -17,6 +18,9 @@ export function usePortfolioCharts(
     holdingDistributionHistoryStacked?: boolean;
     /** When true, y-axis and tooltips use % of total equity value; when false (default), EUR. */
     holdingDistributionHistoryAsPercentage?: boolean;
+    bucketDistributionHistoryStacked?: boolean;
+    /** When true, adds cash-account aggregate EUR per week to the Cash bucket. Default false. */
+    bucketDistributionHistoryIncludeCash?: boolean;
   },
 ) {
   const bars = usePortfolioDistributionBarCharts(props);
@@ -43,6 +47,12 @@ export function usePortfolioCharts(
     props.instrumentDisplayNameById,
     options?.holdingDistributionHistoryAsPercentage ?? false,
   );
+  const bucketDistributionHistory = useBucketDistributionHistoryLine(
+    props.assetMixHistoryPoints,
+    options?.bucketDistributionHistoryStacked ?? false,
+    props.portfolio.positions,
+    options?.bucketDistributionHistoryIncludeCash ?? false,
+  );
   return {
     portfolio: props.portfolio,
     comparePortfolio: props.comparePortfolio,
@@ -58,6 +68,9 @@ export function usePortfolioCharts(
     holdingDistributionLineData: holdingDistributionHistory.data,
     holdingDistributionLineOptions: holdingDistributionHistory.options,
     holdingDistributionHistoryHasData: holdingDistributionHistory.hasData,
+    bucketDistributionLineData: bucketDistributionHistory.data,
+    bucketDistributionLineOptions: bucketDistributionHistory.options,
+    bucketDistributionHistoryHasData: bucketDistributionHistory.hasData,
     ...bars,
     ...pies,
   };
