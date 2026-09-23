@@ -8,6 +8,14 @@ import { refreshStaleDistributionCaches } from "./service/distributionCache/refr
 import { processFxBackfillQueue } from "./service/fx/fxEurPriceBackfill.js";
 import * as holdingBuckets from "./service/holdingBuckets/index.js";
 import {
+  deleteIbkrFlexSync,
+  getIbkrFlexSync,
+  ibkrFlexSyncPutIn,
+  postIbkrFlexSyncRun,
+  putIbkrFlexSync,
+  startIbkrFlexSyncSchedule,
+} from "./service/import/ibkrFlexSync.js";
+import {
   postImportDegiro,
   postImportIbkr,
   postImportSeligson,
@@ -84,6 +92,14 @@ app.delete("/transactions/:id", transactions.deleteTransaction);
 
 app.post("/import/degiro", postImportDegiro);
 app.post("/import/ibkr", postImportIbkr);
+app.get("/import/ibkr/flex", getIbkrFlexSync);
+app.put(
+  "/import/ibkr/flex",
+  zValidator("json", ibkrFlexSyncPutIn),
+  putIbkrFlexSync,
+);
+app.delete("/import/ibkr/flex", deleteIbkrFlexSync);
+app.post("/import/ibkr/flex/sync", postIbkrFlexSyncRun);
 app.post("/import/seligson", postImportSeligson);
 app.post("/import/svea", postImportSvea);
 
@@ -144,6 +160,8 @@ async function start(): Promise<void> {
   setImmediate(() => {
     void refreshStaleDistributionCaches();
   });
+
+  startIbkrFlexSyncSchedule();
 
   serve({ fetch: app.fetch, port }, (info) => {
     console.log(`API listening on http://localhost:${info.port}`);

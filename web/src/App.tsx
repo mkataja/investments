@@ -8,7 +8,9 @@ import {
   Routes,
   useLocation,
 } from "react-router-dom";
+import { IbkrFlexSyncFailureBanner } from "./components/IbkrFlexSyncFailureBanner";
 import { classNames } from "./lib/css";
+import { IbkrFlexSyncStatusProvider } from "./lib/ibkrFlexSyncStatus";
 import { useSlidingUnderlineIndicator } from "./lib/useSlidingUnderlineIndicator";
 import { BrokersPage } from "./pages/BrokersPage";
 import { ImportPage } from "./pages/ImportPage";
@@ -98,6 +100,7 @@ function AppShell() {
           Brokers
         </NavLink>
       </nav>
+      <IbkrFlexSyncFailureBanner />
       <main className="w-full min-w-0 px-4 sm:px-6 py-6">
         <Routes>
           <Route
@@ -133,7 +136,9 @@ function AppShell() {
 export function App() {
   return (
     <BrowserRouter>
-      <AppShell />
+      <IbkrFlexSyncStatusProvider>
+        <AppShell />
+      </IbkrFlexSyncStatusProvider>
     </BrowserRouter>
   );
 }

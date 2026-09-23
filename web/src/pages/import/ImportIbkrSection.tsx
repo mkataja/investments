@@ -1,5 +1,6 @@
 import type { FormEvent, RefObject } from "react";
 import type { HomeBroker } from "../home/types";
+import { IbkrImportErrorDetails } from "./IbkrImportErrorDetails";
 import { ImportBrokerSection } from "./ImportBrokerSection";
 import type { DegiroOk } from "./types";
 
@@ -100,44 +101,12 @@ export function ImportIbkrSection({
 
   const errorExtra =
     ibkrError !== null ? (
-      <>
-        {ibkrMissingIsins !== null && ibkrMissingIsins.length > 0 ? (
-          <ul className="mt-2 list-disc space-y-0.5 pl-5">
-            {ibkrMissingIsins.map((isin) => (
-              <li key={isin} className="break-words font-mono text-sm">
-                {isin}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {ibkrAmbiguousIsins !== null && ibkrAmbiguousIsins.length > 0 ? (
-          <ul className="mt-2 list-disc space-y-0.5 pl-5">
-            {ibkrAmbiguousIsins.map((isin) => (
-              <li key={isin} className="break-words font-mono text-sm">
-                {isin}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {ibkrMissingSymbols !== null && ibkrMissingSymbols.length > 0 ? (
-          <ul className="mt-2 list-disc space-y-0.5 pl-5">
-            {ibkrMissingSymbols.map((sym) => (
-              <li key={sym} className="break-words font-mono text-sm">
-                {sym}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {ibkrAmbiguousSymbols !== null && ibkrAmbiguousSymbols.length > 0 ? (
-          <ul className="mt-2 list-disc space-y-0.5 pl-5">
-            {ibkrAmbiguousSymbols.map((sym) => (
-              <li key={sym} className="break-words font-mono text-sm">
-                {sym}
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </>
+      <IbkrImportErrorDetails
+        missingIsins={ibkrMissingIsins}
+        ambiguousIsins={ibkrAmbiguousIsins}
+        missingSymbols={ibkrMissingSymbols}
+        ambiguousSymbols={ibkrAmbiguousSymbols}
+      />
     ) : null;
 
   return (

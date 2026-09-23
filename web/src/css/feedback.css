@@ -11,6 +11,18 @@
       py-2;
   }
 
+  /** Error strip under the top nav */
+  .banner-error {
+    @apply text-sm
+      text-red-700
+      bg-red-50
+      border-b
+      border-red-200
+      px-4
+      py-2
+      sm:px-6;
+  }
+
   /** Success / positive inline copy */
   .copy-success {
     @apply text-sm

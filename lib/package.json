@@ -22,6 +22,7 @@
     "./geo/geoBuckets": "./src/geo/geoBuckets.ts",
     "./geo/iso3166Alpha2CountryCodes": "./src/geo/iso3166Alpha2CountryCodes.ts",
     "./holdingsUrl": "./src/holdingsUrl.ts",
+    "./ibkrFlexSync": "./src/ibkrFlexSync.ts",
     "./instrumentComposite": "./src/instrumentComposite.ts",
     "./instrumentKind": "./src/instrumentKind.ts",
     "./instrumentSelectLabel": "./src/instrumentSelectLabel.ts",

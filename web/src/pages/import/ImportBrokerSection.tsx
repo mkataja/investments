@@ -50,7 +50,7 @@ type ImportBrokerSectionProps = {
   deleteAllOldControl?: ImportDeleteAllOldControl;
 };
 
-function ImportSuccessMessage({ result }: { result: DegiroOk }) {
+export function ImportSuccessMessage({ result }: { result: DegiroOk }) {
   const writtenParts: string[] = [];
   if (result.added > 0) {
     writtenParts.push(`${formatIntegerForDisplay(result.added)} added`);

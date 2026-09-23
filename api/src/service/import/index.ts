@@ -1,21 +1,16 @@
-import { instruments, seligsonFunds, transactions } from "@investments/db";
+import { instruments, seligsonFunds } from "@investments/db";
 import { assignTradeOrderKeysInEncounterOrder } from "@investments/lib/transactionSort";
 import { normalizeYahooSymbolForStorage } from "@investments/lib/yahooSymbol";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Context } from "hono";
 import { z } from "zod";
-import { type DbOrTx, db } from "../../db.js";
+import { db } from "../../db.js";
 import { buildDegiroInstrumentProposals } from "../../import/degiroInstrumentProposals.js";
 import { resolveDegiroInstrumentIds } from "../../import/degiroResolveInstruments.js";
 import {
   DEGIRO_CSV_EXTERNAL_SOURCE,
   parseDegiroTransactionsCsv,
 } from "../../import/degiroTransactions.js";
-import { resolveIbkrInstrumentRows } from "../../import/ibkrResolveInstruments.js";
-import {
-  IBKR_CSV_EXTERNAL_SOURCE,
-  parseIbkrTransactionsCsv,
-} from "../../import/ibkrTransactions.js";
 import {
   SELIGSON_TSV_EXTERNAL_SOURCE,
   normalizeSeligsonFundNameForMatch,
@@ -34,7 +29,9 @@ import {
   deleteTransactionsForSveaCashAccountImport,
   parseMultipartBooleanField,
 } from "./deleteBeforeImport.js";
+import { importIbkrCsvText } from "./ibkrImport.js";
 import { resolveImportBrokerFromBody } from "./resolveImportBroker.js";
+import { upsertImportTransactionsWithCounts } from "./upsertImportTransactions.js";
 
 const createDegiroInstrumentsSchema = z.array(
   z.object({
@@ -43,120 +40,6 @@ const createDegiroInstrumentsSchema = z.array(
     kind: z.enum(["etf", "stock"]),
   }),
 );
-
-type TransactionInsertRow = typeof transactions.$inferInsert;
-
-async function insertImportTransactions(
-  client: DbOrTx,
-  values: TransactionInsertRow[],
-) {
-  return client
-    .insert(transactions)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [
-        transactions.brokerId,
-        transactions.externalSource,
-        transactions.externalId,
-      ],
-      set: {
-        userId: sql`excluded.user_id`,
-        portfolioId: sql`excluded.portfolio_id`,
-        tradeDate: sql`excluded.trade_date`,
-        side: sql`excluded.side`,
-        instrumentId: sql`excluded.instrument_id`,
-        quantity: sql`excluded.quantity`,
-        unitPrice: sql`excluded.unit_price`,
-        currency: sql`excluded.currency`,
-        tradeOrderKey: sql`excluded.trade_order_key`,
-      },
-      setWhere: sql`(
-        ${transactions.tradeDate} IS DISTINCT FROM ${sql.raw("excluded.trade_date")}
-        OR ${transactions.side} IS DISTINCT FROM ${sql.raw("excluded.side")}
-        OR ${transactions.instrumentId} IS DISTINCT FROM ${sql.raw("excluded.instrument_id")}
-        OR ${transactions.quantity} IS DISTINCT FROM ${sql.raw("excluded.quantity")}
-        OR ${transactions.unitPrice} IS DISTINCT FROM ${sql.raw("excluded.unit_price")}
-        OR ${transactions.currency} IS DISTINCT FROM ${sql.raw("excluded.currency")}
-        OR ${transactions.portfolioId} IS DISTINCT FROM ${sql.raw("excluded.portfolio_id")}
-        OR ${transactions.tradeOrderKey} IS DISTINCT FROM ${sql.raw("excluded.trade_order_key")}
-      )`,
-    })
-    .returning({ id: transactions.id, externalId: transactions.externalId });
-}
-
-async function upsertImportTransactionsWithCounts(
-  client: DbOrTx,
-  values: TransactionInsertRow[],
-): Promise<{
-  processed: number;
-  changed: number;
-  unchanged: number;
-  added: number;
-  updated: number;
-}> {
-  const first = values[0];
-  if (first === undefined) {
-    throw new Error("upsertImportTransactionsWithCounts: empty values");
-  }
-  const brokerId = first.brokerId;
-  const externalSource = first.externalSource;
-  if (brokerId == null || externalSource == null) {
-    throw new Error(
-      "upsertImportTransactionsWithCounts: missing brokerId or externalSource",
-    );
-  }
-  const uniqueIds = [
-    ...new Set(
-      values.map((v) => v.externalId).filter((id): id is string => id != null),
-    ),
-  ];
-  const existingRows =
-    uniqueIds.length === 0
-      ? []
-      : await client
-          .select({ externalId: transactions.externalId })
-          .from(transactions)
-          .where(
-            and(
-              eq(transactions.brokerId, brokerId),
-              eq(transactions.externalSource, externalSource),
-              inArray(transactions.externalId, uniqueIds),
-            ),
-          );
-  const existingBefore = new Set(
-    existingRows
-      .map((r) => r.externalId)
-      .filter((id): id is string => id != null),
-  );
-  const written = await insertImportTransactions(client, values);
-  const returned = new Set(
-    written.map((w) => w.externalId).filter((id): id is string => id != null),
-  );
-  let added = 0;
-  let updated = 0;
-  for (const v of values) {
-    const ext = v.externalId;
-    if (ext == null) {
-      continue;
-    }
-    if (returned.has(ext)) {
-      if (existingBefore.has(ext)) {
-        updated++;
-      } else {
-        added++;
-      }
-    }
-  }
-  const processed = values.length;
-  const changed = written.length;
-  return {
-    processed,
-    changed,
-    unchanged: processed - changed,
-    added,
-    updated,
-  };
-}
 
 /** Multipart: `file`, optional `deleteAllOld` (remove all transactions for the import broker before upsert). */
 export async function postImportDegiro(c: Context) {
@@ -401,136 +284,8 @@ export async function postImportIbkr(c: Context) {
   }
   const csvText = await (file as File).text();
 
-  const parsed = parseIbkrTransactionsCsv(csvText);
-  if (!parsed.ok) {
-    return c.json(
-      { message: "CSV validation failed", errors: parsed.errors },
-      400,
-    );
-  }
-  if (parsed.rows.length === 0) {
-    return c.json({ message: "No transaction rows to import" }, 400);
-  }
-
-  const resolvedIbkrBroker = await resolveImportBrokerFromBody(
-    body,
-    "exchange",
-    "IBKR",
-  );
-  if (!resolvedIbkrBroker.ok) {
-    return c.json(
-      { message: resolvedIbkrBroker.message },
-      resolvedIbkrBroker.status,
-    );
-  }
-  const ibkrBroker = resolvedIbkrBroker.broker;
-
-  const resolvedPortfolioIbkr = await resolvePortfolioIdFromImportBody(body);
-  if (!resolvedPortfolioIbkr.ok) {
-    const m = resolvedPortfolioIbkr.message;
-    if (resolvedPortfolioIbkr.status === 400) {
-      return c.json({ message: m }, 400);
-    }
-    if (resolvedPortfolioIbkr.status === 404) {
-      return c.json({ message: m }, 404);
-    }
-    return c.json({ message: m }, 500);
-  }
-  const importPortfolioIdIbkr = resolvedPortfolioIbkr.portfolioId;
-
-  const instRows = await db
-    .select()
-    .from(instruments)
-    .where(inArray(instruments.kind, ["etf", "stock", "custom", "commodity"]));
-
-  const resolved = resolveIbkrInstrumentRows(
-    parsed.rows.map((r) => ({ symbolRaw: r.symbolRaw, isin: r.isin })),
-    instRows,
-  );
-  if (!resolved.ok) {
-    return c.json(
-      {
-        message: resolved.message,
-        missingSymbols: resolved.missingSymbols,
-        ambiguousSymbols: resolved.ambiguousSymbols,
-        ...(resolved.ambiguousIsins != null &&
-        resolved.ambiguousIsins.length > 0
-          ? { ambiguousIsins: resolved.ambiguousIsins }
-          : {}),
-        ...(resolved.missingIsins != null && resolved.missingIsins.length > 0
-          ? { missingIsins: resolved.missingIsins }
-          : {}),
-      },
-      400,
-    );
-  }
-
-  const { instrumentIds } = resolved;
-
-  assignTradeOrderKeysInEncounterOrder(parsed.rows);
-
-  const values = parsed.rows.map((r, i) => {
-    const instrumentId = instrumentIds[i];
-    if (instrumentId === undefined) {
-      throw new Error(`Missing instrument for row ${i}`);
-    }
-    return {
-      userId: ibkrBroker.userId,
-      portfolioId: importPortfolioIdIbkr,
-      brokerId: ibkrBroker.id,
-      tradeDate: new Date(r.tradeDate),
-      side: r.side,
-      instrumentId,
-      quantity: r.quantity,
-      unitPrice: r.unitPrice,
-      currency: r.currency,
-      externalSource: IBKR_CSV_EXTERNAL_SOURCE,
-      externalId: r.externalId,
-      tradeOrderKey: r.tradeOrderKey,
-    };
-  });
-
-  const deleteAllOldIbkr = parseMultipartBooleanField(body, "deleteAllOld");
-  let deletedOldIbkr: number | undefined;
-  let countsIbkr: Awaited<
-    ReturnType<typeof upsertImportTransactionsWithCounts>
-  >;
-  if (deleteAllOldIbkr) {
-    const outIbkr = await db.transaction(async (tx) => {
-      const n = await deleteTransactionsForBrokerImport(
-        tx,
-        ibkrBroker.id,
-        ibkrBroker.userId,
-      );
-      const c = await upsertImportTransactionsWithCounts(tx, values);
-      return { n, c };
-    });
-    deletedOldIbkr = outIbkr.n;
-    countsIbkr = outIbkr.c;
-  } else {
-    countsIbkr = await upsertImportTransactionsWithCounts(db, values);
-  }
-
-  const { processed, changed, unchanged, added, updated } = countsIbkr;
-
-  for (const v of values) {
-    await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
-      instrumentId: v.instrumentId,
-      tradeDate: v.tradeDate,
-      unitPrice: v.unitPrice,
-      currency: v.currency,
-    });
-  }
-
-  return c.json({
-    ok: true,
-    processed,
-    changed,
-    unchanged,
-    added,
-    updated,
-    ...(deletedOldIbkr !== undefined ? { deletedOld: deletedOldIbkr } : {}),
-  });
+  const outcome = await importIbkrCsvText(csvText, body);
+  return c.json(outcome.body, outcome.status);
 }
 
 /** Multipart: `file`, optional `deleteAllOld` (remove all transactions for the import broker before upsert). */

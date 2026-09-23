@@ -16,6 +16,7 @@ import {
 } from "../api/importResponses";
 import type { HomeBroker, PortfolioEntity } from "./home/types";
 import { ImportDegiroSection } from "./import/ImportDegiroSection";
+import { ImportIbkrFlexSection } from "./import/ImportIbkrFlexSection";
 import { ImportIbkrSection } from "./import/ImportIbkrSection";
 import {
   ImportPortfolioPicker,
@@ -670,6 +671,13 @@ export function ImportPage() {
         onSubmitIbkr={onSubmitIbkr}
         deleteAllOld={deleteAllOldIbkr}
         onDeleteAllOldChange={setDeleteAllOldIbkr}
+      />
+
+      <ImportIbkrFlexSection
+        exchangeBrokers={exchangeBrokers}
+        livePortfolios={livePortfolios}
+        defaultBrokerId={ibkrBrokerId}
+        defaultPortfolioId={importPortfolioId}
       />
 
       <ImportSeligsonSection

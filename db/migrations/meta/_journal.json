@@ -372,6 +372,13 @@
       "when": 1776287228455,
       "tag": "0052_stiff_silvermane",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790159109041,
+      "tag": "0053_clammy_omega_sentinel",
+      "breakpoints": true
     }
   ]
 }

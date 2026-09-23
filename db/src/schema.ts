@@ -1,4 +1,5 @@
 import type { DistributionPayload } from "@investments/lib/distributionPayload";
+import type { IbkrFlexSyncError } from "@investments/lib/ibkrFlexSync";
 import { relations, sql } from "drizzle-orm";
 import {
   boolean,
@@ -107,6 +108,35 @@ export const brokers = pgTable(
       sql`${t.brokerType} IN ('exchange', 'seligson', 'cash_account')`,
     ),
   ],
+);
+
+/** IBKR Flex Web Service credentials and import target; the API syncs each row on startup and hourly. */
+export const ibkrFlexSyncs = pgTable(
+  "ibkr_flex_syncs",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    userId: integer("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    brokerId: integer("broker_id")
+      .notNull()
+      .references(() => brokers.id, { onDelete: "cascade" }),
+    portfolioId: integer("portfolio_id")
+      .notNull()
+      .references(() => portfolios.id, { onDelete: "cascade" }),
+    token: text("token").notNull(),
+    queryIds: text("query_ids").array().notNull(),
+    lastRunAt: timestamp("last_run_at", { withTimezone: true }),
+    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
+    lastError: jsonb("last_error").$type<IbkrFlexSyncError>(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("ibkr_flex_syncs_user_uidx").on(t.userId)],
 );
 
 export const seligsonFunds = pgTable(

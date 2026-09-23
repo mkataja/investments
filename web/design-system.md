@@ -23,6 +23,7 @@ Tailwind with **`web/tailwind.config.js`** extending only **`heading-1`–`headi
 | `action-primary` | Primary action styled as link, not button |
 | `action-delete` | Destructive action styled as link, not button |
 | `banner-notice` | Success / info strip |
+| `banner-error` | Full-width error strip under the top nav |
 | `copy-success` | Positive inline message |
 | `field-error` | Validation under a control |
 | `error-alert` | [`ErrorAlert`](src/components/ErrorAlert.tsx) |

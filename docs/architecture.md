@@ -43,6 +43,7 @@ Anything used by both api and web.
 - Auto refresh when cached `fetchedAt` is older than 24h and the instrument has an open position — not every request.
 - API startup may async-refresh stale caches for instruments with open positions (must not block listen).
 - `source = manual` `distributions` rows are not overwritten by auto refresh or `POST /instruments/:id/refresh-distribution` (that route returns `{ skipped: true, reason: "manual" }` with 200).
+- IBKR Flex sync: the API runs each user's saved Flex Queries (`ibkr_flex_syncs`) right after startup and then hourly, and upserts the trades like the IBKR CSV import. The last failure is stored on the row; the web app shows it in a banner on every page.
 
 
 ## Data model
