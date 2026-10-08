@@ -63,6 +63,28 @@ describe("fetchIbkrFlexReport", () => {
     expect(statementUrl.searchParams.get("q")).toBe("1234567890");
   });
 
+  it("waits for the per-minute limit before the 11th request", async () => {
+    const bodies = [
+      SEND_REQUEST_OK,
+      ...Array.from({ length: 10 }, () => IN_PROGRESS),
+      CSV,
+    ];
+    const callTimes: number[] = [];
+    const fetchMock = vi.fn(() => {
+      callTimes.push(Date.now());
+      return Promise.resolve(
+        new Response(bodies[callTimes.length - 1], { status: 200 }),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const csv = await runWithTimers(fetchIbkrFlexReport("tok-limit", "42"));
+    expect(csv).toBe(CSV);
+    expect(fetchMock).toHaveBeenCalledTimes(12);
+    const [first = 0] = callTimes;
+    expect((callTimes[9] ?? 0) - first).toBeLessThan(60_000);
+    expect((callTimes[10] ?? 0) - first).toBeGreaterThanOrEqual(60_000);
+  });
+
   it("fails on a non-retryable SendRequest error", async () => {
     mockFetchResponses([TOKEN_EXPIRED]);
     await expect(

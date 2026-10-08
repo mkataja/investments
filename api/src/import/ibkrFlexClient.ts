@@ -7,9 +7,16 @@ const FLEX_USER_AGENT = "investments-tracker/1.0";
 /** Error codes meaning "report not ready yet" or throttling; the request may be retried. */
 const RETRYABLE_ERROR_CODES = new Set(["1001", "1009", "1018", "1019", "1021"]);
 
-/** Keeps polling under the Flex Web Service limit of 10 requests per minute per token. */
-const STATEMENT_POLL_DELAY_MS = 7_000;
-const STATEMENT_POLL_MAX_ATTEMPTS = 17;
+/** Flex Web Service limits per token: one request per second and 10 requests per minute. */
+const RATE_LIMIT_MIN_GAP_MS = 1_000;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 10;
+
+/** Delays before each GetStatement poll; the last one repeats until the timeout. */
+const STATEMENT_POLL_DELAYS_MS = [1_000, 2_000, 3_000, 5_000];
+const STATEMENT_POLL_TIMEOUT_MS = 120_000;
+
+const requestTimesByToken = new Map<string, number[]>();
 
 type FlexStatusResponse = {
   status: string | null;
@@ -20,6 +27,30 @@ type FlexStatusResponse = {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Waits until a request for `token` fits the rate limits, then records it. */
+async function acquireRequestSlot(token: string): Promise<void> {
+  for (;;) {
+    const now = Date.now();
+    const recent = (requestTimesByToken.get(token) ?? []).filter(
+      (t) => t > now - RATE_LIMIT_WINDOW_MS,
+    );
+    const last = recent.at(-1);
+    const oldest = recent[0];
+    const waitMs = Math.max(
+      last === undefined ? 0 : last + RATE_LIMIT_MIN_GAP_MS - now,
+      oldest !== undefined && recent.length >= RATE_LIMIT_MAX_REQUESTS
+        ? oldest + RATE_LIMIT_WINDOW_MS - now
+        : 0,
+    );
+    if (waitMs <= 0) {
+      requestTimesByToken.set(token, [...recent, now]);
+      return;
+    }
+    requestTimesByToken.set(token, recent);
+    await sleep(waitMs);
+  }
 }
 
 function readXmlTag(xml: string, tag: string): string | null {
@@ -52,6 +83,7 @@ async function flexGet(
   url.searchParams.set("t", token);
   url.searchParams.set("q", q);
   url.searchParams.set("v", "3");
+  await acquireRequestSlot(token);
   const res = await fetch(url, { headers: { "User-Agent": FLEX_USER_AGENT } });
   if (!res.ok) {
     throw new Error(`IBKR Flex ${endpoint} returned HTTP ${res.status}`);
@@ -80,8 +112,11 @@ export async function fetchIbkrFlexReport(
   queryId: string,
 ): Promise<string> {
   const referenceCode = await requestReferenceCode(token, queryId);
-  for (let attempt = 1; attempt <= STATEMENT_POLL_MAX_ATTEMPTS; attempt++) {
-    await sleep(STATEMENT_POLL_DELAY_MS);
+  const deadline = Date.now() + STATEMENT_POLL_TIMEOUT_MS;
+  for (let attempt = 0; Date.now() < deadline; attempt++) {
+    await sleep(
+      STATEMENT_POLL_DELAYS_MS[attempt] ?? STATEMENT_POLL_DELAYS_MS.at(-1) ?? 0,
+    );
     const body = await flexGet("GetStatement", token, referenceCode);
     const res = parseFlexStatusResponse(body);
     if (res === null) {
