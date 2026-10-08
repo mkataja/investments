@@ -7,7 +7,7 @@ import {
   IBKR_CSV_EXTERNAL_SOURCE,
   parseIbkrTransactionsCsv,
 } from "../../import/ibkrTransactions.js";
-import { seedIntradayPriceForInstrumentIfMissing } from "../instrument/transactionPriceSeed.js";
+import { seedIntradayPricesFromTransactionsIfMissing } from "../instrument/transactionPriceSeed.js";
 import { resolvePortfolioIdFromImportBody } from "../portfolio/portfolioAccess.js";
 import {
   deleteTransactionsForBrokerImport,
@@ -162,14 +162,7 @@ export async function importIbkrCsvText(
     counts = await upsertImportTransactionsWithCounts(db, values);
   }
 
-  for (const v of values) {
-    await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
-      instrumentId: v.instrumentId,
-      tradeDate: v.tradeDate,
-      unitPrice: v.unitPrice,
-      currency: v.currency,
-    });
-  }
+  await seedIntradayPricesFromTransactionsIfMissing(db, values);
 
   return {
     status: 200,

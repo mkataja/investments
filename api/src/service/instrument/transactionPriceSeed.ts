@@ -1,5 +1,5 @@
 import { instruments, prices } from "@investments/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { DbOrTx } from "../../db.js";
 import { calendarDateUtcFromInstant } from "../../lib/calendarDateUtc.js";
 import { processFxBackfillQueue } from "../fx/fxEurPriceBackfill.js";
@@ -46,19 +46,26 @@ async function seedIntradayPriceFromTransactionIfMissing(
   });
 }
 
-export async function seedIntradayPriceForInstrumentIfMissing(
+/** Seeds missing `intraday` prices from the transactions, then drains the FX queue once. */
+export async function seedIntradayPricesFromTransactionsIfMissing(
   d: DbOrTx,
-  instrumentId: number,
-  txn: TxnRow,
+  txns: TxnRow[],
 ): Promise<void> {
-  const [inst] = await d
-    .select({ kind: instruments.kind })
-    .from(instruments)
-    .where(eq(instruments.id, instrumentId))
-    .limit(1);
-  if (!inst) {
+  if (txns.length === 0) {
     return;
   }
-  await seedIntradayPriceFromTransactionIfMissing(d, txn, inst.kind);
+  const instRows = await d
+    .select({ id: instruments.id, kind: instruments.kind })
+    .from(instruments)
+    .where(
+      inArray(instruments.id, [...new Set(txns.map((t) => t.instrumentId))]),
+    );
+  const kindById = new Map(instRows.map((r) => [r.id, r.kind]));
+  for (const txn of txns) {
+    const kind = kindById.get(txn.instrumentId);
+    if (kind !== undefined) {
+      await seedIntradayPriceFromTransactionIfMissing(d, txn, kind);
+    }
+  }
   await processFxBackfillQueue();
 }

@@ -14,7 +14,7 @@ import { z } from "zod";
 import { db } from "../../db.js";
 import { validJson } from "../../lib/honoValidJson.js";
 import { normalizeTradeDateInputToDate } from "../../lib/normalizeTradeDate.js";
-import { seedIntradayPriceForInstrumentIfMissing } from "../instrument/transactionPriceSeed.js";
+import { seedIntradayPricesFromTransactionsIfMissing } from "../instrument/transactionPriceSeed.js";
 import { loadBacktestVirtualTransactions } from "../portfolio/backtestPortfolio.js";
 import { loadPortfolioOwnedByUser } from "../portfolio/portfolioAccess.js";
 
@@ -160,12 +160,7 @@ export async function postTransaction(c: Context) {
     })
     .returning();
   if (row) {
-    await seedIntradayPriceForInstrumentIfMissing(db, row.instrumentId, {
-      instrumentId: row.instrumentId,
-      tradeDate: row.tradeDate,
-      unitPrice: row.unitPrice,
-      currency: row.currency,
-    });
+    await seedIntradayPricesFromTransactionsIfMissing(db, [row]);
   }
   return c.json(row, 201);
 }
@@ -255,12 +250,7 @@ export async function patchTransaction(c: Context) {
     .where(eq(transactions.id, id))
     .returning();
   if (row) {
-    await seedIntradayPriceForInstrumentIfMissing(db, row.instrumentId, {
-      instrumentId: row.instrumentId,
-      tradeDate: row.tradeDate,
-      unitPrice: row.unitPrice,
-      currency: row.currency,
-    });
+    await seedIntradayPricesFromTransactionsIfMissing(db, [row]);
   }
   return c.json(row);
 }

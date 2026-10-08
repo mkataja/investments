@@ -20,7 +20,7 @@ import {
   SVEA_PASTE_EXTERNAL_SOURCE,
   parseSveaBankPaste,
 } from "../../import/sveaTransactions.js";
-import { seedIntradayPriceForInstrumentIfMissing } from "../instrument/transactionPriceSeed.js";
+import { seedIntradayPricesFromTransactionsIfMissing } from "../instrument/transactionPriceSeed.js";
 import { resolvePortfolioIdFromImportBody } from "../portfolio/portfolioAccess.js";
 import { insertEtfStockFromYahoo } from "../yahoo/createYahooInstrument.js";
 import { formatYahooUpstreamError } from "../yahoo/yahooUpstream.js";
@@ -247,14 +247,7 @@ export async function postImportDegiro(c: Context) {
 
   const { processed, changed, unchanged, added, updated } = counts;
 
-  for (const v of values) {
-    await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
-      instrumentId: v.instrumentId,
-      tradeDate: v.tradeDate,
-      unitPrice: v.unitPrice,
-      currency: v.currency,
-    });
-  }
+  await seedIntradayPricesFromTransactionsIfMissing(db, values);
 
   return c.json({
     ok: true,
@@ -479,14 +472,7 @@ export async function postImportSeligson(c: Context) {
 
   const { processed, changed, unchanged, added, updated } = countsSg;
 
-  for (const v of values) {
-    await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
-      instrumentId: v.instrumentId,
-      tradeDate: v.tradeDate,
-      unitPrice: v.unitPrice,
-      currency: v.currency,
-    });
-  }
+  await seedIntradayPricesFromTransactionsIfMissing(db, values);
 
   return c.json({
     ok: true,
@@ -674,14 +660,7 @@ export async function postImportSvea(c: Context) {
 
   const { processed, changed, unchanged, added, updated } = countsSv;
 
-  for (const v of values) {
-    await seedIntradayPriceForInstrumentIfMissing(db, v.instrumentId, {
-      instrumentId: v.instrumentId,
-      tradeDate: v.tradeDate,
-      unitPrice: v.unitPrice,
-      currency: v.currency,
-    });
-  }
+  await seedIntradayPricesFromTransactionsIfMissing(db, values);
 
   return c.json({
     ok: true,
